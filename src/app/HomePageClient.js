@@ -28,15 +28,14 @@ export default function HomePageClient() {
       });
   }, [customerId]);
 
-  if (!customerId) return <p>No se proporcionó Customer ID</p>;
-  if (loading) return <p>Cargando datos del cliente...</p>;
+  if (!customerId) return null;
+  if (loading) return <p>Cargando...</p>;
   if (error) return <p>{error}</p>;
 
   return (
-    <div className="flex flex-col gap-4">
-      <p><strong>NOMBRE:</strong> {customer?.first_name}</p>
-      <p><strong>APELLIDO:</strong> {customer?.last_name}</p>
-      <p><strong>EMAIL:</strong> {customer?.email}</p>
+    <div className="flex flex-col text-right text-white text-sm">
+      <p>{customer?.first_name} {customer?.last_name}</p>
+      <p className="text-xs">{customer?.email}</p>
     </div>
   );
 }
