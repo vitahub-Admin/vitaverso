@@ -2,14 +2,14 @@ import { Suspense } from "react";
 import HomeCharts from "./HomeCharts";
 import HomePageClient from "./HomePageClient";
 
-export default function LookerEmbed() {
+export default function LookerEmbed({ src }) {
   return (
     <div className="relative w-full" style={{ paddingTop: "56.25%" }}>
     <iframe
-      src="https://lookerstudio.google.com/embed/reporting/0076c8f5-2d48-4e45-b9a2-a84c889a706d/page/D2cuE"
+      src={src}
       frameBorder="0"
-      className="absolute top-0 left-0 w-full h-full"
-
+      className="absolute top-0 left-0 w-full h-full "
+      style={{"marginLeft": "-58px"}}
       sandbox="allow-storage-access-by-user-activation allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
     />
   </div>
