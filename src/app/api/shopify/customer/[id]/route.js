@@ -3,12 +3,20 @@ import { NextResponse } from "next/server";
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE; // ej: myshop.myshopify.com
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-export async function GET(req, { params }) {
-  const { id } = params;
-
+export async function GET(req) {
   try {
+    // Leer customerId desde cookie
+    const customerId = req.cookies.get("customerId")?.value;
+
+    if (!customerId) {
+      return new Response(
+        JSON.stringify({ success: false, message: "No hay customerId en cookies" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
+
     const response = await fetch(
-      `https://${SHOPIFY_STORE}/admin/api/2024-07/customers/${id}.json`,
+      `https://${SHOPIFY_STORE}/admin/api/2024-07/customers/${customerId}.json`,
       {
         method: "GET",
         headers: {

@@ -4,10 +4,20 @@ import Header from "./Header";
 import Link from "next/link";
 
 
+import Cookies from "js-cookie";
+import SetCustomerId from "./components/SetCustomerId";
+
 export default function RootLayout({ children }) {
+
+  const whatsappNumber = "5215534532104";
+  const whatsappMessage = encodeURIComponent(
+    "Estoy en el programa de afiliados y tengo una duda"
+  );
+  const whatsappLink = `https://wa.me/${whatsappNumber}?text=${whatsappMessage}`;
   return (
     <html lang="en">
       <body className="h-screen flex flex-col">
+        <SetCustomerId/>
         {/* Header */}
      <Header/>
 
@@ -22,18 +32,26 @@ export default function RootLayout({ children }) {
               <Link href="/ordenes" className="px-3 py-2 rounded hover:bg-[#122d57]">
                 Órdenes
               </Link>
-              <Link href="/seguimiento" className="px-3 py-2 rounded hover:bg-[#122d57]">
-                Seguimiento
+              <Link href="/mis-carritos" className="px-3 py-2 rounded hover:bg-[#122d57]">
+                Mis Carritos
+              </Link>
+              <Link href="/mi-tienda" className="px-3 py-2 rounded hover:bg-[#122d57]">
+                Mi Tienda
+              </Link>
+              <Link href="/manual" className="px-3 py-2 rounded hover:bg-[#122d57]">
+                Manual
               </Link>
               <Link href="/academia-vitahub" className="px-3 py-2 rounded hover:bg-[#122d57]">
                 Academia Vitahub
               </Link>
-              <Link href="/config" className="px-3 py-2 rounded hover:bg-[#122d57]">
-                Ayuda
-              </Link>
-              <Link href="/config" className="px-3 py-2 rounded hover:bg-[#122d57]">
-                Configuraciones
-              </Link>
+              <Link
+        href={whatsappLink}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="px-3 py-2 rounded bg-[#228f34] hover:bg-[#12571d]"
+      >
+              Ayuda
+      </Link>
             </nav>
           </aside>
 

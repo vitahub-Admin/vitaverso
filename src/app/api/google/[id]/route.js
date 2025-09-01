@@ -1,10 +1,18 @@
 import { NextResponse } from 'next/server';
 import { BigQuery } from '@google-cloud/bigquery';
 
-export async function GET(req, { params }) {
+export async function GET(req) {
+  
   try {
-    const { id } = params; // acá podrías usar el id para elegir query dinámica
-    const numericId = Number(id); // convierte de string a número
+    // Leer customerId desde cookie
+    const customerId = req.cookies.get("customerId")?.value;
+
+    if (!customerId) {
+      return new Response(
+        JSON.stringify({ success: false, message: "No hay customerId en cookies" }),
+        { status: 400, headers: { "Content-Type": "application/json" } }
+      );
+    }
 
     const bigquery = new BigQuery({
       projectId: process.env.GOOGLE_PROJECT_ID,
@@ -17,7 +25,7 @@ export async function GET(req, { params }) {
     // Ejemplo de query: trae datos de una tabla
     const query = `SELECT order_number 
     FROM \`vitahub-435120.Shopify.orders\` 
-    WHERE referrer_id = ${id}`;
+    WHERE referrer_id = ${customerId}`;
 
     // Pasar parámetros de manera segura
     const options = {

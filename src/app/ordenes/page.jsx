@@ -1,5 +1,7 @@
 
 import LookerEmbed from "../LookerEmbed";
+import Banner from "../components/Banner"
+
 
 export default function Page() {
 
@@ -7,6 +9,7 @@ export default function Page() {
 
   return (
     <div className="">
+      <Banner/>
       <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
   
         <LookerEmbed src={src}/>
