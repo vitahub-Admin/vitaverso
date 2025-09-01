@@ -3,6 +3,7 @@ import "./globals.css";
 import Header from "./Header";
 import Link from "next/link";
 import SetCustomerId from "./components/SetCustomerId";
+import { Suspense } from "react";
 
 export default function RootLayout({ children }) {
 
@@ -14,7 +15,10 @@ export default function RootLayout({ children }) {
   return (
     <html lang="en">
       <body className="h-screen flex flex-col">
-        <SetCustomerId/>
+      <Suspense fallback={<div>Loading...</div>}>
+      <SetCustomerId/>
+      </Suspense>
+ 
         {/* Header */}
      <Header/>
 
