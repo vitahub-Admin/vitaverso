@@ -1,3 +1,4 @@
+"use client"
 // components/Header.jsx
 import { Suspense } from "react";
 import HomePageClient from "./HomePageClient";

@@ -2,9 +2,6 @@
 import "./globals.css";
 import Header from "./Header";
 import Link from "next/link";
-
-
-import Cookies from "js-cookie";
 import SetCustomerId from "./components/SetCustomerId";
 
 export default function RootLayout({ children }) {
