@@ -1,3 +1,5 @@
+"use client";
+  
   import { Suspense } from "react";
   import HomeCharts from "./HomeCharts";
   import HomePageClient from "./HomePageClient";

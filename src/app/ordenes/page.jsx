@@ -1,3 +1,4 @@
+"use client";
 
 import LookerEmbed from "../LookerEmbed";
 import Banner from "../components/Banner"
