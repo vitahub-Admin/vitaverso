@@ -4,3 +4,10 @@
 .font-lato {
   font-family: 'Lato', sans-serif;
 }
+
+.imagen-mitienda{
+
+  width: 200px;
+  max-width: 200px;
+  max-height: 200px;
+}
