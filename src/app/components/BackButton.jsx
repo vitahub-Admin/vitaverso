@@ -16,7 +16,7 @@ export default function BackButton() {
         <FaArrowLeft className="" />
       </span>
       <span className="leading-tight">
-        Volver <br /> a la tienda
+        Volver <br /> a Vitahub.mx
       </span>
     </button>
   );

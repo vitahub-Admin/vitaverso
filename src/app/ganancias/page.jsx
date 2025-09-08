@@ -43,20 +43,29 @@ export default function OrdenesPage() {
 
   // Cargar datos al inicio
   useEffect(() => {
+    const today = new Date();
+    const priorDate = new Date();
+    priorDate.setDate(today.getDate() - 30);
+  
+    const start = priorDate.toISOString().split("T")[0];
+    const end = today.toISOString().split("T")[0];
+  
+    setStartDate(start);
+    setEndDate(end);
+  
     const customerId = Cookies.get("customerId");
     if (!customerId) {
       setError("No hay customerId disponible");
       return;
     }
-    fetchData(customerId, startDate, endDate);
-  }, [startDate, endDate]);
+    fetchData(customerId, start, end);
+  }, []); // 👈 solo una vez al montar
 
   const handleFilter = () => {
     const customerId = Cookies.get("customerId");
+ 
     if (!customerId) return;
-    if (startDate && endDate) {
-      fetchData(customerId, startDate, endDate);
-    }
+  fetchData(customerId, startDate, endDate);
   };
 
   // Totales para cards
@@ -82,7 +91,7 @@ export default function OrdenesPage() {
 <div className="w-full  bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
   {/* Título */}
   <h1 className="text-3xl md:text-4xl text-white font-lato">
-    Órdenes
+    Ganancias
   </h1>
 
   {/* Filtros */}
