@@ -5,20 +5,9 @@
   import HomePageClient from "./HomePageClient";
   import LookerEmbed from "./LookerEmbed";
   import Banner from "./components/Banner"
+  import { redirect } from "next/navigation";
 
 
   export default function Page() {
-
-    const src="https://lookerstudio.google.com/embed/reporting/0076c8f5-2d48-4e45-b9a2-a84c889a706d/page/D2cuE"
-    return (
-      <div className="">
-        <Banner/>
-        <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-    
-          <LookerEmbed src={src}/>
-        </main>
-
-    
-      </div>
-    );
+      redirect("/ganancias"); // Cambiá la ruta destino aquí
   }
