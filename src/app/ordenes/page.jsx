@@ -40,22 +40,30 @@ export default function OrdenesPage() {
       .catch((err) => setError(err.message));
   };
 
-  // Cargar datos al inicio
   useEffect(() => {
+    const today = new Date();
+    const priorDate = new Date();
+    priorDate.setDate(today.getDate() - 30);
+  
+    const start = priorDate.toISOString().split("T")[0];
+    const end = today.toISOString().split("T")[0];
+  
+    setStartDate(start);
+    setEndDate(end);
+  
     const customerId = Cookies.get("customerId");
     if (!customerId) {
       setError("No hay customerId disponible");
       return;
     }
-    fetchData(customerId, startDate, endDate);
-  }, [startDate, endDate]);
+    fetchData(customerId, start, end);
+  }, []); // 👈 solo una vez al montar
 
   const handleFilter = () => {
     const customerId = Cookies.get("customerId");
+ 
     if (!customerId) return;
-    if (startDate && endDate) {
-      fetchData(customerId, startDate, endDate);
-    }
+  fetchData(customerId, startDate, endDate);
   };
 
   // Totales para cards
@@ -100,8 +108,9 @@ export default function OrdenesPage() {
     />
     <button
       onClick={handleFilter}
-      className="px-4 py-2 bg-white text-[#1b3f7a] rounded"
-    >
+      className="px-4 py-2 bg-white text-[#1b3f7a] rounded border border-gray-200 
+      hover:bg-[#f0f0f0] active:bg-[#d6d6d6] transition-colors"
+ >
       Filtrar
     </button>
   </div>

@@ -109,7 +109,9 @@ export default function CarritosPage() {
     />
     <button
       onClick={handleFilter}
-      className="px-4 py-2 bg-white text-[#1b3f7a] rounded"
+      className="px-4 py-2 bg-white text-[#1b3f7a] rounded border border-gray-200 
+      hover:bg-[#f0f0f0] active:bg-[#d6d6d6] transition-colors"
+ 
     >
       Filtrar
     </button>
