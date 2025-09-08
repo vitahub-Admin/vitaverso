@@ -2,7 +2,8 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Cookies from "js-cookie";
-import Sheet from "./components/Sheet";
+import Chart1 from "./components/Chart1";
+import Chart2 from "./components/Chart2";
 import Banner from "../components/Banner"
 
 export default function OrdenesPage() {
@@ -75,7 +76,8 @@ export default function OrdenesPage() {
 
   return (
     <div className="flex flex-col items-center gap-6 p-4">
-      <Banner/>
+
+<Banner/>
     {/* Header de sección con filtros */}
 <div className="w-full  bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
   {/* Título */}
@@ -106,8 +108,9 @@ export default function OrdenesPage() {
     </button>
   </div>
 </div>
-  {/* Cards de resumen */}
-  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 w-full max-w-6xl">
+
+    {/* Cards de resumen */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 w-full max-w-6xl">
   {/* Card Ganancias */}
   <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-4">
     <img src="/ganancias.png" alt="Ganancias" className="w-12 h-12 md:w-24 md:h-24 object-contain" />
@@ -140,15 +143,18 @@ export default function OrdenesPage() {
       </p>
     </div>
   </div>
-  </div>
-    
+</div>
+      {/* Charts */}
    {/* Charts */}
 {ordenesData.length > 0 && (
- 
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-6xl">
     <div className="bg-white shadow-md rounded p-4">
-      <Sheet data={ordenesData} />
+      <Chart1 data={ordenesData} />
     </div>
-
+    <div className="bg-white shadow-md rounded p-4">
+      <Chart2 data={ordenesData} />
+    </div>
+  </div>
 )}
 
     </div>
