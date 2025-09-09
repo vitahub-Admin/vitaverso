@@ -5,6 +5,7 @@ import SetCustomerId from "./components/SetCustomerId";
 import { Suspense } from "react";
 import Sidebar from "./components/Sidebar";
 import Cookies from "js-cookie";
+import { useEffect } from "react";
 
 export default function RootLayout({ children }) {
 
