@@ -33,7 +33,7 @@ export default function HomePageClient() {
   if (error) return <p>{error}</p>;
 
   return (
-    <div className="flex flex-col text-right text-white text-sm">
+    <div className="flex flex-col text-right text-[#1b3f7a] text-sm">
       <p>{customer?.first_name} {customer?.last_name}</p>
       <p className="text-xs">{customer?.email}</p>
     </div>
