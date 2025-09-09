@@ -68,19 +68,27 @@ export default function OrdenesPage() {
   fetchData(customerId, startDate, endDate);
   };
 
-  // Totales para cards
   const totals = useMemo(() => {
     let ganancia = 0;
     let items = 0;
-    let carritos = 0;
-
+    const uniqueOrders = new Set();
+  
     ordenesData.forEach((item) => {
+      // ganancia total (precio * comisión * cantidad)
       ganancia += item.line_items_price * item.comission * item.line_items_quantity;
+  
+      // items vendidos
       items += item.line_items_quantity;
-      carritos += 1;
+  
+      // guardamos el número de orden en el set
+      uniqueOrders.add(item.order_number);
     });
-
-    return { ganancia, items, carritos };
+  
+    return {
+      ganancia,
+      items,
+      carritos: uniqueOrders.size, // cantidad de órdenes únicas
+    };
   }, [ordenesData]);
 
   return (

@@ -1,6 +1,9 @@
 "use client";
 
 import { useMemo } from "react";
+import Cookies from "js-cookie";
+import { FaShareAlt } from "react-icons/fa";
+
 
 export default function Sheet({ data }) {
   // Procesar datos
@@ -18,6 +21,13 @@ export default function Sheet({ data }) {
     }));
   }, [data]);
 
+  function getWhatsAppLink(code) {
+    const cartUrl = `https://vitahub.mx/cart/?ml-shared-cart-id=${code}&sref=${customerId}`;
+    const message = encodeURIComponent(`Te comparto mi carrito: ${cartUrl}`);
+    return `https://wa.me/?text=${message}`;
+  }
+
+  const customerId = Cookies.get("customerId");
   return (
     <div className="w-full max-w-6xl mx-auto flex flex-col gap-8">
       <h2 className="text-xl font-bold text-center text-[#1b3f7a]">
@@ -35,6 +45,7 @@ export default function Sheet({ data }) {
               <th className="py-2 px-4 border-r border-gray-200"># Items</th>
               <th className="py-2 px-4 border-r border-gray-200">Valor</th>
               <th className="py-2 px-4"># Aperturas</th>
+              <th className="py-2 px-4">Compartir</th>
             </tr>
           </thead>
           <tbody>
@@ -63,6 +74,14 @@ export default function Sheet({ data }) {
                     ${row.itemsValue?.toFixed?.(2) ?? "-"}
                   </td>
                   <td className="py-2 px-4">{row.opensCount}</td>
+                  <td className="py-1 px-4">  <button
+    key={row.code}
+    onClick={() => window.open(getWhatsAppLink(row.code), "_blank")}
+    className="flex items-center m-0 px-4 py-1 rounded-2xl bg-teal-500 text-white font-medium shadow-md transition-colors hover:bg-teal-600"
+  >
+    <FaShareAlt className="text-lg" />
+    Compartir
+  </button></td>
                 </tr>
               ))
             ) : (

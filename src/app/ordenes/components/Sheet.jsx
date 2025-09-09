@@ -28,24 +28,27 @@ export default function OrdersTable({ data }) {
       {
         header: "GMV",
         accessorFn: (row) =>
-          row.line_items_price * row.line_items_quantity,
-        cell: (info) => `$${info.getValue().toFixed(2)}`,
+          (row.line_items_price ?? 0) * (row.line_items_quantity ?? 0),
+        cell: (info) => {
+          const value = info.getValue();
+          return value != null ? `$${value.toFixed(2)}` : "$0.00";
+        },
       },
       {
         header: "Descuento",
         accessorKey: "discount_allocations_amount",
-        cell: (info) => `$${info.getValue().toFixed(2)}`,
+        cell: (info) => {
+          const value = info.getValue();
+          return value != null ? `$${value.toFixed(2)}` : "$0.00";
+        },
       },
       {
         header: "% Comisión",
-        accessorFn: (row) => row.comission * 100,
-        cell: (info) => `${info.getValue().toFixed(0)}%`,
-      },
-      {
-        header: "Comisión a pagar",
-        accessorFn: (row) =>
-          row.line_items_price * row.line_items_quantity * row.comission,
-        cell: (info) => `$${info.getValue().toFixed(2)}`, // ✅ dos decimales
+        accessorFn: (row) => (row.comission ?? 0) * 100,
+        cell: (info) => {
+          const value = info.getValue();
+          return value != null ? `${value.toFixed(0)}%` : "0%";
+        },
       },
     ],
     []

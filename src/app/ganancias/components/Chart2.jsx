@@ -11,6 +11,58 @@ import {
   Tooltip,
 } from "recharts";
 
+// helper para truncar texto en máximo 2 líneas
+function truncateText(text, maxCharsPerLine = 15, maxLines = 2) {
+  if (text == null) return "";
+  text = String(text); // <<-- coerción a string
+  const words = text.split(/\s+/);
+
+  let lines = [];
+  let currentLine = "";
+
+  for (let word of words) {
+    if ((currentLine + " " + word).trim().length <= maxCharsPerLine) {
+      currentLine = (currentLine + " " + word).trim();
+    } else {
+      lines.push(currentLine);
+      currentLine = word;
+    }
+    if (lines.length === maxLines) break;
+  }
+
+  if (currentLine && lines.length < maxLines) {
+    lines.push(currentLine);
+  }
+
+  // si todavía quedan palabras sin mostrar, agregamos "..."
+  if (words.join(" ").length > lines.join(" ").length) {
+    lines[lines.length - 1] += "...";
+  }
+
+  return lines.join("\n");
+}
+
+// custom tick renderer
+const CustomTick = ({ x, y, payload }) => {
+  const truncated = truncateText(payload.value, 15, 2);
+  return (
+    <text
+      x={x}
+      y={y}
+      dy={4}
+      textAnchor="end"
+      fill="#333"
+      fontSize={12}
+    >
+      {truncated.split("\n").map((line, index) => (
+        <tspan key={index} x={x} dy={index === 0 ? 0 : 14}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
+};
+
 export default function Chart2({ data }) {
   const topProducts = useMemo(() => {
     const map = {};
@@ -42,6 +94,7 @@ export default function Chart2({ data }) {
             type="category"
             dataKey="name"
             width={250} // ancho extra para nombres largos
+            tick={<CustomTick />}
           />
           <Tooltip formatter={(value) => `${value} vendidos`} />
           <Bar dataKey="quantity" fill="#1b3f7a" />
