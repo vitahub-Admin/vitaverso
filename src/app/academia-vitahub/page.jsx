@@ -13,7 +13,7 @@ export default function AcademiaVitahubPage() {
 
 
     {/* Título principal */}
-    {/* <h1 className="text-3xl md:text-4xl text-center text-[#1b3f7a] mb-12 font-lato">
+     <h1 className="text-3xl md:text-4xl text-center text-[#1b3f7a] mb-12 font-lato">
     Todo lo que necesitas saber para generar ingresos en Vitahub
   </h1>
 
@@ -24,7 +24,7 @@ export default function AcademiaVitahubPage() {
   </h2>
     <div className="aspect-w-16 aspect-h-9">
       <iframe 
-        src="https://www.youtube.com/embed/7dauAom7pkE" 
+        src="https://www.youtube.com/embed/3G90B0J00Uw"
         title="Cómo registrarme y tener cuenta de Afiliado en Vitahub"
         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
         allowFullScreen
@@ -46,7 +46,7 @@ export default function AcademiaVitahubPage() {
   </p>
 </div>
 
-  </section> */}
+  </section> 
 </main>
   );
 }
