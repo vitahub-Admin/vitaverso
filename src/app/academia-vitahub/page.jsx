@@ -8,10 +8,6 @@ export default function AcademiaVitahubPage() {
         <h1 className="text-3xl md:text-4xl text-white font-lato">Academia Vitahub</h1>
       </div>
 
-<p>En construcción</p>
-
-
-
     {/* Título principal */}
      <h1 className="text-3xl md:text-4xl text-center text-[#1b3f7a] mb-12 font-lato">
     Todo lo que necesitas saber para generar ingresos en Vitahub
