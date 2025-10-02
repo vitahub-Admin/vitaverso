@@ -45,7 +45,8 @@ export default function Sidebar() {
     checkNovedades();
   }, [pathname]); // 🔑 Dependemos de la ruta para resetear el badge
 
-  const whatsappNumber = "5215534532104";
+  const whatsappNumber1 = "5215534532104";
+  const whatsappNumber = "5215548592403"; 
   const whatsappMessage = encodeURIComponent(
     "Estoy en el programa de afiliados y tengo una duda"
   );
