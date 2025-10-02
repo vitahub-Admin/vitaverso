@@ -28,7 +28,7 @@ export async function GET(req) {
       },
     });
 
-    // Base query
+    // Base query vitahub-435120.silver.orders
     let query = `
       SELECT  
         EXTRACT(DATE FROM sh.created_at) AS created_at,
@@ -44,7 +44,7 @@ export async function GET(req) {
         END AS status  
       FROM vitahub-435120.sharecart.carritos sh
       LEFT JOIN vitahub-435120.Shopify.customers c ON c.id = sh.customer_id
-      LEFT JOIN vitahub-435120.Shopify.orders o ON sh.code = o.share_cart
+      LEFT JOIN vitahub-435120.silver.orders o ON sh.code = o.share_cart
       WHERE sh.customer_id = @customerId
       QUALIFY ROW_NUMBER() OVER (
         PARTITION BY code 

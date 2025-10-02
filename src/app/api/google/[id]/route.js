@@ -28,13 +28,13 @@ export async function GET(req) {
       },
     });
 
-    // Base query
+    // Base query   vitahub-435120.silver.orders
     let query = `
       WITH ORDEN_PRODUCTO AS (
         SELECT 
           o.*,
           p.variant_id
-        FROM \`vitahub-435120.Shopify.orders\` o
+        FROM \`vitahub-435120.silver.orders\` o
         LEFT JOIN \`vitahub-435120.Shopify.products\` p 
           ON o.line_items_sku = p.variant_sku 
           AND o.line_items_product_id = p.id
