@@ -49,7 +49,7 @@ export default function MiTiendaPage() {
   if (!collection) return <p>Cargando colección...</p>;
 
   const customerId = Cookies.get("customerId");
-  const shopifyLink = `https://vitahub.mx/collections/${collection.handle}`;
+  const shopifyLink = `https://vitahub.mx/collections/${collection.handle}?sref=${customerId}`;
   const whatsappLink = `https://wa.me/?text=${encodeURIComponent(
     `Mira esta colección: ${collection.title} ${shopifyLink}`
   )}`;
@@ -320,7 +320,7 @@ export default function MiTiendaPage() {
 
       <div className="flex flex-wrap justify-center gap-4 w-full mt-2">
         {products.map((p) => {
-          const productLink = `https://vitahub.mx/products/${p.handle}`;
+          const productLink = `https://vitahub.mx/products/${p.handle}?sref=${customerId}`;
           const imageUrl = p.images?.edges?.[0]?.node?.src;
           const price = p.variants?.edges?.[0]?.node?.price;
 
