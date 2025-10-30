@@ -9,10 +9,14 @@ import Sidebar from "./components/Sidebar";
 import Cookies from "js-cookie";
 import { useEffect } from "react";
 import Script from "next/script";
+import { clarity } from "react-microsoft-clarity";
+import Head from "next/head";
 
 export default function RootLayout({ children }) {
 
-
+  useEffect(()=>{
+    clarity.init("tydr53wsez")
+  })
 
   useEffect(() => {
     const urlParams = new URLSearchParams(window.location.search);
