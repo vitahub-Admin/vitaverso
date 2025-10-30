@@ -8,6 +8,7 @@ import { Suspense } from "react";
 import Sidebar from "./components/Sidebar";
 import Cookies from "js-cookie";
 import { useEffect } from "react";
+import Script from "next/script";
 
 export default function RootLayout({ children }) {
 
@@ -27,6 +28,11 @@ export default function RootLayout({ children }) {
     
     <html lang="en">
       <body className="h-screen flex flex-col bg-white">
+              {/* Contentsquare Script heatmap */}
+              <Script
+          src="https://t.contentsquare.net/uxa/bc20e7d4875d3.js"
+          strategy="afterInteractive"
+        />
         <Suspense fallback={<div>Loading...</div>}>
           <SetCustomerId />
         </Suspense>
