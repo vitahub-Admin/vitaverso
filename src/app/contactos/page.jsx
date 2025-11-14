@@ -92,9 +92,6 @@ export default function ContactsPage() {
         <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
           Mis Contactos
         </h1>
-        <p className="text-white text-center mt-2 opacity-90">
-          Todos mis clientes y sus carritos compartidos
-        </p>
       </div>
 
       {error && (
