@@ -12,6 +12,7 @@ import {
   GraduationCap,
   HelpCircle,
   Newspaper,
+  Contact
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -56,6 +57,7 @@ export default function Sidebar() {
     { href: "/ganancias", label: "Ganancias", icon: <DollarSign size={20} /> },
     { href: "/ordenes", label: "Órdenes", icon: <ShoppingBag size={20} /> },
     { href: "/mis-carritos", label: "Mis Carritos", icon: <ShoppingCart size={20} /> },
+    { href: "/contactos", label: "Mis Contactos", icon: <Contact  size={20} /> },
     { href: "/mi-tienda", label: "Mi Tienda", icon: <Store size={20} /> },
     { href: "/manual", label: "Manual", icon: <BookOpen size={20} /> },
     { href: "/academia-vitahub", label: "Academia Vitahub", icon: <GraduationCap size={20} /> },

@@ -1,0 +1,113 @@
+// app/api/google/client-details/[id]/route.js
+import { NextResponse } from 'next/server';
+import { BigQuery } from '@google-cloud/bigquery';
+
+export async function GET(req, { params }) {
+  try {
+    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const email = searchParams.get("email");
+
+    console.log('🔍 Client Details API called:');
+    console.log('Specialist ID:', id);
+    console.log('Customer Email:', email);
+
+    if (!id || !email) {
+      return NextResponse.json(
+        { success: false, message: "Faltan parámetros requeridos" },
+        { status: 400 }
+      );
+    }
+
+    const numericCustomerId = parseInt(id);
+
+    const bigquery = new BigQuery({
+      projectId: process.env.GOOGLE_PROJECT_ID,
+      credentials: {
+        client_email: process.env.GOOGLE_CLIENT_EMAIL,
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
+      },
+    });
+
+    const query = `
+      WITH ORDEN_PRODUCTO AS (
+        SELECT 
+          o.*,
+          p.variant_id,
+          p.handle,
+          p.duration,
+          p.inventory_quantity  -- ✅ AGREGAR inventory_quantity
+        FROM \`vitahub-435120.silver.orders\` o
+        LEFT JOIN \`vitahub-435120.silver.product\` p 
+          ON o.line_items_sku = p.variant_sku 
+          AND o.line_items_product_id = p.id
+      ),
+      ORDEN_PRODUCTO_COMISION AS (
+        SELECT 
+          ORDEN_PRODUCTO.*,
+          pc.comission
+        FROM ORDEN_PRODUCTO
+        LEFT JOIN \`vitahub-435120.Shopify.product_comission\` pc 
+          ON pc.variant_id = ORDEN_PRODUCTO.variant_id
+      )
+      SELECT 
+        order_number,
+        share_cart,
+        financial_status,
+        created_at,
+        updated_at,
+        line_items_name,
+        line_items_quantity,
+        line_items_price,
+        COALESCE(comission, 0) as comission,
+        -- Calcular ganancia por producto
+        line_items_price * COALESCE(comission, 0) * line_items_quantity as ganancia_producto,
+        duration,
+        handle,
+        inventory_quantity  -- ✅ INCLUIR en el SELECT final
+      FROM ORDEN_PRODUCTO_COMISION
+      WHERE COALESCE(specialist_ref, referrer_id) = @specialistId
+        AND customer_email = @customerEmail
+        AND customer_email IS NOT NULL
+        AND LOWER(line_items_name) NOT LIKE '%tip%'
+      ORDER BY order_number DESC, created_at DESC
+    `;
+
+    const options = {
+      query,
+      location: 'us-east1',
+      params: { 
+        specialistId: numericCustomerId,
+        customerEmail: email 
+      },
+    };
+
+    console.log('🔍 Executing client details query...');
+    const [rows] = await bigquery.query(options);
+    
+    console.log('✅ Client details query success, rows:', rows.length);
+    if (rows.length > 0) {
+      console.log('Sample row with inventory:', {
+        product: rows[0].line_items_name,
+        inventory: rows[0].inventory_quantity,
+        sku: rows[0].line_items_sku
+      });
+    }
+
+    return NextResponse.json({ 
+      success: true, 
+      data: rows,
+      message: `Encontradas ${rows.length} órdenes`
+    });
+    
+  } catch (error) {
+    console.error('❌ Error en BigQuery Client Details:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error.message
+      }, 
+      { status: 500 }
+    );
+  }
+}
