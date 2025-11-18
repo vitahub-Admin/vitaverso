@@ -1,54 +1,121 @@
-// app/layout.jsx
+// app/layout.jsx - VERSIÓN SIMPLIFICADA
 "use client";
 
 import "./globals.css";
 import Header from "./components/Header";
-import SetCustomerId from "./components/SetCustomerId";
 import { Suspense, useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import Script from "next/script";
 import Cookies from "js-cookie";
-import { usePathname } from "next/navigation";
+import { useSearchParams, usePathname } from "next/navigation";
 
-export default function RootLayout({ children }) {
-  const [showAuthModal, setShowAuthModal] = useState(false);
+function AuthManager({ children }) {
+  const searchParams = useSearchParams();
   const pathname = usePathname();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    // Solo inicializar clarity en el cliente
-    import("react-microsoft-clarity").then(({ clarity }) => {
-      clarity.init("tydr53wsez");
+    const customerIdFromParams = searchParams.get("customerId");
+    const customerIdFromCookie = Cookies.get("customerId");
+
+    console.log("🔐 Auth check:", {
+      fromParams: customerIdFromParams,
+      fromCookie: customerIdFromCookie
     });
-  }, []);
 
-  useEffect(() => {
-    // Verificar autenticación cuando cambia la ruta
-    const customerId = Cookies.get("customerId");
-    const isUnauthorizedPage = pathname === '/unauthorized';
-    
-    console.log("🔐 Layout auth check:", { customerId, pathname, isUnauthorizedPage });
-
-    // Si no hay customerId y no estamos en una página pública, mostrar modal
-    if (!customerId && !isUnauthorizedPage) {
-      console.log("🚫 No auth, mostrando modal");
-      setShowAuthModal(true);
-    } else {
+    // Si hay customerId en params, guardarlo (sin limpiar URL)
+    if (customerIdFromParams) {
+      console.log("✅ CustomerId desde params, guardando...");
+      Cookies.set("customerId", customerIdFromParams, { expires: 30 });
       setShowAuthModal(false);
+      setIsLoading(false);
+      return;
     }
-  }, [pathname]);
+
+    // Si hay customerId en cookie, todo bien
+    if (customerIdFromCookie) {
+      console.log("✅ CustomerId en cookie");
+      setShowAuthModal(false);
+      setIsLoading(false);
+      return;
+    }
+
+    // Si no hay customerId en ningún lado
+    console.log("🚫 No hay customerId, mostrando modal");
+    setShowAuthModal(true);
+    setIsLoading(false);
+  }, [searchParams]);
 
   const redirectToShop = () => {
-    window.location.href = 'https://vitahub.mx/login';
+    window.location.href = 'https://vitahub.mx/account';
   };
 
   const redirectToAffiliateRegister = () => {
     window.location.href = 'https://vitahub.mx/pages/registro-afiliados';
   };
 
-  const closeModal = () => {
-    // No permitir cerrar el modal - obligar a autenticarse
-    return;
-  };
+  if (isLoading) {
+    return (
+      <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1b3f7a] mx-auto mb-2"></div>
+          <p className="text-gray-600 text-sm">Verificando acceso...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (showAuthModal) {
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-auto">
+          <div className="bg-[#1b3f7a] text-white p-6 rounded-t-xl text-center">
+            <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <span className="text-2xl">🔐</span>
+            </div>
+            <h2 className="text-2xl font-bold mb-2">Acceso Requerido</h2>
+            <p className="text-blue-100">Necesitas identificarte para continuar</p>
+          </div>
+
+          <div className="p-6 space-y-4">
+            <p className="text-gray-600 text-center">
+              Para acceder al panel profesional de VitaHub, necesitas tu cuenta de cliente.
+            </p>
+
+            <div className="space-y-3">
+              <button 
+                onClick={redirectToShop}
+                className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <span>🏪</span>
+                Ir a Mi Cuenta VitaHub
+              </button>
+
+              <button 
+                onClick={redirectToAffiliateRegister}
+                className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2"
+              >
+                <span>💼</span>
+                Registrarme como Afiliado
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Si está autenticado, mostrar el contenido normal
+  return children;
+}
+
+export default function RootLayout({ children }) {
+  useEffect(() => {
+    import("react-microsoft-clarity").then(({ clarity }) => {
+      clarity.init("tydr53wsez");
+    });
+  }, []);
 
   return (
     <html lang="en">
@@ -58,77 +125,26 @@ export default function RootLayout({ children }) {
           strategy="afterInteractive"
         />
         
-        <Suspense fallback={null}>
-          <SetCustomerId />
-        </Suspense>
-
-        {/* Modal de autenticación */}
-        {showAuthModal && (
-          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-auto">
-              {/* Header del modal */}
-              <div className="bg-[#1b3f7a] text-white p-6 rounded-t-xl text-center">
-                <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <span className="text-2xl">🔐</span>
-                </div>
-                <h2 className="text-2xl font-bold mb-2">Acceso Requerido</h2>
-                <p className="text-blue-100">
-                  Necesitas identificarte para continuar
-                </p>
-              </div>
-
-              {/* Contenido del modal */}
-              <div className="p-6 space-y-4">
-                <p className="text-gray-600 text-center">
-                  Para acceder al panel profesional de VitaHub, necesitas tu cuenta de cliente.
-                </p>
-
-                <div className="space-y-3">
-                  <button 
-                    onClick={redirectToShop}
-                    className="w-full px-6 py-3 bg-[#1b3f7a] text-white rounded-lg hover:bg-green-700 transition-colors font-medium flex items-center justify-center gap-2"
-                  >
-                    
-                    Ir a Mi Cuenta VitaHub
-                  </button>
-
-                  <button 
-                    onClick={redirectToAffiliateRegister}
-                    className="w-full px-6 py-3 bg-[#2BB9B8] #2BB9B8 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium flex items-center justify-center gap-2"
-                  >
-                  
-                    Registrarme como Afiliado
-                  </button>
-                </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-4">
-                  <h4 className="font-semibold text-blue-800 text-sm mb-2">¿Primera vez aquí?</h4>
-                  <ul className="text-blue-700 text-xs space-y-1">
-                    <li>• Inicia sesión en tu cuenta de VitaHub</li>
-                    <li>• O regístrate como afiliado profesional</li>
-                    <li>• Tu acceso será automático</li>
-                  </ul>
-                </div>
-              </div>
-
-
-             
+        <Suspense fallback={
+          <div className="fixed inset-0 bg-white flex items-center justify-center z-50">
+            <div className="text-center">
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1b3f7a] mx-auto mb-2"></div>
+              <p className="text-gray-600 text-sm">Cargando...</p>
             </div>
           </div>
-        )}
-
-        {/* Contenido principal - se muestra solo si está autenticado o no hay modal */}
-        {!showAuthModal && (
-          <>
-            <Header />
-            <div className="flex flex-1 overflow-hidden">
-              <Sidebar />
-              <main className="flex-1 bg-white overflow-y-auto">
-                {children}
-              </main>
+        }>
+          <AuthManager>
+            <div className="flex flex-col h-screen">
+              <Header />
+              <div className="flex flex-1 overflow-hidden">
+                <Sidebar />
+                <main className="flex-1 bg-white overflow-y-auto">
+                  {children}
+                </main>
+              </div>
             </div>
-          </>
-        )}
+          </AuthManager>
+        </Suspense>
       </body>
     </html>
   );
