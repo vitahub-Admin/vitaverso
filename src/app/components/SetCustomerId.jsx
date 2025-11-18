@@ -11,9 +11,15 @@ export default function SetCustomerId() {
 
   useEffect(() => {
     if (customerId) {
+      console.log("✅ SetCustomerId: Guardando customerId en cookies:", customerId);
       Cookies.set("customerId", customerId, { expires: 30 });
+      
+      // Limpiar URL sin recargar
+      const url = new URL(window.location.href);
+      url.searchParams.delete('customerId');
+      window.history.replaceState({}, '', url.toString());
     }
   }, [customerId]);
 
-  return null; // no renderiza nada
+  return null;
 }

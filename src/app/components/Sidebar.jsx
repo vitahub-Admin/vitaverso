@@ -12,8 +12,9 @@ import {
   GraduationCap,
   HelpCircle,
   Newspaper,
-  Contact
+  Contact,UserPlus
 } from "lucide-react";
+
 
 export default function Sidebar() {
   const pathname = usePathname();
@@ -62,6 +63,7 @@ export default function Sidebar() {
     { href: "/manual", label: "Manual", icon: <BookOpen size={20} /> },
     { href: "/academia-vitahub", label: "Academia Vitahub", icon: <GraduationCap size={20} /> },
     { href: "/notificaciones", label: "Novedades", icon: <Newspaper size={20} /> },
+    { href: "/referral", label: "Invita y gana", icon: <UserPlus size={20} /> },
   ];
 
   return (
