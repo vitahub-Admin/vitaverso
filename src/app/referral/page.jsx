@@ -175,48 +175,10 @@ export default function CompartirReferralPage() {
                   </button>
                 </div>
 
-                <button
-                  onClick={goToRegistration}
-                  className="w-full px-6 py-4 bg-[#1b3f7a] text-white rounded-lg hover:bg-[#2a5298] transition-colors font-semibold text-lg shadow-lg"
-                >
-                  Ir al Registro de Afiliados ›
-                </button>
               </div>
             </div>
           </div>
 
-          {/* Beneficios */}
-          <div className="w-full bg-blue-50 rounded-lg border border-blue-200 p-6">
-            <h3 className="font-semibold text-blue-800 mb-4 text-lg text-center">Beneficios Exclusivos</h3>
-            <div className="grid md:grid-cols-2 gap-3">
-              {[
-                "Comisiones competitivas por cada venta",
-                "Panel de seguimiento en tiempo real", 
-                "Pagos mensuales garantizados",
-                "Soporte dedicado para afiliados",
-                "Material promocional exclusivo",
-                "Crecimiento de tu red profesional",
-                "Acceso a recursos educativos",
-                "Oportunidades de networking"
-              ].map((benefit, idx) => (
-                <div key={idx} className="flex items-center gap-3">
-                  <div className="w-2 h-2 bg-blue-600 rounded-full flex-shrink-0"></div>
-                  <span className="text-blue-700 text-sm">{benefit}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Tips para compartir */}
-          <div className="w-full bg-green-50 rounded-lg border border-green-200 p-6">
-            <h3 className="font-semibold text-green-800 mb-3 text-lg text-center">💡 Tips para Compartir</h3>
-            <div className="text-sm text-green-700 space-y-2">
-              <p><strong>• Redes Sociales:</strong> Comparte en tus grupos profesionales de Facebook, LinkedIn</p>
-              <p><strong>• WhatsApp:</strong> Envía a tus contactos de colegas y profesionales</p>
-              <p><strong>• Email:</strong> Inclúyelo en tu firma de correo o newsletters</p>
-              <p><strong>• Presencial:</strong> Comparte en eventos, conferencias o reuniones profesionales</p>
-            </div>
-          </div>
         </>
       )}
     </div>

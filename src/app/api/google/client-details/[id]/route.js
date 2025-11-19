@@ -36,7 +36,7 @@ export async function GET(req, { params }) {
           p.variant_id,
           p.handle,
           p.duration,
-          p.inventory_quantity  -- ✅ AGREGAR inventory_quantity
+          p.inventory_quantity
         FROM \`vitahub-435120.silver.orders\` o
         LEFT JOIN \`vitahub-435120.silver.product\` p 
           ON o.line_items_sku = p.variant_sku 
@@ -44,11 +44,17 @@ export async function GET(req, { params }) {
       ),
       ORDEN_PRODUCTO_COMISION AS (
         SELECT 
-          ORDEN_PRODUCTO.*,
-          pc.comission
-        FROM ORDEN_PRODUCTO
-        LEFT JOIN \`vitahub-435120.Shopify.product_comission\` pc 
-          ON pc.variant_id = ORDEN_PRODUCTO.variant_id
+          op.*,
+          -- Tomar la comisión más reciente anterior a la fecha de la orden
+          (
+            SELECT pc.comission
+            FROM \`vitahub-435120.Shopify.product_comission\` pc
+            WHERE pc.variant_id = op.variant_id
+              AND PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S.%E6 UTC', pc.updated_at) <= PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S.%E6 UTC', op.created_at)
+            ORDER BY PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S.%E6 UTC', pc.updated_at) DESC
+            LIMIT 1
+          ) as comission
+        FROM ORDEN_PRODUCTO op
       )
       SELECT 
         order_number,
@@ -64,7 +70,7 @@ export async function GET(req, { params }) {
         line_items_price * COALESCE(comission, 0) * line_items_quantity as ganancia_producto,
         duration,
         handle,
-        inventory_quantity  -- ✅ INCLUIR en el SELECT final
+        inventory_quantity
       FROM ORDEN_PRODUCTO_COMISION
       WHERE COALESCE(specialist_ref, referrer_id) = @specialistId
         AND customer_email = @customerEmail
@@ -87,11 +93,25 @@ export async function GET(req, { params }) {
     
     console.log('✅ Client details query success, rows:', rows.length);
     if (rows.length > 0) {
-      console.log('Sample row with inventory:', {
+      console.log('Sample row:', {
+        order_number: rows[0].order_number,
         product: rows[0].line_items_name,
-        inventory: rows[0].inventory_quantity,
-        sku: rows[0].line_items_sku
+        comission: rows[0].comission,
+        ganancia: rows[0].ganancia_producto,
+        inventory: rows[0].inventory_quantity
       });
+      
+      // Verificar si hay duplicados
+      const orderCounts = {};
+      rows.forEach(row => {
+        const key = `${row.order_number}-${row.variant_id}`;
+        orderCounts[key] = (orderCounts[key] || 0) + 1;
+      });
+      
+      const duplicates = Object.entries(orderCounts).filter(([_, count]) => count > 1);
+      if (duplicates.length > 0) {
+        console.log('⚠️ Posibles duplicados detectados:', duplicates);
+      }
     }
 
     return NextResponse.json({ 
