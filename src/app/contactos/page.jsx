@@ -60,7 +60,7 @@ export default function ContactsPage() {
     let gananciaTotal = 0;
   
     contactsData.forEach((item) => {
-      totalCarritos += item.cantidad_carritos || 0;
+      totalCarritos += item.cantidad_ordenes || 0;
       gananciaTotal += item.ganancia_total || 0;
     });
   

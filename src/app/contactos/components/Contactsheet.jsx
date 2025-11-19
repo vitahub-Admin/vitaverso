@@ -62,7 +62,7 @@ export default function Contactsheet({ data, specialistId }) {
                   {/* Métricas */}
                   <div className="flex items-center gap-6 mr-6">
                     <div className="text-center">
-                      <div className="font-bold text-[#1b3f7a]">{contact.cantidad_carritos}</div>
+                      <div className="font-bold text-[#1b3f7a]">{contact.cantidad_ordenes}</div>
                       <div className="text-xs text-gray-500">Carritos</div>
                     </div>
                     <div className="text-center">
