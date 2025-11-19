@@ -5,7 +5,9 @@ import { cookies } from 'next/headers';
 export async function GET(req) {
   try {
     // Leer customerId desde cookie
-    const customerIdRaw = cookies().get("customerId")?.value;
+
+    const cookieStore = await cookies();
+const customerIdRaw = cookieStore.get("customerId")?.value;
     const customerId = customerIdRaw ? parseInt(customerIdRaw, 10) : null;
 
     if (!customerId) {

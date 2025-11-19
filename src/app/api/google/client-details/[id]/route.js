@@ -41,20 +41,25 @@ export async function GET(req, { params }) {
         LEFT JOIN \`vitahub-435120.silver.product\` p 
           ON o.line_items_sku = p.variant_sku 
           AND o.line_items_product_id = p.id
+        WHERE COALESCE(o.specialist_ref, o.referrer_id) = @specialistId
+          AND o.customer_email = @customerEmail
+          AND o.customer_email IS NOT NULL
+          AND LOWER(o.line_items_name) NOT LIKE '%tip%'
       ),
-      ORDEN_PRODUCTO_COMISION AS (
+      COMISIONES_FILTRADAS AS (
         SELECT 
           op.*,
-          -- Tomar la comisión más reciente anterior a la fecha de la orden
-          (
-            SELECT pc.comission
-            FROM \`vitahub-435120.Shopify.product_comission\` pc
-            WHERE pc.variant_id = op.variant_id
-              AND PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S.%E6 UTC', pc.updated_at) <= PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S.%E6 UTC', op.created_at)
-            ORDER BY PARSE_TIMESTAMP('%Y-%m-%d %H:%M:%S.%E6 UTC', pc.updated_at) DESC
-            LIMIT 1
-          ) as comission
+          pc.comission,
+          ROW_NUMBER() OVER (
+            PARTITION BY op.order_number, op.variant_id
+            ORDER BY 
+              CASE WHEN pc.updated_at <= op.created_at
+                   THEN 0 ELSE 1 END,
+              pc.updated_at DESC
+          ) as rn
         FROM ORDEN_PRODUCTO op
+        LEFT JOIN \`vitahub-435120.Shopify.product_comission\` pc 
+          ON pc.variant_id = op.variant_id
       )
       SELECT 
         order_number,
@@ -66,16 +71,12 @@ export async function GET(req, { params }) {
         line_items_quantity,
         line_items_price,
         COALESCE(comission, 0) as comission,
-        -- Calcular ganancia por producto
         line_items_price * COALESCE(comission, 0) * line_items_quantity as ganancia_producto,
         duration,
         handle,
         inventory_quantity
-      FROM ORDEN_PRODUCTO_COMISION
-      WHERE COALESCE(specialist_ref, referrer_id) = @specialistId
-        AND customer_email = @customerEmail
-        AND customer_email IS NOT NULL
-        AND LOWER(line_items_name) NOT LIKE '%tip%'
+      FROM COMISIONES_FILTRADAS
+      WHERE rn = 1
       ORDER BY order_number DESC, created_at DESC
     `;
 
@@ -100,18 +101,6 @@ export async function GET(req, { params }) {
         ganancia: rows[0].ganancia_producto,
         inventory: rows[0].inventory_quantity
       });
-      
-      // Verificar si hay duplicados
-      const orderCounts = {};
-      rows.forEach(row => {
-        const key = `${row.order_number}-${row.variant_id}`;
-        orderCounts[key] = (orderCounts[key] || 0) + 1;
-      });
-      
-      const duplicates = Object.entries(orderCounts).filter(([_, count]) => count > 1);
-      if (duplicates.length > 0) {
-        console.log('⚠️ Posibles duplicados detectados:', duplicates);
-      }
     }
 
     return NextResponse.json({ 
@@ -122,10 +111,17 @@ export async function GET(req, { params }) {
     
   } catch (error) {
     console.error('❌ Error en BigQuery Client Details:', error);
+    console.error('Error details:', {
+      message: error.message,
+      stack: error.stack,
+      code: error.code
+    });
+    
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message
+        error: error.message,
+        details: "Error ejecutando consulta en BigQuery"
       }, 
       { status: 500 }
     );
