@@ -29,7 +29,7 @@ export default function CompartirReferralPage() {
     // Generar el link de referral
     if (numericCustomerId) {
       const baseUrl = window.location.origin;
-      const registerUrl = `https://pro.vitahub.mx/ganancias?customerId=8268011929921?sourceRef=${numericCustomerId}`;
+      const registerUrl = `https://vitahub.mx/pages/registro-afiliados?sourceRef=${numericCustomerId}`;
       setReferralLink(registerUrl);
     }
     
