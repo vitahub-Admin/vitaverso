@@ -70,8 +70,13 @@ export async function GET(req, { params }) {
         line_items_name,
         line_items_quantity,
         line_items_price,
+        discount_allocations_amount,
         COALESCE(comission, 0) as comission,
-        line_items_price * COALESCE(comission, 0) * line_items_quantity as ganancia_producto,
+        -- Calcular ganancia considerando descuento: (precio * cantidad - descuento) * comisión
+        (
+          (line_items_price * line_items_quantity) - 
+          COALESCE(CAST(discount_allocations_amount AS FLOAT64), 0)
+        ) * COALESCE(comission, 0) as ganancia_producto,
         duration,
         handle,
         inventory_quantity
@@ -94,9 +99,12 @@ export async function GET(req, { params }) {
     
     console.log('✅ Client details query success, rows:', rows.length);
     if (rows.length > 0) {
-      console.log('Sample row:', {
+      console.log('Sample row with discount:', {
         order_number: rows[0].order_number,
         product: rows[0].line_items_name,
+        price: rows[0].line_items_price,
+        quantity: rows[0].line_items_quantity,
+        discount: rows[0].discount_allocations_amount,
         comission: rows[0].comission,
         ganancia: rows[0].ganancia_producto,
         inventory: rows[0].inventory_quantity

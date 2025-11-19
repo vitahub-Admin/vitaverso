@@ -5,9 +5,8 @@ import { cookies } from 'next/headers';
 export async function GET(req) {
   try {
     // Leer customerId desde cookie
-
     const cookieStore = await cookies();
-const customerIdRaw = cookieStore.get("customerId")?.value;
+    const customerIdRaw = cookieStore.get("customerId")?.value;
     const customerId = customerIdRaw ? parseInt(customerIdRaw, 10) : null;
 
     if (!customerId) {
@@ -30,27 +29,39 @@ const customerIdRaw = cookieStore.get("customerId")?.value;
       },
     });
 
-    // Base query   vitahub-435120.silver.orders
-    let query = `
+    const query = `
       WITH ORDEN_PRODUCTO AS (
         SELECT 
           o.*,
-          p.variant_id
+          p.variant_id,
+          p.handle,
+          p.duration,
+          p.inventory_quantity
         FROM \`vitahub-435120.silver.orders\` o
-        LEFT JOIN \`vitahub-435120.Shopify.products\` p 
+        LEFT JOIN \`vitahub-435120.silver.product\` p
           ON o.line_items_sku = p.variant_sku 
           AND o.line_items_product_id = p.id
+        WHERE COALESCE(o.specialist_ref, o.referrer_id) = @customerId
+          AND o.customer_email IS NOT NULL
+          AND LOWER(o.line_items_name) NOT LIKE '%tip%'
       ),
-      ORDEN_PRODUCTO_VARIANTE AS (
+      COMISIONES_FILTRADAS AS (
         SELECT 
-          ORDEN_PRODUCTO.*,
-          pv.comission
-        FROM ORDEN_PRODUCTO
-        LEFT JOIN \`vitahub-435120.Shopify.product_comission\` pv 
-          ON pv.variant_id = ORDEN_PRODUCTO.variant_id
+          op.*,
+          pc.comission,
+          pc.updated_at as comission_updated_at,
+          ROW_NUMBER() OVER (
+            PARTITION BY op.order_number, op.variant_id
+            ORDER BY 
+              CASE WHEN pc.updated_at <= op.created_at THEN 0 ELSE 1 END,
+              pc.updated_at DESC
+          ) as rn
+        FROM ORDEN_PRODUCTO op
+        LEFT JOIN \`vitahub-435120.Shopify.product_comission\` pc 
+          ON pc.variant_id = op.variant_id
       )
       SELECT 
-        DATE(ORDEN_PRODUCTO_VARIANTE.created_at) as created_at,
+        DATE(cf.created_at) as created_at,  -- ✅ ESPECIFICAR LA TABLA
         financial_status,
         order_number,
         line_items_name,
@@ -65,26 +76,38 @@ const customerIdRaw = cookieStore.get("customerId")?.value;
         customer_first_name,
         share_cart,
         COALESCE(specialist_ref, referrer_id) AS specialist_id,
-        COALESCE(referrer_email,c.email) as referrer_email,
-        COALESCE(comission,0) as comission,
+        COALESCE(referrer_email, c.email) as referrer_email,
+        COALESCE(comission, 0) as comission,
+        -- Calcular ganancia
+        (
+          (line_items_price * line_items_quantity) - 
+          COALESCE(CAST(
+            CASE
+              WHEN discount_codes_code = "VITA10" THEN 0 ELSE discount_allocations_amount
+            END AS FLOAT64
+          ), 0)
+        ) * COALESCE(comission, 0) as ganancia_producto,
         CASE
           WHEN COALESCE(specialist_ref, referrer_id) IS NOT NULL OR share_cart IS NOT NULL THEN 1
           ELSE 0
-        END AS flag_carrito_referido
-      FROM ORDEN_PRODUCTO_VARIANTE
+        END AS flag_carrito_referido,
+        handle,
+        duration,
+        inventory_quantity
+      FROM COMISIONES_FILTRADAS cf  -- ✅ USAR ALIAS
       LEFT JOIN \`vitahub-435120.Shopify.customers\` c
-        ON ORDEN_PRODUCTO_VARIANTE.specialist_ref = c.id 
-        OR ORDEN_PRODUCTO_VARIANTE.referrer_id = c.id
-      WHERE COALESCE(specialist_ref, referrer_id) = @customerId
+        ON cf.specialist_ref = c.id OR cf.referrer_id = c.id
+      WHERE cf.rn = 1  -- ✅ ESPECIFICAR LA TABLA
     `;
 
     // Si hay fechas, agregar filtro dinámico
+    let finalQuery = query;
     if (from && to) {
-      query += ` AND DATE(ORDEN_PRODUCTO_VARIANTE.created_at) BETWEEN @from AND @to`;
+      finalQuery += ` AND DATE(cf.created_at) BETWEEN @from AND @to`;  // ✅ ESPECIFICAR LA TABLA
     }
 
     const options = {
-      query,
+      query: finalQuery,
       location: 'us-east1',
       params: {
         customerId,
@@ -92,11 +115,57 @@ const customerIdRaw = cookieStore.get("customerId")?.value;
       },
     };
 
+    console.log('🔍 Executing ganancias query with corrected commissions...');
     const [rows] = await bigquery.query(options);
+    
+    console.log('✅ Ganancias query success, rows:', rows.length);
+    if (rows.length > 0) {
+      console.log('Sample row with corrected commission:', {
+        order_number: rows[0].order_number,
+        product: rows[0].line_items_name,
+        price: rows[0].line_items_price,
+        quantity: rows[0].line_items_quantity,
+        discount: rows[0].discount_allocations_amount,
+        comission: rows[0].comission,
+        ganancia: rows[0].ganancia_producto
+      });
+    }
+    // En Ganancias API, después de obtener los rows:
+console.log('💰 GANANCIAS - Resumen por orden:');
+const gananciasSummary = rows.reduce((acc, row) => {
+  const orderNum = row.order_number;
+  if (!acc[orderNum]) acc[orderNum] = { total: 0, products: [] };
+  acc[orderNum].total += parseFloat(row.ganancia_producto || 0);
+  acc[orderNum].products.push({
+    product: row.line_items_name,
+    ganancia: row.ganancia_producto,
+    precio: row.line_items_price,
+    cantidad: row.line_items_quantity,
+    descuento: row.discount_allocations_amount,
+    comision: row.comission
+  });
+  return acc;
+}, {});
 
-    return NextResponse.json({ success: true, data: rows });
+Object.entries(gananciasSummary).forEach(([order, data]) => {
+  console.log(`Orden ${order}: $${data.total.toFixed(2)}`, data.products);
+});
+
+    return NextResponse.json({ 
+      success: true, 
+      data: rows,
+      message: `Encontradas ${rows.length} órdenes`
+    });
+    
   } catch (error) {
-    console.error('Error en BigQuery:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    console.error('❌ Error en BigQuery:', error);
+    return NextResponse.json(
+      { 
+        success: false, 
+        error: error.message,
+        details: 'Error ejecutando la consulta de ganancias'
+      }, 
+      { status: 500 }
+    );
   }
 }

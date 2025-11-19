@@ -34,24 +34,37 @@ export async function GET(req, { params }) {
 
     console.log('✅ BigQuery configured, executing query...');
 
-    // QUERY ACTUALIZADA - Incluyendo last_name en el SELECT final
     const query = `
       WITH ORDEN_PRODUCTO AS (
         SELECT 
           o.*,
-          p.variant_id
+          p.variant_id,
+          p.handle,
+          p.duration,
+          p.inventory_quantity
         FROM \`vitahub-435120.silver.orders\` o
-        LEFT JOIN \`vitahub-435120.Shopify.products\` p 
+        LEFT JOIN \`vitahub-435120.silver.product\` p 
           ON o.line_items_sku = p.variant_sku 
           AND o.line_items_product_id = p.id
+        WHERE COALESCE(o.specialist_ref, o.referrer_id) = @customerId
+          AND o.customer_email IS NOT NULL
+          AND o.customer_email != ''
+          AND LOWER(o.line_items_name) NOT LIKE '%tip%'
       ),
-      ORDEN_PRODUCTO_VARIANTE AS (
+      COMISIONES_FILTRADAS AS (
         SELECT 
-          ORDEN_PRODUCTO.*,
-          pv.comission
-        FROM ORDEN_PRODUCTO
-        LEFT JOIN \`vitahub-435120.Shopify.product_comission\` pv 
-          ON pv.variant_id = ORDEN_PRODUCTO.variant_id
+          op.*,
+          pc.comission,
+          ROW_NUMBER() OVER (
+            PARTITION BY op.order_number, op.variant_id
+            ORDER BY 
+              CASE WHEN pc.updated_at <= op.created_at
+                   THEN 0 ELSE 1 END,
+              pc.updated_at DESC
+          ) as rn
+        FROM ORDEN_PRODUCTO op
+        LEFT JOIN \`vitahub-435120.Shopify.product_comission\` pc 
+          ON pc.variant_id = op.variant_id
       ),
       ordenes_con_ganancia AS (
         SELECT 
@@ -61,12 +74,13 @@ export async function GET(req, { params }) {
           order_number,
           share_cart,
           created_at,
-          -- Calcular ganancia por producto (precio * comisión * cantidad)
-          line_items_price * COALESCE(comission, 0) * line_items_quantity as ganancia_producto
-        FROM ORDEN_PRODUCTO_VARIANTE
-        WHERE COALESCE(specialist_ref, referrer_id) = @customerId
-          AND customer_email IS NOT NULL
-          AND customer_email != ''
+          -- Calcular ganancia considerando descuento: (precio * cantidad - descuento) * comisión
+          (
+            (line_items_price * line_items_quantity) - 
+            COALESCE(CAST(discount_allocations_amount AS FLOAT64), 0)
+          ) * COALESCE(comission, 0) as ganancia_producto
+        FROM COMISIONES_FILTRADAS
+        WHERE rn = 1  -- ✅ EVITAR DUPLICADOS por comisiones históricas
       ),
       metricas_por_cliente AS (
         SELECT 
@@ -85,13 +99,13 @@ export async function GET(req, { params }) {
       )
       SELECT 
         m.nombre_cliente,
-        c.last_name as apellido_cliente,  -- ✅ INCLUIR last_name
+        c.last_name as apellido_cliente,
         m.customer_email as email_cliente,
         m.telefono_cliente,
+        m.cantidad_ordenes,
         m.cantidad_carritos,
         m.ganancia_total,
         m.fecha_ultima_orden,
-        -- Formatear fecha para mejor visualización
         FORMAT_DATE('%Y-%m-%d', DATE(m.fecha_ultima_orden)) as fecha_ultima_orden_formateada
       FROM metricas_por_cliente m
       LEFT JOIN \`vitahub-435120.Shopify.customers\` c 
@@ -111,14 +125,31 @@ export async function GET(req, { params }) {
     
     console.log('✅ BigQuery success, rows returned:', rows.length);
     if (rows.length > 0) {
-      console.log('Sample row with last_name:', {
+      console.log('Sample row with corrected commission:', {
         nombre_cliente: rows[0].nombre_cliente,
         apellido_cliente: rows[0].apellido_cliente,
         email_cliente: rows[0].email_cliente,
+        cantidad_ordenes: rows[0].cantidad_ordenes,
+        cantidad_carritos: rows[0].cantidad_carritos,
         ganancia_total: rows[0].ganancia_total
       });
     }
+// En Contacts API, después de obtener los rows:
+console.log('💰 CONTACTS - Resumen por orden:');
+const contactsSummary = rows.reduce((acc, row) => {
+  const orderNum = row.order_number;
+  if (!acc[orderNum]) acc[orderNum] = { total: 0, products: [] };
+  acc[orderNum].total += parseFloat(row.ganancia_total || 0);
+  acc[orderNum].products.push({
+    product: row.line_items_name,
+    ganancia: row.ganancia_total
+  });
+  return acc;
+}, {});
 
+Object.entries(contactsSummary).forEach(([order, data]) => {
+  console.log(`Orden ${order}: $${data.total.toFixed(2)}`, data.products);
+});
     return NextResponse.json({ 
       success: true, 
       data: rows,

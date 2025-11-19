@@ -74,8 +74,13 @@ export default function OrdenesPage() {
     const uniqueOrders = new Set();
   
     ordenesData.forEach((item) => {
-      // ganancia total (precio * comisión * cantidad)
-      ganancia += item.line_items_price * item.comission * item.line_items_quantity;
+      // ✅ CALCULO CORRECTO (igual que backend)
+      const subtotal = item.line_items_price * item.line_items_quantity;
+      const discount = parseFloat(item.discount_allocations_amount) || 0;
+      const baseComision = subtotal - discount;
+      const gananciaProducto = baseComision * item.comission;
+      
+      ganancia += gananciaProducto;
   
       // items vendidos
       items += item.line_items_quantity;
@@ -87,10 +92,9 @@ export default function OrdenesPage() {
     return {
       ganancia,
       items,
-      carritos: uniqueOrders.size, // cantidad de órdenes únicas
+      carritos: uniqueOrders.size,
     };
   }, [ordenesData]);
-
   return (
     <div className="flex flex-col items-center gap-6 p-4">
 

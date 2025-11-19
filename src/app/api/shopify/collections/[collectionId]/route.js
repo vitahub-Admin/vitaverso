@@ -5,7 +5,7 @@ const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
 export async function GET(req, { params }) {
-  const { collectionId } = params;
+  const { collectionId } = await params;
 
   const query = `
     {
