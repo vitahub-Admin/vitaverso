@@ -1,33 +1,40 @@
 import { NextResponse } from 'next/server';
 import { BigQuery } from '@google-cloud/bigquery';
-import { cookies } from 'next/headers';
 
-export async function GET(req) {
+export async function GET(req, { params }) {
   try {
-    // Leer customerId desde cookie
-    const cookieStore = await cookies();
-    const customerIdRaw = cookieStore.get("customerId")?.value;
-    const customerId = customerIdRaw ? parseInt(customerIdRaw, 10) : null;
+    const { id } = await params;
+    const { searchParams } = new URL(req.url);
+    const from = searchParams.get("from");
+    const to = searchParams.get("to");
 
-    if (!customerId) {
+    console.log('🔍 Orders API called - Specialist ID:', id);
+
+    if (!id) {
       return NextResponse.json(
-        { success: false, message: "No hay customerId en cookies" },
+        { success: false, message: "No hay id en parámetros" },
         { status: 400 }
       );
     }
 
-    // Leer parámetros de la URL (from y to)
-    const { searchParams } = new URL(req.url);
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
+    const numericCustomerId = parseInt(id);
+
+    if (isNaN(numericCustomerId)) {
+      return NextResponse.json(
+        { success: false, message: "ID no es un número válido" },
+        { status: 400 }
+      );
+    }
 
     const bigquery = new BigQuery({
       projectId: process.env.GOOGLE_PROJECT_ID,
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
       },
     });
+
+    console.log('✅ BigQuery configured');
 
     const query = `
       WITH ORDEN_PRODUCTO AS (
@@ -49,7 +56,6 @@ export async function GET(req) {
         SELECT 
           op.*,
           pc.comission,
-          pc.updated_at as comission_updated_at,
           ROW_NUMBER() OVER (
             PARTITION BY op.order_number, op.variant_id
             ORDER BY 
@@ -59,97 +65,87 @@ export async function GET(req) {
         FROM ORDEN_PRODUCTO op
         LEFT JOIN \`vitahub-435120.Shopify.product_comission\` pc 
           ON pc.variant_id = op.variant_id
+      ),
+      PRODUCTOS_ORDEN AS (
+        SELECT 
+          order_number,
+          financial_status,
+          created_at,  -- ✅ MANTENER created_at como TIMESTAMP
+          customer_email,
+          customer_first_name,
+          share_cart,
+          -- Agrupar productos por orden (solo información esencial)
+          ARRAY_AGG(STRUCT(
+            line_items_name as producto,
+            line_items_quantity as cantidad,
+            -- Calcular ganancia por producto
+            (
+              (line_items_price * line_items_quantity) - 
+              COALESCE(CAST(discount_allocations_amount AS FLOAT64), 0)
+            ) * COALESCE(comission, 0) as ganancia_producto,
+            handle as product_handle,
+            duration as duracion,
+            inventory_quantity as inventario,
+            comission as comision
+          )) as productos,
+          -- Totales de la orden
+          SUM(line_items_quantity) as total_items,
+          SUM((
+            (line_items_price * line_items_quantity) - 
+            COALESCE(CAST(discount_allocations_amount AS FLOAT64), 0)
+          ) * COALESCE(comission, 0)) as ganancia_total
+        FROM COMISIONES_FILTRADAS
+        WHERE rn = 1
+        GROUP BY 
+          order_number, financial_status, created_at, customer_email, 
+          customer_first_name, share_cart
       )
       SELECT 
-        DATE(cf.created_at) as created_at,  -- ✅ ESPECIFICAR LA TABLA
-        financial_status,
-        order_number,
-        line_items_name,
-        line_items_quantity,
-        line_items_price,
-        line_items_sku,
-        CASE
-          WHEN discount_codes_code = "VITA10" THEN 0 ELSE discount_allocations_amount
-        END AS discount_allocations_amount,
-        customer_email,
-        customer_phone,
-        customer_first_name,
-        share_cart,
-        COALESCE(specialist_ref, referrer_id) AS specialist_id,
-        COALESCE(referrer_email, c.email) as referrer_email,
-        COALESCE(comission, 0) as comission,
-        -- Calcular ganancia
-        (
-          (line_items_price * line_items_quantity) - 
-          COALESCE(CAST(
-            CASE
-              WHEN discount_codes_code = "VITA10" THEN 0 ELSE discount_allocations_amount
-            END AS FLOAT64
-          ), 0)
-        ) * COALESCE(comission, 0) as ganancia_producto,
-        CASE
-          WHEN COALESCE(specialist_ref, referrer_id) IS NOT NULL OR share_cart IS NOT NULL THEN 1
-          ELSE 0
-        END AS flag_carrito_referido,
-        handle,
-        duration,
-        inventory_quantity
-      FROM COMISIONES_FILTRADAS cf  -- ✅ USAR ALIAS
-      LEFT JOIN \`vitahub-435120.Shopify.customers\` c
-        ON cf.specialist_ref = c.id OR cf.referrer_id = c.id
-      WHERE cf.rn = 1  -- ✅ ESPECIFICAR LA TABLA
+        po.order_number,
+        po.financial_status,
+        po.created_at,  -- ✅ ESPECIFICAR po.created_at
+        po.customer_email,
+        po.customer_first_name as nombre_cliente,
+        c.last_name as apellido_cliente,
+        po.share_cart,
+        po.productos,
+        po.total_items,
+        po.ganancia_total
+      FROM PRODUCTOS_ORDEN po
+      LEFT JOIN \`vitahub-435120.Shopify.customers\` c 
+        ON po.customer_email = c.email
+      WHERE 1=1
     `;
 
-    // Si hay fechas, agregar filtro dinámico
     let finalQuery = query;
     if (from && to) {
-      finalQuery += ` AND DATE(cf.created_at) BETWEEN @from AND @to`;  // ✅ ESPECIFICAR LA TABLA
+      finalQuery += ` AND DATE(po.created_at) BETWEEN @from AND @to`;  // ✅ ESPECIFICAR po.created_at
     }
+
+    finalQuery += ` ORDER BY po.created_at DESC, po.order_number DESC`;  // ✅ ESPECIFICAR po.created_at
 
     const options = {
       query: finalQuery,
       location: 'us-east1',
       params: {
-        customerId,
+        customerId: numericCustomerId,
         ...(from && to ? { from, to } : {}),
       },
     };
 
-    console.log('🔍 Executing ganancias query with corrected commissions...');
+    console.log('🔍 Executing orders query...');
     const [rows] = await bigquery.query(options);
     
-    console.log('✅ Ganancias query success, rows:', rows.length);
+    console.log('✅ Orders query success, rows:', rows.length);
     if (rows.length > 0) {
-      console.log('Sample row with corrected commission:', {
+      console.log('Sample order:', {
         order_number: rows[0].order_number,
-        product: rows[0].line_items_name,
-        price: rows[0].line_items_price,
-        quantity: rows[0].line_items_quantity,
-        discount: rows[0].discount_allocations_amount,
-        comission: rows[0].comission,
-        ganancia: rows[0].ganancia_producto
+        created_at: rows[0].created_at,
+        nombre_cliente: rows[0].nombre_cliente,
+        apellido_cliente: rows[0].apellido_cliente,
+        ganancia_total: rows[0].ganancia_total
       });
     }
-    // En Ganancias API, después de obtener los rows:
-console.log('💰 GANANCIAS - Resumen por orden:');
-const gananciasSummary = rows.reduce((acc, row) => {
-  const orderNum = row.order_number;
-  if (!acc[orderNum]) acc[orderNum] = { total: 0, products: [] };
-  acc[orderNum].total += parseFloat(row.ganancia_producto || 0);
-  acc[orderNum].products.push({
-    product: row.line_items_name,
-    ganancia: row.ganancia_producto,
-    precio: row.line_items_price,
-    cantidad: row.line_items_quantity,
-    descuento: row.discount_allocations_amount,
-    comision: row.comission
-  });
-  return acc;
-}, {});
-
-Object.entries(gananciasSummary).forEach(([order, data]) => {
-  console.log(`Orden ${order}: $${data.total.toFixed(2)}`, data.products);
-});
 
     return NextResponse.json({ 
       success: true, 
@@ -158,12 +154,11 @@ Object.entries(gananciasSummary).forEach(([order, data]) => {
     });
     
   } catch (error) {
-    console.error('❌ Error en BigQuery:', error);
+    console.error('❌ Error en BigQuery Orders:', error);
     return NextResponse.json(
       { 
         success: false, 
-        error: error.message,
-        details: 'Error ejecutando la consulta de ganancias'
+        error: error.message
       }, 
       { status: 500 }
     );
