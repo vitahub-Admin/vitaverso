@@ -13,6 +13,7 @@ export async function GET(req, { params }) {
         id
         title
         handle
+        descriptionHtml
         image { src }
         products(first: 50) {
           edges {
@@ -21,7 +22,17 @@ export async function GET(req, { params }) {
               title
               handle
               images(first: 1) { edges { node { src } } }
-              variants(first: 1) { edges { node { id price } } }
+              variants(first: 1) {
+                edges {
+                  node {
+                    id
+                    price
+                    metafield(namespace: "custom", key: "comision_afiliado") {
+                      value
+                    }
+                  }
+                }
+              }
             }
           }
         }

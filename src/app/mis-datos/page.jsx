@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 
-const CAMPOS_PUBLICOS = ["nombre", "apellido", "email", "red_social", "clabe"];
+const CAMPOS_PUBLICOS = ["nombre", "apellido", "email", "red_social", "clabe","telefono"];
 
 export default function PerfilAfiliado() {
   const [data, setData] = useState(null);

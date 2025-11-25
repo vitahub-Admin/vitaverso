@@ -11,8 +11,15 @@ export default function MiTiendaPage() {
   const [selectedFile, setSelectedFile] = useState(null);
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
-  const [toast, setToast] = useState(null); // <-- para notificaciones
+  const [toast, setToast] = useState(null);
   const fileInputRef = useRef(null);
+
+  // ---- Helper para limpiar HTML ----
+  function stripHtml(html) {
+    const tmp = document.createElement("div");
+    tmp.innerHTML = html || "";
+    return tmp.textContent || "";
+  }
 
   useEffect(() => {
     const customerId = Cookies.get("customerId");
@@ -29,7 +36,7 @@ export default function MiTiendaPage() {
           return;
         }
 
-        const collectionId = sheetData.data[1]; // columna B
+        const collectionId = sheetData.data[1];
         fetch(`/api/shopify/collections/${collectionId}`)
           .then((res) => res.json())
           .then((shopifyData) => {
@@ -37,7 +44,17 @@ export default function MiTiendaPage() {
               setError("No se encontró la colección en Shopify");
               return;
             }
-            setCollection(shopifyData.collection);
+
+            const col = shopifyData.collection;
+
+            // convertimos descriptionHtml → texto plano
+            const plainDescription = stripHtml(col.descriptionHtml);
+
+            setCollection({
+              ...col,
+              description: plainDescription,
+            });
+
             setProducts(shopifyData.products);
           })
           .catch((err) => setError(err.message));
@@ -57,7 +74,7 @@ export default function MiTiendaPage() {
   const imageUrl = previewUrl || collection.image?.src;
   const altText = collection.image?.alt || collection.title;
 
-  // ------------------- Upload imagen -------------------
+  // ---------------- Upload imagen ----------------
   const handleFileChange = (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -81,11 +98,16 @@ export default function MiTiendaPage() {
     formData.append("file", selectedFile);
 
     try {
-      const simpleId = collection.id.split("/").pop();
+      const simpleId =
+        typeof collection.id === "string"
+          ? collection.id.split("/").pop()
+          : collection.id;
+
       const response = await fetch(
         `/api/shopify/collections/${simpleId}/update`,
         { method: "POST", body: formData }
       );
+
       const data = await response.json();
 
       if (!data.success) {
@@ -112,7 +134,7 @@ export default function MiTiendaPage() {
     }
   };
 
-  // ------------------- Quitar producto -------------------
+  // ---------------- Quitar producto ----------------
   const handleRemoveProduct = async (productId) => {
     if (!confirm("¿Seguro querés quitar este producto de la colección?")) return;
 
@@ -126,6 +148,7 @@ export default function MiTiendaPage() {
           body: JSON.stringify({ productId }),
         }
       );
+
       const data = await response.json();
 
       if (!data.success) {
@@ -141,14 +164,14 @@ export default function MiTiendaPage() {
     }
   };
 
-  // ------------------- Guardar title / description -------------------
+  // ---------------- Guardar title / description ----------------
   const handleSaveInfo = async () => {
     try {
-         // Si ya es número, no necesitamos split
-    const simpleId = typeof collection.id === "string"
-    ? collection.id.split("/").pop()
-    : collection.id;
-      console.log(simpleId)
+      const simpleId =
+        typeof collection.id === "string"
+          ? collection.id.split("/").pop()
+          : collection.id;
+
       const res = await fetch(
         `/api/shopify/collections/${simpleId}/update-info`,
         {
@@ -156,22 +179,30 @@ export default function MiTiendaPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: collection.title,
-            body_html: collection.body_html,
+            body_html: `<p>${collection.description}</p>`, // <-- corregido
           }),
         }
       );
+
       const data = await res.json();
       if (!data.success) {
         alert("Error al actualizar la colección: " + data.error);
         return;
       }
-      setCollection(data.collection);
+
+      setCollection({
+        ...data.collection,
+        description: stripHtml(data.collection.body_html),
+      });
+
       setToast("Colección actualizada ✅");
       setTimeout(() => setToast(null), 3000);
     } catch (err) {
       alert("Error de conexión: " + err.message);
     }
   };
+
+  // ---------------- RENDER ----------------
 
   return (
     <div className="flex flex-col items-center gap-6">
@@ -240,14 +271,19 @@ export default function MiTiendaPage() {
               placeholder="Título de la colección"
               className="border rounded-md px-3 py-2 w-full text-center focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
             />
+
             <textarea
-              value={collection.body_html || ""}
+              value={collection.description || ""}
               onChange={(e) =>
-                setCollection((prev) => ({ ...prev, body_html: e.target.value }))
+                setCollection((prev) => ({
+                  ...prev,
+                  description: e.target.value,
+                }))
               }
               placeholder="Breve descripción / bio"
               className="border rounded-md px-3 py-2 w-full resize-none h-24 focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
             />
+
             <button
               onClick={handleSaveInfo}
               className="mt-2 bg-[#1b3f7a] text-white px-4 py-2 rounded hover:bg-[#16406a]"
@@ -256,7 +292,7 @@ export default function MiTiendaPage() {
             </button>
           </div>
 
-          {/* Botones ir a tienda / compartir */}
+          {/* Botones */}
           <div className="flex flex-row gap-3 w-full mt-4">
             <a
               href={shopifyLink}
@@ -266,6 +302,7 @@ export default function MiTiendaPage() {
             >
               Ir a la tienda
             </a>
+
             <a
               href={whatsappLink}
               target="_blank"
@@ -277,49 +314,50 @@ export default function MiTiendaPage() {
           </div>
         </div>
 
-        {/* Tutorial / guía */}
+        {/* Tutorial */}
         <div className="flex flex-col gap-4 max-w-[400px]">
           <div className="bg-white border border-gray-300 rounded-xl p-4 shadow-md">
-            <h3 className="font-semibold text-[#1b3f7a] mb-2">Cambiar la imagen</h3>
+            <h3 className="font-semibold text-[#1b3f7a] mb-2">
+              Cambiar la imagen
+            </h3>
             <p className="text-sm text-gray-700 leading-snug">
               Para cambiar la imagen de tu tienda, haz click en{" "}
-              <span className="font-semibold">Seleccionar imagen</span>.  
-              Recomendamos usar una imagen cuadrada.  
-              Una vez elegida, presiona{" "}
-              <span className="font-semibold">Subir imagen</span> y espera unos segundos.
+              <span className="font-semibold">Seleccionar imagen</span>. Recomendamos una imagen cuadrada. Luego presiona{" "}
+              <span className="font-semibold">Subir imagen</span>.
             </p>
           </div>
+
           <div className="bg-white border border-gray-300 rounded-xl p-4 shadow-md">
-            <h3 className="font-semibold text-[#1b3f7a] mb-2">Visitar o compartir tu tienda</h3>
+            <h3 className="font-semibold text-[#1b3f7a] mb-2">
+              Visitar o compartir tu tienda
+            </h3>
             <p className="text-sm text-gray-700 leading-snug">
-              El botón <span className="font-semibold">Ir a la tienda</span> abre tu
-              mini tienda en el sitio.  
-              El botón <span className="font-semibold">Compartir</span> te permite
-              enviarla fácilmente por WhatsApp a tus contactos.
+              <span className="font-semibold">Ir a la tienda</span> abre tu mini tienda.  
+              <span className="font-semibold">Compartir</span> te permite enviarla por WhatsApp.
             </p>
           </div>
+
           <div className="bg-white border border-gray-300 rounded-xl p-4 shadow-md">
-            <h3 className="font-semibold text-[#1b3f7a] mb-2">Productos de tu tienda</h3>
+            <h3 className="font-semibold text-[#1b3f7a] mb-2">
+              Productos de tu tienda
+            </h3>
             <p className="text-sm text-gray-700 leading-snug">
-              Aquí se muestran los productos que tienes en tu tienda personal.  
-              Puedes <span className="font-semibold">quitar</span> los que no quieras.  
-              Haciendo click en una imagen irás a la página del producto.  
-              Para <span className="font-semibold">agregar nuevos productos</span>,
-              debes hacerlo desde la página de la tienda principal.
+              Aquí puedes quitar productos que no quieras mostrar. Para agregar nuevos, hazlo desde la tienda principal.
             </p>
           </div>
         </div>
       </div>
 
-      {/* Productos */}
+      {/* Header productos */}
       <div className="w-full bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
         <h1 className="text-3xl md:text-4xl text-white font-lato">
-          Productos ({products.length})
+          Productos ({products?.length || 0})
         </h1>
       </div>
 
+      {/* Productos */}
       <div className="flex flex-wrap justify-center gap-4 w-full mt-2">
-        {products.map((p) => {
+        {products?.map((p) => {
           const productLink = `https://vitahub.mx/products/${p.handle}?sref=${customerId}`;
           const imageUrl = p.images?.edges?.[0]?.node?.src;
           const price = p.variants?.edges?.[0]?.node?.price;
@@ -340,10 +378,15 @@ export default function MiTiendaPage() {
                   />
                 </a>
               )}
+
               <h4 className="text-center mt-2 text-sm">{p.title}</h4>
+
               {price && (
-                <p className="text-[#1b3f7a] text-xl font-semibold mt-1">${price}</p>
+                <p className="text-[#1b3f7a] text-xl font-semibold mt-1">
+                  ${price}
+                </p>
               )}
+
               <button
                 onClick={() => handleRemoveProduct(p.id)}
                 className="mt-auto px-3 py-1 text-white bg-red-500 rounded hover:bg-red-600"

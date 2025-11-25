@@ -7,6 +7,7 @@ const CAMPOS_PUBLICOS = {
   "email": "email",
   "red social": "red_social",
   "clabe": "clabe",
+  "telefono": "telefono"
 };
 
 export async function GET(req, { params }) {
@@ -96,7 +97,8 @@ export async function PATCH(req, { params }) {
       "apellido": "apellido",
       "email": "email",
       "red_social": "red social",
-      "clabe": "clabe"
+      "clabe": "clabe",
+      "telefono":"telefono"
     };
 
     // Tomar solo los campos permitidos
