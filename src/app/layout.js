@@ -16,22 +16,39 @@ function AuthManager({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const customerIdFromParams = searchParams.get("customerId");
+    const token = searchParams.get("token");
     const customerIdFromCookie = Cookies.get("customerId");
 
     console.log("🔐 Auth check:", {
-      fromParams: customerIdFromParams,
+      token,
       fromCookie: customerIdFromCookie
     });
+  
+  // Si llega token en URL → validarlo
+  if (token) {
+    console.log("🔑 Token recibido, validando...");
 
-    // Si hay customerId en params, guardarlo (sin limpiar URL)
-    if (customerIdFromParams) {
-      console.log("✅ CustomerId desde params, guardando...");
-      Cookies.set("customerId", customerIdFromParams, { expires: 30 });
-      setShowAuthModal(false);
-      setIsLoading(false);
-      return;
-    }
+    fetch("/api/verify-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok && data.customerId) {
+          console.log("✅ Token válido, guardando customerId");
+          Cookies.set("customerId", data.customerId, { expires: 30 });
+          setShowAuthModal(false);
+        } else {
+          console.log("❌ Token inválido");
+          Cookies.remove("customerId");
+          setShowAuthModal(true);
+        }
+        setIsLoading(false);
+      });
+
+    return;
+  }
 
     // Si hay customerId en cookie, todo bien
     if (customerIdFromCookie) {
