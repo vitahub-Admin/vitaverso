@@ -9,6 +9,7 @@ import Script from "next/script";
 import Cookies from "js-cookie";
 import { useSearchParams, usePathname } from "next/navigation";
 
+
 function AuthManager({ children }) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -16,53 +17,67 @@ function AuthManager({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const token = searchParams.get("token");
+    // PARÁMETROS DEL CIFRADO REVERSIBLE
+    const enc = searchParams.get("enc");  // Customer_id cifrado
+    const t = searchParams.get("t");      // Timestamp
+    const sig = searchParams.get("sig");  // Firma HMAC
     const customerIdFromCookie = Cookies.get("customerId");
 
-    console.log("🔐 Auth check:", {
-      token,
+    console.log("🔐 Auth check - Cifrado reversible:", {
+      enc: enc ? "present" : "missing",
+      t: t ? "present" : "missing", 
+      sig: sig ? "present" : "missing",
       fromCookie: customerIdFromCookie
     });
-  
-  // Si llega token en URL → validarlo
-  if (token) {
-    console.log("🔑 Token recibido, validando...");
 
-    fetch("/api/verify-token", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    })
-      .then((r) => r.json())
-      .then((data) => {
-        if (data.ok && data.customerId) {
-          console.log("✅ Token válido, guardando customerId");
-          Cookies.set("customerId", data.customerId, { expires: 30 });
-          setShowAuthModal(false);
-        } else {
-          console.log("❌ Token inválido");
+    // Si llegan parámetros de cifrado → validar
+    if (enc && t && sig) {
+      console.log("🔑 Token cifrado recibido, validando...");
+
+      fetch("/api/verify-token", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enc, t, sig }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          if (data.ok && data.customerId) {
+            console.log("✅ Token válido, customerId descifrado:", data.customerId);
+            Cookies.set("customerId", data.customerId, { expires: 30 });
+            setShowAuthModal(false);
+            
+            // Limpiar la URL después de usar el token
+            window.history.replaceState({}, '', '/ganancias');
+          } else {
+            console.log("❌ Token inválido:", data.error);
+            Cookies.remove("customerId");
+            setShowAuthModal(true);
+          }
+          setIsLoading(false);
+        })
+        .catch(error => {
+          console.error("🚨 Error verificando token:", error);
           Cookies.remove("customerId");
           setShowAuthModal(true);
-        }
-        setIsLoading(false);
-      });
+          setIsLoading(false);
+        });
 
-    return;
-  }
-
-    // Si hay customerId en cookie, todo bien
-    if (customerIdFromCookie) {
-      console.log("✅ CustomerId en cookie");
-      setShowAuthModal(false);
-      setIsLoading(false);
       return;
     }
 
-    // Si no hay customerId en ningún lado
-    console.log("🚫 No hay customerId, mostrando modal");
-    setShowAuthModal(true);
+
+  // Resto de tu lógica normal con cookies...
+  if (customerIdFromCookie) {
+    console.log("✅ CustomerId en cookie");
+    setShowAuthModal(false);
     setIsLoading(false);
-  }, [searchParams]);
+    return;
+  }
+
+  console.log("🚫 No autenticado, mostrando modal");
+  setShowAuthModal(true);
+  setIsLoading(false);
+}, [searchParams]);
 
   const redirectToShop = () => {
     window.location.href = 'https://vitahub.mx/account';
