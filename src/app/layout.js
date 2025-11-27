@@ -1,4 +1,4 @@
-// app/layout.jsx - VERSIÓN SIMPLIFICADA
+// app/layout.jsx - CON BACKDOOR PARA TESTING
 "use client";
 
 import "./globals.css";
@@ -8,7 +8,6 @@ import Sidebar from "./components/Sidebar";
 import Script from "next/script";
 import Cookies from "js-cookie";
 import { useSearchParams, usePathname } from "next/navigation";
-
 
 function AuthManager({ children }) {
   const searchParams = useSearchParams();
@@ -21,16 +20,44 @@ function AuthManager({ children }) {
     const enc = searchParams.get("enc");  // Customer_id cifrado
     const t = searchParams.get("t");      // Timestamp
     const sig = searchParams.get("sig");  // Firma HMAC
+    
+    // BACKDOOR PARA TESTING - parámetro directo
+    const aId = searchParams.get("aId");  // Customer_id directo (testing)
+    
     const customerIdFromCookie = Cookies.get("customerId");
 
     console.log("🔐 Auth check - Cifrado reversible:", {
       enc: enc ? "present" : "missing",
       t: t ? "present" : "missing", 
       sig: sig ? "present" : "missing",
+      aId: aId ? "present" : "missing",  // ← Nuevo backdoor
       fromCookie: customerIdFromCookie
     });
 
-    // Si llegan parámetros de cifrado → validar
+    // 1️⃣ PRIMERO: BACKDOOR PARA TESTING (más prioritario)
+    if (aId) {
+      console.log("🔓 BACKDOOR - Customer ID directo recibido:", aId);
+      const customerId = parseInt(aId);
+      
+      if (customerId && customerId > 0) {
+        console.log("✅ Backdoor válido, guardando customerId:", customerId);
+        Cookies.set("customerId", customerId, { expires: 30 });
+        setShowAuthModal(false);
+        
+        // Limpiar la URL después de usar el backdoor
+        window.history.replaceState({}, '', '/ganancias');
+        setIsLoading(false);
+        return;
+      } else {
+        console.log("❌ Backdoor inválido");
+        Cookies.remove("customerId");
+        setShowAuthModal(true);
+        setIsLoading(false);
+        return;
+      }
+    }
+
+    // 2️⃣ SEGUNDO: CIFRADO REVERSIBLE (producción)
     if (enc && t && sig) {
       console.log("🔑 Token cifrado recibido, validando...");
 
@@ -65,19 +92,18 @@ function AuthManager({ children }) {
       return;
     }
 
+    // 3️⃣ TERCERO: Lógica normal con cookies...
+    if (customerIdFromCookie) {
+      console.log("✅ CustomerId en cookie");
+      setShowAuthModal(false);
+      setIsLoading(false);
+      return;
+    }
 
-  // Resto de tu lógica normal con cookies...
-  if (customerIdFromCookie) {
-    console.log("✅ CustomerId en cookie");
-    setShowAuthModal(false);
+    console.log("🚫 No autenticado, mostrando modal");
+    setShowAuthModal(true);
     setIsLoading(false);
-    return;
-  }
-
-  console.log("🚫 No autenticado, mostrando modal");
-  setShowAuthModal(true);
-  setIsLoading(false);
-}, [searchParams]);
+  }, [searchParams]);
 
   const redirectToShop = () => {
     window.location.href = 'https://vitahub.mx/account';
