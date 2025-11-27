@@ -3,11 +3,22 @@ import { randomUUID } from "crypto";
 
 const carts = new Map();
 
+function cors(response) {
+  response.headers.set("Access-Control-Allow-Origin", "https://vitahub.mx");
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+  return response;
+}
+
+export async function OPTIONS() {
+  const res = NextResponse.json({}, { status: 200 });
+  return cors(res);
+}
+
 export async function POST(req) {
   try {
     let body = {};
 
-    // Intentar leer JSON, si falla dejar body vacío
     try {
       body = await req.json();
     } catch (e) {
@@ -15,9 +26,11 @@ export async function POST(req) {
     }
 
     if (!body?.items || !Array.isArray(body.items)) {
-      return NextResponse.json(
-        { ok: false, error: "Invalid payload" },
-        { status: 400 }
+      return cors(
+        NextResponse.json(
+          { ok: false, error: "Invalid payload" },
+          { status: 400 }
+        )
       );
     }
 
@@ -28,15 +41,44 @@ export async function POST(req) {
       createdAt: Date.now(),
     });
 
-    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin;
-
-    return NextResponse.json({
+    const response = NextResponse.json({
       ok: true,
       shareId,
-      url: `${baseUrl}/sharecart/${shareId}`,
+      url: `https://vitahub.mx/cart?shared-cart-id=${shareId}`,
     });
+
+    return cors(response);
+
   } catch (err) {
     console.error("Error in /api/sharecart:", err);
-    return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
+    return cors(
+      NextResponse.json({ ok: false, error: "Server error" }, { status: 500 })
+    );
+  }
+}
+
+export async function GET(req) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (!id || !carts.has(id)) {
+      return cors(
+        NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
+      );
+    }
+
+    const response = NextResponse.json({
+      ok: true,
+      cart: carts.get(id),
+    });
+
+    return cors(response);
+
+  } catch (err) {
+    console.error("Error in GET /api/sharecart:", err);
+    return cors(
+      NextResponse.json({ ok: false, error: "Server error" }, { status: 500 })
+    );
   }
 }
