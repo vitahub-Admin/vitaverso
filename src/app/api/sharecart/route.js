@@ -1,11 +1,18 @@
 import { NextResponse } from "next/server";
+import { randomUUID } from "crypto";
 
-// Temporal store (se borra si se reinicia el server)
 const carts = new Map();
 
 export async function POST(req) {
   try {
-    const body = await req.json();
+    let body = {};
+
+    // Intentar leer JSON, si falla dejar body vacío
+    try {
+      body = await req.json();
+    } catch (e) {
+      body = {};
+    }
 
     if (!body?.items || !Array.isArray(body.items)) {
       return NextResponse.json(
@@ -14,41 +21,22 @@ export async function POST(req) {
       );
     }
 
-    // Generar ID único
-    const shareId = crypto.randomUUID();
+    const shareId = randomUUID();
 
-    // Guardar carrito
     carts.set(shareId, {
       items: body.items,
       createdAt: Date.now(),
     });
 
+    const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || req.nextUrl.origin;
+
     return NextResponse.json({
       ok: true,
       shareId,
-      url: `${process.env.NEXT_PUBLIC_BASE_URL}/sharecart/${shareId}`,
+      url: `${baseUrl}/sharecart/${shareId}`,
     });
   } catch (err) {
     console.error("Error in /api/sharecart:", err);
-    return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
-  }
-}
-
-export async function GET(req) {
-  try {
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
-
-    if (!id || !carts.has(id)) {
-      return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
-    }
-
-    return NextResponse.json({
-      ok: true,
-      cart: carts.get(id),
-    });
-  } catch (err) {
-    console.error("Error in GET /api/sharecart:", err);
     return NextResponse.json({ ok: false, error: "Server error" }, { status: 500 });
   }
 }

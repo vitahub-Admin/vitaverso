@@ -31,7 +31,7 @@ export async function GET(request) {
     console.log("✅ Token generated for customer:", loggedInCustomerId);
 
     // Usa URL absoluta para evitar problemas
-    const redirectUrl = `${process.env.URL_BASE}/ganancias?token=${token}`;
+    const redirectUrl = `${process.env.NEXT_PUBLIC_BASE_URL}/ganancias?token=${token}`;
     return NextResponse.redirect(redirectUrl);
 
   } catch (error) {
