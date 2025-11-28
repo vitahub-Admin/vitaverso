@@ -1,84 +1,88 @@
 import { NextResponse } from "next/server";
-import { randomUUID } from "crypto";
+import { supabase } from "@/lib/supabase";
+import crypto from "crypto";
 
-const carts = new Map();
-
-function cors(response) {
-  response.headers.set("Access-Control-Allow-Origin", "https://vitahub.mx");
-  response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  response.headers.set("Access-Control-Allow-Headers", "Content-Type");
-  return response;
+// Utilidad: generar token cortito (6–8 chars)
+function shortId() {
+  return crypto.randomBytes(4).toString("hex"); 
 }
 
-export async function OPTIONS() {
-  const res = NextResponse.json({}, { status: 200 });
-  return cors(res);
-}
-
+// =============================
+//  POST  → Save sharecart
+// =============================
 export async function POST(req) {
   try {
-    let body = {};
+    const body = await req.json();
 
-    try {
-      body = await req.json();
-    } catch (e) {
-      body = {};
-    }
+    const { items, patient_name, phone, extras } = body;
 
-    if (!body?.items || !Array.isArray(body.items)) {
-      return cors(
-        NextResponse.json(
-          { ok: false, error: "Invalid payload" },
-          { status: 400 }
-        )
+    if (!items || !Array.isArray(items)) {
+      return NextResponse.json(
+        { ok: false, error: "Invalid payload" },
+        { status: 400 }
       );
     }
 
-    const shareId = randomUUID();
+    // Generar ID corto tipo "a12f90c3"
+    const id = shortId();
 
-    carts.set(shareId, {
-      items: body.items,
-      createdAt: Date.now(),
-    });
+    // Guardar comprimido dentro de la DB
+    const encoded_cart = Buffer.from(JSON.stringify({ items })).toString("base64");
 
-    const response = NextResponse.json({
+    const { error } = await supabase
+      .from("sharecarts")
+      .insert({
+        id,
+        encoded_cart,
+        patient_name: patient_name || null,
+        phone: phone || null,
+        extras: extras || {}
+      });
+
+    if (error) {
+      console.error(error);
+      return NextResponse.json({ ok: false }, { status: 500 });
+    }
+
+    // Devolver el link final para WhatsApp
+    return NextResponse.json({
       ok: true,
-      shareId,
-      url: `https://vitahub.mx/cart?shared-cart-id=${shareId}`,
+      id,
+      url: `https://vitahub.mx/cart?shared-cart-id=${id}`
     });
-
-    return cors(response);
-
   } catch (err) {
-    console.error("Error in /api/sharecart:", err);
-    return cors(
-      NextResponse.json({ ok: false, error: "Server error" }, { status: 500 })
-    );
+    console.error(err);
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
 
+
+// =============================
+//  GET  → Retrieve sharecart
+// =============================
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
-    if (!id || !carts.has(id)) {
-      return cors(
-        NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
-      );
-    }
+    if (!id)
+      return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
 
-    const response = NextResponse.json({
-      ok: true,
-      cart: carts.get(id),
-    });
+    const { data, error } = await supabase
+      .from("sharecarts")
+      .select("*")
+      .eq("id", id)
+      .single();
 
-    return cors(response);
+    if (error || !data)
+      return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
 
+    // Decodificar carrito
+    const decoded = JSON.parse(Buffer.from(data.encoded_cart, "base64").toString());
+
+    return NextResponse.json({ ok: true, cart: decoded });
   } catch (err) {
-    console.error("Error in GET /api/sharecart:", err);
-    return cors(
-      NextResponse.json({ ok: false, error: "Server error" }, { status: 500 })
-    );
+    console.error(err);
+    return NextResponse.json({ ok: false }, { status: 500 });
   }
 }
