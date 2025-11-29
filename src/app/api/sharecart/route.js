@@ -1,20 +1,14 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import crypto from "crypto";
-
-// Utilidad: generar token cortito (6–8 chars)
-function shortId() {
-  return crypto.randomBytes(4).toString("hex"); 
-}
+import { nanoid } from "nanoid";
 
 // =============================
-//  POST  → Save sharecart
+//  POST → Save sharecart
 // =============================
 export async function POST(req) {
   try {
     const body = await req.json();
-
-    const { items, patient_name, phone, extras } = body;
+    const { items, name, telefono, extra } = body;
 
     if (!items || !Array.isArray(items)) {
       return NextResponse.json(
@@ -23,32 +17,30 @@ export async function POST(req) {
       );
     }
 
-    // Generar ID corto tipo "a12f90c3"
-    const id = shortId();
+    // Token corto tipo "aJ38ksP2"
+    const token = nanoid(10);
 
-    // Guardar comprimido dentro de la DB
-    const encoded_cart = Buffer.from(JSON.stringify({ items })).toString("base64");
-
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from("sharecarts")
       .insert({
-        id,
-        encoded_cart,
-        patient_name: patient_name || null,
-        phone: phone || null,
-        extras: extras || {}
-      });
+        token,
+        items,
+        name: name || null,
+        telefono: telefono || null,
+        extra: extra || {}
+      })
+      .select("token")
+      .single();
 
     if (error) {
       console.error(error);
       return NextResponse.json({ ok: false }, { status: 500 });
     }
 
-    // Devolver el link final para WhatsApp
     return NextResponse.json({
       ok: true,
-      id,
-      url: `https://vitahub.mx/cart?shared-cart-id=${id}`
+      token: data.token,
+      url: `https://vitahub.mx/cart?shared-cart-id=${data.token}`,
     });
   } catch (err) {
     console.error(err);
@@ -56,31 +48,48 @@ export async function POST(req) {
   }
 }
 
-
 // =============================
-//  GET  → Retrieve sharecart
+//  GET → Retrieve one or all
 // =============================
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
+    const token = searchParams.get("id");
 
-    if (!id)
-      return NextResponse.json({ ok: false, error: "Missing id" }, { status: 400 });
+    // -------------------------------------------
+    // A: GET a single cart using the short token
+    // -------------------------------------------
+    if (token) {
+      const { data, error } = await supabase
+        .from("sharecarts")
+        .select("*")
+        .eq("token", token)
+        .single();
 
+      if (error || !data)
+        return NextResponse.json(
+          { ok: false, error: "Not found" },
+          { status: 404 }
+        );
+
+      return NextResponse.json({ ok: true, data });
+    }
+
+    // -------------------------------------------
+    // B: GET all carts
+    // -------------------------------------------
     const { data, error } = await supabase
       .from("sharecarts")
       .select("*")
-      .eq("id", id)
-      .single();
+      .order("created_at", { ascending: false });
 
-    if (error || !data)
-      return NextResponse.json({ ok: false, error: "Not found" }, { status: 404 });
+    if (error)
+      return NextResponse.json(
+        { ok: false, error: "DB error" },
+        { status: 500 }
+      );
 
-    // Decodificar carrito
-    const decoded = JSON.parse(Buffer.from(data.encoded_cart, "base64").toString());
-
-    return NextResponse.json({ ok: true, cart: decoded });
+    return NextResponse.json({ ok: true, list: data });
   } catch (err) {
     console.error(err);
     return NextResponse.json({ ok: false }, { status: 500 });
