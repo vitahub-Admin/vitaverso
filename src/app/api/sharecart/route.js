@@ -76,26 +76,43 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("id");
 
-    // A: GET un carrito
-    if (token) {
-      const { data, error } = await supabase
-        .from("sharecarts")
-        .select("*")
-        .eq("token", token)
-        .single();
+// A: GET un carrito
+if (token) {
+  const { data, error } = await supabase
+    .from("sharecarts")
+    .select("*")
+    .eq("token", token)
+    .single();
 
-      if (error || !data) {
-        return withCors(
-          NextResponse.json(
-            { ok: false, error: "Not found" },
-            { status: 404 }
-          )
-        );
+  if (error || !data) {
+    return withCors(
+      NextResponse.json(
+        { ok: false, error: "Not found" },
+        { status: 404 }
+      )
+    );
+  }
+
+  // Transformar variant_id → id (Shopify lo necesita así)
+  const transformedItems = (data.items || []).map(item => ({
+    id: item.variant_id,        // Shopify lo consume como "id"
+    quantity: item.quantity
+  }));
+
+  return withCors(
+    NextResponse.json({
+      ok: true,
+      cart: {
+        items: transformedItems,
+        name: data.name,
+        telefono: data.telefono,
+        extra: data.extra,
+        created_at: data.created_at,
+        token: data.token
       }
-
-      return withCors(NextResponse.json({ ok: true, data }));
-    }
-
+    })
+  );
+}
     // B: GET todos
     const { data, error } = await supabase
       .from("sharecarts")
