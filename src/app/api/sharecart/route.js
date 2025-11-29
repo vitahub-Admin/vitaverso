@@ -3,6 +3,21 @@ import { supabase } from "@/lib/supabase";
 import { nanoid } from "nanoid";
 
 // =============================
+//  CORS CONFIG
+// =============================
+function withCors(response) {
+  response.headers.set("Access-Control-Allow-Origin", "https://vitahub.mx");
+  response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+  response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+  response.headers.set("Access-Control-Allow-Credentials", "true");
+  return response;
+}
+
+export function OPTIONS() {
+  return withCors(new NextResponse(null, { status: 204 }));
+}
+
+// =============================
 //  POST → Save sharecart
 // =============================
 export async function POST(req) {
@@ -11,9 +26,11 @@ export async function POST(req) {
     const { items, name, telefono, extra } = body;
 
     if (!items || !Array.isArray(items)) {
-      return NextResponse.json(
-        { ok: false, error: "Invalid payload" },
-        { status: 400 }
+      return withCors(
+        NextResponse.json(
+          { ok: false, error: "Invalid payload" },
+          { status: 400 }
+        )
       );
     }
 
@@ -34,17 +51,20 @@ export async function POST(req) {
 
     if (error) {
       console.error(error);
-      return NextResponse.json({ ok: false }, { status: 500 });
+      return withCors(NextResponse.json({ ok: false }, { status: 500 }));
     }
 
-    return NextResponse.json({
-      ok: true,
-      token: data.token,
-      url: `https://vitahub.mx/cart?shared-cart-id=${data.token}`,
-    });
+    return withCors(
+      NextResponse.json({
+        ok: true,
+        token: data.token,
+        url: `https://vitahub.mx/cart?shared-cart-id=${data.token}`,
+      })
+    );
+
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ ok: false }, { status: 500 });
+    return withCors(NextResponse.json({ ok: false }, { status: 500 }));
   }
 }
 
@@ -56,9 +76,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("id");
 
-    // -------------------------------------------
-    // A: GET a single cart using the short token
-    // -------------------------------------------
+    // A: GET un carrito
     if (token) {
       const { data, error } = await supabase
         .from("sharecarts")
@@ -66,32 +84,37 @@ export async function GET(req) {
         .eq("token", token)
         .single();
 
-      if (error || !data)
-        return NextResponse.json(
-          { ok: false, error: "Not found" },
-          { status: 404 }
+      if (error || !data) {
+        return withCors(
+          NextResponse.json(
+            { ok: false, error: "Not found" },
+            { status: 404 }
+          )
         );
+      }
 
-      return NextResponse.json({ ok: true, data });
+      return withCors(NextResponse.json({ ok: true, data }));
     }
 
-    // -------------------------------------------
-    // B: GET all carts
-    // -------------------------------------------
+    // B: GET todos
     const { data, error } = await supabase
       .from("sharecarts")
       .select("*")
       .order("created_at", { ascending: false });
 
-    if (error)
-      return NextResponse.json(
-        { ok: false, error: "DB error" },
-        { status: 500 }
+    if (error) {
+      return withCors(
+        NextResponse.json(
+          { ok: false, error: "DB error" },
+          { status: 500 }
+        )
       );
+    }
 
-    return NextResponse.json({ ok: true, list: data });
+    return withCors(NextResponse.json({ ok: true, list: data }));
+
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ ok: false }, { status: 500 });
+    return withCors(NextResponse.json({ ok: false }, { status: 500 }));
   }
 }
