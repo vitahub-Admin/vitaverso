@@ -8,11 +8,13 @@ import { nanoid } from "nanoid";
 function withCors(response) {
   response.headers.set("Access-Control-Allow-Origin", "https://vitahub.mx");
   response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  response.headers.set("Access-Control-Allow-Headers", "Content-Type");
+  response.headers.set(
+    "Access-Control-Allow-Headers",
+    "Content-Type, Authorization, X-Requested-With"
+  );
   response.headers.set("Access-Control-Allow-Credentials", "true");
   return response;
 }
-
 export function OPTIONS() {
   return withCors(new NextResponse(null, { status: 204 }));
 }
