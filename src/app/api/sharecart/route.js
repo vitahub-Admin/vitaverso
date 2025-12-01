@@ -25,7 +25,7 @@ export function OPTIONS() {
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { items, name, telefono, extra } = body;
+    const { ownerId, name, phone, items, location,extra } = body;
 
     if (!items || !Array.isArray(items)) {
       return withCors(
@@ -45,8 +45,10 @@ export async function POST(req) {
         token,
         items,
         name: name || null,
-        telefono: telefono || null,
-        extra: extra || {}
+        phone: phone || null,
+        extra: extra || {},
+        location: location || {},
+        ownerId
       })
       .select("token")
       .single();
