@@ -11,12 +11,12 @@ import {
   Tooltip,
 } from "recharts";
 
-// helper para truncar texto en máximo 2 líneas
+// helper para truncar texto
 function truncateText(text, maxCharsPerLine = 15, maxLines = 2) {
-  if (text == null) return "";
-  text = String(text); // <<-- coerción a string
-  const words = text.split(/\s+/);
+  if (!text) return "";
+  text = String(text);
 
+  const words = text.split(/\s+/);
   let lines = [];
   let currentLine = "";
 
@@ -30,11 +30,8 @@ function truncateText(text, maxCharsPerLine = 15, maxLines = 2) {
     if (lines.length === maxLines) break;
   }
 
-  if (currentLine && lines.length < maxLines) {
-    lines.push(currentLine);
-  }
+  if (currentLine && lines.length < maxLines) lines.push(currentLine);
 
-  // si todavía quedan palabras sin mostrar, agregamos "..."
   if (words.join(" ").length > lines.join(" ").length) {
     lines[lines.length - 1] += "...";
   }
@@ -42,18 +39,11 @@ function truncateText(text, maxCharsPerLine = 15, maxLines = 2) {
   return lines.join("\n");
 }
 
-// custom tick renderer
+// renderer
 const CustomTick = ({ x, y, payload }) => {
   const truncated = truncateText(payload.value, 15, 2);
   return (
-    <text
-      x={x}
-      y={y}
-      dy={4}
-      textAnchor="end"
-      fill="#333"
-      fontSize={12}
-    >
+    <text x={x} y={y} dy={4} textAnchor="end" fill="#333" fontSize={12}>
       {truncated.split("\n").map((line, index) => (
         <tspan key={index} x={x} dy={index === 0 ? 0 : 14}>
           {line}
@@ -67,17 +57,20 @@ export default function Chart2({ data }) {
   const topProducts = useMemo(() => {
     const map = {};
 
-    data.forEach((item) => {
-      const name = item.line_items_name; // nombre del producto
-      const quantity = item.line_items_quantity || 0; // cantidad vendida
-      if (!map[name]) map[name] = 0;
-      map[name] += quantity;
+    data.forEach((order) => {
+      order.productos.forEach((p) => {
+        const name = p.producto;
+        const quantity = p.cantidad || 0;
+
+        if (!map[name]) map[name] = 0;
+        map[name] += quantity;
+      });
     });
 
     return Object.entries(map)
       .map(([name, quantity]) => ({ name, quantity }))
       .sort((a, b) => b.quantity - a.quantity)
-      .slice(0, 4); // top 4
+      .slice(0, 4);
   }, [data]);
 
   return (
@@ -93,7 +86,7 @@ export default function Chart2({ data }) {
           <YAxis
             type="category"
             dataKey="name"
-            width={250} // ancho extra para nombres largos
+            width={250}
             tick={<CustomTick />}
           />
           <Tooltip formatter={(value) => `${value} vendidos`} />

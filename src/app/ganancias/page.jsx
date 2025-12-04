@@ -73,20 +73,12 @@ export default function OrdenesPage() {
     let items = 0;
     const uniqueOrders = new Set();
   
-    ordenesData.forEach((item) => {
-      // ✅ CALCULO CORRECTO (igual que backend)
-      const subtotal = item.line_items_price * item.line_items_quantity;
-      const discount = parseFloat(item.discount_allocations_amount) || 0;
-      const baseComision = subtotal - discount;
-      const gananciaProducto = baseComision * item.comission;
-      
-      ganancia += gananciaProducto;
+    ordenesData.forEach((order) => {
+      // ya viene calculado por BigQuery
+      ganancia += Number(order.ganancia_total) || 0;
+      items += Number(order.total_items) || 0;
   
-      // items vendidos
-      items += item.line_items_quantity;
-  
-      // guardamos el número de orden en el set
-      uniqueOrders.add(item.order_number);
+      uniqueOrders.add(order.order_number);
     });
   
     return {
@@ -95,6 +87,7 @@ export default function OrdenesPage() {
       carritos: uniqueOrders.size,
     };
   }, [ordenesData]);
+  
   return (
     <div className="flex flex-col items-center gap-6 p-4">
 
