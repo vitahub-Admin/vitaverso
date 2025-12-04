@@ -10,13 +10,25 @@ function withCors(response) {
   response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   response.headers.set(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With"
+    "Content-Type, Authorization, X-Requested-With, x-api-key"
   );
   response.headers.set("Access-Control-Allow-Credentials", "true");
   return response;
 }
+
 export function OPTIONS() {
   return withCors(new NextResponse(null, { status: 204 }));
+}
+
+// =============================
+//  SECURITY → API KEY REQUIRED ONLY FOR "GET ALL"
+// =============================
+function checkApiKey(req) {
+  const apiKey = req.headers.get("x-api-key");
+  if (apiKey !== process.env.SHARECART_API_KEY) {
+    return new NextResponse("Unauthorized", { status: 401 });
+  }
+  return null;
 }
 
 // =============================
@@ -25,7 +37,7 @@ export function OPTIONS() {
 export async function POST(req) {
   try {
     const body = await req.json();
-    const { owner_id, name, phone, items, location,extra } = body;
+    const { owner_id, name, phone, items, location, extra } = body;
 
     if (!items || !Array.isArray(items)) {
       return withCors(
@@ -36,7 +48,6 @@ export async function POST(req) {
       );
     }
 
-    // Token corto tipo "aJ38ksP2"
     const token = nanoid(10);
 
     const { data, error } = await supabase
@@ -62,10 +73,9 @@ export async function POST(req) {
       NextResponse.json({
         ok: true,
         token: data.token,
-        url: `https://vitahub.mx/cart?shared-cart-id=${data.token}`,
+        url: `https://vitahub.mx/cart?shared-cart-id=${data.token}`
       })
     );
-
   } catch (err) {
     console.error(err);
     return withCors(NextResponse.json({ ok: false }, { status: 500 }));
@@ -73,51 +83,54 @@ export async function POST(req) {
 }
 
 // =============================
-//  GET → Retrieve one or all
+//  GET → Retrieve one or all sharecarts
 // =============================
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("id");
 
-// A: GET un carrito
-if (token) {
-  const { data, error } = await supabase
-    .from("sharecarts")
-    .select("*")
-    .eq("token", token)
-    .single();
+    // A: GET un carrito (SIN protección)
+    if (token) {
+      const { data, error } = await supabase
+        .from("sharecarts")
+        .select("*")
+        .eq("token", token)
+        .single();
 
-  if (error || !data) {
-    return withCors(
-      NextResponse.json(
-        { ok: false, error: "Not found" },
-        { status: 404 }
-      )
-    );
-  }
-
-  // Transformar variant_id → id (Shopify lo necesita así)
-  const transformedItems = (data.items || []).map(item => ({
-    id: item.variant_id,        // Shopify lo consume como "id"
-    quantity: item.quantity
-  }));
-
-  return withCors(
-    NextResponse.json({
-      ok: true,
-      cart: {
-        items: transformedItems,
-        name: data.name,
-        telefono: data.telefono,
-        extra: data.extra,
-        created_at: data.created_at,
-        token: data.token
+      if (error || !data) {
+        return withCors(
+          NextResponse.json(
+            { ok: false, error: "Not found" },
+            { status: 404 }
+          )
+        );
       }
-    })
-  );
-}
-    // B: GET todos
+
+      const transformedItems = (data.items || []).map((item) => ({
+        id: item.variant_id,
+        quantity: item.quantity
+      }));
+
+      return withCors(
+        NextResponse.json({
+          ok: true,
+          cart: {
+            items: transformedItems,
+            name: data.name,
+            telefono: data.telefono,
+            extra: data.extra,
+            created_at: data.created_at,
+            token: data.token
+          }
+        })
+      );
+    }
+
+    // B: GET todos (CON protección)
+    const auth = checkApiKey(req);
+    if (auth) return withCors(auth);
+
     const { data, error } = await supabase
       .from("sharecarts")
       .select("*")
@@ -133,7 +146,6 @@ if (token) {
     }
 
     return withCors(NextResponse.json({ ok: true, list: data }));
-
   } catch (err) {
     console.error(err);
     return withCors(NextResponse.json({ ok: false }, { status: 500 }));
