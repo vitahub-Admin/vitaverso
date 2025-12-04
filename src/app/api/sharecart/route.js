@@ -89,6 +89,8 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("id");
+    const createdAfter = searchParams.get("created_after");
+    const updatedAfter = searchParams.get("updated_after"); // <--- added
 
     // A: GET un carrito (SIN protección)
     if (token) {
@@ -109,7 +111,7 @@ export async function GET(req) {
 
       const transformedItems = (data.items || []).map((item) => ({
         id: item.variant_id,
-        quantity: item.quantity
+        quantity: item.quantity,
       }));
 
       return withCors(
@@ -121,8 +123,9 @@ export async function GET(req) {
             telefono: data.telefono,
             extra: data.extra,
             created_at: data.created_at,
-            token: data.token
-          }
+            updated_at: data.updated_at,
+            token: data.token,
+          },
         })
       );
     }
@@ -131,17 +134,24 @@ export async function GET(req) {
     const auth = checkApiKey(req);
     if (auth) return withCors(auth);
 
-    const { data, error } = await supabase
-      .from("sharecarts")
-      .select("*")
-      .order("created_at", { ascending: false });
+    // Build query
+    let query = supabase.from("sharecarts").select("*");
+
+    if (createdAfter) {
+      query = query.gte("created_at", createdAfter);
+    }
+
+    if (updatedAfter) {
+      query = query.gte("updated_at", updatedAfter); // 👈 esto hace el filtro
+    }
+
+    query = query.order("updated_at", { ascending: false });
+
+    const { data, error } = await query;
 
     if (error) {
       return withCors(
-        NextResponse.json(
-          { ok: false, error: "DB error" },
-          { status: 500 }
-        )
+        NextResponse.json({ ok: false, error: "DB error" }, { status: 500 })
       );
     }
 
