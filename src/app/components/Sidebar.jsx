@@ -19,6 +19,8 @@ import {
 export default function Sidebar() {
   const pathname = usePathname();
   const [novedadesPendientes, setNovedadesPendientes] = useState(0);
+  const [isVitahuber, setIsVitahuber] = useState(false);
+
 
   useEffect(() => {
     async function checkNovedades() {
@@ -46,6 +48,22 @@ export default function Sidebar() {
 
     checkNovedades();
   }, [pathname]); // 🔑 Dependemos de la ruta para resetear el badge
+  useEffect(() => {
+    async function fetchCustomer() {
+      try {
+        const res = await fetch("/api/shopify/customer/me");
+        const data = await res.json();
+  
+        if (data.customer?.tags?.includes("vitahuber")) {
+          setIsVitahuber(true);
+        }
+      } catch (err) {
+        console.error("Error leyendo customer:", err);
+      }
+    }
+    fetchCustomer();
+  }, []);
+  
 
   const whatsappNumber1 = "5215534532104";
   const whatsappNumber = "5215548592403"; 
@@ -64,7 +82,9 @@ export default function Sidebar() {
     { href: "/academia-vitahub", label: "Academia Vitahub", icon: <GraduationCap size={20} /> },
     { href: "/notificaciones", label: "Novedades", icon: <Newspaper size={20} /> },
     { href: "/referral", label: "Invita y gana", icon: <UserPlus size={20} /> },
-    { href: "/mis-datos", label: "Mis Datos", icon: <Settings size={20} /> }
+    { href: "/mis-datos", label: "Mis Datos", icon: <Settings size={20} /> },
+    { href: "/vitahuber", label: "Vitahuber", icon: <Settings size={20} />, requireTag: "vitahuber" }
+
   ];
 
   return (

@@ -90,9 +90,13 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const token = searchParams.get("id");
     const createdAfter = searchParams.get("created_after");
-    const updatedAfter = searchParams.get("updated_after"); // <--- added
+    const updatedAfter = searchParams.get("updated_after");
 
-    // A: GET un carrito (SIN protección)
+    const customerId = req.cookies.get("customerId")?.value;
+
+    // ============================================================
+    // 1️⃣ GET por token (público)
+    // ============================================================
     if (token) {
       const { data, error } = await supabase
         .from("sharecarts")
@@ -102,25 +106,20 @@ export async function GET(req) {
 
       if (error || !data) {
         return withCors(
-          NextResponse.json(
-            { ok: false, error: "Not found" },
-            { status: 404 }
-          )
+          NextResponse.json({ ok: false, error: "Not found" }, { status: 404 })
         );
       }
-
-      const transformedItems = (data.items || []).map((item) => ({
-        id: item.variant_id,
-        quantity: item.quantity,
-      }));
 
       return withCors(
         NextResponse.json({
           ok: true,
           cart: {
-            items: transformedItems,
+            items: (data.items || []).map((item) => ({
+              id: item.variant_id,
+              quantity: item.quantity,
+            })),
             name: data.name,
-            telefono: data.telefono,
+            phone: data.phone,
             extra: data.extra,
             created_at: data.created_at,
             updated_at: data.updated_at,
@@ -130,20 +129,41 @@ export async function GET(req) {
       );
     }
 
-    // B: GET todos (CON protección)
+    // ============================================================
+    // 2️⃣ GET solo carritos del usuario (customerId presente)
+    // ============================================================
+    if (customerId) {
+      const { data, error } = await supabase
+        .from("sharecarts")
+        .select("*")
+        .eq("owner_id", customerId)
+        .order("updated_at", { ascending: false });
+
+      if (error) {
+        console.error(error);
+        return withCors(
+          NextResponse.json({ ok: false, error: "DB error" }, { status: 500 })
+        );
+      }
+
+      return withCors(
+        NextResponse.json({
+          ok: true,
+          carts: data,
+        })
+      );
+    }
+
+    // ============================================================
+    // 3️⃣ GET todos (requiere x-api-key)
+    // ============================================================
     const auth = checkApiKey(req);
     if (auth) return withCors(auth);
 
-    // Build query
     let query = supabase.from("sharecarts").select("*");
 
-    if (createdAfter) {
-      query = query.gte("created_at", createdAfter);
-    }
-
-    if (updatedAfter) {
-      query = query.gte("updated_at", updatedAfter); // 👈 esto hace el filtro
-    }
+    if (createdAfter) query = query.gte("created_at", createdAfter);
+    if (updatedAfter) query = query.gte("updated_at", updatedAfter);
 
     query = query.order("updated_at", { ascending: false });
 

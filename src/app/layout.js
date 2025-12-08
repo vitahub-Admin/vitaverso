@@ -8,6 +8,7 @@ import Sidebar from "./components/Sidebar";
 import Script from "next/script";
 import Cookies from "js-cookie";
 import { useSearchParams, usePathname } from "next/navigation";
+import { CustomerProvider } from "./context/CustomerContext.jsx";
 
 function AuthManager({ children }) {
   const searchParams = useSearchParams();
@@ -192,15 +193,17 @@ export default function RootLayout({ children }) {
           </div>
         }>
           <AuthManager>
-            <div className="flex flex-col h-screen">
-              <Header />
-              <div className="flex flex-1 overflow-hidden">
-                <Sidebar />
-                <main className="flex-1 bg-white overflow-y-auto">
-                  {children}
-                </main>
+            <CustomerProvider>
+              <div className="flex flex-col h-screen">
+                <Header />
+                <div className="flex flex-1 overflow-hidden">
+                  <Sidebar />
+                  <main className="flex-1 bg-white overflow-y-auto">
+                    {children}
+                  </main>
+                </div>
               </div>
-            </div>
+            </CustomerProvider>
           </AuthManager>
         </Suspense>
       </body>

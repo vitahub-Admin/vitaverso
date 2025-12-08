@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import HomePageClient from "../HomePageClient";
 import BackButton from "./BackButton";
 import Image from "next/image";
+import { useCustomer } from "../context/CustomerContext";
 
 export default function Header() {
   return (
