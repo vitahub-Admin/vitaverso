@@ -6,16 +6,24 @@ import { nanoid } from "nanoid";
 //  CORS CONFIG
 // =============================
 function withCors(response) {
-  response.headers.set("Access-Control-Allow-Origin", "https://vitahub.mx");
+  // Permitir localhost en desarrollo, vitahub.mx en producción
+  const allowedOrigin = process.env.NODE_ENV === 'development' 
+    ? "http://localhost:3000"
+    : "https://vitahub.mx";
+  
+  response.headers.set("Access-Control-Allow-Origin", allowedOrigin);
   response.headers.set("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
   response.headers.set(
     "Access-Control-Allow-Headers",
-    "Content-Type, Authorization, X-Requested-With, x-api-key"
+    "Content-Type, Authorization, X-Requested-With, x-api-key, Cookie"
   );
   response.headers.set("Access-Control-Allow-Credentials", "true");
   return response;
 }
 
+// =============================
+//  OPTIONS handler para preflight requests
+// =============================
 export function OPTIONS() {
   return withCors(new NextResponse(null, { status: 204 }));
 }
@@ -26,7 +34,7 @@ export function OPTIONS() {
 function checkApiKey(req) {
   const apiKey = req.headers.get("x-api-key");
   if (apiKey !== process.env.SHARECART_API_KEY) {
-    return new NextResponse("Unauthorized", { status: 401 });
+    return withCors(new NextResponse("Unauthorized", { status: 401 }));
   }
   return null;
 }

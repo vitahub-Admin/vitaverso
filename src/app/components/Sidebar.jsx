@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import { useCustomer } from "../context/CustomerContext.jsx";   // 👈 IMPORTANTE
+
 import {
   DollarSign,
   ShoppingBag,
@@ -19,8 +21,16 @@ import {
 
 export default function Sidebar() {
   const pathname = usePathname();
+  const { customer } = useCustomer();     // 👈 ACÁ TRAEMOS EL CUSTOMER DEL CONTEXT
   const [novedadesPendientes, setNovedadesPendientes] = useState(0);
-  const [isVitahuber, setIsVitahuber] = useState(false);
+
+  // ✅ Transformar tags del context en array limpio
+  const tagsArray =
+    customer?.tags
+      ?.split(",")
+      ?.map((t) => t.trim().toLowerCase()) || [];
+
+  const isVitahuber = tagsArray.includes("vitahuber");
 
   // 🔵 Check de novedades
   useEffect(() => {
@@ -31,14 +41,21 @@ export default function Sidebar() {
 
         if (!data.noticias) return;
 
-        const ultimoId = data.noticias[data.noticias.length - 1]?.id || 0;
-        const lastSeenId = parseInt(localStorage.getItem("lastSeenId") || "0", 10);
+        const ultimoId =
+          data.noticias[data.noticias.length - 1]?.id || 0;
+
+        const lastSeenId = parseInt(
+          localStorage.getItem("lastSeenId") || "0",
+          10
+        );
 
         if (pathname === "/notificaciones") {
           localStorage.setItem("lastSeenId", ultimoId);
           setNovedadesPendientes(0);
         } else {
-          const nuevas = data.noticias.filter((n) => n.id > lastSeenId).length;
+          const nuevas = data.noticias.filter(
+            (n) => n.id > lastSeenId
+          ).length;
           setNovedadesPendientes(nuevas);
         }
       } catch (err) {
@@ -48,28 +65,6 @@ export default function Sidebar() {
 
     checkNovedades();
   }, [pathname]);
-
-  // 🔵 Check de tags del usuario
-  useEffect(() => {
-    async function fetchCustomer() {
-      try {
-        const res = await fetch("/api/shopify/customer/me");
-        const data = await res.json();
-
-        const tags = data.customer?.tags
-        ?.split(",")
-        .map(t => t.trim().toLowerCase());
-      
-      if (tags?.includes("vitahuber")) {
-        setIsVitahuber(true);
-      }
-      } catch (err) {
-        console.error("Error leyendo customer:", err);
-      }
-    }
-
-    fetchCustomer();
-  }, []);
 
   const whatsappNumber = "5215548592403";
   const whatsappMessage = encodeURIComponent(
@@ -89,9 +84,11 @@ export default function Sidebar() {
     { href: "/notificaciones", label: "Novedades", icon: <Newspaper size={20} /> },
     { href: "/referral", label: "Invita y gana", icon: <UserPlus size={20} /> },
     { href: "/mis-datos", label: "Mis Datos", icon: <Settings size={20} /> },
-
-    // 🔥 Este solo lo ven usuarios con tag "vitahuber"
-    { href: "/vitahuber", label: "Vitahuber", icon: <Settings size={20} />, requireTag: "vitahuber" },
+  
+    // 🔥 Este solo lo ven usuarios con tag "vitahuber"  
+    { href: "/debug", label: "debug", icon: <Settings size={20} />,  requireTag: "vitahuber" },
+    { href: "/vitahuber", label: "Vitahuber", icon: <Settings size={20} />, requireTag: "vitahuber",},
+    { href: "/sharecarts", label: "sharecart", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
   ];
 
   return (
@@ -113,7 +110,11 @@ export default function Sidebar() {
                 key={href}
                 href={href}
                 className={`relative flex items-center justify-center sm:justify-start gap-2 px-2 py-2 rounded transition text-sm
-                  ${isActive ? "bg-[#1b3f7a] text-white" : "hover:bg-[#e6e6e6] text-[#1b3f7a]"}`}
+                  ${
+                    isActive
+                      ? "bg-[#1b3f7a] text-white"
+                      : "hover:bg-[#e6e6e6] text-[#1b3f7a]"
+                  }`}
               >
                 {icon}
                 <span className="hidden sm:inline">{label}</span>
