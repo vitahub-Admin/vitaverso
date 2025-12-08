@@ -10,9 +10,9 @@ const CAMPOS_PUBLICOS = {
   "telefono": "telefono"
 };
 
-export async function GET(req, { params }) {
+export async function GET(req, context) {
   try {
-    const { id } = params;
+    const { id } = await context.params;   // ← FIX OBLIGATORIO
 
     if (!id) {
       return Response.json(
@@ -79,9 +79,9 @@ export async function GET(req, { params }) {
   }
 }
 
-export async function PATCH(req, { params }) {
+export async function PATCH(req, context) {
   try {
-    const { id } = params;
+    const { id } = await context.params;  // ← FIX OBLIGATORIO
     if (!id) {
       return Response.json(
         { success: false, message: "Falta ID de usuario" },
