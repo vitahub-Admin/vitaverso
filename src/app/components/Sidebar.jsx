@@ -56,9 +56,13 @@ export default function Sidebar() {
         const res = await fetch("/api/shopify/customer/me");
         const data = await res.json();
 
-        if (data.customer?.tags?.includes("vitahuber")) {
-          setIsVitahuber(true);
-        }
+        const tags = data.customer?.tags
+        ?.split(",")
+        .map(t => t.trim().toLowerCase());
+      
+      if (tags?.includes("vitahuber")) {
+        setIsVitahuber(true);
+      }
       } catch (err) {
         console.error("Error leyendo customer:", err);
       }
