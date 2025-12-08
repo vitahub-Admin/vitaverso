@@ -83,8 +83,7 @@ export default function Sidebar() {
     { href: "/notificaciones", label: "Novedades", icon: <Newspaper size={20} /> },
     { href: "/referral", label: "Invita y gana", icon: <UserPlus size={20} /> },
     { href: "/mis-datos", label: "Mis Datos", icon: <Settings size={20} /> },
-    { href: "/vitahuber", label: "Vitahuber", icon: <Settings size={20} />, requireTag: "vitahuber" }
-
+ 
   ];
 
   return (
