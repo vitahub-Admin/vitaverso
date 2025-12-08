@@ -102,6 +102,7 @@ export default function Sidebar() {
           })
           .map(({ href, label, icon }) => {
             const isActive = pathname.startsWith(href);
+            const isNovedades = href === "/notificaciones";
 
             return (
               <Link
