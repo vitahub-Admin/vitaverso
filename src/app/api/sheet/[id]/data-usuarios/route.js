@@ -1,4 +1,5 @@
 import { google } from "googleapis";
+import { NextResponse } from "next/server"; // ✅ Añadir esto
 
 // Campos que SÍ se pueden exponer al frontend
 const CAMPOS_PUBLICOS = {
@@ -10,12 +11,12 @@ const CAMPOS_PUBLICOS = {
   "telefono": "telefono"
 };
 
-export async function GET(req, context) {
+export async function GET(req, { params }) { // ✅ Cambiar a `{ params }`
   try {
-    const { id } = await context.params;   // ← FIX OBLIGATORIO
+    const { id } = await params;   // ✅ CORRECTO
 
     if (!id) {
-      return Response.json(
+      return NextResponse.json( // ✅ Cambiar a NextResponse.json
         { success: false, message: "Falta ID de usuario" },
         { status: 400 }
       );
@@ -25,7 +26,7 @@ export async function GET(req, context) {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n") || "", // ✅ Optional chaining
       },
       scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
     });
@@ -40,7 +41,7 @@ export async function GET(req, context) {
 
     const rows = response.data.values || [];
     if (rows.length < 2) {
-      return Response.json({ success: false, message: "Sheet vacía" });
+      return NextResponse.json({ success: false, message: "Sheet vacía" }); // ✅ NextResponse
     }
 
     // Primera fila = nombres de columnas
@@ -53,7 +54,7 @@ export async function GET(req, context) {
     });
 
     if (!userRow) {
-      return Response.json(
+      return NextResponse.json( // ✅ NextResponse
         { success: false, message: "Usuario no encontrado" },
         { status: 404 }
       );
@@ -71,19 +72,19 @@ export async function GET(req, context) {
       filtrado[colFrontend] = entry[colOriginal.toLowerCase()] || "";
     });
 
-    return Response.json({ success: true, data: filtrado }, { status: 200 });
+    return NextResponse.json({ success: true, data: filtrado }, { status: 200 }); // ✅ NextResponse
 
   } catch (err) {
     console.error("Error Google Sheets:", err);
-    return Response.json({ success: false, error: err.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 }); // ✅ NextResponse
   }
 }
 
-export async function PATCH(req, context) {
+export async function PATCH(req, { params }) { // ✅ Cambiar a `{ params }`
   try {
-    const { id } = await context.params;  // ← FIX OBLIGATORIO
+    const { id } = await params;  // ✅ CORRECTO
     if (!id) {
-      return Response.json(
+      return NextResponse.json( // ✅ NextResponse
         { success: false, message: "Falta ID de usuario" },
         { status: 400 }
       );
@@ -110,7 +111,7 @@ export async function PATCH(req, context) {
     }
 
     if (Object.keys(updates).length === 0) {
-      return Response.json(
+      return NextResponse.json( // ✅ NextResponse
         { success: false, message: "No hay campos válidos para actualizar" },
         { status: 400 }
       );
@@ -120,7 +121,7 @@ export async function PATCH(req, context) {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n") || "", // ✅ Optional chaining
       },
       scopes: ["https://www.googleapis.com/auth/spreadsheets"],
     });
@@ -143,7 +144,7 @@ export async function PATCH(req, context) {
     // Encontrar la fila del usuario
     const rowIndex = rows.findIndex((r) => r[idIndex] === id);
     if (rowIndex === -1) {
-      return Response.json(
+      return NextResponse.json( // ✅ NextResponse
         { success: false, message: "Usuario no encontrado" },
         { status: 404 }
       );
@@ -176,14 +177,14 @@ export async function PATCH(req, context) {
       },
     });
 
-    return Response.json(
+    return NextResponse.json( // ✅ NextResponse
       { success: true, message: "Datos actualizados", updates },
       { status: 200 }
     );
 
   } catch (err) {
     console.error("ERROR PATCH:", err);
-    return Response.json(
+    return NextResponse.json( // ✅ NextResponse
       { success: false, error: err.message },
       { status: 500 }
     );

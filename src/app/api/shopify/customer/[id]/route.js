@@ -9,14 +9,15 @@ export async function GET(req) {
     const customerId = req.cookies.get("customerId")?.value;
 
     if (!customerId) {
-      return new Response(
-        JSON.stringify({ success: false, message: "No hay customerId en cookies" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+      // ✅ Usar NextResponse.json consistentemente
+      return NextResponse.json(
+        { success: false, message: "No hay customerId en cookies" },
+        { status: 400 }
       );
     }
 
     const response = await fetch(
-      `https://${SHOPIFY_STORE}/admin/api/2024-07/customers/${customerId}.json`,
+      `https://${SHOPIFY_STORE}/admin/api/2024-04/customers/${customerId}.json`, // ✅ Usar versión estable 2024-04
       {
         method: "GET",
         headers: {
@@ -29,16 +30,32 @@ export async function GET(req) {
     if (!response.ok) {
       const error = await response.text();
       return NextResponse.json(
-        { error: "Error fetching customer", details: error },
+        { 
+          success: false,
+          error: "Error fetching customer", 
+          details: error,
+          status: response.status 
+        },
         { status: response.status }
       );
     }
 
     const data = await response.json();
-    return NextResponse.json(data.customer, { status: 200 });
-  } catch (error) {
     return NextResponse.json(
-      { error: "Server error", details: error.message },
+      { 
+        success: true, 
+        customer: data.customer 
+      }, 
+      { status: 200 }
+    );
+  } catch (error) {
+    console.error("Error fetching customer:", error);
+    return NextResponse.json(
+      { 
+        success: false,
+        error: "Server error", 
+        details: error.message 
+      },
       { status: 500 }
     );
   }

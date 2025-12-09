@@ -7,9 +7,9 @@ export async function GET(req) {
     const customerId = req.cookies.get("customerId")?.value;
 
     if (!customerId) {
-      return new Response(
-        JSON.stringify({ success: false, message: "No hay customerId en cookies" }),
-        { status: 400, headers: { "Content-Type": "application/json" } }
+      return NextResponse.json(
+        { success: false, message: "No hay customerId en cookies" },
+        { status: 400 }
       );
     }
 
@@ -17,7 +17,7 @@ export async function GET(req) {
     const auth = new google.auth.GoogleAuth({
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, "\n"),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n") || "", // ✅ Optional chaining
       },
       scopes: ["https://www.googleapis.com/auth/spreadsheets.readonly"],
     });
@@ -34,21 +34,21 @@ export async function GET(req) {
     const match = rows.find((row) => row[2] === customerId);
 
     if (match) {
-      return new Response(
-        JSON.stringify({ success: true, data: match }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+      return NextResponse.json(
+        { success: true, data: match },
+        { status: 200 }
       );
     } else {
-      return new Response(
-        JSON.stringify({ success: false, message: "No se encontró coincidencia" }),
-        { status: 200, headers: { "Content-Type": "application/json" } }
+      return NextResponse.json(
+        { success: false, message: "No se encontró coincidencia" },
+        { status: 200 }
       );
     }
   } catch (err) {
     console.error(err);
-    return new Response(
-      JSON.stringify({ error: err.message }),
-      { status: 500, headers: { "Content-Type": "application/json" } }
+    return NextResponse.json(
+      { error: err.message },
+      { status: 500 }
     );
   }
 }
