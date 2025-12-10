@@ -1,23 +1,30 @@
+// src\app\api\google\carts\[id]\route.js
 import { NextResponse } from 'next/server';
 import { BigQuery } from '@google-cloud/bigquery';
 
-export async function GET(req, { params }) {
+// Next.js 15: params es una Promise que debemos await
+export async function GET(request, { params }) {
   try {
-    // Obtener customerId del parámetro dinámico [id]
-    const { id } = params;
+    // ¡IMPORTANTE! En Next.js 15, params es una Promise
+    const { id } = await params; // AWAIT aquí
+    
+    console.log("ID recibido (después de await):", id);
+    
     const customerId = id ? parseInt(id, 10) : null;
 
-    if (!customerId) {
+    if (!customerId || isNaN(customerId)) {
       return NextResponse.json(
-        { success: false, message: "No hay customerId en la URL" },
+        { success: false, message: `CustomerId inválido o no numérico: ${id}` },
         { status: 400 }
       );
     }
 
-    // Leer parámetros de la URL (from y to)
-    const { searchParams } = new URL(req.url);
+    // Leer parámetros de la URL (from y to) de query params
+    const { searchParams } = new URL(request.url);
     const from = searchParams.get("from");
     const to = searchParams.get("to");
+
+    console.log(`Consultando carritos para customer: ${customerId}, from: ${from}, to: ${to}`);
 
     const bigquery = new BigQuery({
       projectId: process.env.GOOGLE_PROJECT_ID,
@@ -27,7 +34,6 @@ export async function GET(req, { params }) {
       },
     });
 
-    // Base query
     let query = `
       SELECT  
         EXTRACT(DATE FROM sh.created_at) AS created_at,
@@ -51,7 +57,6 @@ export async function GET(req, { params }) {
       ) = 1
     `;
 
-    // Si hay fechas, agregar filtro dinámico
     if (from && to) {
       query += ` AND DATE(sh.created_at) BETWEEN @from AND @to`;
     }
@@ -66,10 +71,23 @@ export async function GET(req, { params }) {
     };
 
     const [rows] = await bigquery.query(options);
+    console.log(`Encontrados ${rows.length} carritos para customer ${customerId}`);
 
-    return NextResponse.json({ success: true, data: rows });
+    return NextResponse.json({ 
+      success: true, 
+      data: rows,
+      meta: {
+        customerId,
+        count: rows.length,
+        dateRange: { from, to }
+      }
+    });
   } catch (error) {
     console.error('Error en BigQuery:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ 
+      success: false, 
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
+    }, { status: 500 });
   }
 }
