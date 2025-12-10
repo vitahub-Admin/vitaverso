@@ -1,16 +1,15 @@
 import { NextResponse } from 'next/server';
 import { BigQuery } from '@google-cloud/bigquery';
-import { cookies } from 'next/headers';
 
-export async function GET(req) {
+export async function GET(req, { params }) {
   try {
-    // Leer customerId desde cookie
-    const customerIdRaw = cookies().get("customerId")?.value;
-    const customerId = customerIdRaw ? parseInt(customerIdRaw, 10) : null;
+    // Obtener customerId del parámetro dinámico [id]
+    const { id } = params;
+    const customerId = id ? parseInt(id, 10) : null;
 
     if (!customerId) {
       return NextResponse.json(
-        { success: false, message: "No hay customerId en cookies" },
+        { success: false, message: "No hay customerId en la URL" },
         { status: 400 }
       );
     }
@@ -24,11 +23,11 @@ export async function GET(req) {
       projectId: process.env.GOOGLE_PROJECT_ID,
       credentials: {
         client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
+        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
       },
     });
 
-    // Base query vitahub-435120.silver.orders
+    // Base query
     let query = `
       SELECT  
         EXTRACT(DATE FROM sh.created_at) AS created_at,
