@@ -41,7 +41,7 @@ export default function FusionCartsPage() {
         }
 
         // 1. Obtener datos fusionados del nuevo endpoint
-        const fusionResponse = await fetch(`/api/carts/merged/${customerId}`);
+        const fusionResponse = await fetch(`/api/sharecart/merged/${customerId}`);
         const fusionData = await fusionResponse.json();
         
         console.log("📦 Datos fusionados:", fusionData);
