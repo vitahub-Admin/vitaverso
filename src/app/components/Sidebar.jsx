@@ -89,6 +89,8 @@ export default function Sidebar() {
     { href: "/debug", label: "debug", icon: <Settings size={20} />,  requireTag: "vitahuber" },
     { href: "/vitahuber", label: "Vitahuber", icon: <Settings size={20} />, requireTag: "vitahuber",},
     { href: "/sharecarts", label: "sharecart", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
+    { href: "/sharecarts", label: "sharecart", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
+    { href: "/mis-carritos-merge", label: "merge sharecarts", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
   ];
 
   return (

@@ -15,7 +15,7 @@ export async function GET(req, { params }) {
         handle
         descriptionHtml
         image { src }
-        products(first: 50) {
+        products(first: 150) {
           edges {
             node {
               id
