@@ -25,7 +25,16 @@ export default function FusionCartsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [copiedToken, setCopiedToken] = useState("");
-  const [selectedFilter, setSelectedFilter] = useState("all"); // "all", "new", "legacy", "completed", "pending"
+  const [selectedFilter, setSelectedFilter] = useState("all");
+
+  // Función para extraer valores de objetos BigQuery (igual que en Sheet)
+  const extractValue = (value) => {
+    if (value === null || value === undefined) return null;
+    if (typeof value === 'object' && 'value' in value) {
+      return value.value;
+    }
+    return value;
+  };
 
   // Obtener sharecarts fusionados
   useEffect(() => {
@@ -44,92 +53,124 @@ export default function FusionCartsPage() {
         const fusionResponse = await fetch(`/api/sharecart/merged/${customerId}`);
         const fusionData = await fusionResponse.json();
         
-        console.log("📦 Datos fusionados:", fusionData);
+        console.log("📦 Datos fusionados crudos:", fusionData);
 
         if (!fusionData.success) {
           throw new Error(fusionData.error || "Error obteniendo datos fusionados");
         }
 
-        // 2. Transformar datos para el formato de UI
-        const transformedCarts = fusionData.data.map(cart => {
-          // Determinar tipo de carrito
-          let cartType = "unknown";
-          if (cart.source === 'bigquery') cartType = "legacy";
-          if (cart.source === 'supabase') cartType = "new";
-          
-          // Determinar status
-          let status = "pending";
-          let statusLabel = "⏳ Pendiente";
-          let statusColor = "bg-yellow-100 text-yellow-800";
-          
-          if (cart.status === 'Completed' || cart.status === 'paid' || cart.is_paid) {
-            status = "completed";
-            statusLabel = "✅ Completado";
-            statusColor = "bg-green-100 text-green-800";
-          }
+        // 2. Transformar datos usando la misma lógica que Sheet
+        // En la transformación de carts (dentro de useEffect):
+const transformedCarts = fusionData.data.map(cart => {
+  // Extraer todos los valores como en Sheet
+  const getVal = (key) => extractValue(cart[key]);
+  
+  // Determinar tipo de carrito
+  const cartSource = getVal('source');
+  const cartType = cartSource === 'bigquery' ? "legacy" : "new";
+  
+  // Determinar status (igual que Sheet)
+  const rawStatus = getVal('status');
+  let status = "pending";
+  let statusLabel = "⏳ Pendiente";
+  let statusColor = "bg-yellow-100 text-yellow-800";
+  
+  if (rawStatus === 'Completed' || rawStatus === 'paid' || cart.is_paid) {
+    status = "completed";
+    statusLabel = "✅ Completado";
+    statusColor = "bg-green-100 text-green-800";
+  }
 
-          // Formatear fechas
-          const formatDate = (dateStr) => {
-            if (!dateStr) return null;
-            try {
-              const date = new Date(dateStr);
-              return new Intl.DateTimeFormat('es-MX', {
-                day: '2-digit',
-                month: 'short',
-                year: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-              }).format(date);
-            } catch {
-              return dateStr;
-            }
-          };
+  // Formatear fechas
+  const formatDate = (dateStr) => {
+    const dateValue = extractValue(dateStr);
+    if (!dateValue) return null;
+    try {
+      const date = new Date(dateValue);
+      return new Intl.DateTimeFormat('es-MX', {
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      }).format(date);
+    } catch {
+      return String(dateValue);
+    }
+  };
 
-          return {
-            // Identificadores
-            id: cart.id || cart.code || cart.token,
-            token: cart.token,
-            source: cart.source,
-            type: cartType,
-            platform: cart.platform,
-            
-            // Datos del cliente
-            name: cart.client_name || cart.name || "Sin nombre",
-            email: cart.email || null,
-            phone: cart.phone || null,
-            
-            // Información del carrito
-            status: status,
-            statusLabel: statusLabel,
-            statusColor: statusColor,
-            items_count: cart.items_count || cart.items?.length || 0,
-            items_value: cart.items_value || null,
-            opens_count: cart.opens_count || 0,
-            order_number: cart.order_number || null,
-            
-            // Items detallados
-            items: cart.items || cart.items_details || [],
-            products_detail: cart.extra?.products_detail || [],
-            
-            // Metadata
-            created_at: cart.created_at,
-            created_at_formatted: formatDate(cart.created_at),
-            updated_at: cart.updated_at || cart.created_at,
-            updated_at_formatted: formatDate(cart.updated_at || cart.created_at),
-            
-            // Datos adicionales
-            extra: cart.extra || {},
-            location: cart.location || {},
-            supabase_data: cart.supabase_data,
-            is_merged: !!cart.supabase_data || cartType === "supabase"
-          };
-        });
+  // Extraer fechas (igual que Sheet)
+  const createdAt = getVal('created_at');
+  const updatedAt = getVal('updated_at') || createdAt;
+
+  // OBTENER NOTAS DE AMBOS SISTEMAS
+  let patientNotes = "";
+  
+  // 1. BigQuery: note es el nombre del destinatario
+  if (cartSource === 'bigquery') {
+    patientNotes = getVal('note') || "";
+  }
+  
+  // 2. Supabase: notes está dentro de extra.patient_info
+  if (cartSource === 'supabase' && cart.extra?.patient_info?.notes) {
+    patientNotes = cart.extra.patient_info.notes;
+  }
+
+  // También extraer otros datos del patient_info si existen
+  const patientInfo = cart.extra?.patient_info || {};
+
+  return {
+    // Identificadores (extraer valores como en Sheet)
+    id: getVal('id') || getVal('code') || getVal('token'),
+    token: getVal('token'),
+    source: cartSource,
+    type: cartType,
+    platform: getVal('platform'),
+    
+    // Datos del cliente (igual que Sheet)
+    name: getVal('client_name') || getVal('name') || getVal('email') || "Sin nombre",
+    email: getVal('email'),
+    phone: getVal('phone'),
+    
+    // NOTAS DEL PACIENTE (NUEVO)
+    patient_notes: patientNotes,
+    patient_info: patientInfo,
+    
+    // Información del carrito (igual que Sheet)
+    status: status,
+    statusLabel: statusLabel,
+    statusColor: statusColor,
+    items_count: getVal('items_count') || cart.items?.length || 0,
+    items_value: getVal('items_value') || null,
+    opens_count: getVal('opens_count') || 0,
+    order_number: getVal('order_number'),
+    
+    // Items detallados
+    items: cart.items || cart.items_details || [],
+    products_detail: cart.extra?.products_detail || [],
+    
+    // Metadata (extraer valores como en Sheet)
+    created_at: createdAt,
+    created_at_formatted: formatDate(createdAt) || "-",
+    updated_at: updatedAt,
+    updated_at_formatted: formatDate(updatedAt) || "-",
+    
+    // Datos adicionales
+    extra: cart.extra || {},
+    location: cart.location || {},
+    supabase_data: cart.supabase_data,
+    is_merged: !!cart.supabase_data || cartType === "new"
+  };
+});
 
         // Ordenar por fecha (más reciente primero)
-        transformedCarts.sort((a, b) => 
-          new Date(b.created_at) - new Date(a.created_at)
-        );
+        transformedCarts.sort((a, b) => {
+          const dateA = new Date(a.created_at || 0);
+          const dateB = new Date(b.created_at || 0);
+          return dateB - dateA;
+        });
 
+        console.log("✅ Datos transformados:", transformedCarts);
         setCarts(transformedCarts);
 
       } catch (err) {
@@ -152,9 +193,10 @@ export default function FusionCartsPage() {
 
   // Calcular tiempo transcurrido
   const getTimeAgo = (dateString) => {
-    if (!dateString) return "";
+    const dateValue = extractValue(dateString);
+    if (!dateValue) return "";
     try {
-      const date = new Date(dateString);
+      const date = new Date(dateValue);
       const now = new Date();
       const diffMs = now - date;
       const diffMins = Math.floor(diffMs / 60000);
@@ -199,8 +241,8 @@ export default function FusionCartsPage() {
     legacy: carts.filter(c => c.type === "legacy").length,
     completed: carts.filter(c => c.status === "completed").length,
     pending: carts.filter(c => c.status === "pending").length,
-    totalValue: carts.reduce((sum, c) => sum + (c.items_value || 0), 0),
-    totalOpens: carts.reduce((sum, c) => sum + (c.opens_count || 0), 0)
+    totalValue: carts.reduce((sum, c) => sum + (Number(c.items_value) || 0), 0),
+    totalOpens: carts.reduce((sum, c) => sum + (Number(c.opens_count) || 0), 0)
   };
 
   if (loading) {
@@ -254,12 +296,12 @@ export default function FusionCartsPage() {
       {/* Header de sección */}
       <div className="w-full bg-gradient-to-r from-[#1b3f7a] to-[#2a5298] rounded-lg p-4 mb-6">
         <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
-          Carritos Compartidos Fusionados
+          Carritos Compartidos
         </h1>
         <p className="text-white text-center mt-2 opacity-90">
           {carts.length === 0 
             ? "No tienes carritos compartidos" 
-            : `${carts.length} carrito${carts.length !== 1 ? 's' : ''} (${stats.new} nuevos, ${stats.legacy} históricos)`
+            : `${carts.length} carrito${carts.length !== 1 ? 's' : ''} (${stats.new} nuevos, ${stats.legacy} Antiguo)`
           }
         </p>
       </div>
@@ -297,7 +339,9 @@ export default function FusionCartsPage() {
               <div className="text-sm text-gray-600">Nuevos</div>
             </div>
             <div className="bg-white rounded-lg shadow border p-4 text-center">
-              <div className="text-2xl font-bold text-blue-600">${stats.totalValue.toLocaleString('es-MX', {minimumFractionDigits: 2})}</div>
+              <div className="text-2xl font-bold text-blue-600">
+                ${stats.totalValue.toLocaleString('es-MX', {minimumFractionDigits: 2})}
+              </div>
               <div className="text-sm text-gray-600">Valor Total</div>
             </div>
           </div>
@@ -333,7 +377,7 @@ export default function FusionCartsPage() {
                     : "bg-blue-100 text-blue-700 hover:bg-blue-200"
                 }`}
               >
-                Históricos ({stats.legacy})
+                Antiguo ({stats.legacy})
               </button>
               <button
                 onClick={() => setSelectedFilter("completed")}
@@ -372,14 +416,14 @@ export default function FusionCartsPage() {
                         <div className="flex items-center gap-2">
                           <ShoppingCart className="w-5 h-5 text-[#1b3f7a]" />
                           <h3 className="font-semibold text-gray-800 truncate">
-                            {cart.name || `Carrito ${cart.token.substring(0, 8)}`}
+                            {String(cart.name || `Carrito ${cart.token?.substring?.(0, 8) || ''}`)}
                           </h3>
                           <span className={`px-2 py-1 rounded-full text-xs ${cart.statusColor}`}>
                             {cart.statusLabel}
                           </span>
                           {cart.type === "legacy" && (
                             <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
-                              Histórico
+                              Antiguo
                             </span>
                           )}
                           {cart.type === "new" && (
@@ -392,14 +436,14 @@ export default function FusionCartsPage() {
                         {cart.phone && (
                           <div className="flex items-center gap-2 text-gray-600 text-sm">
                             <Phone className="w-4 h-4" />
-                            <span className="truncate">{cart.phone}</span>
+                            <span className="truncate">{String(cart.phone)}</span>
                           </div>
                         )}
 
                         {cart.email && (
                           <div className="hidden md:flex items-center gap-2 text-gray-600 text-sm">
                             <User className="w-4 h-4" />
-                            <span className="truncate">{cart.email}</span>
+                            <span className="truncate">{String(cart.email)}</span>
                           </div>
                         )}
                       </div>
@@ -417,21 +461,21 @@ export default function FusionCartsPage() {
                         {cart.items_value > 0 && (
                           <span className="flex items-center gap-1">
                             <DollarSign className="w-3 h-3" />
-                            Valor: ${cart.items_value.toLocaleString('es-MX', {minimumFractionDigits: 2})}
+                            Valor: ${String(cart.items_value?.toLocaleString?.('es-MX', {minimumFractionDigits: 2}) || '0.00')}
                           </span>
                         )}
                         
                         {cart.opens_count > 0 && (
                           <span className="flex items-center gap-1">
                             <Eye className="w-3 h-3" />
-                            Aperturas: {cart.opens_count}
+                            Aperturas: {String(cart.opens_count)}
                           </span>
                         )}
                         
                         {cart.items_count > 0 && (
                           <span className="flex items-center gap-1">
                             <Package className="w-3 h-3" />
-                            Items: {cart.items_count}
+                            Items: {String(cart.items_count)}
                           </span>
                         )}
                       </div>
@@ -470,21 +514,21 @@ export default function FusionCartsPage() {
                             {cart.name && cart.name !== "Sin nombre" && (
                               <div className="flex items-center justify-between">
                                 <span className="text-gray-600">Nombre:</span>
-                                <span className="font-medium">{cart.name}</span>
+                                <span className="font-medium">{String(cart.name)}</span>
                               </div>
                             )}
                             
                             {cart.phone && (
                               <div className="flex items-center justify-between">
                                 <span className="text-gray-600">Teléfono:</span>
-                                <span className="font-medium">{cart.phone}</span>
+                                <span className="font-medium">{String(cart.phone)}</span>
                               </div>
                             )}
                             
                             {cart.email && (
                               <div className="flex items-center justify-between">
                                 <span className="text-gray-600">Email:</span>
-                                <span className="font-medium">{cart.email}</span>
+                                <span className="font-medium">{String(cart.email)}</span>
                               </div>
                             )}
                           </div>
@@ -545,7 +589,7 @@ export default function FusionCartsPage() {
                         {cart.order_number && (
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-gray-700">Orden #:</span>
-                            <span className="font-mono text-gray-600">{cart.order_number}</span>
+                            <span className="font-mono text-gray-600">{String(cart.order_number)}</span>
                           </div>
                         )}
                         
@@ -563,7 +607,7 @@ export default function FusionCartsPage() {
                           <div className="flex items-center justify-between">
                             <span className="font-medium text-gray-700">Valor Total:</span>
                             <span className="font-bold text-green-600">
-                              ${cart.items_value.toLocaleString('es-MX', {minimumFractionDigits: 2})}
+                              ${String(cart.items_value?.toLocaleString?.('es-MX', {minimumFractionDigits: 2}) || '0.00')}
                             </span>
                           </div>
                         )}
@@ -573,12 +617,46 @@ export default function FusionCartsPage() {
                             <span className="font-medium text-gray-700">Aperturas:</span>
                             <span className="flex items-center gap-1">
                               <Eye className="w-4 h-4" />
-                              {cart.opens_count}
+                              {String(cart.opens_count)}
                             </span>
                           </div>
                         )}
                       </div>
                     </div>
+
+<div className="space-y-4">
+  {/* Información del carrito */}
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+    {/* ... código existente ... */}
+  </div>
+
+  {/* NOTAS DEL PACIENTE - NUEVA SECCIÓN */}
+  {(cart.patient_notes || Object.keys(cart.patient_info || {}).length > 0) && (
+    <div className="border rounded-lg p-4 bg-blue-50 border-blue-200">
+      <div className="flex items-center gap-2 mb-3">
+        <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+        </svg>
+        <h4 className="font-medium text-gray-700">
+          Notas adicionales
+          {cart.type === "legacy" && (
+            <span className="ml-2 text-xs text-gray-500">(Notas del carrito)</span>
+          )}
+        </h4>
+      </div>
+      
+      {/* Mostrar notas principales */}
+      {cart.patient_notes && (
+        <div className="mb-3">
+          <p className="text-sm text-gray-600 mb-1">Notas:</p>
+          <div className="bg-white p-3 rounded border">
+            <p className="text-gray-800 whitespace-pre-wrap">{cart.patient_notes}</p>
+          </div>
+        </div>
+      )}
+
+    </div>
+  )}
 
                     {/* Items del carrito */}
                     {(cart.products_detail?.length > 0 || cart.items?.length > 0) ? (
@@ -642,6 +720,7 @@ export default function FusionCartsPage() {
                       </div>
                     )}
                   </div>
+                </div>
                 </div>
               </details>
             ))}
