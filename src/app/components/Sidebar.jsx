@@ -80,7 +80,7 @@ export default function Sidebar() {
     { href: "/mis-carritos-merge", label: "Mis Carritos", icon: <ShoppingCart size={20} />,},
     { href: "/contactos", label: "Mis Contactos", icon: <Contact size={20} /> },
     { href: "/mi-tienda", label: "Mi Tienda", icon: <Store size={20} /> },
-    { href: "/manual", label: "Manual", icon: <BookOpen size={20} /> },
+    { href: "/manual", label: "Manual", icon: <BookOpen size={20} /> , requireTag: "vitahuber"},
     { href: "/academia-vitahub", label: "Academia Vitahub", icon: <GraduationCap size={20} /> },
     { href: "/notificaciones", label: "Novedades", icon: <Newspaper size={20} /> },
     { href: "/referral", label: "Invita y gana", icon: <UserPlus size={20} /> },
