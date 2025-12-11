@@ -76,7 +76,8 @@ export default function Sidebar() {
   const navItems = [
     { href: "/ganancias", label: "Ganancias", icon: <DollarSign size={20} /> },
     { href: "/ordenes", label: "Órdenes", icon: <ShoppingBag size={20} /> },
-    { href: "/mis-carritos", label: "Mis Carritos", icon: <ShoppingCart size={20} /> },
+    // { href: "/mis-carritos", label: "Mis Carritos", icon: <ShoppingCart size={20} /> },
+    { href: "/mis-carritos-merge", label: "Mis Carritos", icon: <ShoppingCart size={20} />,},
     { href: "/contactos", label: "Mis Contactos", icon: <Contact size={20} /> },
     { href: "/mi-tienda", label: "Mi Tienda", icon: <Store size={20} /> },
     { href: "/manual", label: "Manual", icon: <BookOpen size={20} /> },
@@ -89,7 +90,7 @@ export default function Sidebar() {
     { href: "/debug", label: "debug", icon: <Settings size={20} />,  requireTag: "vitahuber" },
     { href: "/vitahuber", label: "Vitahuber", icon: <Settings size={20} />, requireTag: "vitahuber",},
     { href: "/sharecarts", label: "sharecart", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
-    { href: "/mis-carritos-merge", label: "merge sharecarts", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
+    // { href: "/mis-carritos-merge", label: "merge sharecarts", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
   ];
 
   return (
