@@ -3,28 +3,22 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 
 export default function Header() {
-  const [bannerUrl, setBannerUrl] = useState("/BANNER.webp");
+  const [banner, setBanner] = useState({
+    url: "/BANNER.webp",
+    description: "Default"
+  });
 
   useEffect(() => {
-    fetch("/api/sheet/banner")
-      .then(async (res) => {
-        const text = await res.text();
-        try {
-          const data = JSON.parse(text);
-          if (data?.bannerUrl) setBannerUrl(data.bannerUrl);
-        } catch (err) {
-          console.error("Respuesta no válida del servidor:", text);
-        }
-      })
-      .catch((err) => {
-        console.error("Error obteniendo banner:", err);
-      });
+    fetch("/api/data/banner")
+      .then(r => r.json())
+      .then(setBanner)
+      .catch(() => {});
   }, []);
 
   return (
     <Image
-      src={bannerUrl}
-      alt="Banner afiliados"
+      src={banner.url}
+      alt={banner.description}
       width={1200}
       height={130}
       style={{ width: "100%", height: "auto" }}
