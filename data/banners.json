@@ -1,5 +1,8 @@
 {
   "banners": [
-
+    {
+      "url": "/BANNER.webp",
+      "description": "Default banner"
+    }
   ]
 }

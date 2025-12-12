@@ -11,10 +11,11 @@ export default function NoticiasPage() {
   useEffect(() => {
     async function fetchNoticias() {
       try {
-        const res = await fetch("/api/sheet/news");
+        const res = await fetch("/api/data/news");
         if (!res.ok) throw new Error("Error al cargar noticias");
         const data = await res.json();
-        setNoticias(data.noticias || []);
+        setNoticias(data.news);
+
         // cuando el usuario abre la página de noticias:
         if (data.noticias?.length > 0) {
           const ultimoId = data.noticias[data.noticias.length - 1].id;
