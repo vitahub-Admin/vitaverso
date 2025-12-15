@@ -17,6 +17,7 @@ import {
   Contact,
   UserPlus,
   Settings,
+  Layers,
 } from "lucide-react";
 
 export default function Sidebar() {
@@ -87,11 +88,11 @@ export default function Sidebar() {
     { href: "/mis-datos", label: "Mis Datos", icon: <Settings size={20} /> },
   
     // 🔥 Este solo lo ven usuarios con tag "vitahuber"  
-    { href: "/debug", label: "debug", icon: <Settings size={20} />,  requireTag: "vitahuber" },
+    //{ href: "/debug", label: "debug", icon: <Settings size={20} />,  requireTag: "vitahuber" },
     { href: "/vitahuber", label: "Vitahuber", icon: <Settings size={20} />, requireTag: "vitahuber",},
-    { href: "/sharecarts", label: "sharecart", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
+    //{ href: "/sharecarts", label: "sharecart", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
     { href: "/admin", label: "admin", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
-    { href: "/admin-sharecarts", label: "sharecarts General", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
+    { href: "/admin-sharecarts", label: "sharecarts General", icon: <Layers size={20} />, requireTag: "vitahuber",},
     // { href: "/mis-carritos-merge", label: "merge sharecarts", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
   ];
 
