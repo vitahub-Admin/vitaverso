@@ -3,6 +3,7 @@
 import { useEffect, useState, useRef } from "react";
 import Cookies from "js-cookie";
 import Image from "next/image";
+import { Copy, Check, ExternalLink, X } from "lucide-react";
 
 export default function MiTiendaPage() {
   const [collection, setCollection] = useState(null);
@@ -12,6 +13,8 @@ export default function MiTiendaPage() {
   const [previewUrl, setPreviewUrl] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [toast, setToast] = useState(null);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [copied, setCopied] = useState(false);
   const fileInputRef = useRef(null);
 
   // ---- Helper para limpiar HTML ----
@@ -67,9 +70,8 @@ export default function MiTiendaPage() {
 
   const customerId = Cookies.get("customerId");
   const shopifyLink = `https://vitahub.mx/collections/${collection.handle}?sref=${customerId}`;
-  const whatsappLink = `https://wa.me/?text=${encodeURIComponent(
-    `Mira esta colección: ${collection.title} ${shopifyLink}`
-  )}`;
+  const whatsappText = `Mira esta colección: ${collection.title} ${shopifyLink}`;
+  const whatsappLink = `https://wa.me/?text=${encodeURIComponent(whatsappText)}`;
 
   const imageUrl = previewUrl || collection.image?.src;
   const altText = collection.image?.alt || collection.title;
@@ -202,6 +204,99 @@ export default function MiTiendaPage() {
     }
   };
 
+  // ---------------- Copiar enlace ----------------
+  const handleCopyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(shopifyLink);
+      setCopied(true);
+      setToast("Enlace copiado al portapapeles ✅");
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      setToast("Error al copiar el enlace");
+    }
+  };
+
+  // ---------------- Modal de compartir ----------------
+  const ShareModal = () => {
+    if (!showShareModal) return null;
+
+    return (
+      <div className="fixed inset-0 bg-[#1b3f7a]/30 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+          {/* Botón cerrar */}
+          <button
+            onClick={() => setShowShareModal(false)}
+            className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+          >
+            <X size={24} />
+          </button>
+
+          {/* Título */}
+          <h3 className="text-2xl font-bold text-[#1b3f7a] mb-6 text-center">
+            Compartir tu tienda
+          </h3>
+
+          {/* Enlace para copiar */}
+          <div className="mb-6">
+            <p className="text-sm text-gray-600 mb-2 flex items-center gap-1">
+              <Copy size={16} />
+              Copia este link y compártelo
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="flex-1 border border-gray-300 rounded-lg px-4 py-3 bg-gray-50 overflow-x-auto">
+                <code className="text-sm text-gray-800 break-all">
+                  {shopifyLink}
+                </code>
+              </div>
+              <button
+                onClick={handleCopyLink}
+                className="flex-shrink-0 px-4 py-3 bg-blue-100 text-[#1b3f7a] rounded-lg hover:bg-blue-200 flex items-center gap-2"
+              >
+                {copied ? <Check size={20} /> : <Copy size={20} />}
+                {copied ? "Copiado" : "Copiar"}
+              </button>
+            </div>
+          </div>
+
+          {/* Texto para WhatsApp */}
+          <div className="mb-8">
+            <p className="text-sm text-gray-600 mb-2">
+              Envía este mensaje con el enlace de tu tianda por Whastapp
+            </p>
+            <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+              <p className="text-gray-700">{whatsappText}</p>
+            </div>
+          </div>
+
+          {/* Botones de acción */}
+          <div className="flex flex-col gap-3">
+            <a
+              href={whatsappLink}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => setShowShareModal(false)}
+              className="px-4 py-3 bg-green-500 text-white rounded-lg hover:bg-green-600 text-center flex items-center justify-center gap-2"
+            >
+              <span>Compartir por WhatsApp</span>
+            </a>
+
+            <button
+              onClick={() => setShowShareModal(false)}
+              className="px-4 py-3 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cerrar
+            </button>
+          </div>
+
+          {/* Mensaje de ayuda */}
+          <p className="text-xs text-gray-500 mt-6 text-center">
+            Copia y comparte tu tienda con quien quieras
+          </p>
+        </div>
+      </div>
+    );
+  };
+
   // ---------------- RENDER ----------------
 
   return (
@@ -298,19 +393,18 @@ export default function MiTiendaPage() {
               href={shopifyLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex-1 px-4 py-2 text-white bg-[#1b3f7a] rounded hover:bg-[#16406a] text-center"
+              className="flex-1 px-4 py-2 text-white bg-[#1b3f7a] rounded hover:bg-[#16406a] text-center flex items-center justify-center gap-2"
             >
+              <ExternalLink size={18} />
               Ir a la tienda
             </a>
 
-            <a
-              href={whatsappLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-center"
+            <button
+              onClick={() => setShowShareModal(true)}
+              className="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-center flex items-center justify-center gap-2"
             >
-              Compartir
-            </a>
+              <span>Compartir</span>
+            </button>
           </div>
         </div>
 
@@ -333,7 +427,7 @@ export default function MiTiendaPage() {
             </h3>
             <p className="text-sm text-gray-700 leading-snug">
               <span className="font-semibold">Ir a la tienda</span> abre tu mini tienda.  
-              <span className="font-semibold">Compartir</span> te permite enviarla por WhatsApp.
+              <span className="font-semibold">Compartir</span> te permite enviarla por WhatsApp o copiar el enlace.
             </p>
           </div>
 
@@ -400,10 +494,13 @@ export default function MiTiendaPage() {
 
       {/* Toast */}
       {toast && (
-        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg">
+        <div className="fixed bottom-4 right-4 bg-green-500 text-white px-4 py-2 rounded shadow-lg z-50">
           {toast}
         </div>
       )}
+
+      {/* Modal de compartir */}
+      <ShareModal />
     </div>
   );
 }
