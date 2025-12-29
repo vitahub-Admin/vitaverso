@@ -53,20 +53,25 @@ const [newsFecha, setNewsFecha] = useState("");
   };
 
   // Borrar un banner por índice (NO el último)
-  const deleteOne = async (index) => {
-    let newList = banners.filter((_, i) => i !== index);
+const deleteOne = async (index) => {
+  // Si el banner tiene ID (de Supabase), usarlo
+  const banner = banners[index];
+  
+  let requestBody = { index };
+  
+  if (banner && banner.id) {
+    // Si tiene ID de Supabase, enviarlo
+    requestBody = { id: banner.id };
+  }
+  
+  await fetch("/api/data/banner", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(requestBody),
+  });
 
-    // fallback si quedó vacío
-    if (newList.length === 0) newList = [FALLBACK];
-
-    await fetch("/api/data/banner", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ banners: newList }),
-    });
-
-    loadBanners();
-  };
+  loadBanners();
+};
 
   // Mover arriba
   const moveUp = (index) => {

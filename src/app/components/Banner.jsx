@@ -7,13 +7,26 @@ export default function Header() {
     url: "/BANNER.webp",
     description: "Default"
   });
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    setLoading(true);
     fetch("/api/data/banner")
       .then(r => r.json())
-      .then(setBanner)
-      .catch(() => {});
+      .then(data => {
+        setBanner(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
   }, []);
+
+  if (loading) {
+    return (
+      <div className="w-full h-[130px] bg-gray-200 animate-pulse rounded"></div>
+    );
+  }
 
   return (
     <Image
@@ -23,6 +36,7 @@ export default function Header() {
       height={130}
       style={{ width: "100%", height: "auto" }}
       priority
+      unoptimized={banner.url.startsWith("http")} // Para imágenes externas
     />
   );
 }
