@@ -106,14 +106,16 @@ export async function POST(req) {
     await writeFile(FILE, JSON.stringify(json, null, 2), "utf8");
     console.log("Banner guardado en archivo local");
 
+
     return NextResponse.json({ 
       ok: true, 
-      savedToSupabase,
-      message: savedToSupabase 
-        ? "Banner guardado en Supabase y local" 
-        : "Banner guardado en archivo local (Supabase falló)"
+      data: {
+        id: data?.id,  // ← Incluir el ID generado
+        url: body.url,
+        description: body.description || ""
+      }
     });
-
+    
   } catch (error) {
     console.error("Error en POST /api/data/banner:", error);
     return NextResponse.json({ 
@@ -122,7 +124,6 @@ export async function POST(req) {
     }, { status: 500 });
   }
 }
-
 // DELETE - Eliminar banner (compatibilidad)
 export async function DELETE() {
   try {
@@ -172,55 +173,117 @@ export async function DELETE() {
 }
 
 // PUT - Actualizar lista completa
+// app/api/data/banner/route.js - Método PUT mejorado
 export async function PUT(req) {
+  let requestBody;
+  
   try {
-    const body = await req.json();
+    requestBody = await req.json();
+    console.log("📦 PUT Request recibido:", {
+      bannersCount: requestBody.banners?.length || 0,
+      firstBanner: requestBody.banners?.[0]
+    });
+  } catch (parseError) {
+    console.error("❌ Error parseando JSON:", parseError);
+    return NextResponse.json({ 
+      error: "JSON inválido en el cuerpo de la solicitud" 
+    }, { status: 400 });
+  }
 
-    if (!Array.isArray(body.banners)) {
-      return NextResponse.json({ error: "banners debe ser un array" }, { status: 400 });
-    }
+  if (!Array.isArray(requestBody.banners)) {
+    return NextResponse.json({ 
+      error: "El campo 'banners' debe ser un array",
+      received: typeof requestBody.banners
+    }, { status: 400 });
+  }
 
-    // Intentar actualizar Supabase
-    try {
-      if (body.banners.length > 0 && body.banners[0].id) {
-        // Los banners tienen IDs (probablemente de Supabase)
-        const updates = body.banners.map((banner, index) => ({
+  try {
+    // 1. Procesar datos para Supabase
+    const supabaseUpdates = [];
+    const localBanners = [];
+    
+    requestBody.banners.forEach((banner, index) => {
+      // Validar campos requeridos
+      if (!banner.url) {
+        throw new Error(`Banner en posición ${index} no tiene URL`);
+      }
+      
+      // Para Supabase (si tiene ID)
+      if (banner.id) {
+        supabaseUpdates.push({
           id: banner.id,
           url: banner.url,
-          description: banner.description,
-          display_order: index
-        }));
-
-        const { error } = await supabase
-          .from('banners')
-          .upsert(updates);
-
-        if (!error) {
-          console.log("Orden guardado en Supabase");
-        }
+          description: banner.description || "",
+          display_order: index,
+          updated_at: new Date().toISOString()
+        });
       }
-    } catch (supabaseError) {
-      console.log("Error actualizando Supabase:", supabaseError.message);
+      
+      // Para archivo local
+      localBanners.push({
+        url: banner.url,
+        description: banner.description || "",
+        ...(banner.id && { id: banner.id })
+      });
+    });
+
+    // 2. Actualizar Supabase (si hay datos con ID)
+    if (supabaseUpdates.length > 0) {
+      try {
+        console.log("🔄 Actualizando Supabase con", supabaseUpdates.length, "registros");
+        
+        const { error, count } = await supabase
+          .from('banners')
+          .upsert(supabaseUpdates);
+        
+        if (error) {
+          console.error("❌ Error en upsert de Supabase:", error);
+          // Continuar con archivo local aunque falle Supabase
+        } else {
+          console.log(`✅ Supabase actualizado: ${supabaseUpdates.length} banners`);
+        }
+      } catch (supabaseError) {
+        console.error("❌ Excepción en Supabase:", supabaseError.message);
+        // Continuar con archivo local
+      }
     }
 
-    // Si viene vacío → usamos default
-    const newList = body.banners.length > 0 ? body.banners : [DEFAULT];
-
-    // Actualizar archivo local
+    // 3. Actualizar archivo local (siempre)
+    const finalBanners = localBanners.length > 0 ? localBanners : [DEFAULT];
+    
+    const { writeFile } = await import("fs/promises");
+    const { join } = await import("path");
+    
+    const FILE = join(process.cwd(), "data", "banners.json");
+    
     await writeFile(
       FILE,
-      JSON.stringify({ banners: newList }, null, 2),
+      JSON.stringify({ banners: finalBanners }, null, 2),
       "utf8"
     );
-
-    console.log("Orden guardado en archivo local");
-
-    return NextResponse.json({ ok: true });
     
-  } catch (error) {
-    console.error("Error en PUT /api/data/banner:", error);
+    console.log("💾 Archivo local actualizado:", finalBanners.length, "banners");
+
+    // 4. Responder éxito
     return NextResponse.json({ 
-      error: "Error interno del servidor" 
+      ok: true, 
+      message: "Orden guardado exitosamente",
+      stats: {
+        totalBanners: finalBanners.length,
+        supabaseUpdated: supabaseUpdates.length,
+        localUpdated: finalBanners.length
+      }
+    });
+
+  } catch (error) {
+    console.error("💥 Error crítico en PUT /api/data/banner:", error);
+    console.error("Stack trace:", error.stack);
+    
+    return NextResponse.json({ 
+      ok: false,
+      error: "Error al procesar la solicitud",
+      message: error.message,
+      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
     }, { status: 500 });
   }
 }

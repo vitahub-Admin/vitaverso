@@ -91,16 +91,34 @@ const deleteOne = async (index) => {
 
   // Guardar nuevo orden
   const saveOrder = async () => {
-    await fetch("/api/data/banner", {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ banners }),
-    });
-
-    alert("Orden guardado");
+    try {
+      console.log("Enviando orden:", banners);
+      
+      const response = await fetch("/api/data/banner", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ 
+          banners: banners.map((b, index) => ({
+            ...b,
+            display_order: index  // Asegurar que tiene display_order
+          }))
+        }),
+      });
+      
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Error desconocido");
+      }
+      
+      alert("✅ Orden guardado correctamente");
+      console.log("Respuesta del servidor:", result);
+      
+    } catch (error) {
+      console.error("❌ Error al guardar orden:", error);
+      alert(`❌ Error: ${error.message}`);
+    }
   };
-
-
   // Cargar noticias
 const loadNews = () => {
   fetch("/api/data/news")
