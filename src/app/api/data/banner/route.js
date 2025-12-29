@@ -1,289 +1,289 @@
+// app/api/data/banner/route.js
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
-import { readFile, writeFile } from "fs/promises";
-import path from "path";
 
-const FILE = path.join(process.cwd(), "data", "banners.json");
-const DEFAULT = { url: "/BANNER.webp", description: "Default banner" };
+const DEFAULT_BANNER = { 
+  url: "/BANNER.webp", 
+  description: "Default banner" 
+};
+
+// Helper para manejar errores de Supabase
+async function handleSupabaseError(operation, error) {
+  console.error(`❌ Supabase error in ${operation}:`, error.message);
+  return { success: false, error };
+}
 
 // GET - Último banner
 export async function GET() {
   try {
-    // Intentar con Supabase primero
-    try {
-      const { data, error } = await supabase
+    if (!supabase) {
+      console.error("❌ Supabase client not initialized");
+      return NextResponse.json(DEFAULT_BANNER);
+    }
+
+    const { data, error } = await supabase
+      .from('banners')
+      .select('*')
+      .order('display_order', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error) {
+      console.error("Error fetching last banner:", error.message);
+      return NextResponse.json(DEFAULT_BANNER);
+    }
+
+    if (!data) {
+      // Si no hay banners, crear uno por defecto
+      const { data: defaultBanner } = await supabase
         .from('banners')
-        .select('*')
-        .order('display_order', { ascending: false })
-        .limit(1)
+        .insert(DEFAULT_BANNER)
+        .select()
         .single();
-
-      if (!error && data) {
-        return NextResponse.json(data);
-      }
-      console.log("Supabase GET falló, usando archivo local:", error?.message);
-    } catch (supabaseError) {
-      console.log("Error conexión Supabase:", supabaseError.message);
+      
+      return NextResponse.json(defaultBanner || DEFAULT_BANNER);
     }
 
-    // Fallback: archivo local
-    let json;
-    try {
-      const raw = await readFile(FILE, "utf8");
-      json = JSON.parse(raw);
-    } catch {
-      // archivo no existe o está roto → crear con default
-      json = { banners: [DEFAULT] };
-      await writeFile(FILE, JSON.stringify(json, null, 2), "utf8");
-    }
-
-    // Si está vacío → restaurar default
-    if (!json.banners || json.banners.length === 0) {
-      json.banners = [DEFAULT];
-      await writeFile(FILE, JSON.stringify(json, null, 2), "utf8");
-    }
-
-    const last = json.banners[json.banners.length - 1];
-    return NextResponse.json(last);
+    return NextResponse.json(data);
     
-  } catch (e) {
-    console.error("Error general en GET /api/data/banner:", e);
-    return NextResponse.json(DEFAULT);
+  } catch (error) {
+    console.error("Unexpected error in GET:", error);
+    return NextResponse.json(DEFAULT_BANNER);
   }
 }
 
 // POST - Agregar nuevo banner
 export async function POST(req) {
   try {
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Database service unavailable" },
+        { status: 503 }
+      );
+    }
+
     const body = await req.json();
 
-    if (!body.url) {
-      return NextResponse.json({ error: "url requerida" }, { status: 400 });
+    if (!body.url || body.url.trim() === '') {
+      return NextResponse.json(
+        { error: "URL requerida" },
+        { status: 400 }
+      );
     }
 
-    // Intentar guardar en Supabase primero
-    let savedToSupabase = false;
-    try {
-      // Obtener el máximo orden actual
-      const { data: maxOrderData } = await supabase
-        .from('banners')
-        .select('display_order')
-        .order('display_order', { ascending: false })
-        .limit(1)
-        .single();
+    // 1. Obtener el máximo orden actual
+    const { data: maxOrderData, error: maxError } = await supabase
+      .from('banners')
+      .select('display_order')
+      .order('display_order', { ascending: false })
+      .limit(1)
+      .single();
 
-      const newOrder = maxOrderData ? maxOrderData.display_order + 1 : 0;
-
-      const { data, error } = await supabase
-        .from('banners')
-        .insert({
-          url: body.url,
-          description: body.description || "",
-          display_order: newOrder
-        })
-        .select()
-        .single();
-
-      if (!error) {
-        savedToSupabase = true;
-        console.log("Banner guardado en Supabase");
-      } else {
-        console.log("Error guardando en Supabase:", error.message);
-      }
-    } catch (supabaseError) {
-      console.log("Error con Supabase:", supabaseError.message);
+    if (maxError && maxError.code !== 'PGRST116') {
+      console.error("Error getting max order:", maxError);
     }
 
-    // Siempre guardar en archivo local también (para consistencia)
-    const raw = await readFile(FILE, "utf8");
-    const json = JSON.parse(raw);
+    const newOrder = maxOrderData ? maxOrderData.display_order + 1 : 0;
 
-    json.banners.push({
-      url: body.url,
-      description: body.description || ""
+    // 2. Insertar nuevo banner
+    const { data, error } = await supabase
+      .from('banners')
+      .insert({
+        url: body.url.trim(),
+        description: (body.description || "").trim(),
+        display_order: newOrder
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("Error inserting banner:", error);
+      return NextResponse.json(
+        { error: "Error al guardar el banner", details: error.message },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      data,
+      message: "Banner agregado exitosamente"
     });
 
-    await writeFile(FILE, JSON.stringify(json, null, 2), "utf8");
-    console.log("Banner guardado en archivo local");
-
-
-    return NextResponse.json({ 
-      ok: true, 
-      data: {
-        id: data?.id,  // ← Incluir el ID generado
-        url: body.url,
-        description: body.description || ""
-      }
-    });
-    
   } catch (error) {
-    console.error("Error en POST /api/data/banner:", error);
-    return NextResponse.json({ 
-      error: "Error interno del servidor",
-      details: error.message
-    }, { status: 500 });
+    console.error("Unexpected error in POST:", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor" },
+      { status: 500 }
+    );
   }
 }
-// DELETE - Eliminar banner (compatibilidad)
-export async function DELETE() {
+
+// PUT - Actualizar orden (reordenar)
+export async function PUT(req) {
   try {
-    // Intentar con Supabase
-    try {
-      const { data: banners } = await supabase
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Database service unavailable" },
+        { status: 503 }
+      );
+    }
+
+    const body = await req.json();
+
+    if (!Array.isArray(body.banners)) {
+      return NextResponse.json(
+        { error: "banners debe ser un array" },
+        { status: 400 }
+      );
+    }
+
+    console.log(`🔄 Reordenando ${body.banners.length} banners`);
+
+    // Preparar updates para Supabase
+    const updates = body.banners.map((banner, index) => ({
+      id: banner.id,
+      url: banner.url,
+      description: banner.description || "",
+      display_order: index,
+      updated_at: new Date().toISOString()
+    }));
+
+    // Actualizar todos los banners
+    const { error } = await supabase
+      .from('banners')
+      .upsert(updates, {
+        onConflict: 'id',
+        ignoreDuplicates: false
+      });
+
+    if (error) {
+      console.error("Error updating banners order:", error);
+      return NextResponse.json(
+        { 
+          error: "Error al guardar el orden",
+          details: error.message,
+          code: error.code
+        },
+        { status: 500 }
+      );
+    }
+
+    return NextResponse.json({
+      ok: true,
+      message: `Orden de ${updates.length} banners guardado exitosamente`,
+      updatedCount: updates.length
+    });
+
+  } catch (error) {
+    console.error("Unexpected error in PUT:", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor", details: error.message },
+      { status: 500 }
+    );
+  }
+}
+
+// DELETE - Eliminar banner
+export async function DELETE(req) {
+  try {
+    if (!supabase) {
+      return NextResponse.json(
+        { error: "Database service unavailable" },
+        { status: 503 }
+      );
+    }
+
+    const body = await req.json();
+
+    // Validar que tenemos un ID para eliminar
+    if (!body.id && typeof body.index !== 'number') {
+      return NextResponse.json(
+        { error: "Se requiere 'id' o 'index' del banner" },
+        { status: 400 }
+      );
+    }
+
+    // Si se envía ID, eliminar por ID
+    if (body.id) {
+      const { error } = await supabase
+        .from('banners')
+        .delete()
+        .eq('id', body.id);
+
+      if (error) {
+        console.error("Error deleting banner by ID:", error);
+        return NextResponse.json(
+          { error: "Error al eliminar el banner", details: error.message },
+          { status: 500 }
+        );
+      }
+    } 
+    // Si se envía índice, primero obtener todos y luego eliminar el correcto
+    else if (typeof body.index === 'number') {
+      const { data: allBanners, error: fetchError } = await supabase
         .from('banners')
         .select('*')
-        .order('display_order', { ascending: false });
+        .order('display_order', { ascending: true });
 
-      if (banners && banners.length > 0) {
-        const { error } = await supabase
+      if (fetchError) {
+        console.error("Error fetching banners for deletion:", fetchError);
+        return NextResponse.json(
+          { error: "Error al obtener banners", details: fetchError.message },
+          { status: 500 }
+        );
+      }
+
+      if (body.index >= 0 && body.index < allBanners.length) {
+        const bannerToDelete = allBanners[body.index];
+        
+        const { error: deleteError } = await supabase
           .from('banners')
           .delete()
-          .eq('id', banners[0].id);
+          .eq('id', bannerToDelete.id);
 
-        if (!error) {
-          console.log("Último banner eliminado de Supabase");
+        if (deleteError) {
+          console.error("Error deleting banner by index:", deleteError);
+          return NextResponse.json(
+            { error: "Error al eliminar el banner", details: deleteError.message },
+            { status: 500 }
+          );
         }
+      } else {
+        return NextResponse.json(
+          { error: "Índice inválido" },
+          { status: 400 }
+        );
       }
-    } catch (supabaseError) {
-      console.log("Error eliminando de Supabase:", supabaseError.message);
     }
 
-    // Eliminar del archivo local también
-    const raw = await readFile(FILE, "utf8");
-    const json = JSON.parse(raw);
+    // Verificar si quedan banners, si no, crear uno por defecto
+    const { data: remainingBanners, error: countError } = await supabase
+      .from('banners')
+      .select('id')
+      .limit(1);
 
-    if (json.banners.length > 0) json.banners.pop();
-
-    // nunca permitir vacío → restaurar default
-    if (json.banners.length === 0) {
-      json.banners = [DEFAULT];
+    if (countError) {
+      console.error("Error checking remaining banners:", countError);
     }
 
-    await writeFile(FILE, JSON.stringify(json, null, 2), "utf8");
-    console.log("Banner eliminado del archivo local");
+    if (!remainingBanners || remainingBanners.length === 0) {
+      await supabase
+        .from('banners')
+        .insert([DEFAULT_BANNER]);
+      console.log("✅ Banner por defecto creado (tabla estaba vacía)");
+    }
 
-    return NextResponse.json({ ok: true });
-    
+    return NextResponse.json({
+      ok: true,
+      message: "Banner eliminado exitosamente"
+    });
+
   } catch (error) {
-    console.error("Error en DELETE /api/data/banner:", error);
-    return NextResponse.json({ 
-      error: "Error interno del servidor" 
-    }, { status: 500 });
-  }
-}
-
-// PUT - Actualizar lista completa
-// app/api/data/banner/route.js - Método PUT mejorado
-export async function PUT(req) {
-  let requestBody;
-  
-  try {
-    requestBody = await req.json();
-    console.log("📦 PUT Request recibido:", {
-      bannersCount: requestBody.banners?.length || 0,
-      firstBanner: requestBody.banners?.[0]
-    });
-  } catch (parseError) {
-    console.error("❌ Error parseando JSON:", parseError);
-    return NextResponse.json({ 
-      error: "JSON inválido en el cuerpo de la solicitud" 
-    }, { status: 400 });
-  }
-
-  if (!Array.isArray(requestBody.banners)) {
-    return NextResponse.json({ 
-      error: "El campo 'banners' debe ser un array",
-      received: typeof requestBody.banners
-    }, { status: 400 });
-  }
-
-  try {
-    // 1. Procesar datos para Supabase
-    const supabaseUpdates = [];
-    const localBanners = [];
-    
-    requestBody.banners.forEach((banner, index) => {
-      // Validar campos requeridos
-      if (!banner.url) {
-        throw new Error(`Banner en posición ${index} no tiene URL`);
-      }
-      
-      // Para Supabase (si tiene ID)
-      if (banner.id) {
-        supabaseUpdates.push({
-          id: banner.id,
-          url: banner.url,
-          description: banner.description || "",
-          display_order: index,
-          updated_at: new Date().toISOString()
-        });
-      }
-      
-      // Para archivo local
-      localBanners.push({
-        url: banner.url,
-        description: banner.description || "",
-        ...(banner.id && { id: banner.id })
-      });
-    });
-
-    // 2. Actualizar Supabase (si hay datos con ID)
-    if (supabaseUpdates.length > 0) {
-      try {
-        console.log("🔄 Actualizando Supabase con", supabaseUpdates.length, "registros");
-        
-        const { error, count } = await supabase
-          .from('banners')
-          .upsert(supabaseUpdates);
-        
-        if (error) {
-          console.error("❌ Error en upsert de Supabase:", error);
-          // Continuar con archivo local aunque falle Supabase
-        } else {
-          console.log(`✅ Supabase actualizado: ${supabaseUpdates.length} banners`);
-        }
-      } catch (supabaseError) {
-        console.error("❌ Excepción en Supabase:", supabaseError.message);
-        // Continuar con archivo local
-      }
-    }
-
-    // 3. Actualizar archivo local (siempre)
-    const finalBanners = localBanners.length > 0 ? localBanners : [DEFAULT];
-    
-    const { writeFile } = await import("fs/promises");
-    const { join } = await import("path");
-    
-    const FILE = join(process.cwd(), "data", "banners.json");
-    
-    await writeFile(
-      FILE,
-      JSON.stringify({ banners: finalBanners }, null, 2),
-      "utf8"
+    console.error("Unexpected error in DELETE:", error);
+    return NextResponse.json(
+      { error: "Error interno del servidor" },
+      { status: 500 }
     );
-    
-    console.log("💾 Archivo local actualizado:", finalBanners.length, "banners");
-
-    // 4. Responder éxito
-    return NextResponse.json({ 
-      ok: true, 
-      message: "Orden guardado exitosamente",
-      stats: {
-        totalBanners: finalBanners.length,
-        supabaseUpdated: supabaseUpdates.length,
-        localUpdated: finalBanners.length
-      }
-    });
-
-  } catch (error) {
-    console.error("💥 Error crítico en PUT /api/data/banner:", error);
-    console.error("Stack trace:", error.stack);
-    
-    return NextResponse.json({ 
-      ok: false,
-      error: "Error al procesar la solicitud",
-      message: error.message,
-      ...(process.env.NODE_ENV === 'development' && { stack: error.stack })
-    }, { status: 500 });
   }
 }

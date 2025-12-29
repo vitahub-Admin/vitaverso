@@ -53,26 +53,30 @@ const [newsFecha, setNewsFecha] = useState("");
   };
 
   // Borrar un banner por índice (NO el último)
-const deleteOne = async (index) => {
-  // Si el banner tiene ID (de Supabase), usarlo
-  const banner = banners[index];
+  const deleteOne = async (banner) => {
+    if (!confirm("¿Seguro que quieres eliminar este banner?")) return;
   
-  let requestBody = { index };
+    try {
+      const response = await fetch("/api/data/banner", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: banner.id }), // Siempre usar ID
+      });
   
-  if (banner && banner.id) {
-    // Si tiene ID de Supabase, enviarlo
-    requestBody = { id: banner.id };
-  }
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.error || "Error al eliminar");
+      }
   
-  await fetch("/api/data/banner", {
-    method: "DELETE",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(requestBody),
-  });
-
-  loadBanners();
-};
-
+      alert("Banner eliminado");
+      loadBanners();
+      
+    } catch (error) {
+      console.error("Error deleting banner:", error);
+      alert(`Error: ${error.message}`);
+    }
+  };
   // Mover arriba
   const moveUp = (index) => {
     if (index === 0) return;
@@ -92,30 +96,30 @@ const deleteOne = async (index) => {
   // Guardar nuevo orden
   const saveOrder = async () => {
     try {
-      console.log("Enviando orden:", banners);
-      
+      // Asegurarnos de incluir todos los campos necesarios
+      const bannersToSave = banners.map((banner, index) => ({
+        id: banner.id,
+        url: banner.url,
+        description: banner.description || "",
+        display_order: index
+      }));
+  
       const response = await fetch("/api/data/banner", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
-          banners: banners.map((b, index) => ({
-            ...b,
-            display_order: index  // Asegurar que tiene display_order
-          }))
-        }),
+        body: JSON.stringify({ banners: bannersToSave }),
       });
-      
+  
       const result = await response.json();
       
       if (!response.ok) {
-        throw new Error(result.error || "Error desconocido");
+        throw new Error(result.error || "Error al guardar orden");
       }
-      
+  
       alert("✅ Orden guardado correctamente");
-      console.log("Respuesta del servidor:", result);
       
     } catch (error) {
-      console.error("❌ Error al guardar orden:", error);
+      console.error("Error saving order:", error);
       alert(`❌ Error: ${error.message}`);
     }
   };
