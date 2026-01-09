@@ -1,0 +1,183 @@
+
+[
+    {
+      "order_number": 12715,
+      "financial_status": "paid",
+      "customer_email": "ana.martinez@ejemplo.com",
+      "nombre_cliente": "Ana",
+      "apellido_cliente": "Martínez",
+      "created_at": {
+        "value": "2025-01-15T10:30:00.000Z"
+      },
+      "ganancia_total": 210,
+      "total_items": 1,
+      "share_cart": null,
+      "productos": [
+        {
+          "producto": "Proteína Hidrolizada de Suero Isolate Whey Protein AMZ Nutrition | Recuperación muscular | 1.6 o 2.3 kg - 2.310KG / Chocolate",
+          "cantidad": 1,
+          "ganancia_producto": 210,
+          "comision": 0.2,
+          "duracion": "70",
+          "inventario": 0,
+          "product_handle": "proteina-aislada-de-suero-isolate-whey-amz-nutrition"
+        }
+      ]
+    },
+    {
+      "order_number": 12709,
+      "financial_status": "paid",
+      "customer_email": "carlos.lopez@ejemplo.com",
+      "nombre_cliente": "Carlos",
+      "apellido_cliente": "López",
+      "created_at": {
+        "value": "2025-01-14T14:20:00.000Z"
+      },
+      "ganancia_total": 210,
+      "total_items": 1,
+      "share_cart": null,
+      "productos": [
+        {
+          "producto": "Proteína Hidrolizada de Suero Isolate Whey Protein AMZ Nutrition | Recuperación muscular | 1.6 o 2.3 kg - 2.310KG / Fresa",
+          "cantidad": 1,
+          "ganancia_producto": 210,
+          "comision": 0.2,
+          "duracion": "70",
+          "inventario": 4,
+          "product_handle": "proteina-aislada-de-suero-isolate-whey-amz-nutrition"
+        }
+      ]
+    },
+    {
+      "order_number": 12704,
+      "financial_status": "paid",
+      "customer_email": "miguel.garcia@ejemplo.com",
+      "nombre_cliente": "Miguel",
+      "apellido_cliente": "García",
+      "created_at": {
+        "value": "2025-01-13T09:15:00.000Z"
+      },
+      "ganancia_total": 150,
+      "total_items": 1,
+      "share_cart": null,
+      "productos": [
+        {
+          "producto": "Proteína Hidrolizada de Suero Isolate Whey Protein AMZ Nutrition | Recuperación muscular | 1.6 o 2.3 kg - 1.617KG / Chocolate",
+          "cantidad": 1,
+          "ganancia_producto": 150,
+          "comision": 0.2,
+          "duracion": "49",
+          "inventario": 1,
+          "product_handle": "proteina-aislada-de-suero-isolate-whey-amz-nutrition"
+        }
+      ]
+    },
+    {
+      "order_number": 12698,
+      "financial_status": "paid",
+      "customer_email": "sofia.hernandez@ejemplo.com",
+      "nombre_cliente": "Sofía",
+      "apellido_cliente": "Hernández",
+      "created_at": {
+        "value": "2025-01-10T16:45:00.000Z"
+      },
+      "ganancia_total": 360,
+      "total_items": 2,
+      "share_cart": "CART-789",
+      "productos": [
+        {
+          "producto": "Creatina Monohidratada 300g AMZ Nutrition | Aumento de fuerza y masa muscular",
+          "cantidad": 1,
+          "ganancia_producto": 120,
+          "comision": 0.2,
+          "duracion": "30",
+          "inventario": 12,
+          "product_handle": "creatina-monohidratada-300g-amz-nutrition"
+        },
+        {
+          "producto": "Pre-entreno AMZ Nutrition | Energía y enfoque | 300g",
+          "cantidad": 1,
+          "ganancia_producto": 240,
+          "comision": 0.2,
+          "duracion": "45",
+          "inventario": 8,
+          "product_handle": "pre-entreno-amz-nutrition-300g"
+        }
+      ]
+    },
+    {
+      "order_number": 12692,
+      "financial_status": "paid",
+      "customer_email": "javier.rodriguez@ejemplo.com",
+      "nombre_cliente": "Javier",
+      "apellido_cliente": "Rodríguez",
+      "created_at": {
+        "value": "2025-01-08T11:30:00.000Z"
+      },
+      "ganancia_total": 510,
+      "total_items": 3,
+      "share_cart": "CART-456",
+      "productos": [
+        {
+          "producto": "Proteína Hidrolizada de Suero Isolate Whey Protein AMZ Nutrition | Recuperación muscular | 1.6 o 2.3 kg - 2.310KG / Vainilla",
+          "cantidad": 1,
+          "ganancia_producto": 210,
+          "comision": 0.2,
+          "duracion": "70",
+          "inventario": 3,
+          "product_handle": "proteina-aislada-de-suero-isolate-whey-amz-nutrition"
+        },
+        {
+          "producto": "BCAA 2:1:1 300g AMZ Nutrition | Recuperación muscular",
+          "cantidad": 1,
+          "ganancia_producto": 150,
+          "comision": 0.2,
+          "duracion": "60",
+          "inventario": 15,
+          "product_handle": "bcaa-2-1-1-300g-amz-nutrition"
+        },
+        {
+          "producto": "Glutamina 300g AMZ Nutrition | Recuperación intestinal y muscular",
+          "cantidad": 1,
+          "ganancia_producto": 150,
+          "comision": 0.2,
+          "duracion": "50",
+          "inventario": 7,
+          "product_handle": "glutamina-300g-amz-nutrition"
+        }
+      ]
+    },
+    {
+      "order_number": 12685,
+      "financial_status": "pending",
+      "customer_email": "laura.diaz@ejemplo.com",
+      "nombre_cliente": "Laura",
+      "apellido_cliente": "Díaz",
+      "created_at": {
+        "value": "2025-01-05T13:20:00.000Z"
+      },
+      "ganancia_total": 280,
+      "total_items": 2,
+      "share_cart": "CART-123",
+      "productos": [
+        {
+          "producto": "Omega-3 1000mg 120 perlas AMZ Nutrition | Salud cardiovascular",
+          "cantidad": 1,
+          "ganancia_producto": 130,
+          "comision": 0.2,
+          "duracion": "90",
+          "inventario": 25,
+          "product_handle": "omega-3-1000mg-120-perlas-amz-nutrition"
+        },
+        {
+          "producto": "Multivitamínico Complejo B 60 tabletas AMZ Nutrition",
+          "cantidad": 1,
+          "ganancia_producto": 150,
+          "comision": 0.2,
+          "duracion": "60",
+          "inventario": 18,
+          "product_handle": "multivitaminico-complejo-b-60-tabletas-amz-nutrition"
+        }
+      ]
+    }
+  ]

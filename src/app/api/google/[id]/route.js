@@ -1,5 +1,10 @@
 import { NextResponse } from 'next/server';
 import { BigQuery } from '@google-cloud/bigquery';
+import fs from 'fs';
+import path from 'path';
+
+// ID específico para mostrar datos fake (para videos demo)
+const FAKE_CUSTOMER_ID = 10025223455041; // Cambia este número si quieres
 
 export async function GET(req, { params }) {
   try {
@@ -26,6 +31,53 @@ export async function GET(req, { params }) {
       );
     }
 
+    // ✅ VERIFICAR SI ES EL ID PARA DATOS FAKE (VIDEOS DEMO)
+    if (numericCustomerId === FAKE_CUSTOMER_ID) {
+      console.log('🎬 Usando datos fake para videos - customerId:', FAKE_CUSTOMER_ID);
+      
+      try {
+        // Leer el archivo JSON con datos fake
+        const fakeDataPath = path.join(process.cwd(), 'public', 'data', 'fake-orders.json');
+        const fileContent = fs.readFileSync(fakeDataPath, 'utf8');
+        const fakeOrders = JSON.parse(fileContent);
+        
+        console.log('✅ Datos fake cargados:', fakeOrders.length, 'órdenes');
+        
+        // Si hay filtros de fecha, aplicarlos
+        let filteredOrders = fakeOrders;
+        if (from && to) {
+          const fromDate = new Date(from);
+          const toDate = new Date(to);
+          toDate.setHours(23, 59, 59, 999); // Incluir todo el día
+          
+          filteredOrders = fakeOrders.filter(order => {
+            const orderDate = new Date(order.created_at.value || order.created_at);
+            return orderDate >= fromDate && orderDate <= toDate;
+          });
+        }
+        
+        // Ordenar como en la query original
+        filteredOrders.sort((a, b) => {
+          const dateA = new Date(a.created_at.value || a.created_at);
+          const dateB = new Date(b.created_at.value || b.created_at);
+          return dateB - dateA || b.order_number - a.order_number;
+        });
+        
+        return NextResponse.json({ 
+          success: true, 
+          data: filteredOrders,
+          message: `🎥 ${filteredOrders.length} órdenes demo (para videos)`,
+          isFakeData: true
+        });
+        
+      } catch (fsError) {
+        console.error('❌ Error cargando datos fake:', fsError);
+        // Si falla la lectura del archivo, continuar con BigQuery
+        console.log('⚠️ Continuando con BigQuery...');
+      }
+    }
+
+    // ✅ CÓDIGO ORIGINAL PARA BIGQUERY (para IDs reales)
     const bigquery = new BigQuery({
       projectId: process.env.GOOGLE_PROJECT_ID,
       credentials: {
@@ -34,7 +86,7 @@ export async function GET(req, { params }) {
       },
     });
 
-    console.log('✅ BigQuery configured');
+    console.log('✅ BigQuery configured para ID:', numericCustomerId);
 
     const query = `
       WITH ORDEN_PRODUCTO AS (
@@ -70,15 +122,13 @@ export async function GET(req, { params }) {
         SELECT 
           order_number,
           financial_status,
-          created_at,  -- ✅ MANTENER created_at como TIMESTAMP
+          created_at,
           customer_email,
           customer_first_name,
           share_cart,
-          -- Agrupar productos por orden (solo información esencial)
           ARRAY_AGG(STRUCT(
             line_items_name as producto,
             line_items_quantity as cantidad,
-            -- Calcular ganancia por producto
             (
               (line_items_price * line_items_quantity) - 
               COALESCE(CAST(discount_allocations_amount AS FLOAT64), 0)
@@ -88,7 +138,6 @@ export async function GET(req, { params }) {
             inventory_quantity as inventario,
             comission as comision
           )) as productos,
-          -- Totales de la orden
           SUM(line_items_quantity) as total_items,
           SUM((
             (line_items_price * line_items_quantity) - 
@@ -103,7 +152,7 @@ export async function GET(req, { params }) {
       SELECT 
         po.order_number,
         po.financial_status,
-        po.created_at,  -- ✅ ESPECIFICAR po.created_at
+        po.created_at,
         po.customer_email,
         po.customer_first_name as nombre_cliente,
         c.last_name as apellido_cliente,
@@ -119,10 +168,10 @@ export async function GET(req, { params }) {
 
     let finalQuery = query;
     if (from && to) {
-      finalQuery += ` AND DATE(po.created_at) BETWEEN @from AND @to`;  // ✅ ESPECIFICAR po.created_at
+      finalQuery += ` AND DATE(po.created_at) BETWEEN @from AND @to`;
     }
 
-    finalQuery += ` ORDER BY po.created_at DESC, po.order_number DESC`;  // ✅ ESPECIFICAR po.created_at
+    finalQuery += ` ORDER BY po.created_at DESC, po.order_number DESC`;
 
     const options = {
       query: finalQuery,

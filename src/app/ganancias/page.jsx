@@ -5,6 +5,7 @@ import Cookies from "js-cookie";
 import Chart1 from "./components/Chart1";
 import Chart2 from "./components/Chart2";
 import Banner from "../components/Banner"
+import PointsDashboard from "./components/pointsDashboard";
 
 export default function OrdenesPage() {
   const [error, setError] = useState("");
@@ -172,7 +173,9 @@ export default function OrdenesPage() {
     </div>
   </div>
 )}
-
+{/* <div>
+  <PointsDashboard/>
+</div> */}
     </div>
   );
 }
