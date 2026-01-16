@@ -1,137 +1,174 @@
 import { NextResponse } from "next/server";
-import { createClient } from '@supabase/supabase-js';
+import { createClient } from "@supabase/supabase-js";
 
-
+// 🔐 SUPABASE ADMIN CLIENT
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY  // ← Esta es la correcta
+  process.env.SUPABASE_SECRET_KEY
 );
-// Helper para parsear el ID (puede ser número o string)
+
+// Campos permitidos para update (admin)
+const ALLOWED_UPDATE_FIELDS = [
+  'first_name',
+  'last_name',
+  'phone',
+  'profession',
+  'patient_count',
+  'social_media',
+  'status',
+  'clabe_interbancaria'
+];
+
+// Helper ID
 function parseId(id) {
   const num = Number(id);
   return isNaN(num) ? id : num;
 }
 
-// GET - Obtener un afiliado por ID
+// ==============================
+// GET - Afiliado por ID
+// ==============================
 export async function GET(req, { params }) {
+  const { id } = await params;
+  const affiliateId = parseId(id);
+
   try {
-    const { id } = await params;
-    const parsedId = parseId(id);
-    
     const { data, error } = await supabase
       .from('affiliates')
       .select('*')
-      .eq('id', parsedId)
+      .eq('id', affiliateId)
       .single();
-    
+
     if (error?.code === 'PGRST116') {
       return NextResponse.json(
         { success: false, error: 'Afiliado no encontrado' },
         { status: 404 }
       );
     }
-    
+
     if (error) throw error;
-    
+
     return NextResponse.json({ success: true, data });
-    
+
   } catch (error) {
-    console.error(`❌ GET /admin/affiliates/${params.id} error:`, error);
+    console.error(`❌ GET /admin/affiliates/${affiliateId}:`, error.message);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: 'Error obteniendo afiliado' },
       { status: 500 }
     );
   }
 }
 
+// ==============================
 // PUT - Actualizar afiliado
+// ==============================
 export async function PUT(req, { params }) {
+  const { id } = await params;
+  const affiliateId = parseId(id);
+
   try {
-    const { id } = await params;
-    const parsedId = parseId(id);
     const body = await req.json();
-    
-    // Verificar existencia
-    const { data: existing } = await supabase
+
+    const { data: existing, error: findError } = await supabase
       .from('affiliates')
       .select('id')
-      .eq('id', parsedId)
+      .eq('id', affiliateId)
       .single();
-    
-    if (!existing) {
+
+    if (findError?.code === 'PGRST116' || !existing) {
       return NextResponse.json(
         { success: false, error: 'Afiliado no encontrado' },
         { status: 404 }
       );
     }
-    
-    // Remover campos inmutables
-    const { id: _, created_at: __, ...updateData } = body;
-    
-    // Agregar timestamp
+
+    const updateData = Object.fromEntries(
+      Object.entries(body).filter(([key]) =>
+        ALLOWED_UPDATE_FIELDS.includes(key)
+      )
+    );
+
+    if (!Object.keys(updateData).length) {
+      return NextResponse.json(
+        { success: false, error: 'No hay campos válidos para actualizar' },
+        { status: 400 }
+      );
+    }
+
     updateData.updated_at = new Date().toISOString();
-    
-    // Actualizar
+
     const { data, error } = await supabase
       .from('affiliates')
       .update(updateData)
-      .eq('id', parsedId)
+      .eq('id', affiliateId)
       .select()
       .single();
-    
+
     if (error) throw error;
-    
+
     return NextResponse.json({
       success: true,
       data,
       message: 'Afiliado actualizado'
     });
-    
+
   } catch (error) {
-    console.error(`❌ PUT /admin/affiliates/${params.id} error:`, error);
+    console.error(`❌ PUT /admin/affiliates/${affiliateId}:`, error.message);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: 'Error actualizando afiliado' },
       { status: 500 }
     );
   }
 }
 
-// DELETE - Desactivar afiliado (soft delete)
-export async function DELETE(req, { params }) {
+// ==============================
+// PATCH - Cambiar estado
+// ==============================
+export async function PATCH(req, { params }) {
+  const { id } = await params;
+  const affiliateId = parseId(id);
+
   try {
-    const { id } = await params;
-    const parsedId = parseId(id);
-    
-    // Soft delete (cambiar status)
+    const { status } = await req.json();
+
+    const ALLOWED_STATUS = ['active', 'inactive', 'pending', 'blocked'];
+
+    if (!ALLOWED_STATUS.includes(status)) {
+      return NextResponse.json(
+        { success: false, error: 'Estado inválido' },
+        { status: 400 }
+      );
+    }
+
     const { data, error } = await supabase
       .from('affiliates')
-      .update({ 
-        status: 'inactive',
+      .update({
+        status,
         updated_at: new Date().toISOString()
       })
-      .eq('id', parsedId)
+      .eq('id', affiliateId)
       .select()
       .single();
-    
+
     if (error?.code === 'PGRST116') {
       return NextResponse.json(
         { success: false, error: 'Afiliado no encontrado' },
         { status: 404 }
       );
     }
-    
+
     if (error) throw error;
-    
+
     return NextResponse.json({
       success: true,
       data,
-      message: 'Afiliado desactivado'
+      message: 'Estado actualizado'
     });
-    
+
   } catch (error) {
-    console.error(`❌ DELETE /admin/affiliates/${params.id} error:`, error);
+    console.error(`❌ PATCH /admin/affiliates/${affiliateId}:`, error.message);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: 'Error cambiando estado' },
       { status: 500 }
     );
   }

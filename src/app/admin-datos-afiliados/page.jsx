@@ -5,8 +5,14 @@ import { useState, useEffect } from 'react';
 import { affiliatesService } from '../services/affiliates';
 import AffiliatesSearch from './components/AffiliatesSearch';
 import AffiliatesTable from './components/AffiliatesTable';
+import { useRouter } from 'next/navigation';
+
 
 export default function AffiliatesPage() {
+
+  const router = useRouter(); // ✅
+
+  
   const [affiliates, setAffiliates] = useState([]);
   const [meta, setMeta] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -40,7 +46,7 @@ export default function AffiliatesPage() {
   
   const handleEdit = (affiliate) => {
     // Navegar a página de edición
-    router.push(`/admin/affiliates/${affiliate.id}`);
+    router.push(`/admin-datos-afiliados/affiliates/${affiliate.id}`);
   };
   
   const handleDelete = async (affiliate) => {
