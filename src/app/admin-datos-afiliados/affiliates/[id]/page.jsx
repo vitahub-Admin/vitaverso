@@ -252,3 +252,4 @@ function EditableField({ label, value, editable, onChange }) {
     </div>
   );
 }
+  

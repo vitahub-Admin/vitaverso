@@ -2,6 +2,7 @@
   "name": "vitaverse",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "next build",
@@ -13,7 +14,10 @@
     "@microsoft/clarity": "^1.0.0",
     "@supabase/supabase-js": "^2.89.0",
     "@tanstack/react-table": "^8.21.3",
+    "ag-grid-community": "^35.0.0",
+    "ag-grid-react": "^35.0.0",
     "axios": "^1.13.2",
+    "dotenv": "^17.2.3",
     "formidable": "^3.5.4",
     "googleapis": "^159.0.0",
     "js-cookie": "^3.0.5",

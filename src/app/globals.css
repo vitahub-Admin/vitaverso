@@ -11,3 +11,27 @@
   max-width: 200px;
   max-height: 200px;
 }
+.sticky-columns {
+  position: sticky;
+  left: 0;
+  background: white;
+  z-index: 20;
+}
+
+/* Mejorar rendimiento del sticky */
+.sticky-columns,
+.sticky-header {
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+/* Sombra sutil para separar columnas sticky */
+.sticky-columns::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  right: 0;
+  height: 100%;
+  width: 2px;
+  box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
+}

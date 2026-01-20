@@ -94,6 +94,7 @@ export default function Sidebar() {
     { href: "/admin", label: "admin", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
     { href: "/admin-sharecarts", label: "sharecarts General", icon: <Layers size={20} />, requireTag: "vitahuber",},
     { href: "/admin-datos-afiliados", label: "afiliados Data General", icon: <Layers size={20} />, requireTag: "vitahuber",},
+    { href: "/admin-datos-analytics", label: "afiliados Analytics", icon: <Layers size={20} />, requireTag: "vitahuber",},
     // { href: "/mis-carritos-merge", label: "merge sharecarts", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
   ];
 
