@@ -5,7 +5,15 @@ import { AgGridReact } from "ag-grid-react";
 import { AllCommunityModule, ModuleRegistry } from "ag-grid-community";
 import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
-import { ArrowUpRight, ArrowDownRight, ShoppingCart, DollarSign, Store } from "lucide-react";
+import { 
+  ArrowUpRight, 
+  ArrowDownRight, 
+  ShoppingCart, 
+  DollarSign, 
+  Store,
+  User // Nuevo icono para perfil
+} from "lucide-react";
+import { useRouter } from "next/navigation"; // Para navegación
 
 // Registrar todos los módulos de AG Grid
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -52,21 +60,33 @@ function TrendRenderer(params) {
   return <span className="text-gray-700 text-center block">{value}</span>;
 }
 
-// Componente para mostrar el nombre del afiliado
+// Componente para mostrar el nombre del afiliado CON enlace a perfil
 function NameRenderer(params) {
   const { data } = params;
 
   return (
     <div className="flex flex-col gap-0.5 py-1">
-      <span className="font-medium text-sm leading-tight">
-        {data.first_name} {data.last_name}
-      </span>
-      <span className="text-xs text-gray-500 truncate">{data.email}</span>
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1">
+          <div className="flex items-center gap-1">
+            <a
+              href={`/admin-datos-afiliados/affiliates/${data.id}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-medium text-sm leading-tight hover:text-blue-600 hover:underline"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {data.first_name} {data.last_name}
+            </a>
+            <span className="text-xs text-gray-400">↗</span>
+          </div>
+          <span className="text-xs text-gray-500 truncate block">{data.email}</span>
+        </div>
+      </div>
     </div>
   );
 }
-
-// Componente para mostrar los iconos de tags (más compacto)
+// Componente para mostrar los iconos de tags
 function TagsRenderer(params) {
   const { data } = params;
   
@@ -132,6 +152,8 @@ function formatMonth(monthString) {
 }
 
 export default function AGGridAnalyticsTable({ data = [], months = [] }) {
+  const router = useRouter();
+  
   // Formatear los meses para mostrar
   const formattedMonths = useMemo(() => 
     months.map(month => formatMonth(month)), 
@@ -146,7 +168,7 @@ export default function AGGridAnalyticsTable({ data = [], months = [] }) {
         headerName: "Afiliado",
         field: "name",
         pinned: "left",
-        width: 180,
+        width: 200,
         cellRenderer: NameRenderer,
         filter: "agTextColumnFilter",
         sortable: true,
@@ -200,7 +222,7 @@ export default function AGGridAnalyticsTable({ data = [], months = [] }) {
     // Añadir columnas mensuales dinámicas con GRUPOS
     months.forEach((originalMonth, index) => {
       const formattedMonth = formattedMonths[index];
-      const bgClass = index % 2 === 0 ? "bg-gray-100" : "bg-gray-50"; // Más contraste
+      const bgClass = index % 2 === 0 ? "bg-gray-100" : "bg-gray-50";
       
       // Grupo padre para el mes
       columns.push({
@@ -257,6 +279,13 @@ export default function AGGridAnalyticsTable({ data = [], months = [] }) {
     suppressMovable: true,
   }), []);
 
+  // Configurar doble click en fila para ir al perfil
+  const onRowDoubleClicked = (params) => {
+    if (params.data?.id) {
+      router.push(`/admin-datos-afiliados/affiliates/${params.data.id}`);
+    }
+  };
+
   return (
     <div className="ag-theme-alpine h-[600px] w-full border rounded-lg overflow-hidden">
       <style jsx global>{`
@@ -304,6 +333,12 @@ export default function AGGridAnalyticsTable({ data = [], months = [] }) {
           align-items: center;
           height: 100%;
         }
+        
+        /* Hover en filas */
+        .ag-row-hover {
+          background-color: #f0f9ff !important;
+          cursor: pointer;
+        }
       `}</style>
       
       <AgGridReact
@@ -312,7 +347,7 @@ export default function AGGridAnalyticsTable({ data = [], months = [] }) {
         defaultColDef={defaultColDef}
         pagination={true}
         paginationPageSize={20}
-        rowHeight={45} // Más compacto
+        rowHeight={45}
         headerHeight={40}
         suppressRowClickSelection={true}
         animateRows={true}
@@ -323,6 +358,10 @@ export default function AGGridAnalyticsTable({ data = [], months = [] }) {
         }}
         onFirstDataRendered={(params) => {
           params.api.sizeColumnsToFit();
+        }}
+        onRowDoubleClicked={onRowDoubleClicked}
+        getRowClass={(params) => {
+          return 'cursor-pointer hover:bg-blue-50';
         }}
       />
     </div>

@@ -8,13 +8,14 @@ const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SECRET_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 
 export async function getCombinedAnalyticsData() {
+
   try {
     console.time('✅ Analytics data loaded');
     
     // 1️⃣ Obtener TODOS los afiliados de Supabase
     const { data: allAffiliates, error: supabaseError } = await supabase
       .from("affiliates")
-      .select("shopify_customer_id, first_name, last_name, email, active_store")
+      .select("shopify_customer_id, first_name, last_name, email, active_store,id")
       .order("created_at", { ascending: false });
 
     if (supabaseError) {
@@ -191,45 +192,45 @@ export async function getCombinedAnalyticsData() {
     });
 
     // 8️⃣ Combinar con TODOS los afiliados
-    const data = allAffiliates.map(affiliate => {
-      const shopifyId = affiliate.shopify_customer_id;
-      const hasActivity = activityMap[shopifyId];
-      
-      if (hasActivity) {
-        // Afiliado CON actividad
-        return {
-          affiliate_shopify_customer_id: shopifyId,
-          first_name: affiliate.first_name || "",
-          last_name: affiliate.last_name || "",
-          email: affiliate.email || "",
-          totals: {
-            sharecarts: hasActivity.totals.sharecarts || 0,
-            orders: hasActivity.totals.orders || 0,
-          },
-          monthly: hasActivity.monthly || {},
-          activo_carrito: (hasActivity.totals.sharecarts || 0) > 0,
-          vendio: (hasActivity.totals.orders || 0) > 0,
-          activo_tienda: affiliate.active_store || false,
-        };
-      } else {
-        // Afiliado SIN actividad
-        return {
-          affiliate_shopify_customer_id: shopifyId,
-          first_name: affiliate.first_name || "",
-          last_name: affiliate.last_name || "",
-          email: affiliate.email || "",
-          totals: {
-            sharecarts: 0,
-            orders: 0,
-          },
-          monthly: {},
-          activo_carrito: false,
-          vendio: false,
-          activo_tienda: affiliate.active_store || false,
-        };
-      }
-    });
-
+    // En la función getCombinedAnalyticsData(), busca esta parte:
+const data = allAffiliates.map(affiliate => {
+  const shopifyId = affiliate.shopify_customer_id;
+  const hasActivity = activityMap[shopifyId];
+  
+  if (hasActivity) {
+    return {
+      id: affiliate.id, // ← ESTE ES EL ID DE SUPABASE (IMPORTANTE)
+      affiliate_shopify_customer_id: shopifyId,
+      first_name: affiliate.first_name || "",
+      last_name: affiliate.last_name || "",
+      email: affiliate.email || "",
+      totals: {
+        sharecarts: hasActivity.totals.sharecarts || 0,
+        orders: hasActivity.totals.orders || 0,
+      },
+      monthly: hasActivity.monthly || {},
+      activo_carrito: (hasActivity.totals.sharecarts || 0) > 0,
+      vendio: (hasActivity.totals.orders || 0) > 0,
+      activo_tienda: affiliate.active_store || false,
+    };
+  } else {
+    return {
+      id: affiliate.id, // ← ESTE ES EL ID DE SUPABASE (IMPORTANTE)
+      affiliate_shopify_customer_id: shopifyId,
+      first_name: affiliate.first_name || "",
+      last_name: affiliate.last_name || "",
+      email: affiliate.email || "",
+      totals: {
+        sharecarts: 0,
+        orders: 0,
+      },
+      monthly: {},
+      activo_carrito: false,
+      vendio: false,
+      activo_tienda: affiliate.active_store || false,
+    };
+  }
+});
     // 9️⃣ Estadísticas
     const stats = {
       total_afiliados: data.length,
@@ -247,6 +248,14 @@ export async function getCombinedAnalyticsData() {
     console.log(`   - Total órdenes: ${stats.total_ordenes}`);
     
     console.timeEnd('✅ Analytics data loaded');
+    // En getCombinedAnalyticsData(), antes del return:
+// console.log("🔍 Verificando estructura de datos...");
+// console.log("Total afiliados procesados:", data.length);
+// if (data.length > 0) {
+//   console.log("Primer registro procesado:", data[0]);
+//   console.log("¿Tiene id?", 'id' in data[0]);
+//   console.log("¿Tiene affiliate_shopify_customer_id?", 'affiliate_shopify_customer_id' in data[0]);
+// }
 
     return { 
       data, 
