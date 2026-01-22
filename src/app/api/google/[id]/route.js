@@ -423,7 +423,7 @@ export async function GET(req, { params }) {
           AND o.line_items_product_id = p.id
         WHERE COALESCE(o.specialist_ref, o.referrer_id) = @customerId
           AND o.customer_email IS NOT NULL
-          AND LOWER(o.line_items_name) NOT LIKE '%tip%'
+          
       ),
       COMISIONES_FILTRADAS AS (
         SELECT 
