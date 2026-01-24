@@ -3,6 +3,17 @@ import { NextResponse } from 'next/server';
 import { BigQuery } from '@google-cloud/bigquery';
 import { supabase } from '@/lib/supabase';
 
+// Función auxiliar para calcular valor de items en Supabase
+function calculateItemsValue(items) {
+  if (!items || !Array.isArray(items)) return 0;
+  
+  return items.reduce((total, item) => {
+    const price = parseFloat(item.price) || 0;
+    const quantity = parseInt(item.quantity) || 1;
+    return total + (price * quantity);
+  }, 0);
+}
+
 export async function GET(request, { params }) {
   try {
     const { id } = await params;
@@ -47,8 +58,7 @@ export async function GET(request, { params }) {
           ELSE "Pending"
         END AS status,
         order_number,
-        share_cart as share_cart_code,
-        customer_id
+        share_cart as share_cart_code
       FROM vitahub-435120.sharecart.carritos sh
       LEFT JOIN vitahub-435120.Shopify.customers c ON c.id = sh.customer_id
       LEFT JOIN vitahub-435120.silver.orders o ON sh.code = o.share_cart
@@ -75,55 +85,71 @@ export async function GET(request, { params }) {
     const [bigQueryRows] = await bigquery.query(bigQueryOptions);
 
     // ============================================
-    // 2. Consultar Supabase (datos nuevos)
+    // 2. Consultar TODAS las órdenes de este cliente
+    // Solo para saber qué share_carts tienen ventas
     // ============================================
-    // Primero obtenemos los sharecarts
-    const { data: supabaseRows, error: supabaseError } = await supabase
+    // Opción 1: Si specialist_ref existe
+    let ordersQuery = `
+      SELECT DISTINCT share_cart
+      FROM vitahub-435120.silver.orders
+      WHERE specialist_ref = @customerId
+      AND share_cart IS NOT NULL
+      AND share_cart != ''
+    `;
+
+    // Opción 2: Si specialist_ref no funciona, usar otra relación
+    // ordersQuery = `
+    //   SELECT DISTINCT o.share_cart
+    //   FROM vitahub-435120.silver.orders o
+    //   JOIN vitahub-435120.sharecart.carritos sc ON o.share_cart = sc.code
+    //   WHERE sc.customer_id = @customerId
+    //   AND o.share_cart IS NOT NULL
+    //   AND o.share_cart != ''
+    // `;
+
+    const ordersOptions = {
+      query: ordersQuery,
+      location: 'us-east1',
+      params: { customerId },
+    };
+
+    let shareCartsWithOrders = new Set(); // Usamos Set para evitar duplicados
+    
+    try {
+      const [ordersResult] = await bigquery.query(ordersOptions);
+      // Crear un Set con todos los share_carts que tienen órdenes
+      ordersResult.forEach(order => {
+        if (order.share_cart) {
+          shareCartsWithOrders.add(order.share_cart);
+        }
+      });
+      console.log(`Sharecarts con ventas encontrados: ${shareCartsWithOrders.size}`);
+    } catch (ordersError) {
+      console.log('Error consultando órdenes, continuando sin esa info:', ordersError.message);
+      // Continuamos sin la info de órdenes
+    }
+
+    // ============================================
+    // 3. Consultar Supabase (datos nuevos)
+    // ============================================
+    const { data: supabaseRows, error } = await supabase
       .from("sharecarts")
       .select("*")
       .eq("owner_id", customerId.toString())
-      .order("created_at", { ascending: false });
+      .order("updated_at", { ascending: false });
 
-    if (supabaseError) {
-      console.error("Error en Supabase sharecarts:", supabaseError);
+    if (error) {
+      console.error("Error en Supabase:", error);
     }
-
-    // Obtenemos los tokens de todos los sharecarts de Supabase
-    const supabaseTokens = supabaseRows?.map(cart => cart.token) || [];
-
-    // Consultamos órdenes en Supabase que están asociadas a estos sharecarts
-    let supabaseOrders = [];
-    if (supabaseTokens.length > 0) {
-      const { data: ordersData, error: ordersError } = await supabase
-        .from("orders") // Ajusta el nombre de la tabla según tu esquema
-        .select("*, order_items(*)") // Incluye items si es necesario
-        .in("sharecart_token", supabaseTokens)
-        .in("status", ["completed", "paid", "fulfilled", "processing"]); // Estados que consideras "venta asignada"
-      
-      if (ordersError) {
-        console.error("Error en Supabase orders:", ordersError);
-      } else {
-        supabaseOrders = ordersData || [];
-      }
-    }
-
-    // Creamos un mapa de órdenes por sharecart token para acceso rápido
-    const supabaseOrderMap = {};
-    supabaseOrders.forEach(order => {
-      if (order.sharecart_token) {
-        supabaseOrderMap[order.sharecart_token] = order;
-      }
-    });
 
     // ============================================
-    // 3. Combinar y enriquecer datos
+    // 4. Combinar y enriquecer datos
     // ============================================
     const mergedCarts = [];
 
-    // Procesar carritos de BigQuery (históricos)
+    // Procesar carritos de BigQuery
     bigQueryRows.forEach(cart => {
-      const associatedOrder = supabaseOrderMap[cart.code];
-      const hasSales = cart.order_number || associatedOrder ? true : false;
+      const hasSale = shareCartsWithOrders.has(cart.code) || !!cart.order_number;
       
       mergedCarts.push({
         source: 'bigquery',
@@ -136,15 +162,11 @@ export async function GET(request, { params }) {
         opens_count: cart.opens_count,
         items_count: cart.items_count,
         items_value: cart.items_value,
-        // Status: priorizar órdenes de Supabase si existen
-        status: associatedOrder ? 'Completed' : cart.status,
-        order_number: associatedOrder?.order_number || cart.order_number,
-        has_sales: hasSales,
+        status: hasSale ? 'Completed' : 'Pending',
+        order_number: cart.order_number,
+        has_sale: hasSale,
         platform: 'legacy',
-        // Datos de orden de Supabase si existe
-        supabase_order: associatedOrder || null,
-        // Datos del sharecart de Supabase si existe
-        supabase_cart_data: supabaseRows?.find(s => s.token === cart.code) || null
+        supabase_data: supabaseRows?.find(s => s.token === cart.code) || null
       });
     });
 
@@ -153,32 +175,27 @@ export async function GET(request, { params }) {
       // Verificar si ya existe en BigQuery data
       const existsInBigQuery = bigQueryRows.some(b => b.code === cart.token);
       
+      // Verificar si este carrito de Supabase tiene venta en BigQuery
+      const hasSale = shareCartsWithOrders.has(cart.token);
+      
       if (!existsInBigQuery) {
-        const associatedOrder = supabaseOrderMap[cart.token];
-        const hasSales = associatedOrder ? true : false;
-        
         mergedCarts.push({
           source: 'supabase',
           id: cart.token,
           token: cart.token,
           created_at: cart.created_at,
           full_created_at: cart.created_at,
-          client_name: cart.name || cart.client_name,
+          client_name: cart.name,
           phone: cart.phone,
-          email: cart.email,
           items_count: cart.items?.length || 0,
-          items_value: this.calculateCartValue(cart.items), // Necesitarás implementar esta función
-          // Determinar status basado en órdenes asociadas
-          status: associatedOrder ? 'Completed' : 'Pending',
-          order_number: associatedOrder?.order_number || null,
-          has_sales: hasSales,
+          items_value: calculateItemsValue(cart.items),
+          status: hasSale ? 'Completed' : 'pending',
+          order_number: hasSale ? 'VENTA_DETECTADA' : null, // Placeholder si queremos
+          has_sale: hasSale,
           platform: 'new',
           items: cart.items,
           extra: cart.extra,
-          location: cart.location,
-          opens_count: cart.opens_count || 0,
-          // Guardar referencia completa a la orden si existe
-          order_data: associatedOrder || null
+          location: cart.location
         });
       }
     });
@@ -189,7 +206,7 @@ export async function GET(request, { params }) {
     );
 
     // ============================================
-    // 4. Calcular métricas consolidadas
+    // 5. Calcular métricas consolidadas
     // ============================================
     const metrics = {
       total_carts: mergedCarts.length,
@@ -201,23 +218,16 @@ export async function GET(request, { params }) {
       total_value: mergedCarts.reduce((sum, c) => sum + (c.items_value || 0), 0),
       total_opens: mergedCarts.reduce((sum, c) => sum + (c.opens_count || 0), 0),
       
-      // Nuevas métricas para tracking de ventas
-      carts_with_sales: mergedCarts.filter(c => c.has_sales).length,
+      // Métricas de ventas
+      carts_with_sales: mergedCarts.filter(c => c.has_sale).length,
       supabase_carts_with_sales: mergedCarts.filter(c => 
-        c.source === 'supabase' && c.has_sales
+        c.source === 'supabase' && c.has_sale
       ).length,
       bigquery_carts_with_sales: mergedCarts.filter(c => 
-        c.source === 'bigquery' && c.has_sales
+        c.source === 'bigquery' && c.has_sale
       ).length,
-      cross_platform_carts: mergedCarts.filter(c => 
-        c.supabase_order && c.source === 'bigquery'
-      ).length, // Carritos que existen en ambos sistemas con venta
-      
-      // Métricas por plataforma
-      sales_by_platform: {
-        legacy: mergedCarts.filter(c => c.platform === 'legacy' && c.has_sales).length,
-        new: mergedCarts.filter(c => c.platform === 'new' && c.has_sales).length
-      }
+      conversion_rate: mergedCarts.length > 0 ? 
+        ((mergedCarts.filter(c => c.has_sale).length / mergedCarts.length) * 100).toFixed(2) + '%' : '0%'
     };
 
     return NextResponse.json({ 
@@ -228,9 +238,9 @@ export async function GET(request, { params }) {
         customerId,
         count: mergedCarts.length,
         dateRange: { from, to },
-        order_stats: {
-          supabase_orders_found: supabaseOrders.length,
-          bigquery_orders_found: bigQueryRows.filter(r => r.order_number).length
+        summary: {
+          sharecarts_with_orders_count: shareCartsWithOrders.size,
+          sharecarts_with_orders_sample: Array.from(shareCartsWithOrders).slice(0, 10) // Solo muestra primeros 10 para debug
         }
       }
     });
@@ -239,19 +249,7 @@ export async function GET(request, { params }) {
     console.error('Error fusionando carritos:', error);
     return NextResponse.json({ 
       success: false, 
-      error: error.message,
-      details: error.stack
+      error: error.message
     }, { status: 500 });
   }
-}
-
-// Función auxiliar para calcular el valor del carrito en Supabase
-function calculateCartValue(items) {
-  if (!items || !Array.isArray(items)) return 0;
-  
-  return items.reduce((total, item) => {
-    const price = parseFloat(item.price) || 0;
-    const quantity = parseInt(item.quantity) || 1;
-    return total + (price * quantity);
-  }, 0);
 }
