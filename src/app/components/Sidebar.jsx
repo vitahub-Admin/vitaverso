@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { useCustomer } from "../context/CustomerContext.jsx";   // 👈 IMPORTANTE
+import { useCustomer } from "../context/CustomerContext.jsx";
 
 import {
   DollarSign,
@@ -22,7 +22,7 @@ import {
 
 export default function Sidebar() {
   const pathname = usePathname();
-  const { customer } = useCustomer();     // 👈 ACÁ TRAEMOS EL CUSTOMER DEL CONTEXT
+  const { customer } = useCustomer();
   const [novedadesPendientes, setNovedadesPendientes] = useState(0);
 
   // ✅ Transformar tags del context en array limpio
@@ -77,38 +77,35 @@ export default function Sidebar() {
   const navItems = [
     { href: "/ganancias", label: "Ganancias", icon: <DollarSign size={20} /> },
     { href: "/ordenes", label: "Órdenes", icon: <ShoppingBag size={20} /> },
-    // { href: "/mis-carritos", label: "Mis Carritos", icon: <ShoppingCart size={20} /> },
-    { href: "/mis-carritos-merge", label: "Mis Carritos", icon: <ShoppingCart size={20} />,},
+    { href: "/mis-carritos-merge", label: "Mis Carritos", icon: <ShoppingCart size={20} /> },
     { href: "/contactos", label: "Mis Contactos", icon: <Contact size={20} /> },
     { href: "/mi-tienda", label: "Mi Tienda", icon: <Store size={20} /> },
-    { href: "/manual", label: "Manual", icon: <BookOpen size={20} /> , requireTag: "vitahuber"},
+    { href: "/manual", label: "Manual", icon: <BookOpen size={20} />, requireTag: "vitahuber" },
     { href: "/academia-vitahub", label: "Academia Vitahub", icon: <GraduationCap size={20} /> },
     { href: "/notificaciones", label: "Novedades", icon: <Newspaper size={20} /> },
     { href: "/referral", label: "Invita y gana", icon: <UserPlus size={20} /> },
     { href: "/mis-datos", label: "Mis Datos", icon: <Settings size={20} /> },
   
-    // 🔥 Este solo lo ven usuarios con tag "vitahuber"  
-    //{ href: "/debug", label: "debug", icon: <Settings size={20} />,  requireTag: "vitahuber" },
-    { href: "/vitahuber", label: "Vitahuber", icon: <Settings size={20} />, requireTag: "vitahuber",},
-    //{ href: "/sharecarts", label: "sharecart", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
-    { href: "/admin", label: "admin", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
-    { href: "/admin-sharecarts", label: "sharecarts General", icon: <Layers size={20} />, requireTag: "vitahuber",},
-    { href: "/admin-datos-afiliados", label: "afiliados Data General", icon: <Layers size={20} />, requireTag: "vitahuber",},
-    { href: "/admin-datos-analytics", label: "afiliados Analytics", icon: <Layers size={20} />, requireTag: "vitahuber",},
-    // { href: "/mis-carritos-merge", label: "merge sharecarts", icon: <ShoppingCart size={20} />, requireTag: "vitahuber",},
+    // 🔥 Estos solo lo ven usuarios con tag "vitahuber"  
+    { href: "/vitahuber", label: "Vitahuber", icon: <Settings size={20} />, requireTag: "vitahuber" },
+    { href: "/admin", label: "admin", icon: <ShoppingCart size={20} />, requireTag: "vitahuber" },
+    { href: "/admin-sharecarts", label: "sharecarts General", icon: <Layers size={20} />, requireTag: "vitahuber" },
+    { href: "/admin-datos-afiliados", label: "afiliados Data General", icon: <Layers size={20} />, requireTag: "vitahuber" },
+    { href: "/admin-datos-analytics", label: "afiliados Analytics", icon: <Layers size={20} />, requireTag: "vitahuber" },
   ];
 
-  return (
-    <aside className="bg-[#fafafa] border-r shadow-inner p-2 flex flex-col justify-between w-16 sm:w-56 transition-all">
-      <nav className="flex flex-col gap-2 text-[#1b3f7a]">
+  // Filtrar items según permisos
+  const filteredItems = navItems.filter((item) => {
+    if (item.requireTag === "vitahuber" && !isVitahuber) return false;
+    return true;
+  });
 
-        {navItems
-          .filter((item) => {
-            // Si pide tag y no lo tiene → ocultar
-            if (item.requireTag === "vitahuber" && !isVitahuber) return false;
-            return true;
-          })
-          .map(({ href, label, icon }) => {
+  return (
+    <aside className="bg-[#fafafa] border-r shadow-inner p-2 flex flex-col justify-between w-16 sm:w-56 transition-all h-full">
+      {/* Contenedor principal con scroll */}
+      <div className="flex-grow overflow-y-auto pr-1 custom-scrollbar">
+        <nav className="flex flex-col gap-2 text-[#1b3f7a]">
+          {filteredItems.map(({ href, label, icon }) => {
             const isActive = pathname.startsWith(href);
             const isNovedades = href === "/notificaciones";
 
@@ -134,9 +131,11 @@ export default function Sidebar() {
               </Link>
             );
           })}
-      </nav>
+        </nav>
+      </div>
 
-      <div className="mt-4">
+      {/* Botón de Ayuda - fijo abajo */}
+      <div className="mt-4 pt-2 border-t border-gray-200 flex-shrink-0">
         <Link
           href={whatsappLink}
           target="_blank"
@@ -147,6 +146,30 @@ export default function Sidebar() {
           <span className="hidden sm:inline">Ayuda</span>
         </Link>
       </div>
+
+      {/* Estilos para scrollbar personalizado */}
+      <style jsx>{`
+        .custom-scrollbar::-webkit-scrollbar {
+          width: 4px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+          background: #f1f1f1;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+          background: #c1c1c1;
+          border-radius: 10px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+          background: #a8a8a8;
+        }
+        
+        /* Para Firefox */
+        .custom-scrollbar {
+          scrollbar-width: thin;
+          scrollbar-color: #c1c1c1 #f1f1f1;
+        }
+      `}</style>
     </aside>
   );
 }
