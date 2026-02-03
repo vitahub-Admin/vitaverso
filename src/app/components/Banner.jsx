@@ -5,20 +5,20 @@ import { useEffect, useState } from "react";
 export default function Banner({ youtubeVideoUrl }) {
   const [banner, setBanner] = useState({
     url: "/BANNER.webp",
-    description: "Default Banner"
+    description: "Default Banner",
   });
 
-  // Cargar banner en background, sin bloquear nada
+  // Carga del banner en background (no bloquea render)
   useEffect(() => {
     fetch("/api/data/banner")
-      .then(r => r.json())
-      .then(data => {
-        if (data && data.url) {
+      .then((r) => r.json())
+      .then((data) => {
+        if (data?.url) {
           setBanner(data);
         }
       })
       .catch(() => {
-        // Silently fail, keep default banner
+        // fallback silencioso
       });
   }, []);
 
@@ -29,12 +29,12 @@ export default function Banner({ youtubeVideoUrl }) {
   };
 
   const videoId = getYouTubeVideoId(youtubeVideoUrl);
-  const hasVideo = youtubeVideoUrl && videoId;
+  const hasVideo = Boolean(videoId);
 
   return (
-    <div className={`flex ${hasVideo ? 'flex-col md:flex-row' : 'w-full'} gap-4 mb-6`}>
-      {/* BANNER - Siempre muestra algo (ahora a la izquierda) */}
-      <div className={`${hasVideo ? 'md:w-3/4' : 'w-full'}`}>
+    <div className="flex flex-col md:flex-row gap-4 mb-6">
+      {/* BANNER */}
+      <div className="w-full md:w-3/4">
         <Image
           src={banner.url}
           alt={banner.description}
@@ -46,20 +46,21 @@ export default function Banner({ youtubeVideoUrl }) {
         />
       </div>
 
-      {/* VIDEO - Renderizado inmediato (ahora a la derecha) */}
-      {hasVideo && (
-        <div className="md:w-1/4 w-full">
+      {/* ESPACIO VIDEO (siempre reservado en desktop) */}
+      <div className="hidden md:block md:w-1/4">
+        {hasVideo && (
           <div className="relative w-full h-0 pb-[56.25%] rounded-lg overflow-hidden">
-            <iframe
-              src={`https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1&loop=1&playlist=${videoId}&controls=0&modestbranding=1&rel=0`}
-              className="absolute top-0 left-0 w-full h-full"
-              title="YouTube video player"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
+           <iframe
+  src={`https://www.youtube.com/embed/${videoId}?loop=1&playlist=${videoId}&controls=1&modestbranding=1&rel=0`}
+  className="absolute top-0 left-0 w-full h-full"
+  title="YouTube video player"
+  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+  allowFullScreen
+/>
+
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }
