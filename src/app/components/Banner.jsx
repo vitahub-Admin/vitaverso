@@ -8,7 +8,7 @@ export default function Banner({ youtubeVideoUrl }) {
     description: "Default Banner",
   });
 
-  // Carga del banner en background (no bloquea render)
+  // Carga banner en background
   useEffect(() => {
     fetch("/api/data/banner")
       .then((r) => r.json())
@@ -17,9 +17,7 @@ export default function Banner({ youtubeVideoUrl }) {
           setBanner(data);
         }
       })
-      .catch(() => {
-        // fallback silencioso
-      });
+      .catch(() => {});
   }, []);
 
   const getYouTubeVideoId = (url) => {
@@ -46,20 +44,27 @@ export default function Banner({ youtubeVideoUrl }) {
         />
       </div>
 
-      {/* ESPACIO VIDEO (siempre reservado en desktop) */}
+      {/* VIDEO / FALLBACK (mismo wrapper 16:9) */}
       <div className="hidden md:block md:w-1/4">
-        {hasVideo && (
-          <div className="relative w-full h-0 pb-[56.25%] rounded-lg overflow-hidden">
-           <iframe
-  src={`https://www.youtube.com/embed/${videoId}?loop=1&playlist=${videoId}&controls=1&modestbranding=1&rel=0`}
-  className="absolute top-0 left-0 w-full h-full"
-  title="YouTube video player"
-  allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-  allowFullScreen
-/>
-
-          </div>
-        )}
+        <div className="relative w-full h-0 pb-[56.25%] rounded-lg overflow-hidden bg-black">
+          {hasVideo ? (
+            <iframe
+              src={`https://www.youtube.com/embed/${videoId}?loop=1&playlist=${videoId}&controls=1&modestbranding=1&rel=0`}
+              className="absolute top-0 left-0 w-full h-full"
+              title="YouTube video player"
+              allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+            />
+          ) : (
+            <Image
+              src="/video-fallback.webp"
+              alt="Video fallback"
+              fill
+              className="object-cover"
+              priority
+            />
+          )}
+        </div>
       </div>
     </div>
   );
