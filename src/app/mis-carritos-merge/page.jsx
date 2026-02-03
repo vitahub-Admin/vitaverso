@@ -18,6 +18,7 @@ import {
   Eye,
   AlertCircle
 } from "lucide-react";
+import Banner from "../components/Banner"
 
 export default function FusionCartsPage() {
   const router = useRouter();
@@ -247,12 +248,12 @@ const transformedCarts = fusionData.data.map(cart => {
 
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <div className="w-full max-w-6xl">
-          <div className="w-full bg-gradient-to-r from-[#1b3f7a] to-[#2a5298] rounded-lg p-4 mb-6">
-            <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
-              Carritos Compartidos Fusionados
-            </h1>
+      <div className="flex flex-col items-center gap-6 p-4">
+      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=-GYlDydre00" />
+      <div className="w-full bg-gradient-to-r from-[#1b3f7a] to-[#2a5298] rounded-lg p-4 mb-6">
+        <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
+          Carritos Compartidos
+        </h1>
             <p className="text-white text-center mt-2 opacity-90">
               Cargando todos tus carritos...
             </p>
@@ -262,18 +263,19 @@ const transformedCarts = fusionData.data.map(cart => {
             <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#1b3f7a]"></div>
           </div>
         </div>
-      </div>
+
     );
   }
 
   if (error) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
-        <div className="w-full max-w-6xl">
-          <div className="w-full bg-gradient-to-r from-[#1b3f7a] to-[#2a5298] rounded-lg p-4 mb-6">
-            <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
-              Carritos Compartidos Fusionados
-            </h1>
+      <div className="flex flex-col items-center gap-6 p-4">
+   
+      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=-GYlDydre00" />
+      <div className="w-full bg-gradient-to-r from-[#1b3f7a] to-[#2a5298] rounded-lg p-4 mb-6">
+        <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
+          Carritos Compartidos
+        </h1>
           </div>
           
           <div className="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
@@ -287,13 +289,14 @@ const transformedCarts = fusionData.data.map(cart => {
             </button>
           </div>
         </div>
-      </div>
+ 
     );
   }
 
   return (
     <div className="flex flex-col items-center gap-6 p-4">
-      {/* Header de sección */}
+
+      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=-GYlDydre00" />
       <div className="w-full bg-gradient-to-r from-[#1b3f7a] to-[#2a5298] rounded-lg p-4 mb-6">
         <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
           Carritos Compartidos

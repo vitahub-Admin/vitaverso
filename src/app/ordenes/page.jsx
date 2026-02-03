@@ -75,8 +75,8 @@ export default function OrdenesPage() {
 
   return (
     <div className="flex flex-col items-center gap-6 p-4">
-      <Banner/>
-      
+
+<Banner youtubeVideoUrl="https://www.youtube.com/watch?v=LL-jZPoVZXg" />      
       {/* Header de sección con filtros */}
       <div className="w-full bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
         <h1 className="text-3xl md:text-4xl text-white font-lato">

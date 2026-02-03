@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Cookies from "js-cookie";
 import Image from "next/image";
 import { Copy, Check, ExternalLink, X } from "lucide-react";
+import Banner from "../components/Banner";
 
 export default function MiTiendaPage() {
   const [collection, setCollection] = useState(null);
@@ -302,6 +303,7 @@ export default function MiTiendaPage() {
   return (
     <div className="flex flex-col items-center gap-6">
       {/* Header */}
+      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=iL0j9PLsTjw" />
       <div className="w-full bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
         <h1 className="text-3xl md:text-4xl text-white font-lato">Mi Tienda</h1>
       </div>

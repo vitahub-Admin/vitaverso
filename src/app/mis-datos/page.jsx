@@ -4,6 +4,8 @@
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import axios from "axios";
+import Banner from "../components/Banner"
+
 
 const CAMPOS_PUBLICOS = ["nombre", "apellido", "email", "red_social", "clabe", "telefono"];
 
@@ -187,7 +189,9 @@ export default function PerfilAfiliado() {
   );
 
   return (
-    <div className="w-full">
+
+      <div className="flex flex-col items-center gap-6 p-4">
+           <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=xh8LTPTXEWE" />
       <div className="w-full bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
         <h1 className="text-3xl md:text-4xl text-white font-lato">Mis datos de Afiliado</h1>
         <button 

@@ -1,12 +1,18 @@
 "use client";
+import Banner from "../components/Banner";
 
 export default function AcademiaVitahubPage() {
   return (
   
-<main className="max-w-4xl mx-auto px-4 py-8">
-<div className="w-full bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
-        <h1 className="text-3xl md:text-4xl text-white font-lato">Academia Vitahub</h1>
-      </div>
+
+      <main className="flex flex-col items-center gap-6 p-4">
+
+<Banner youtubeVideoUrl="https://www.youtube.com/watch?v=Xnnq8yGFoOs" />
+<div className="w-full bg-gradient-to-r from-[#1b3f7a] to-[#2a5298] rounded-lg p-4 mb-6">
+  <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
+  Academia Vitahub
+  </h1>
+</div>
   <section className="mb-16">
 
 <h2 className="text-xl md:text-2xl text-[#1b3f7a] mb-6 font-lato">

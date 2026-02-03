@@ -32,7 +32,7 @@ export default function NoticiasPage() {
 
   return (
     <div className="flex flex-col items-center gap-6 p-4">
-      <Banner />
+    <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=gbS7ix6Wr9E" />
 
       {/* Header */}
       <div className="w-full bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">

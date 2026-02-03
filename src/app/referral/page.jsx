@@ -74,7 +74,8 @@ export default function CompartirReferralPage() {
 
   return (
     <div className="flex flex-col items-center gap-6 p-4">
-      <Banner/>
+  
+      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=-qgYe5UelcE" />
 
       {/* Header */}
       <div className="w-full bg-[#1b3f7a] rounded-lg p-4 mb-6">
