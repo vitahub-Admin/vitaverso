@@ -32,17 +32,16 @@ export default function Banner({ youtubeVideoUrl }) {
   return (
     <div className="flex flex-col md:flex-row gap-4 mb-6">
       {/* BANNER */}
-      <div className="w-full md:w-3/4">
-        <Image
-          src={banner.url}
-          alt={banner.description}
-          width={1200}
-          height={130}
-          className="w-full h-auto rounded-lg"
-          priority
-          unoptimized={banner.url.startsWith("http")}
-        />
-      </div>
+      <div className="relative w-full aspect-[1200/130] rounded-lg overflow-hidden">
+  <Image
+    src={banner.url}
+    alt={banner.description}
+    fill
+    className="object-cover"
+    priority
+    unoptimized={banner.url.startsWith("http")}
+  />
+</div>
 
       {/* VIDEO / FALLBACK (mismo wrapper 16:9) */}
       <div className="hidden md:block md:w-1/4">
