@@ -75,7 +75,7 @@ export default function AffiliatesTable({ affiliates, meta, onEdit, onDelete }) 
                 {affiliate.shopify_customer_id && (
                   <p
                   className="block text-blue-600 hover:underline" >
-                    ${vitaPro(affiliate.shopify_customer_id)}
+                    {vitaPro(affiliate.shopify_customer_id)}
                   </p>
                 )}
 
