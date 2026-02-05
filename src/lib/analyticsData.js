@@ -15,13 +15,14 @@ export async function getCombinedAnalyticsData() {
     // 1️⃣ Obtener TODOS los afiliados de Supabase
     const { data: allAffiliates, error: supabaseError } = await supabase
       .from("affiliates")
-      .select("shopify_customer_id, first_name, last_name, email, active_store,id")
+      .select("shopify_customer_id, first_name, last_name, email, active_store,id,created_at")
       .order("created_at", { ascending: false });
 
     if (supabaseError) {
       console.error("❌ Error fetching affiliates:", supabaseError);
       throw new Error(`Supabase error: ${supabaseError.message}`);
     }
+    
 
     console.log(`📊 Total afiliados en Supabase: ${allAffiliates.length}`);
 
@@ -196,7 +197,16 @@ export async function getCombinedAnalyticsData() {
 const data = allAffiliates.map(affiliate => {
   const shopifyId = affiliate.shopify_customer_id;
   const hasActivity = activityMap[shopifyId];
+  const createdAt = affiliate.created_at
+  ? new Date(affiliate.created_at).getTime()
+  : null;
+
+  const NOW = Date.now();
+  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
   
+  const isNew =
+    affiliate.created_at &&
+    (NOW - new Date(affiliate.created_at).getTime()) <= SEVEN_DAYS_MS;
   if (hasActivity) {
     return {
       id: affiliate.id, // ← ESTE ES EL ID DE SUPABASE (IMPORTANTE)
@@ -204,6 +214,7 @@ const data = allAffiliates.map(affiliate => {
       first_name: affiliate.first_name || "",
       last_name: affiliate.last_name || "",
       email: affiliate.email || "",
+      is_new: isNew,
       totals: {
         sharecarts: hasActivity.totals.sharecarts || 0,
         orders: hasActivity.totals.orders || 0,
@@ -220,6 +231,7 @@ const data = allAffiliates.map(affiliate => {
       first_name: affiliate.first_name || "",
       last_name: affiliate.last_name || "",
       email: affiliate.email || "",
+      is_new: isNew,
       totals: {
         sharecarts: 0,
         orders: 0,

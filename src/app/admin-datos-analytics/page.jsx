@@ -65,19 +65,21 @@ export default function AdminDatosAnalyticsPage() {
       const activoCarritoMatch = !activeFilters.activo_carrito || row.activo_carrito;
       const vendioMatch = !activeFilters.vendio || row.vendio;
       const activoTiendaMatch = !activeFilters.activo_tienda || row.activo_tienda;
+      const nuevosMatch = !activeFilters.nuevos || row.is_new;
       
-      return activoCarritoMatch && vendioMatch && activoTiendaMatch;
+      return activoCarritoMatch && vendioMatch && activoTiendaMatch && nuevosMatch;
     });
   }, [data, globalFilter, activeFilters]);
 
   // Estadísticas para mostrar en los botones
   const stats = useMemo(() => {
-    if (!data.length) return { activo_carrito: 0, vendio: 0, activo_tienda: 0, total: 0 };
+    if (!data.length) return { activo_carrito: 0, vendio: 0, activo_tienda: 0,nuevos:0, total: 0 };
     
     return {
       activo_carrito: data.filter(row => row.activo_carrito).length,
       vendio: data.filter(row => row.vendio).length,
       activo_tienda: data.filter(row => row.activo_tienda).length,
+      nuevos: data.filter(row => row.is_new).length,
       total: data.length,
     };
   }, [data]);
@@ -96,6 +98,7 @@ export default function AdminDatosAnalyticsPage() {
       activo_carrito: false,
       vendio: false,
       activo_tienda: false,
+      nuevos: false,
     });
     setGlobalFilter("");
   };
@@ -198,7 +201,24 @@ export default function AdminDatosAnalyticsPage() {
               {stats.activo_tienda}
             </span>
           </button>
-
+           {/* FILTRO es nuevo */}
+          <button
+  onClick={() => toggleFilter('nuevos')}
+  className={`
+    inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-sm font-medium transition-colors
+    ${activeFilters.nuevos
+      ? 'bg-purple-100 text-purple-800 border border-purple-300'
+      : 'bg-purple-50 text-purple-700 hover:bg-purple-100 border border-purple-200'
+    }
+  `}
+>
+  <span className="flex items-center gap-1">
+    ✨ Nuevos (7 días)
+  </span>
+  <span className="bg-purple-200 text-purple-800 text-xs px-2 py-0.5 rounded-full">
+    {stats.nuevos}
+  </span>
+</button>
           {/* CONTADOR DE RESULTADOS */}
           <div className="ml-auto text-sm text-gray-600 flex items-center">
             <span className="font-medium">{filteredData.length}</span>
@@ -221,6 +241,9 @@ export default function AdminDatosAnalyticsPage() {
             {activeFilters.activo_tienda && (
               <span className="bg-yellow-100 text-yellow-800 px-2 py-0.5 rounded">Activo Tienda</span>
             )}
+            {activeFilters.nuevos && (
+              <span className="bg-purple-100 text-purple-800 px-2 py-0.5 rounded"> Nuevos (7 días)</span>
+)}
           </div>
         )}
       </div>

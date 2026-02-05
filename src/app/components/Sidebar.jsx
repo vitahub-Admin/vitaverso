@@ -101,7 +101,7 @@ export default function Sidebar() {
   });
 
   return (
-    <aside className="bg-[#fafafa] border-r shadow-inner p-2 flex flex-col justify-between w-16 sm:w-56 transition-all h-full">
+    <aside className="bg-[#fafafa]  shadow-inner p-2 flex flex-col justify-between w-16 sm:w-56 transition-all h-full">
       {/* Contenedor principal con scroll */}
       <div className="flex-grow overflow-y-auto pr-1 custom-scrollbar">
         <nav className="flex flex-col gap-2 text-[#1b3f7a]">
