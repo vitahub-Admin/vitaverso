@@ -9,6 +9,9 @@ function shopifyCustomerUrl(id) {
 function shopifyCollectionUrl(id) {
   return `https://admin.shopify.com/store/${SHOPIFY_STORE_ID}/collections/${id}`;
 }
+function vitaPro(id) {
+  return `https://pro.vitahub.mx/ganancias?aId=${id}`;
+}
 
 export default function AffiliatesTable({ affiliates, meta, onEdit, onDelete }) {
   return (
@@ -19,7 +22,8 @@ export default function AffiliatesTable({ affiliates, meta, onEdit, onDelete }) 
             <th className="py-3 px-4 text-left">Afiliado</th>
             <th className="py-3 px-4 text-left">CLABE</th>
             <th className="py-3 px-4 text-left">Shopify</th>
-            <th className="py-3 px-4 text-left">Estado</th>
+            <th className="py-3 px-4 text-left">Link ProVitahub</th>
+            <th className="py-3 px-2 text-left">Estado</th>
             <th className="py-3 px-4 text-right">Acciones</th>
           </tr>
         </thead>
@@ -67,9 +71,25 @@ export default function AffiliatesTable({ affiliates, meta, onEdit, onDelete }) 
                   </a>
                 )}
               </td>
+              <td className="py-3 px-4 text-sm space-y-1">
+                {affiliate.shopify_customer_id && (
+                  <p
+                  className="block text-blue-600 hover:underline" >
+                    ${vitaPro(affiliate.shopify_customer_id)}
+                  </p>
+                )}
+
+                {affiliate.shopify_collection_id && (
+                  <p
+                    className="block text-gray-600 hover:underline"
+                  >
+                    Usa el link y accede en modo incognito
+                  </p>
+                )}
+              </td>
 
               {/* Estado */}
-              <td className="py-3 px-4">
+              <td className="py-3 px-2">
                 <span
                   className={`px-2 py-1 rounded text-xs ${
                     affiliate.status === 'active'
