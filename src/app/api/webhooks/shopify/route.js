@@ -13,7 +13,9 @@ const supabase = createClient(
 export async function POST(req) {
   try {
     const rawBody = await req.text();
-    const hmac = headers().get("x-shopify-hmac-sha256");
+    const headersList = await headers();
+const hmac = headersList.get("x-shopify-hmac-sha256");
+
 
     if (!hmac) {
       return NextResponse.json({ error: "No HMAC header" }, { status: 401 });
