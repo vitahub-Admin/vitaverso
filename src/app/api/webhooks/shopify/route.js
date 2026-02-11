@@ -13,69 +13,69 @@ const supabase = createClient(
 export async function POST(req) {
   try {
     const rawBody = await req.text();
-    const headersList = headers();
 
+    console.log("📦 RAW BODY:", rawBody);
+
+    const headersList = await headers();
     const hmac = headersList.get("x-shopify-hmac-sha256");
     const topic = headersList.get("x-shopify-topic");
 
-    console.log("📦 Shopify webhook received:", topic);
+    console.log("📨 Topic:", topic);
+    console.log("🔐 HMAC header:", hmac);
 
     if (!hmac) {
-      console.warn("⚠️ No HMAC header");
       return NextResponse.json({ error: "No HMAC header" }, { status: 401 });
     }
 
-    // 🔐 Validación firma segura (timing-safe)
     const digest = crypto
       .createHmac("sha256", process.env.SHOPIFY_WEBHOOK_SECRET)
       .update(rawBody, "utf8")
       .digest("base64");
 
-    const isValid = crypto.timingSafeEqual(
-      Buffer.from(digest),
-      Buffer.from(hmac)
-    );
+    console.log("🧮 Generated digest:", digest);
 
-    if (!isValid) {
+    if (digest !== hmac) {
       console.error("❌ Invalid signature");
       return NextResponse.json({ error: "Invalid signature" }, { status: 401 });
     }
 
     const payload = JSON.parse(rawBody);
 
+    console.log("🧾 Parsed payload:", payload);
+
     const orderId = payload.id;
     const orderNumber = payload.order_number;
     const financialStatus = payload.financial_status;
 
-    console.log("🧾 Order:", orderNumber, "| Status:", financialStatus);
+    console.log("🔎 Order data:", {
+      orderId,
+      orderNumber,
+      financialStatus,
+      total_price: payload.total_price,
+      note_attributes: payload.note_attributes,
+    });
 
-    // Solo órdenes pagadas
     if (financialStatus !== "paid") {
+      console.log("⏳ Order not paid, skipping...");
       return NextResponse.json({ message: "Order not paid" }, { status: 200 });
     }
 
-    /**
-     * 🧠 1. Buscar affiliate_id
-     */
     const affiliateAttr = payload.note_attributes?.find(
       (attr) => attr.name === "affiliate_id"
     );
 
-    if (!affiliateAttr?.value) {
-      console.log("ℹ️ No affiliate found");
+    console.log("👤 Affiliate attribute:", affiliateAttr);
+
+    if (!affiliateAttr) {
       return NextResponse.json({ message: "No affiliate" }, { status: 200 });
     }
 
     const affiliateId = Number(affiliateAttr.value);
 
-    if (isNaN(affiliateId)) {
-      console.warn("⚠️ Invalid affiliate id:", affiliateAttr.value);
+    if (!affiliateId) {
       return NextResponse.json({ message: "Invalid affiliate id" }, { status: 200 });
     }
 
-    /**
-     * 🧠 2. Idempotencia
-     */
     const { data: existingTx } = await supabase
       .from("point_transactions")
       .select("id")
@@ -85,28 +85,16 @@ export async function POST(req) {
       .maybeSingle();
 
     if (existingTx) {
-      console.log("🔁 Already processed:", orderId);
+      console.log("🔁 Already processed");
       return NextResponse.json({ message: "Already processed" }, { status: 200 });
     }
 
-    /**
-     * 💰 3. Comisión
-     */
     const orderTotal = Number(payload.total_price);
-
-    if (isNaN(orderTotal)) {
-      console.error("❌ Invalid order total:", payload.total_price);
-      return NextResponse.json({ error: "Invalid order total" }, { status: 400 });
-    }
-
-    const commissionRate = 0.1; // mover luego a DB 👀
+    const commissionRate = 0.1;
     const commission = Number((orderTotal * commissionRate).toFixed(2));
 
-    console.log("💰 Commission:", commission);
+    console.log("💰 Commission calculated:", commission);
 
-    /**
-     * 💳 4. Insertar transacción
-     */
     const { error } = await supabase
       .from("point_transactions")
       .insert([
@@ -130,11 +118,11 @@ export async function POST(req) {
       ]);
 
     if (error) {
-      console.error("❌ Insert error:", error);
+      console.error("Insert error:", error);
       throw error;
     }
 
-    console.log("✅ Commission recorded successfully");
+    console.log("✅ Commission stored");
 
     return NextResponse.json({ success: true }, { status: 200 });
 
