@@ -16,6 +16,8 @@ export default function MiTiendaPage() {
   const [toast, setToast] = useState(null);
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [socialUrl, setSocialUrl] = useState("");
+
   const fileInputRef = useRef(null);
 
   // ---- Helper para limpiar HTML ----
@@ -58,6 +60,7 @@ export default function MiTiendaPage() {
               ...col,
               description: plainDescription,
             });
+            setSocialUrl(col.socialMediaUrl?.value || "");
 
             setProducts(shopifyData.products);
           })
@@ -182,7 +185,8 @@ export default function MiTiendaPage() {
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             title: collection.title,
-            body_html: `<p>${collection.description}</p>`, // <-- corregido
+            body_html: `<p>${collection.description}</p>`,
+            social_url: socialUrl,
           }),
         }
       );
@@ -368,6 +372,17 @@ export default function MiTiendaPage() {
               placeholder="Título de la colección"
               className="border rounded-md px-3 py-2 w-full text-center focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
             />
+<input
+  type="url"
+  value={socialUrl}
+  onChange={(e) => setSocialUrl(e.target.value)}
+  placeholder="https://instagram.com/tuusuario"
+  className="border rounded-md px-3 py-2 w-full text-center focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
+/>
+
+<p className="text-xs text-gray-500 text-center">
+  Agrega el enlace a tu red social (Instagram, TikTok, Facebook, etc).
+</p>
 
             <textarea
               value={collection.description || ""}

@@ -2,64 +2,72 @@ import { NextResponse } from "next/server";
 
 export async function POST(req, { params }) {
   try {
-    // ✅ CORREGIDO: Usar await para obtener los params
-    const { collectionId } = await params;
-    
-    console.log("📦 Collection ID recibido en API:", collectionId);
-    console.log("📦 Tipo de ID:", typeof collectionId);
-    
-    const body = await req.json();
-    const { title, body_html } = body;
-    
-    console.log("📦 Datos recibidos:", { title, body_html });
+    const { collectionId } = params;
 
-    // Validación básica
-    if (!title && !body_html) {
+    const body = await req.json();
+    const { title, body_html, social_media_url } = body;
+
+    if (!title && !body_html && !social_media_url) {
       return NextResponse.json(
         { success: false, error: "No hay campos para actualizar." },
         { status: 400 }
       );
     }
 
-    // Construimos el objeto
-    const updateData = { id: collectionId };
-    if (title) updateData.title = title;
-    if (body_html) updateData.body_html = body_html;
+    /* ---------------- Update colección ---------------- */
+    if (title || body_html) {
+      const updateData = { id: collectionId };
+      if (title) updateData.title = title;
+      if (body_html) updateData.body_html = body_html;
 
-    console.log("📦 Datos a enviar a Shopify:", updateData);
+      const response = await fetch(
+        `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/custom_collections/${collectionId}.json`,
+        {
+          method: "PUT",
+          headers: {
+            "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ custom_collection: updateData }),
+        }
+      );
 
-    // Llamada a Shopify Admin API
-    const response = await fetch(
-      `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/custom_collections/${collectionId}.json`,
-      {
-        method: "PUT",
-        headers: {
-          "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ custom_collection: updateData }),
+      const data = await response.json();
+      if (!response.ok) {
+        return NextResponse.json(
+          { success: false, error: data.errors || "Error Shopify" },
+          { status: 400 }
+        );
       }
-    );
+    }
 
-    const data = await response.json();
-    console.log("📦 Respuesta de Shopify - Status:", response.status);
-    console.log("📦 Respuesta de Shopify - Data:", data);
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { 
-          success: false, 
-          error: data.errors || "Error desconocido de Shopify",
-          details: data 
+    /* ---------------- Metafield social_url ---------------- */
+    if (social_media_url !== undefined) {
+      const metafieldPayload = {
+        metafield: {
+          namespace: "custom",
+          key: "social_url",
+          type: "url",
+          value: social_media_url || "",
+          owner_resource: "custom_collection",
+          owner_id: collectionId,
         },
-        { status: 400 }
+      };
+
+      await fetch(
+        `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/metafields.json`,
+        {
+          method: "POST",
+          headers: {
+            "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(metafieldPayload),
+        }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      collection: data.custom_collection,
-    });
+    return NextResponse.json({ success: true });
   } catch (err) {
     console.error("❌ Error actualizando colección:", err);
     return NextResponse.json(

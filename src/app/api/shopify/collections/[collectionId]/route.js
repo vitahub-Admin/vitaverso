@@ -15,6 +15,12 @@ export async function GET(req, { params }) {
         handle
         descriptionHtml
         image { src }
+        socialMediaUrl: metafield(
+          namespace: "custom"
+          key: "social_media_url"
+          ) {
+          value
+            }
         products(first: 150) {
           edges {
             node {
