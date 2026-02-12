@@ -69,10 +69,6 @@ export async function GET() {
   }
 }
 
-/**
- * POST
- * Crear exchange request (PENDING)
- */
 export async function POST(req) {
   try {
     const cookieStore = await cookies();
@@ -94,50 +90,67 @@ export async function POST(req) {
     }
 
     const body = await req.json();
+    const { points_requested, affiliate_note } = body;
 
-    const {
-      points_requested,
-      exchange_type,
-      affiliate_note,
-      target_reference,
-      metadata,
-    } = body;
+    const amount = Number(points_requested);
+
+    if (!amount || amount <= 0) {
+      return NextResponse.json(
+        { success: false, message: 'Monto inválido' },
+        { status: 400 }
+      );
+    }
+
+    const MIN_WITHDRAW = 200; // Ajustable
+
+    if (amount < MIN_WITHDRAW) {
+      return NextResponse.json(
+        { success: false, message: `El retiro mínimo es ${MIN_WITHDRAW}` },
+        { status: 400 }
+      );
+    }
 
     /**
-     * Validaciones
+     * 1️⃣ Calcular saldo disponible REAL
      */
-    if (!points_requested || Number(points_requested) <= 0) {
-      return NextResponse.json(
-        { success: false, message: 'points_requested inválido' },
-        { status: 400 }
-      );
+    const { data: transactions } = await supabase
+      .from('point_transactions')
+      .select('points, direction')
+      .eq('customer_id', customerIdNum)
+      .eq('status', 'confirmed');
+
+    let totalIn = 0;
+    let totalOut = 0;
+
+    for (const tx of transactions || []) {
+      const val = Number(tx.points);
+      if (tx.direction === 'IN') totalIn += val;
+      if (tx.direction === 'OUT') totalOut += val;
     }
 
-    if (!['cash', 'discount', 'product'].includes(exchange_type)) {
+    const availableBalance = totalIn - totalOut;
+
+    if (amount > availableBalance) {
       return NextResponse.json(
-        { success: false, message: 'exchange_type inválido' },
+        { success: false, message: 'Saldo insuficiente' },
         { status: 400 }
       );
     }
 
     /**
-     * Creamos request
-     * ⚠️ NO se valida saldo acá
-     * ⚠️ NO se tocan puntos
+     * 2️⃣ Crear exchange PENDING
      */
     const { data: exchange, error } = await supabase
       .from('point_exchanges')
       .insert([
         {
           customer_id: customerIdNum,
-          points_requested: Number(points_requested),
-          exchange_type,
-          affiliate_note: affiliate_note || null,
-          target_reference: target_reference || null,
+          points_requested: amount,
+          exchange_type: 'cash',
           status: 'pending',
-          metadata: metadata || {
-            source: 'affiliate',
-            requested_from: 'frontend',
+          affiliate_note: affiliate_note || null,
+          metadata: {
+            source: 'affiliate_wallet',
           },
         },
       ])
@@ -148,18 +161,18 @@ export async function POST(req) {
 
     return NextResponse.json({
       success: true,
-      message: 'Solicitud de canje creada',
+      message: 'Solicitud enviada correctamente',
       exchange,
-      meta: {
-        points_requested: Number(points_requested),
-        estimated_value_mxn: Number(points_requested), // 1 punto = 1 MXN
-      },
     });
 
   } catch (err) {
-    console.error('❌ Error POST /api/affiliate/points/exchange:', err);
+    console.error('❌ Error POST exchange:', err);
+
     return NextResponse.json(
-      { success: false, error: err.message },
+      {
+        success: false,
+        error: err?.message || 'Internal Server Error',
+      },
       { status: 500 }
     );
   }

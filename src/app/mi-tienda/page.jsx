@@ -172,42 +172,41 @@ export default function MiTiendaPage() {
 
   // ---------------- Guardar title / description ----------------
   const handleSaveInfo = async () => {
-    try {
-      const simpleId =
-        typeof collection.id === "string"
-          ? collection.id.split("/").pop()
-          : collection.id;
+  try {
+    const simpleId =
+      typeof collection.id === "string"
+        ? collection.id.split("/").pop()
+        : collection.id;
 
-      const res = await fetch(
-        `/api/shopify/collections/${simpleId}/update-info`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            title: collection.title,
-            body_html: `<p>${collection.description}</p>`,
-            social_url: socialUrl,
-          }),
-        }
-      );
-
-      const data = await res.json();
-      if (!data.success) {
-        alert("Error al actualizar la colección: " + data.error);
-        return;
+    const res = await fetch(
+      `/api/shopify/collections/${simpleId}/update-info`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: collection.title,
+          body_html: `<p>${collection.description}</p>`,
+          social_url: socialUrl,
+        }),
       }
+    );
 
-      setCollection({
-        ...data.collection,
-        description: stripHtml(data.collection.body_html),
-      });
+    const data = await res.json();
+console.log("Response status:", res.status);
 
-      setToast("Colección actualizada ✅");
-      setTimeout(() => setToast(null), 3000);
-    } catch (err) {
-      alert("Error de conexión: " + err.message);
-    }
-  };
+  if (!data.success) {
+  console.log("ERROR BACKEND:", data);
+  alert("Error al actualizar la colección: " + JSON.stringify(data));
+  return;
+}
+
+
+    setToast("Colección actualizada ✅");
+    setTimeout(() => setToast(null), 3000);
+  } catch (err) {
+    alert("Error de conexión: " + err.message);
+  }
+};
 
   // ---------------- Copiar enlace ----------------
   const handleCopyLink = async () => {

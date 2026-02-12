@@ -10,6 +10,7 @@ const supabase = createClient(
 export async function GET() {
   try {
     const cookieStore = await cookies();
+
     const customerId = cookieStore.get('customerId')?.value;
 
     if (!customerId) {
@@ -20,6 +21,7 @@ export async function GET() {
     }
 
     const customerIdNum = Number(customerId);
+
     if (Number.isNaN(customerIdNum)) {
       return NextResponse.json(
         { success: false, message: 'CustomerId inválido' },
@@ -28,7 +30,7 @@ export async function GET() {
     }
 
     /**
-     * 1. Traemos transacciones CONFIRMADAS
+     * 1️⃣ Traemos SOLO confirmadas
      */
     const { data: transactions, error } = await supabase
       .from('point_transactions')
@@ -37,10 +39,11 @@ export async function GET() {
         points,
         direction,
         category,
-        status,
         description,
+        reference_id,
+        reference_type,
         processed_at,
-        created_at
+        metadata
       `)
       .eq('customer_id', customerIdNum)
       .eq('status', 'confirmed')
@@ -49,41 +52,61 @@ export async function GET() {
     if (error) throw error;
 
     /**
-     * 2. Calculamos saldo disponible
+     * 2️⃣ Calculamos saldo
      */
     let totalIn = 0;
     let totalOut = 0;
 
-    for (const tx of transactions) {
-      if (tx.direction === 'IN') totalIn += Number(tx.points);
-      if (tx.direction === 'OUT') totalOut += Number(tx.points);
+    for (const tx of transactions || []) {
+      const amount = Number(tx.points);
+
+      if (tx.direction === 'IN') totalIn += amount;
+      if (tx.direction === 'OUT') totalOut += amount;
     }
 
-    const availablePoints = totalIn - totalOut;
+    const availableBalance = totalIn - totalOut;
 
     /**
-     * 3. Response
+     * 3️⃣ Transformamos para frontend
+     */
+    const formattedTransactions = (transactions || [])
+      .slice(0, 20)
+      .map((tx) => ({
+        id: tx.id,
+        amount: Number(tx.points),
+        type: tx.direction === 'IN' ? 'earning' : 'withdrawal',
+        category: tx.category,
+        description: tx.description,
+        reference_id: tx.reference_id,
+        reference_type: tx.reference_type,
+        processed_at: tx.processed_at,
+      }));
+
+    /**
+     * 4️⃣ Response
      */
     return NextResponse.json({
       success: true,
-      balance: {
-        available: availablePoints,
+      wallet: {
+        available: availableBalance,
         total_earned: totalIn,
-        total_spent: totalOut,
-      },
-      transactions: transactions.slice(0, 20),
-      meta: {
-        transaction_count: transactions.length,
-        last_transaction_at: transactions[0]?.processed_at ?? null,
-        conversion_rate: 0.1, // 10 pts = $1 MXN
+        total_withdrawn: totalOut,
         currency: 'MXN',
       },
+      transactions: formattedTransactions,
+      meta: {
+        transaction_count: transactions?.length || 0,
+        last_transaction_at: transactions?.[0]?.processed_at || null,
+      },
     });
-
   } catch (err) {
-    console.error('❌ Error GET /api/affiliate/points:', err);
+    console.error('❌ Error GET /api/affiliate/wallet:', err);
+
     return NextResponse.json(
-      { success: false, error: err.message },
+      {
+        success: false,
+        error: err?.message || 'Internal Server Error',
+      },
       { status: 500 }
     );
   }

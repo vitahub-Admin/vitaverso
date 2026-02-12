@@ -2,19 +2,19 @@ import { NextResponse } from "next/server";
 
 export async function POST(req, { params }) {
   try {
-    const { collectionId } = params;
+    const { collectionId } = await params;
 
     const body = await req.json();
-    const { title, body_html, social_media_url } = body;
+    const { title, body_html, social_url } = body;
 
-    if (!title && !body_html && !social_media_url) {
+    if (!title && !body_html && social_url === undefined) {
       return NextResponse.json(
         { success: false, error: "No hay campos para actualizar." },
         { status: 400 }
       );
     }
 
-    /* ---------------- Update colección ---------------- */
+    /* ---------------- ACTUALIZAR COLECCIÓN ---------------- */
     if (title || body_html) {
       const updateData = { id: collectionId };
       if (title) updateData.title = title;
@@ -33,6 +33,7 @@ export async function POST(req, { params }) {
       );
 
       const data = await response.json();
+
       if (!response.ok) {
         return NextResponse.json(
           { success: false, error: data.errors || "Error Shopify" },
@@ -41,31 +42,42 @@ export async function POST(req, { params }) {
       }
     }
 
-    /* ---------------- Metafield social_url ---------------- */
-    if (social_media_url !== undefined) {
-      const metafieldPayload = {
-        metafield: {
-          namespace: "custom",
-          key: "social_url",
-          type: "url",
-          value: social_media_url || "",
-          owner_resource: "custom_collection",
-          owner_id: collectionId,
-        },
-      };
 
-      await fetch(
-        `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/metafields.json`,
-        {
-          method: "POST",
-          headers: {
-            "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(metafieldPayload),
-        }
-      );
+   /* ---------------- METAFIELD SOCIAL MEDIA ---------------- */
+if (social_url !== undefined && social_url.trim() !== "") {
+  const metafieldPayload = {
+    metafield: {
+      namespace: "custom",
+      key: "social_media_url",
+      type: "single_line_text_field",
+      value: social_url.trim(),
+      owner_resource: "custom_collection",
+      owner_id: collectionId,
+    },
+  };
+
+  const metafieldResponse = await fetch(
+    `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/metafields.json`,
+    {
+      method: "POST",
+      headers: {
+        "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(metafieldPayload),
     }
+  );
+
+  if (!metafieldResponse.ok) {
+    const errorData = await metafieldResponse.json();
+    console.log("Shopify metafield error:", errorData);
+    return NextResponse.json(
+      { success: false, error: errorData.errors || errorData },
+      { status: 400 }
+    );
+  }
+}
+
 
     return NextResponse.json({ success: true });
   } catch (err) {
