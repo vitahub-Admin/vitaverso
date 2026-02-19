@@ -6,16 +6,17 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 );
 
-export async function POST(req, { params }) {
+export async function POST(req, context) {
   try {
-    const exchangeId = Number(params.id);
+    const { id } = await context.params;
+
+    const exchangeId = Number(id);
     if (Number.isNaN(exchangeId)) {
       return NextResponse.json(
         { success: false, message: 'ID inválido' },
         { status: 400 }
       );
     }
-
     /**
      * 1. Traemos exchange
      */
@@ -44,16 +45,23 @@ export async function POST(req, { params }) {
      */
     const { data: txs, error: txErr } = await supabase
       .from('point_transactions')
-      .select('points')
+      .select('points, direction')
       .eq('customer_id', exchange.customer_id)
       .eq('status', 'confirmed');
 
     if (txErr) throw txErr;
 
-    const available = txs.reduce(
-      (sum, t) => sum + Number(t.points),
-      0
-    );
+    let totalIn = 0;
+let totalOut = 0;
+
+for (const tx of txs || []) {
+  const val = Number(tx.points);
+
+  if (tx.direction === 'IN') totalIn += val;
+  if (tx.direction === 'OUT') totalOut += val;
+}
+
+const available = totalIn - totalOut;
 
     if (available < exchange.points_requested) {
       /**
@@ -83,7 +91,7 @@ export async function POST(req, { params }) {
       .insert([
         {
           customer_id: exchange.customer_id,
-          points: -exchange.points_requested,
+          points: exchange.points_requested,
           direction: 'OUT',
           category: 'exchange',
           status: 'confirmed',

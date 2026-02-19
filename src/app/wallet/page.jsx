@@ -30,7 +30,7 @@ const [withdrawAmount, setWithdrawAmount] = useState("");
         setLoading(false);
       }
 
-      const exRes = await fetch("/api/affiliate/points/exchange");
+      const exRes = await fetch("/api/affiliates/wallet/exchange");
 const exData = await exRes.json();
 
 if (exData.success) {
@@ -87,7 +87,7 @@ if (exData.success) {
     setWithdrawing(true);
     setMessage(null);
 
-    const res = await fetch("/api/affiliate/points/exchange", {
+    const res = await fetch("/api/affiliates/wallet/exchange", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -106,7 +106,7 @@ if (exData.success) {
     setWithdrawAmount("");
 
     // refrescar exchanges
-    const exRes = await fetch("/api/affiliate/points/exchange");
+    const exRes = await fetch("/api/affiliates/wallet/exchange");
     const exData = await exRes.json();
 
     if (exData.success) {

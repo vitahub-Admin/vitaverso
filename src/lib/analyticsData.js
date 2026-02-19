@@ -8,21 +8,21 @@ const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SECRET_KEY;
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 
 export async function getCombinedAnalyticsData() {
-
   try {
-    console.time('✅ Analytics data loaded');
-    
+    console.time("✅ Analytics data loaded");
+
     // 1️⃣ Obtener TODOS los afiliados de Supabase
     const { data: allAffiliates, error: supabaseError } = await supabase
       .from("affiliates")
-      .select("shopify_customer_id, first_name, last_name, email, active_store,id,created_at")
+      .select(
+        "shopify_customer_id, first_name, last_name, email, active_store, id, created_at"
+      )
       .order("created_at", { ascending: false });
 
     if (supabaseError) {
       console.error("❌ Error fetching affiliates:", supabaseError);
       throw new Error(`Supabase error: ${supabaseError.message}`);
     }
-    
 
     console.log(`📊 Total afiliados en Supabase: ${allAffiliates.length}`);
 
@@ -35,23 +35,23 @@ export async function getCombinedAnalyticsData() {
       },
     });
 
-    // 3️⃣ Query para sharecarts históricos (BigQuery) y órdenes
+    // 3️⃣ Query unificada: SHARECARTS + ORDENES (todo en BigQuery)
     const query = `
       /* =========================
-         SHARECARTS HISTÓRICOS (BigQuery)
+         SHARECARTS (BRONZE)
       ========================== */
-      WITH HISTORICAL_SHARECARTS AS (
+      WITH SHARECARTS AS (
         SELECT
-          sh.customer_id AS specialist_id,
+          sh.owner_id AS specialist_id,
           FORMAT_DATE('%Y-%m', DATE(sh.created_at)) AS year_month,
-          COUNT(DISTINCT sh.code) AS sharecarts
-        FROM \`vitahub-435120.sharecart.carritos\` sh
-        WHERE sh.customer_id IS NOT NULL
-        GROUP BY sh.customer_id, FORMAT_DATE('%Y-%m', DATE(sh.created_at))
+          COUNT(*) AS sharecarts
+        FROM \`vitahub-435120.bronce.carritos\` sh
+        WHERE sh.owner_id IS NOT NULL
+        GROUP BY sh.owner_id, year_month
       ),
 
       /* =========================
-         ÓRDENES (solo BigQuery)
+         ORDENES
       ========================== */
       ORDENES AS (
         SELECT
@@ -65,190 +65,125 @@ export async function getCombinedAnalyticsData() {
       ),
 
       /* =========================
-         COMBINAR HISTÓRICOS
+         COMBINAR
       ========================== */
-      COMBINED_HISTORICAL AS (
+      COMBINED AS (
         SELECT
-          COALESCE(hs.specialist_id, o.specialist_id) AS specialist_id,
-          COALESCE(hs.year_month, o.year_month) AS year_month,
-          COALESCE(hs.sharecarts, 0) AS historical_sharecarts,
+          COALESCE(s.specialist_id, o.specialist_id) AS specialist_id,
+          COALESCE(s.year_month, o.year_month) AS year_month,
+          COALESCE(s.sharecarts, 0) AS sharecarts,
           COALESCE(o.orders, 0) AS orders
-        FROM HISTORICAL_SHARECARTS hs
+        FROM SHARECARTS s
         FULL OUTER JOIN ORDENES o
-          ON hs.specialist_id = o.specialist_id
-         AND hs.year_month = o.year_month
+          ON s.specialist_id = o.specialist_id
+         AND s.year_month = o.year_month
       )
 
-      /* =========================
-         RESULTADO TEMPORAL (luego sumamos Supabase)
-      ========================== */
       SELECT
         specialist_id AS affiliate_shopify_customer_id,
-        SUM(historical_sharecarts) AS total_historical_sharecarts,
+        SUM(sharecarts) AS total_sharecarts,
         SUM(orders) AS total_orders,
         ARRAY_AGG(
           STRUCT(
             year_month,
-            historical_sharecarts,
+            sharecarts,
             orders
           )
           ORDER BY year_month
         ) AS monthly
-      FROM COMBINED_HISTORICAL
+      FROM COMBINED
       GROUP BY specialist_id
     `;
 
-    const [bigQueryRows] = await bigquery.query({ query, location: "us-east1" });
-    console.log(`📊 Afiliados con actividad histórica: ${bigQueryRows.length}`);
-
-    // 4️⃣ Obtener sharecarts NUEVOS de Supabase
-    const { data: newSharecarts, error: newSharecartsError } = await supabase
-      .from("sharecarts")
-      .select("owner_id, created_at")
-      .not("owner_id", "is", null);
-
-    if (newSharecartsError) {
-      console.error("⚠️ Error fetching new sharecarts:", newSharecartsError);
-      // Continuamos aunque falle esta parte
-    }
-
-    console.log(`📊 Sharecarts nuevos en Supabase: ${newSharecarts?.length || 0}`);
-
-    // 5️⃣ Procesar sharecarts nuevos por afiliado y mes
-    const newSharecartsByAffiliate = {};
-    
-    newSharecarts?.forEach(cart => {
-      try {
-        const ownerId = parseInt(cart.owner_id);
-        if (isNaN(ownerId)) return;
-        
-        const date = new Date(cart.created_at);
-        const yearMonth = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-        
-        if (!newSharecartsByAffiliate[ownerId]) {
-          newSharecartsByAffiliate[ownerId] = {};
-        }
-        
-        if (!newSharecartsByAffiliate[ownerId][yearMonth]) {
-          newSharecartsByAffiliate[ownerId][yearMonth] = 0;
-        }
-        
-        newSharecartsByAffiliate[ownerId][yearMonth]++;
-      } catch (err) {
-        console.warn("⚠️ Error procesando sharecart nuevo:", cart, err);
-      }
+    const [bigQueryRows] = await bigquery.query({
+      query,
+      location: "us-east1",
     });
 
-    // 6️⃣ Crear mapa de actividad combinada
+    console.log(
+      `📊 Afiliados con actividad en BigQuery: ${bigQueryRows.length}`
+    );
+
+    // 4️⃣ Crear mapa de actividad
     const activityMap = {};
-    
-    // Procesar datos históricos
-    bigQueryRows.forEach(row => {
+
+    bigQueryRows.forEach((row) => {
       const monthlyObj = {};
-      row.monthly.forEach(m => {
+
+      row.monthly.forEach((m) => {
         monthlyObj[m.year_month] = {
-          sharecarts: m.historical_sharecarts,
+          sharecarts: m.sharecarts,
           orders: m.orders,
         };
       });
-      
+
       activityMap[row.affiliate_shopify_customer_id] = {
         totals: {
-          sharecarts: row.total_historical_sharecarts,
-          orders: row.total_orders,
+          sharecarts: row.total_sharecarts || 0,
+          orders: row.total_orders || 0,
         },
         monthly: monthlyObj,
       };
     });
 
-    // 7️⃣ Agregar sharecarts nuevos al mapa
-    Object.entries(newSharecartsByAffiliate).forEach(([ownerIdStr, monthsData]) => {
-      const ownerId = parseInt(ownerIdStr);
-      
-      if (!activityMap[ownerId]) {
-        activityMap[ownerId] = {
+    // 5️⃣ Combinar con TODOS los afiliados
+    const data = allAffiliates.map((affiliate) => {
+      const shopifyId = affiliate.shopify_customer_id;
+      const hasActivity = activityMap[shopifyId];
+
+      const NOW = Date.now();
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+      const isNew =
+        affiliate.created_at &&
+        NOW - new Date(affiliate.created_at).getTime() <= SEVEN_DAYS_MS;
+
+      if (hasActivity) {
+        return {
+          id: affiliate.id,
+          affiliate_shopify_customer_id: shopifyId,
+          first_name: affiliate.first_name || "",
+          last_name: affiliate.last_name || "",
+          email: affiliate.email || "",
+          is_new: isNew,
+          totals: {
+            sharecarts: hasActivity.totals.sharecarts,
+            orders: hasActivity.totals.orders,
+          },
+          monthly: hasActivity.monthly,
+          activo_carrito: hasActivity.totals.sharecarts > 0,
+          vendio: hasActivity.totals.orders > 0,
+          activo_tienda: affiliate.active_store || false,
+        };
+      } else {
+        return {
+          id: affiliate.id,
+          affiliate_shopify_customer_id: shopifyId,
+          first_name: affiliate.first_name || "",
+          last_name: affiliate.last_name || "",
+          email: affiliate.email || "",
+          is_new: isNew,
           totals: {
             sharecarts: 0,
             orders: 0,
           },
           monthly: {},
+          activo_carrito: false,
+          vendio: false,
+          activo_tienda: affiliate.active_store || false,
         };
       }
-      
-      // Sumar por mes
-      Object.entries(monthsData).forEach(([yearMonth, count]) => {
-        if (!activityMap[ownerId].monthly[yearMonth]) {
-          activityMap[ownerId].monthly[yearMonth] = {
-            sharecarts: 0,
-            orders: 0,
-          };
-        }
-        
-        activityMap[ownerId].monthly[yearMonth].sharecarts += count;
-      });
-      
-      // Actualizar totales
-      const totalNew = Object.values(monthsData).reduce((a, b) => a + b, 0);
-      activityMap[ownerId].totals.sharecarts += totalNew;
     });
 
-    // 8️⃣ Combinar con TODOS los afiliados
-    // En la función getCombinedAnalyticsData(), busca esta parte:
-const data = allAffiliates.map(affiliate => {
-  const shopifyId = affiliate.shopify_customer_id;
-  const hasActivity = activityMap[shopifyId];
-  const createdAt = affiliate.created_at
-  ? new Date(affiliate.created_at).getTime()
-  : null;
-
-  const NOW = Date.now();
-  const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-  
-  const isNew =
-    affiliate.created_at &&
-    (NOW - new Date(affiliate.created_at).getTime()) <= SEVEN_DAYS_MS;
-  if (hasActivity) {
-    return {
-      id: affiliate.id, // ← ESTE ES EL ID DE SUPABASE (IMPORTANTE)
-      affiliate_shopify_customer_id: shopifyId,
-      first_name: affiliate.first_name || "",
-      last_name: affiliate.last_name || "",
-      email: affiliate.email || "",
-      is_new: isNew,
-      totals: {
-        sharecarts: hasActivity.totals.sharecarts || 0,
-        orders: hasActivity.totals.orders || 0,
-      },
-      monthly: hasActivity.monthly || {},
-      activo_carrito: (hasActivity.totals.sharecarts || 0) > 0,
-      vendio: (hasActivity.totals.orders || 0) > 0,
-      activo_tienda: affiliate.active_store || false,
-    };
-  } else {
-    return {
-      id: affiliate.id, // ← ESTE ES EL ID DE SUPABASE (IMPORTANTE)
-      affiliate_shopify_customer_id: shopifyId,
-      first_name: affiliate.first_name || "",
-      last_name: affiliate.last_name || "",
-      email: affiliate.email || "",
-      is_new: isNew,
-      totals: {
-        sharecarts: 0,
-        orders: 0,
-      },
-      monthly: {},
-      activo_carrito: false,
-      vendio: false,
-      activo_tienda: affiliate.active_store || false,
-    };
-  }
-});
-    // 9️⃣ Estadísticas
+    // 6️⃣ Estadísticas globales
     const stats = {
       total_afiliados: data.length,
-      con_sharecarts: data.filter(row => row.totals.sharecarts > 0).length,
-      con_ordenes: data.filter(row => row.totals.orders > 0).length,
-      total_sharecarts: data.reduce((sum, row) => sum + row.totals.sharecarts, 0),
+      con_sharecarts: data.filter((row) => row.totals.sharecarts > 0).length,
+      con_ordenes: data.filter((row) => row.totals.orders > 0).length,
+      total_sharecarts: data.reduce(
+        (sum, row) => sum + row.totals.sharecarts,
+        0
+      ),
       total_ordenes: data.reduce((sum, row) => sum + row.totals.orders, 0),
     };
 
@@ -258,26 +193,17 @@ const data = allAffiliates.map(affiliate => {
     console.log(`   - Con órdenes: ${stats.con_ordenes}`);
     console.log(`   - Total sharecarts: ${stats.total_sharecarts}`);
     console.log(`   - Total órdenes: ${stats.total_ordenes}`);
-    
-    console.timeEnd('✅ Analytics data loaded');
-    // En getCombinedAnalyticsData(), antes del return:
-// console.log("🔍 Verificando estructura de datos...");
-// console.log("Total afiliados procesados:", data.length);
-// if (data.length > 0) {
-//   console.log("Primer registro procesado:", data[0]);
-//   console.log("¿Tiene id?", 'id' in data[0]);
-//   console.log("¿Tiene affiliate_shopify_customer_id?", 'affiliate_shopify_customer_id' in data[0]);
-// }
 
-    return { 
-      data, 
+    console.timeEnd("✅ Analytics data loaded");
+
+    return {
+      data,
       stats,
       meta: {
-        source: 'combined',
+        source: "bigquery_only",
         timestamp: new Date().toISOString(),
-      }
+      },
     };
-
   } catch (err) {
     console.error("❌ Error en getCombinedAnalyticsData:", err);
     throw err;

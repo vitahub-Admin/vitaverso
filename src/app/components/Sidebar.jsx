@@ -93,6 +93,7 @@ export default function Sidebar() {
     { href: "/admin-sharecarts", label: "sharecarts General", icon: <Layers size={20} />, requireTag: "vitahuber" },
     { href: "/admin-datos-afiliados", label: "afiliados Data General", icon: <Layers size={20} />, requireTag: "vitahuber" },
     { href: "/admin-datos-analytics", label: "afiliados Analytics", icon: <Layers size={20} />, requireTag: "vitahuber" },
+    { href: "/admin-pagos", label: "Solicitudes de pagos", icon: <Layers size={20} />, requireTag: "vitahuber" },
   ];
 
   // Filtrar items según permisos

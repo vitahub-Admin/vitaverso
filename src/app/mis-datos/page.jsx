@@ -7,7 +7,7 @@ import axios from "axios";
 import Banner from "../components/Banner"
 
 
-const CAMPOS_PUBLICOS = ["nombre", "apellido", "email", "red_social", "clabe", "telefono"];
+const CAMPOS_PUBLICOS = ["nombre", "apellido", "email", "red_social", "clabe", "telefono","ciudad","estado","direccion"];
 
 export default function PerfilAfiliado() {
   const [data, setData] = useState(null);

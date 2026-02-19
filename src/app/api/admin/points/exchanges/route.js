@@ -10,7 +10,7 @@ export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
 
-    const status = searchParams.get('status'); // pending | approved | rejected
+    const status = searchParams.get('status'); // pending | history | approved | rejected
     const limit = Number(searchParams.get('limit') ?? 50);
 
     let query = supabase
@@ -24,13 +24,24 @@ export async function GET(req) {
         requested_at,
         processed_at,
         admin_note,
-        affiliate_note
+        affiliate_note,
+        affiliate:affiliates (
+  first_name,
+  last_name
+)
       `)
-      .order('requested_at', { ascending: false })
       .limit(limit);
 
-    if (status) {
-      query = query.eq('status', status);
+    if (status === 'history') {
+      query = query
+        .in('status', ['approved', 'rejected'])
+        .order('processed_at', { ascending: false });
+    } else if (status) {
+      query = query
+        .eq('status', status)
+        .order('requested_at', { ascending: false });
+    } else {
+      query = query.order('requested_at', { ascending: false });
     }
 
     const { data, error } = await query;

@@ -1,68 +1,75 @@
-// app/api/verify-token/route.js
 import { NextResponse } from "next/server";
-import crypto from 'crypto';
+import crypto from "crypto";
 
 export async function POST(req) {
   const { enc, t, sig } = await req.json();
 
   try {
     const secret = process.env.SHOPIFY_TOKEN_SECRET;
-    const key1 = 7919;   // MISMO que en Shopify
-    const key2 = 99991;  // MISMO que en Shopify
+    const key1 = 7919;
+    const key2 = 99991;
 
-    // DESCIFRADO EXACTO
     const customerId = (parseInt(enc) - key2) / key1;
-    
-    console.log("🔐 Descifrado:", {
-      encrypted: enc,
-      decrypted: customerId,
-      isValid: Number.isInteger(customerId)
-    });
 
-    // Verificar que sea entero válido
     if (!Number.isInteger(customerId) || customerId < 1) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: "Customer ID inválido después de descifrar" 
-      }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: "Customer ID inválido después de descifrar" },
+        { status: 401 }
+      );
     }
 
-    // Verificar firma HMAC
     const message = `${customerId}|${t}`;
     const expectedSig = crypto
-      .createHmac('sha256', secret)
+      .createHmac("sha256", secret)
       .update(message)
-      .digest('hex');
+      .digest("hex");
 
-    // Verificar timestamp (5 minutos)
     const now = Math.floor(Date.now() / 1000);
-    const isExpired = (now - parseInt(t)) > 36000;
+    const isExpired = now - parseInt(t) > 36000;
 
     if (expectedSig !== sig) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: "Firma HMAC inválida" 
-      }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: "Firma HMAC inválida" },
+        { status: 401 }
+      );
     }
 
     if (isExpired) {
-      return NextResponse.json({ 
-        ok: false, 
-        error: "Token expirado" 
-      }, { status: 401 });
+      return NextResponse.json(
+        { ok: false, error: "Token expirado" },
+        { status: 401 }
+      );
     }
 
-    // ✅ TODO CORRECTO
-    return NextResponse.json({ 
-      ok: true, 
-      customerId: customerId 
+    // 🔐 Crear cookie de sesión FIRMADA
+    const sessionPayload = `${customerId}`;
+    const sessionSignature = crypto
+      .createHmac("sha256", secret)
+      .update(sessionPayload)
+      .digest("hex");
+
+    const sessionValue = `${customerId}.${sessionSignature}`;
+
+    const response = NextResponse.json({
+      ok: true,
+      customerId,
     });
+
+    response.cookies.set("session", sessionValue, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "lax",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    });
+
+    return response;
 
   } catch (error) {
     console.error("❌ Error descifrando:", error);
-    return NextResponse.json({ 
-      ok: false, 
-      error: "Error en el proceso de descifrado" 
-    }, { status: 500 });
+    return NextResponse.json(
+      { ok: false, error: "Error en el proceso de descifrado" },
+      { status: 500 }
+    );
   }
 }

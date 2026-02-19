@@ -43,7 +43,7 @@ export async function GET(req) {
     // Buscar en Supabase
     const { data, error } = await supabase
       .from('affiliates')
-      .select('first_name, last_name, email, phone, social_media, clabe_interbancaria')
+      .select('first_name, last_name, email, phone, social_media, clabe_interbancaria,city, state, address')
       .eq('shopify_customer_id', customerIdNum)
       .single();
 
@@ -67,7 +67,10 @@ export async function GET(req) {
         email: data.email || '',
         telefono: data.phone || '',
         red_social: data.social_media || '',
-        clabe: data.clabe_interbancaria || ''
+        clabe: data.clabe_interbancaria || '',
+        direccion: data.address || '',
+        ciudad: data.city || '',
+        estado: data.state || '',
       }
     });
 
@@ -111,7 +114,11 @@ export async function PATCH(req) {
       'apellido': 'last_name',
       'telefono': 'phone',
       'red_social': 'social_media',
-      'clabe': 'clabe_interbancaria'
+      'clabe': 'clabe_interbancaria',
+      'direccion': 'address',
+      'ciudad': 'city',
+      'estado': 'state'
+
     };
 
     const supabaseUpdates = {};
