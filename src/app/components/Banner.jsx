@@ -26,22 +26,29 @@ export default function Banner({ youtubeVideoUrl }) {
 
   const videoId = getYouTubeVideoId(youtubeVideoUrl);
   const hasVideo = Boolean(videoId);
-
+const bannerHref = "https://calendly.com/vitahubpro/vitahubpro-fundamentos-de-la-suplementacion?month=2026-02&date=2026-02-25"; // 🔥 URL fija temporal
   return (
     <div className="flex flex-col md:flex-row gap-4 mb-6">
       {/* BANNER */}
-      <div className="w-full md:w-4/5">
-        <Image
-          src={banner.url}
-          alt={banner.description}
-          width={1200}
-          height={130}
-          className="w-full h-auto rounded-lg"
-          priority
-          unoptimized={banner.url.startsWith("http")}
-        />
-      </div>
-
+      {/* BANNER */}
+<div className="w-full md:w-4/5">
+  <a
+    href={bannerHref}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="block"
+  >
+    <Image
+      src={banner.url}
+      alt={banner.description}
+      width={1200}
+      height={130}
+      className="w-full h-auto rounded-lg hover:opacity-95 transition-opacity duration-300"
+      priority
+      unoptimized={banner.url.startsWith("http")}
+    />
+  </a>
+</div>
       {/* VIDEO THUMBNAIL */}
       <div className="hidden md:block md:w-1/5">
         {hasVideo && (
