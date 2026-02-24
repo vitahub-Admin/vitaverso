@@ -44,7 +44,17 @@ export async function GET(req) {
     const createdBefore = searchParams.get("createdBefore");
 
     // ========= SELECT INTELIGENTE =========
-    const isSearchMode = search && search.trim().length >= 2;
+    const trimmedSearch = search?.trim();
+
+const isNumeric = trimmedSearch && /^\d+$/.test(trimmedSearch);
+
+const isSearchMode =
+  trimmedSearch &&
+  (
+    trimmedSearch.length >= 2 && !isNumeric // texto mínimo 2
+    ||
+    isNumeric && trimmedSearch.length >= 4 // número mínimo 4
+  );
 
     const selectFields = isSearchMode
       ? `
@@ -69,43 +79,22 @@ export async function GET(req) {
     if (profession) query = query.eq("profession", profession);
 
     // ========= BÚSQUEDA =========
-    if (isSearchMode) {
-      const trimmed = search.trim();
-      const searchTerm = `%${trimmed}%`;
+ if (isSearchMode) {
+  if (isNumeric) {
+    const numSearch = Number(trimmedSearch);
+    query = query.eq("shopify_customer_id", numSearch);
+  } else {
+    const searchTerm = `%${trimmedSearch}%`;
 
-      if (searchField === "email") {
-        query = query.ilike("email", searchTerm);
-      } 
-      else if (searchField === "name") {
-        query = query.or(
-          `first_name.ilike.${searchTerm},last_name.ilike.${searchTerm}`
-        );
-      } 
-      else if (searchField === "phone") {
-        query = query.ilike("phone", searchTerm);
-      } 
-      else {
-        // 🔥 OR combinado correcto
-        let orConditions = [
-          `email.ilike.${searchTerm}`,
-          `first_name.ilike.${searchTerm}`,
-          `last_name.ilike.${searchTerm}`,
-          `phone.ilike.${searchTerm}`,
-          `referral_id.ilike.${searchTerm}`
-        ];
-
-        if (!isNaN(trimmed)) {
-          const numSearch = Number(trimmed);
-          orConditions.push(
-            `shopify_customer_id.eq.${numSearch}`,
-            `shopify_collection_id.eq.${numSearch}`
-          );
-        }
-
-        query = query.or(orConditions.join(","));
-      }
-    }
-
+    query = query.or(
+      `email.ilike.${searchTerm},` +
+      `first_name.ilike.${searchTerm},` +
+      `last_name.ilike.${searchTerm},` +
+      `phone.ilike.${searchTerm},` +
+      `referral_id.ilike.${searchTerm}`
+    );
+  }
+}
     // ========= FILTROS POR FECHA =========
     if (createdAfter) query = query.gte("created_at", createdAfter);
     if (createdBefore) query = query.lte("created_at", createdBefore);
