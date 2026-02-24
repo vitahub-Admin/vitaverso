@@ -66,7 +66,8 @@ const isSearchMode =
         status,
         shopify_customer_id,
         referral_id,
-        created_at
+        created_at,
+        clabe_interbancaria
       `
       : "*";
 
