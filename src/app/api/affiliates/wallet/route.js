@@ -33,7 +33,7 @@ export async function GET() {
      * 1️⃣ Traemos SOLO confirmadas
      */
     const { data: transactions, error } = await supabase
-      .from('point_transactions')
+      .from('point_transactions_live')
       .select(`
         id,
         points,
