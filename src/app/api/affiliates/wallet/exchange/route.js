@@ -114,7 +114,7 @@ export async function POST(req) {
      * 1️⃣ Calcular saldo disponible REAL
      */
     const { data: transactions } = await supabase
-      .from('point_transactions')
+      .from('point_transactions_live')
       .select('points, direction')
       .eq('customer_id', customerIdNum)
       .eq('status', 'confirmed');
