@@ -44,7 +44,7 @@ export async function POST(req, context) {
      * 2. Calculamos saldo real
      */
     const { data: txs, error: txErr } = await supabase
-      .from('point_transactions')
+      .from('point_transactions_live')
       .select('points, direction')
       .eq('customer_id', exchange.customer_id)
       .eq('status', 'confirmed');
@@ -87,7 +87,7 @@ const available = totalIn - totalOut;
      * 3. Creamos OUT transaction
      */
     const { error: txCreateError } = await supabase
-      .from('point_transactions')
+      .from('point_transactions_live')
       .insert([
         {
           customer_id: exchange.customer_id,
