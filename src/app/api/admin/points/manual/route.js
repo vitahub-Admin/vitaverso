@@ -23,7 +23,7 @@ export async function POST(req) {
 
     // 🔎 Obtener balance actual
     const { data: transactions, error: fetchError } = await supabase
-      .from('point_transactions')
+      .from('point_transactions_live')
       .select('points, direction')
       .eq('customer_id', affiliateId)
       .eq('status', 'confirmed');
@@ -50,7 +50,7 @@ export async function POST(req) {
 
     // 💾 Insert manual transaction
     const { error: insertError } = await supabase
-      .from('point_transactions')
+      .from('point_transactions_live')
       .insert({
         customer_id: affiliateId,
         points: absolutePoints,
