@@ -21,7 +21,7 @@ export async function GET(req) {
     const offset = (page - 1) * limit;
 
 let query = supabase
-  .from("point_transactions")
+  .from("point_transactions_live")
   .select(`
     id,
     customer_id,
@@ -73,7 +73,7 @@ let query = supabase
     });
 
   } catch (err) {
-    console.error("❌ Admin GET point_transactions:", err);
+    console.error("❌ Admin GET point_transactions_live:", err);
     return NextResponse.json(
       { success: false, error: err.message },
       { status: 500 }
