@@ -21,6 +21,12 @@ export async function GET(req, { params }) {
           ) {
           value
             }
+          presentacion: metafield(
+          namespace: "custom"
+          key: "presentacion"
+          ) {
+          value
+            }
         products(first: 150) {
           edges {
             node {

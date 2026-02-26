@@ -5,9 +5,14 @@ export async function POST(req, { params }) {
     const { collectionId } = await params;
 
     const body = await req.json();
-    const { title, body_html, social_url } = body;
+    const { title, body_html, social_url, presentacion } = body;
 
-    if (!title && !body_html && social_url === undefined) {
+    if (
+      !title &&
+      !body_html &&
+      social_url === undefined &&
+      presentacion === undefined
+    ) {
       return NextResponse.json(
         { success: false, error: "No hay campos para actualizar." },
         { status: 400 }
@@ -42,42 +47,75 @@ export async function POST(req, { params }) {
       }
     }
 
+    /* ---------------- METAFIELD SOCIAL MEDIA ---------------- */
+    if (social_url !== undefined && social_url.trim() !== "") {
+      const metafieldPayload = {
+        metafield: {
+          namespace: "custom",
+          key: "social_media_url",
+          type: "single_line_text_field",
+          value: social_url.trim(),
+          owner_resource: "custom_collection",
+          owner_id: collectionId,
+        },
+      };
 
-   /* ---------------- METAFIELD SOCIAL MEDIA ---------------- */
-if (social_url !== undefined && social_url.trim() !== "") {
-  const metafieldPayload = {
-    metafield: {
-      namespace: "custom",
-      key: "social_media_url",
-      type: "single_line_text_field",
-      value: social_url.trim(),
-      owner_resource: "custom_collection",
-      owner_id: collectionId,
-    },
-  };
+      const metafieldResponse = await fetch(
+        `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/metafields.json`,
+        {
+          method: "POST",
+          headers: {
+            "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(metafieldPayload),
+        }
+      );
 
-  const metafieldResponse = await fetch(
-    `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/metafields.json`,
-    {
-      method: "POST",
-      headers: {
-        "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(metafieldPayload),
+      if (!metafieldResponse.ok) {
+        const errorData = await metafieldResponse.json();
+        console.log("Shopify metafield error:", errorData);
+        return NextResponse.json(
+          { success: false, error: errorData.errors || errorData },
+          { status: 400 }
+        );
+      }
     }
-  );
 
-  if (!metafieldResponse.ok) {
-    const errorData = await metafieldResponse.json();
-    console.log("Shopify metafield error:", errorData);
-    return NextResponse.json(
-      { success: false, error: errorData.errors || errorData },
-      { status: 400 }
-    );
-  }
-}
+    /* ---------------- METAFIELD PRESENTACION ---------------- */
+    if (presentacion !== undefined && presentacion.trim() !== "") {
+      const metafieldPayload = {
+        metafield: {
+          namespace: "custom",
+          key: "presentacion",
+          type: "single_line_text_field",
+          value: presentacion.trim(),
+          owner_resource: "custom_collection",
+          owner_id: collectionId,
+        },
+      };
 
+      const metafieldResponse = await fetch(
+        `https://${process.env.SHOPIFY_STORE}/admin/api/2024-04/metafields.json`,
+        {
+          method: "POST",
+          headers: {
+            "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(metafieldPayload),
+        }
+      );
+
+      if (!metafieldResponse.ok) {
+        const errorData = await metafieldResponse.json();
+        console.log("Shopify metafield error:", errorData);
+        return NextResponse.json(
+          { success: false, error: errorData.errors || errorData },
+          { status: 400 }
+        );
+      }
+    }
 
     return NextResponse.json({ success: true });
   } catch (err) {

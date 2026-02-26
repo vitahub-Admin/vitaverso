@@ -17,6 +17,7 @@ export default function MiTiendaPage() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [copied, setCopied] = useState(false);
   const [socialUrl, setSocialUrl] = useState("");
+  const [presentacion, setPresentacion] = useState("");
 
   const fileInputRef = useRef(null);
 
@@ -61,6 +62,7 @@ export default function MiTiendaPage() {
               description: plainDescription,
             });
             setSocialUrl(col.socialMediaUrl?.value || "");
+            setPresentacion(col.presentacion?.value || "");
 
             setProducts(shopifyData.products);
           })
@@ -187,6 +189,7 @@ export default function MiTiendaPage() {
           title: collection.title,
           body_html: `<p>${collection.description}</p>`,
           social_url: socialUrl,
+          presentacion: presentacion,
         }),
       }
     );
@@ -356,12 +359,26 @@ console.log("Response status:", res.status);
           </div>
 
           {/* Info colección */}
-          <h2 className="text-2xl font-bold text-center text-[#1b3f7a]">
+          <div className="w-full ml-8">
+            <p className="text-gray-500 text-sm italic">vista previa del titulo</p>
+            <h2 className="text-2xl  text-[#1b3f7a] ">
+            {collection.presentacion?.value || "Tu tienda:"}
+          </h2>
+          <h2 className="text-2xl font-bold  text-[#1b3f7a]">
             {collection.title}
           </h2>
 
+          </div>
+          
           {/* Editar título y descripción */}
           <div className="w-full flex flex-col gap-2 items-center mt-4">
+            <input
+  type="text"
+  value={presentacion}
+  onChange={(e) => setPresentacion(e.target.value)}
+  placeholder="Tienda de, Seleccion de, etc"
+  className="border rounded-md px-3 py-2 w-full text-center focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
+/>
             <input
               type="text"
               value={collection.title}
@@ -371,6 +388,7 @@ console.log("Response status:", res.status);
               placeholder="Título de la colección"
               className="border rounded-md px-3 py-2 w-full text-center focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
             />
+            
 <input
   type="url"
   value={socialUrl}

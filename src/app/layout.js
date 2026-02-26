@@ -142,7 +142,8 @@ function AuthManager({ children }) {
   // 🔓 Backdoor Modal
   if (showBackdoorModal) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="fixed inset-0  flex items-center justify-center z-50"
+      style={{ backgroundColor: "rgba(27, 63, 122, 0.8)" }}>
         <div className="bg-white p-6 rounded-xl max-w-sm w-full">
           <h2 className="text-xl font-bold mb-4">
             Acceso Interno
@@ -178,7 +179,8 @@ function AuthManager({ children }) {
   // 🔐 Modal normal
   if (showAuthModal) {
     return (
-      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="fixed inset-0  flex items-center justify-center z-50 p-4"
+      style={{ backgroundColor: "rgba(27, 63, 122, 0.8)" }}>
         <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-auto">
           <div className="bg-[#1b3f7a] text-white p-6 rounded-t-xl text-center">
             <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
