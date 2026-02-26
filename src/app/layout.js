@@ -6,7 +6,7 @@ import Header from "./components/Header";
 import { Suspense, useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import Script from "next/script";
-import Cookies from "js-cookie";
+//import Cookies from "js-cookie";
 import { useSearchParams, usePathname } from "next/navigation";
 import { CustomerProvider } from "./context/CustomerContext.jsx";
 
@@ -15,96 +15,109 @@ function AuthManager({ children }) {
   const pathname = usePathname();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [showBackdoorModal, setShowBackdoorModal] = useState(false);
+const [pendingBackdoorId, setPendingBackdoorId] = useState(null);
+const [backdoorPassword, setBackdoorPassword] = useState("");
+const [backdoorError, setBackdoorError] = useState("");
 
-  useEffect(() => {
-    // PARÁMETROS DEL CIFRADO REVERSIBLE
-    const enc = searchParams.get("enc");  // Customer_id cifrado
-    const t = searchParams.get("t");      // Timestamp
-    const sig = searchParams.get("sig");  // Firma HMAC
-    
-    // BACKDOOR PARA TESTING - parámetro directo
-    const aId = searchParams.get("aId");  // Customer_id directo (testing)
-    
-    const customerIdFromCookie = Cookies.get("customerId");
+useEffect(() => {
+  const enc = searchParams.get("enc");
+  const t = searchParams.get("t");
+  const sig = searchParams.get("sig");
+  const aId = searchParams.get("aId");
 
-    console.log("🔐 Auth check - Cifrado reversible:", {
-      enc: enc ? "present" : "missing",
-      t: t ? "present" : "missing", 
-      sig: sig ? "present" : "missing",
-      aId: aId ? "present" : "missing",  // ← Nuevo backdoor
-      fromCookie: customerIdFromCookie
-    });
+  console.log("🔐 Auth check:", {
+    enc: !!enc,
+    t: !!t,
+    sig: !!sig,
+    aId: !!aId,
+  });
 
-    // 1️⃣ PRIMERO: BACKDOOR PARA TESTING (más prioritario)
-    if (aId) {
-      console.log("🔓 BACKDOOR - Customer ID directo recibido:", aId);
-      const customerId = parseInt(aId);
-      
-      if (customerId && customerId > 0) {
-        console.log("✅ Backdoor válido, guardando customerId:", customerId);
-        Cookies.set("customerId", customerId, { expires: 30 });
-        setShowAuthModal(false);
-        
-        // Limpiar la URL después de usar el backdoor
-        window.history.replaceState({}, '', '/ganancias');
+  // 1️⃣ BACKDOOR → NO CREA SESIÓN
+  if (aId) {
+    console.log("🟡 Backdoor detectado - esperando password");
+    setPendingBackdoorId(aId); // nuevo estado
+    setShowBackdoorModal(true);
+    setIsLoading(false);
+    return;
+  }
+
+  // 2️⃣ LOGIN TOKENIZADO (el bueno)
+  if (enc && t && sig) {
+    fetch("/api/verify-token", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ enc, t, sig }),
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.ok) {
+          window.history.replaceState({}, "", "/ganancias");
+          setShowAuthModal(false);
+        } else {
+          setShowAuthModal(true);
+        }
         setIsLoading(false);
-        return;
-      } else {
-        console.log("❌ Backdoor inválido");
-        Cookies.remove("customerId");
+      })
+      .catch(() => {
         setShowAuthModal(true);
         setIsLoading(false);
-        return;
-      }
+      });
+
+    return;
+  }
+
+  // 3️⃣ Validación normal → preguntarle al backend si hay sesión
+  fetch("/api/check-session")
+  .then(async (r) => {
+    if (!r.ok) {
+      throw new Error("API error");
     }
 
-    // 2️⃣ SEGUNDO: CIFRADO REVERSIBLE (producción)
-    if (enc && t && sig) {
-      console.log("🔑 Token cifrado recibido, validando...");
+    const text = await r.text();
 
-      fetch("/api/verify-token", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ enc, t, sig }),
-      })
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.ok && data.customerId) {
-            console.log("✅ Token válido, customerId descifrado:", data.customerId);
-            Cookies.set("customerId", data.customerId, { expires: 30 });
-            setShowAuthModal(false);
-            
-            // Limpiar la URL después de usar el token
-            window.history.replaceState({}, '', '/ganancias');
-          } else {
-            console.log("❌ Token inválido:", data.error);
-            Cookies.remove("customerId");
-            setShowAuthModal(true);
-          }
-          setIsLoading(false);
-        })
-        .catch(error => {
-          console.error("🚨 Error verificando token:", error);
-          Cookies.remove("customerId");
-          setShowAuthModal(true);
-          setIsLoading(false);
-        });
-
-      return;
+    if (!text) {
+      throw new Error("Empty response");
     }
 
-    // 3️⃣ TERCERO: Lógica normal con cookies...
-    if (customerIdFromCookie) {
-      console.log("✅ CustomerId en cookie");
-      setShowAuthModal(false);
-      setIsLoading(false);
-      return;
-    }
-
-    console.log("🚫 No autenticado, mostrando modal");
+    return JSON.parse(text);
+  })
+  .then((data) => {
+    setShowAuthModal(!data.ok);
+    setIsLoading(false);
+  })
+  .catch((err) => {
+    console.error("Session check failed:", err);
     setShowAuthModal(true);
     setIsLoading(false);
-  }, [searchParams]);
+  });
+
+}, [searchParams]);
+const handleBackdoorLogin = async () => {
+  setBackdoorError("");
+
+  try {
+    const res = await fetch("/api/backdoor-login", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        aId: pendingBackdoorId,
+        password: backdoorPassword,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (data.ok) {
+      window.history.replaceState({}, "", "/ganancias");
+      window.location.reload();
+    } else {
+      setBackdoorError("Password incorrecta");
+    }
+  } catch (err) {
+    setBackdoorError("Error de conexión");
+  }
+};
 
   const redirectToShop = () => {
     window.location.href = 'https://vitahub.mx/account';
@@ -124,6 +137,34 @@ function AuthManager({ children }) {
       </div>
     );
   }
+if (showBackdoorModal) {
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+      <div className="bg-white p-6 rounded-xl max-w-sm w-full">
+        <h2 className="text-xl font-bold mb-4">Acceso Interno</h2>
+
+        <input
+          type="password"
+          value={backdoorPassword}
+          onChange={(e) => setBackdoorPassword(e.target.value)}
+          placeholder="Ingresar clave"
+          className="w-full border p-2 rounded mb-3"
+        />
+
+        {backdoorError && (
+          <p className="text-red-500 text-sm mb-2">{backdoorError}</p>
+        )}
+
+        <button
+          onClick={handleBackdoorLogin}
+          className="w-full bg-[#1b3f7a] text-white py-2 rounded"
+        >
+          Confirmar
+        </button>
+      </div>
+    </div>
+  );
+}
 
   if (showAuthModal) {
     return (
