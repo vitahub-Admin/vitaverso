@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Banner from "../components/Banner";
+import axios from "axios";
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState(null);
@@ -12,6 +13,7 @@ export default function WalletPage() {
   const [exchanges, setExchanges] = useState([]);
 const [pendingExchange, setPendingExchange] = useState(null);
 const [withdrawAmount, setWithdrawAmount] = useState("");
+const [clabe, setClabe] = useState(null);
 
 
   useEffect(() => {
@@ -46,8 +48,19 @@ if (exData.success) {
 }
 
     }
+const getClabe = async () => {
+  try {
+    const response = await axios.get("/api/affiliates/clabe");
 
+    if (response.data.success) {
+      setClabe(response.data.clabe_interbancaria);
+    }
+  } catch (error) {
+    console.error(error);
+  }
+};
     fetchWallet();
+    getClabe();
   }, []);
 
   if (loading) {
@@ -142,6 +155,7 @@ if (exData.success) {
         
         {/* 🟢 BALANCE */}
         <div className="bg-white shadow rounded-2xl p-6">
+          
           <h2 className="text-lg font-semibold mb-4">Saldo disponible</h2>
           <p className="text-4xl font-bold text-green-600">
             ${wallet.available.toFixed(2)} {wallet.currency}
@@ -194,6 +208,33 @@ if (exData.success) {
         {/* 💸 RETIRO */}
        <div className="bg-white shadow rounded-2xl p-6">
   <h2 className="text-lg font-semibold mb-4">Solicitar retiro</h2>
+  {/* CLABE */}
+<div className="mb-4 p-2 rounded-lg bg-gray-50 border text-sm">
+  <div className="flex justify-between items-start">
+    <div>
+      <p className="font-medium text-gray-700 mb-1">
+        CLABE interbancaria
+      </p>
+
+      {clabe ? (
+        <p className="text-[#1b3f7a] font-semibold">
+          {clabe}
+        </p>
+      ) : (
+        <p className="text-red-600">
+          No ingresaste aún tu CLABE interbancaria.
+        </p>
+      )}
+    </div>
+
+    <a
+      href="https://pro.vitahub.mx/mis-datos"
+      className="ml-4 px-4 py-2 bg-[#1b3f7a] text-white rounded-lg text-xs font-semibold hover:opacity-90"
+    >
+      {clabe ? "Editar" : "Agregar"}
+    </a>
+  </div>
+</div>
 
   {pendingExchange && (
     <div className="mb-4 p-3 rounded-lg bg-yellow-100 text-yellow-800 text-sm">

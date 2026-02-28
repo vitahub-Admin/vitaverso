@@ -26,7 +26,7 @@ export default function Banner({ youtubeVideoUrl }) {
 
   const videoId = getYouTubeVideoId(youtubeVideoUrl);
   const hasVideo = Boolean(videoId);
-const bannerHref = "https://calendly.com/vitahubpro/vitahubpro-fundamentos-de-la-suplementacion?month=2026-02&date=2026-02-25"; // 🔥 URL fija temporal
+const bannerHref = "https://vitahub.mx"; 
   return (
     <div className="flex flex-col md:flex-row gap-4 mb-6">
       {/* BANNER */}

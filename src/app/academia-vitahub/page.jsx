@@ -20,6 +20,46 @@ Capacitación Blife – Formulación, combinaciones y protocolos de suplementaci
 </h2>
 <div className="aspect-w-16 aspect-h-9">
   <iframe 
+    src="https://www.youtube.com/embed/FFsgaoN_Yz8"
+
+    title="Vitahub PRO | Fundamentos de la suplementación ortomolecular desde la Medicina Funcional Integrativa"
+    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+    allowFullScreen
+    className="w-full h-64 md:h-96 rounded-lg shadow-md"
+  ></iframe>
+</div>
+<div className="mt-6 max-w-3xl mx-auto text-left px-4 pt-5">
+  <p className="text-gray-600 mb-4">
+    En esta capacitación para afiliados y profesionales de Vitahub PRO, se desarrolla una base clínica sólida para 
+    indicar suplementación de forma racional, personalizada 
+    y sistémica, evitando la polisuplementación y el enfoque simplista de “síntoma = suplemento”.
+  </p>
+  <ul className="text-gray-600 list-disc list-inside mb-4 space-y-1">
+    <li>Qué significa hoy la suplementación ortomolecular (más allá del concepto original de Linus Pauling).</li>
+    <li>Cómo integrar el modelo PINE (psico-neuro-inmuno-endocrino) en la toma de decisiones</li>
+    <li>Diferencias entre suplementación correctiva, preventiva y moduladora de procesos.</li>
+    <li>Rol central de la mitocondria, inflamación crónica de bajo grado y estrés oxidativo.</li>
+    <li>Importancia del eje intestino-cerebro, microbiota y capacidad absortiva antes de suplementar.</li>
+    <li>Regulación neuroendocrina, ritmos circadianos, cortisol/melatonina y carga psicoemocional.</li>
+      <li>Uso de biomarcadores funcionales por tendencias y contexto metabólico (no solo “rango normal”)</li>
+      <li>Errores frecuentes: sobredosis, interacciones, cronificación de suplementos y falta de reevaluación</li>
+
+  </ul>
+  <p className="text-gray-600 mb-4">
+   Además, se analiza un caso clínico real (“Paciente Mariana”) para mostrar cómo construir una estrategia de suplementación inteligente: mínima dosis efectiva, tiempo definido, reevaluación periódica e integración con hábitos (alimentación, sueño, estrés y actividad física).</p>
+  <p className="text-gray-500 italic text-sm">
+    El foco final: usar el suplemento como puente adaptativo para facilitar la autorregulación del organismo, no como intervención aislada ni permanente.
+  </p>
+</div>
+
+</section> 
+  <section className="mb-16">
+
+<h2 className="text-xl md:text-2xl text-[#1b3f7a] mb-6 font-lato">
+Capacitación Blife – Formulación, combinaciones y protocolos de suplementación
+</h2>
+<div className="aspect-w-16 aspect-h-9">
+  <iframe 
     src="https://www.youtube.com/embed/HW1yPbM4vBc"
 
     title="Capacitación Blife – Formulación, combinaciones y protocolos de suplementación"

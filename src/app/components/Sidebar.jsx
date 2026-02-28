@@ -75,8 +75,8 @@ export default function Sidebar() {
 
   // 🔵 Definimos menú
   const navItems = [
-    { href: "/ganancias", label: "Ganancias", icon: <DollarSign size={20} /> },
-    { href: "/wallet", label: "Wallet", icon: <DollarSign size={20} />, requireTag: "vitahuber" },
+    //{ href: "/ganancias", label: "Ganancias", icon: <DollarSign size={20} /> },
+    { href: "/wallet", label: "Wallet", icon: <DollarSign size={20} /> },
     { href: "/ordenes", label: "Órdenes", icon: <ShoppingBag size={20} /> },
     { href: "/mis-carritos-merge", label: "Mis Carritos", icon: <ShoppingCart size={20} /> },
     { href: "/contactos", label: "Mis Contactos", icon: <Contact size={20} /> },

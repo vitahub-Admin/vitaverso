@@ -1,9 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import Cookies from "js-cookie";
 import OrdersTable from "./components/Sheet";
 import Banner from "../components/Banner"
+import Chart1 from "./components/Chart1";
+import Chart2 from "./components/Chart2";
 
 export default function OrdenesPage() {
   const [error, setError] = useState("");
@@ -72,7 +74,25 @@ export default function OrdenesPage() {
     if (!customerId) return;
     fetchData(customerId, startDate, endDate);
   };
-
+  const totals = useMemo(() => {
+    let ganancia = 0;
+    let items = 0;
+    const uniqueOrders = new Set();
+  
+    ordenesData.forEach((order) => {
+      // ya viene calculado por BigQuery
+      ganancia += Number(order.ganancia_total) || 0;
+      items += Number(order.total_items) || 0;
+  
+      uniqueOrders.add(order.order_number);
+    });
+  
+    return {
+      ganancia,
+      items,
+      carritos: uniqueOrders.size,
+    };
+  }, [ordenesData]);
   return (
     <div className="flex flex-col items-center gap-6 p-4">
 
@@ -114,7 +134,53 @@ export default function OrdenesPage() {
           {error}
         </div>
       )}
+    {/* Cards de resumen */}
+<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 w-full max-w-6xl">
+  {/* Card Ganancias */}
+  <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-4">
+    <img src="/ganancias.png" alt="Ganancias" className="w-12 h-12 md:w-24 md:h-24 object-contain" />
+    <div>
+      <p className="text-gray-500 text-sm">Ganancias</p>
+      <p className="text-2xl md:text-3xl font-bold text-[#1b3f7a]">
+        ${totals.ganancia.toFixed(2)}
+      </p>
+    </div>
+  </div>
 
+  {/* Card Items */}
+  <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-4">
+    <img src="/items.png" alt="Items Vendidos" className="w-12 h-12 md:w-24 md:h-24 object-contain" />
+    <div>
+      <p className="text-gray-500 text-sm">Total Items Vendidos</p>
+      <p className="text-2xl md:text-3xl font-bold text-[#1b3f7a]">
+        {totals.items}
+      </p>
+    </div>
+  </div>
+
+  {/* Card Carritos */}
+  <div className="bg-white shadow-md rounded-lg p-4 flex items-center gap-4">
+    <img src="/ordenes.png" alt="Carritos Vendidos" className="w-12 h-12 md:w-24 md:h-24 object-contain" />
+    <div>
+      <p className="text-gray-500 text-sm">Total Carritos Vendidos</p>
+      <p className="text-2xl md:text-3xl font-bold text-[#1b3f7a]">
+        {totals.carritos}
+      </p>
+    </div>
+  </div>
+</div>
+      {/* Charts */}
+   {/* Charts */}
+{ordenesData.length > 0 && (
+  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 w-full max-w-6xl">
+    <div className="bg-white shadow-md rounded p-4">
+      <Chart1 data={ordenesData} />
+    </div>
+    <div className="bg-white shadow-md rounded p-4">
+      <Chart2 data={ordenesData} />
+    </div>
+  </div>
+)}
       {ordenesData.length > 0 ? (
         <div className="w-full max-w-6xl">
           <OrdersTable data={ordenesData} />
