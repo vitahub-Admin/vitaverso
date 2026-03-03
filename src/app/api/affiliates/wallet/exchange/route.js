@@ -101,7 +101,7 @@ export async function POST(req) {
       );
     }
 
-    const MIN_WITHDRAW = 200; // Ajustable
+    const MIN_WITHDRAW = 20; // Ajustable
 
     if (amount < MIN_WITHDRAW) {
       return NextResponse.json(
