@@ -6,11 +6,10 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 );
 
-export async function POST(req, { params }) {
+export async function POST(req, context) {
   try {
-    const exchangeId = Number(params.id);
-    const body = await req.json();
-    const { admin_note } = body;
+    const { id } = await context.params;
+    const exchangeId = Number(id);
 
     if (Number.isNaN(exchangeId)) {
       return NextResponse.json(
@@ -19,20 +18,30 @@ export async function POST(req, { params }) {
       );
     }
 
-    const { data: exchange } = await supabase
+    const body = await req.json();
+    const { admin_note } = body;
+
+    const { data: exchange, error } = await supabase
       .from('point_exchanges')
       .select('status')
       .eq('id', exchangeId)
       .single();
 
-    if (!exchange || exchange.status !== 'pending') {
+    if (error || !exchange) {
+      return NextResponse.json(
+        { success: false, message: 'Exchange no encontrado' },
+        { status: 404 }
+      );
+    }
+
+    if (exchange.status !== 'pending') {
       return NextResponse.json(
         { success: false, message: 'Exchange no pendiente' },
         { status: 400 }
       );
     }
 
-    await supabase
+    const { error: updateError } = await supabase
       .from('point_exchanges')
       .update({
         status: 'rejected',
@@ -41,6 +50,8 @@ export async function POST(req, { params }) {
         admin_note: admin_note || 'Rechazado por administrador',
       })
       .eq('id', exchangeId);
+
+    if (updateError) throw updateError;
 
     return NextResponse.json({
       success: true,
