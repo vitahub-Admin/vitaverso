@@ -3,18 +3,23 @@
 import { useEffect, useState } from "react";
 import Banner from "../components/Banner";
 import axios from "axios";
+import { Banknote, ShoppingBag } from "lucide-react";
 
 export default function WalletPage() {
   const [wallet, setWallet] = useState(null);
   const [transactions, setTransactions] = useState([]);
+  const [exchanges, setExchanges] = useState([]);
+
   const [loading, setLoading] = useState(true);
   const [withdrawing, setWithdrawing] = useState(false);
-  const [message, setMessage] = useState(null);
-  const [exchanges, setExchanges] = useState([]);
-const [pendingExchange, setPendingExchange] = useState(null);
-const [withdrawAmount, setWithdrawAmount] = useState("");
-const [clabe, setClabe] = useState(null);
 
+  const [message, setMessage] = useState(null);
+  const [pendingExchange, setPendingExchange] = useState(null);
+
+  const [withdrawAmount, setWithdrawAmount] = useState("");
+  const [exchangeType, setExchangeType] = useState(null);
+
+  const [clabe, setClabe] = useState(null);
 
   useEffect(() => {
     async function fetchWallet() {
@@ -24,41 +29,40 @@ const [clabe, setClabe] = useState(null);
 
         if (data.success) {
           setWallet(data.wallet);
-          setTransactions(data.transactions);
+          setTransactions(data.transactions || []);
+        }
+
+        const exRes = await fetch("/api/affiliates/wallet/exchange");
+        const exData = await exRes.json();
+
+        if (exData.success) {
+          setExchanges(exData.exchanges || []);
+
+          const pending = exData.exchanges.find(
+            (ex) => ex.status === "pending"
+          );
+
+          setPendingExchange(pending || null);
         }
       } catch (err) {
         console.error("Error loading wallet:", err);
       } finally {
         setLoading(false);
       }
-
-      const exRes = await fetch("/api/affiliates/wallet/exchange");
-const exData = await exRes.json();
-
-if (exData.success) {
-  setExchanges(exData.exchanges);
-
-  const pending = exData.exchanges.find(
-    (ex) => ex.status === "pending"
-  );
-
-  if (pending) {
-    setPendingExchange(pending);
-  }
-}
-
     }
-const getClabe = async () => {
-  try {
-    const response = await axios.get("/api/affiliates/clabe");
 
-    if (response.data.success) {
-      setClabe(response.data.clabe_interbancaria);
-    }
-  } catch (error) {
-    console.error(error);
-  }
-};
+    const getClabe = async () => {
+      try {
+        const response = await axios.get("/api/affiliates/clabe");
+
+        if (response.data.success) {
+          setClabe(response.data.clabe_interbancaria);
+        }
+      } catch (error) {
+        console.error("Error loading clabe:", error);
+      }
+    };
+
     fetchWallet();
     getClabe();
   }, []);
@@ -78,100 +82,116 @@ const getClabe = async () => {
       </div>
     );
   }
- const handleWithdraw = async () => {
-  const amount = Number(withdrawAmount);
 
-  if (!amount || amount <= 0) {
-    setMessage("Ingresa un monto válido");
-    return;
-  }
+  const handleExchange = async () => {
+    const amount = Number(withdrawAmount);
 
-  if (amount > wallet.available) {
-    setMessage("No tienes saldo suficiente");
-    return;
-  }
-
-  if (pendingExchange) {
-    setMessage("Ya tienes una solicitud pendiente");
-    return;
-  }
-
-  try {
-    setWithdrawing(true);
-    setMessage(null);
-
-    const res = await fetch("/api/affiliates/wallet/exchange", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        points_requested: amount,
-        exchange_type: "cash",
-      }),
-    });
-
-    const data = await res.json();
-
-    if (!res.ok || !data.success) {
-      throw new Error(data.message || "Error al solicitar retiro");
+    if (!exchangeType) {
+      setMessage("Selecciona un tipo de solicitud");
+      return;
     }
 
-    setMessage("Solicitud enviada correctamente ✅");
-    setWithdrawAmount("");
-
-    // refrescar exchanges
-    const exRes = await fetch("/api/affiliates/wallet/exchange");
-    const exData = await exRes.json();
-
-    if (exData.success) {
-      setExchanges(exData.exchanges);
-      const pending = exData.exchanges.find(
-        (ex) => ex.status === "pending"
-      );
-      setPendingExchange(pending || null);
+    if (!amount || amount <= 0) {
+      setMessage("Ingresa un monto válido");
+      return;
     }
 
-  } catch (err) {
-    setMessage(err.message);
-  } finally {
-    setWithdrawing(false);
-  }
-};
+    if (amount > wallet.available) {
+      setMessage("No tienes saldo suficiente");
+      return;
+    }
 
+    if (pendingExchange) {
+      setMessage("Ya tienes una solicitud pendiente");
+      return;
+    }
+
+    if (exchangeType === "cash" && !clabe) {
+      setMessage("Debes registrar una CLABE para retirar dinero");
+      return;
+    }
+
+    try {
+      setWithdrawing(true);
+      setMessage(null);
+
+      const res = await fetch("/api/affiliates/wallet/exchange", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          points_requested: amount,
+          exchange_type: exchangeType,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        throw new Error(data?.message || "Error al solicitar");
+      }
+
+      setMessage("Solicitud enviada correctamente ✅");
+      setWithdrawAmount("");
+      setExchangeType(null);
+
+      const exRes = await fetch("/api/affiliates/wallet/exchange");
+      const exData = await exRes.json();
+
+      if (exData.success) {
+        setExchanges(exData.exchanges);
+
+        const pending = exData.exchanges.find(
+          (ex) => ex.status === "pending"
+        );
+
+        setPendingExchange(pending || null);
+      }
+    } catch (err) {
+      setMessage(err?.message || "Error inesperado");
+    } finally {
+      setWithdrawing(false);
+    }
+  };
+
+  const storeCreditValue =
+  exchangeType === "store_credit" && withdrawAmount
+    ? Number(withdrawAmount) * 1.05
+    : 0;
 
   return (
-        <div className="flex flex-col items-center p-4">
-    
-    <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=mSYOgM052PM" />
-        {/* Header de sección con filtros */}
-    <div className="w-full  bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
-      {/* Título */}
-      <h1 className="text-3xl md:text-4xl text-white font-lato">
-        Mi Wallet
-      </h1>
-    </div>
+    <div className="flex flex-col items-center p-4">
+      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=mSYOgM052PM" />
 
+      <div className="w-full bg-[#1b3f7a] rounded-lg p-4 mb-6">
+        <h1 className="text-3xl md:text-4xl text-white font-lato">
+          Mi Wallet
+        </h1>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        
-        {/* 🟢 BALANCE */}
+
+        {/* BALANCE */}
         <div className="bg-white shadow rounded-2xl p-6">
-          
           <h2 className="text-lg font-semibold mb-4">Saldo disponible</h2>
+
           <p className="text-4xl font-bold text-green-600">
-            ${wallet.available.toFixed(2)} {wallet.currency}
+            ${Number(wallet.available).toFixed(2)} {wallet.currency}
           </p>
 
           <div className="mt-6 text-sm text-gray-500 space-y-1">
-            <p>Total ganado: ${wallet.total_earned.toFixed(2)}</p>
-            <p>Total retirado: ${wallet.total_withdrawn.toFixed(2)}</p>
+            <p>Total ganado: ${Number(wallet.total_earned).toFixed(2)}</p>
+            <p>Total retirado: ${Number(wallet.total_withdrawn).toFixed(2)}</p>
           </div>
         </div>
 
-        {/* 📜 HISTORIAL */}
+        {/* HISTORIAL */}
         <div className="bg-white shadow rounded-2xl p-6">
           <h2 className="text-lg font-semibold mb-4">Historial</h2>
 
           <div className="space-y-3 max-h-80 overflow-y-auto pr-2">
+
             {transactions.length === 0 && (
               <p className="text-sm text-gray-500">
                 No hay movimientos todavía.
@@ -198,115 +218,148 @@ const getClabe = async () => {
                   }`}
                 >
                   {tx.type === "earning" ? "+" : "-"}$
-                  {tx.amount.toFixed(2)}
+                  {Number(tx.amount).toFixed(2)}
                 </div>
               </div>
             ))}
+
           </div>
         </div>
 
-        {/* 💸 RETIRO */}
-       <div className="bg-white shadow rounded-2xl p-6">
-  <h2 className="text-lg font-semibold mb-4">Solicitar retiro</h2>
-  {/* CLABE */}
-<div className="mb-4 p-2 rounded-lg bg-gray-50 border text-sm">
-  <div className="flex justify-between items-start">
-    <div>
-      <p className="font-medium text-gray-700 mb-1">
-        CLABE interbancaria
-      </p>
-
-      {clabe ? (
-        <p className="text-[#1b3f7a] font-semibold">
-          {clabe}
-        </p>
-      ) : (
-        <p className="text-red-600">
-          No ingresaste aún tu CLABE interbancaria.
-        </p>
-      )}
-    </div>
-
-    <a
-      href="https://pro.vitahub.mx/mis-datos"
-      className="ml-4 px-4 py-2 bg-[#1b3f7a] text-white rounded-lg text-xs font-semibold hover:opacity-90"
-    >
-      {clabe ? "Editar" : "Agregar"}
-    </a>
-  </div>
-</div>
-
-  {pendingExchange && (
-    <div className="mb-4 p-3 rounded-lg bg-yellow-100 text-yellow-800 text-sm">
-      Tienes una solicitud pendiente por $
-      {Number(pendingExchange.points_requested).toFixed(2)}.
-      <br />
-      Te avisaremos cuando sea procesada.
-    </div>
-  )}
-
-  <p className="text-sm text-gray-600 mb-3">
-    Ingresa el monto que deseas retirar.
-  </p>
-
-  <input
-    type="number"
-    min="1"
-    max={wallet.available}
-    value={withdrawAmount}
-    onChange={(e) => setWithdrawAmount(e.target.value)}
-    placeholder="Monto a retirar"
-    disabled={!!pendingExchange}
-    className="w-full border rounded-lg px-3 py-2 mb-4"
-  />
-
-  <button
-    disabled={
-      wallet.available <= 0 ||
-      withdrawing ||
-      !!pendingExchange
-    }
-    className={`w-full py-3 rounded-xl font-semibold transition ${
-      wallet.available > 0 &&
-      !withdrawing &&
-      !pendingExchange
-        ? "bg-[#1b3f7a] text-white hover:opacity-90"
-        : "bg-gray-300 text-gray-500 cursor-not-allowed"
-    }`}
-    onClick={handleWithdraw}
-  >
-    {withdrawing ? "Procesando..." : "Solicitar retiro"}
-  </button>
-
-  {message && (
-    <p className="mt-3 text-sm text-center text-gray-600">
-      {message}
-    </p>
-  )}
-</div>
-
-
-        {/* ℹ️ INFO */}
+        {/* SOLICITUD */}
         <div className="bg-white shadow rounded-2xl p-6">
+
+          <p className="text-sm text-gray-400">
+            Chequea tu CLABE antes de solicitar un retiro
+          </p>
+
+          <div className="mb-4 p-3 rounded-lg bg-gray-50 border text-sm">
+            <div className="flex justify-between items-start">
+              <div>
+                <p className="font-medium text-gray-700 mb-1">
+                  CLABE interbancaria
+                </p>
+
+                {clabe ? (
+                  <p className="text-[#1b3f7a] font-semibold">
+                    {clabe}
+                  </p>
+                ) : (
+                  <p className="text-red-600">
+                    No ingresaste aún tu CLABE interbancaria.
+                  </p>
+                )}
+              </div>
+
+              <a
+                href="https://pro.vitahub.mx/mis-datos"
+                className="ml-4 px-4 py-2 bg-[#1b3f7a] text-white rounded-lg text-xs font-semibold"
+              >
+                {clabe ? "Editar" : "Agregar"}
+              </a>
+            </div>
+          </div>
+
           <h2 className="text-lg font-semibold mb-4">
-            ¿Cómo funciona la wallet?
+            Solicitar retiro o crédito
           </h2>
 
-          <ul className="text-sm text-gray-600 space-y-2">
-            <li>
-              • Las ganancias se acreditan cuando una orden es pagada.
-            </li>
-            <li>
-              • Los retiros descuentan saldo disponible.
-            </li>
-            <li>
-              • El procesamiento puede demorar hasta 48hs.
-            </li>
-            <li>
-              • Si una orden se cancela, la comisión se revierte.
-            </li>
-          </ul>
+          {pendingExchange && (
+            <div className="mb-4 p-3 rounded-lg bg-yellow-100 text-yellow-800 text-sm">
+              Tienes una solicitud pendiente por $
+              {Number(pendingExchange.points_requested).toFixed(2)}.
+              <br />
+              No puedes generar otra hasta que sea procesada.
+            </div>
+          )}
+
+          <p className="text-sm text-gray-600 mb-3">
+            ¿Qué deseas solicitar?
+          </p>
+
+          <div className="space-y-2 mb-4">
+
+            <button
+              disabled={!!pendingExchange}
+              onClick={() => setExchangeType("cash")}
+              className={`w-full p-3 rounded-lg border flex items-center gap-2 ${
+                exchangeType === "cash"
+                  ? "bg-[#1b3f7a] text-white"
+                  : "bg-gray-50"
+              }`}
+            >
+              <Banknote size={18} />
+              <span>Retirar dinero</span>
+            </button>
+
+            <button
+              disabled={!!pendingExchange}
+              onClick={() => setExchangeType("store_credit")}
+              className={`w-full p-3 rounded-lg border flex items-center gap-2 ${
+                exchangeType === "store_credit"
+                  ? "bg-[#1b3f7a] text-white"
+                  : "bg-gray-50"
+              }`}
+            >
+              <ShoppingBag size={18}/>
+              <span>Crédito en tienda (+5% de bonificación)</span>
+            </button>
+
+          </div>
+
+          {exchangeType && (
+            <>
+              <input
+                type="number"
+                min="1"
+                max={wallet.available}
+                value={withdrawAmount}
+                onChange={(e) => setWithdrawAmount(e.target.value)}
+                disabled={!!pendingExchange}
+                placeholder="Monto"
+                className="w-full border rounded-lg px-3 py-2 mb-4"
+              />
+              {exchangeType === "store_credit" && withdrawAmount > 0 && (
+                <>
+                  <p className="text-sm text-gray-500">
+    Recibirás un cupón de <span className="font-semibold text-green-600">
+      ${storeCreditValue.toFixed(2)}
+    </span> 
+    </p>
+    <p  className="text-sm text-gray-500 mb-4">para usar en la tienda.
+  </p>
+                </>
+
+)}
+
+              <button
+                disabled={
+                  !withdrawAmount ||
+                  withdrawing ||
+                  !!pendingExchange ||
+                  wallet.available <= 0
+                }
+                onClick={handleExchange}
+                className="w-full py-3 rounded-xl font-semibold bg-[#1b3f7a] text-white disabled:bg-gray-300 disabled:text-gray-500"
+              >
+                {withdrawing
+                  ? "Procesando..."
+                  : exchangeType === "cash"
+                  ? "Solicitar retiro"
+                  : "Solicitar crédito en tienda"}
+              </button>
+            </>
+          )}
+          
+
+          {message && (
+            <p className="mt-3 text-sm text-center text-gray-600">
+              {message}
+            </p>
+          )}
+
         </div>
+
       </div>
     </div>
   );

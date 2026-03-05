@@ -68,7 +68,6 @@ export async function GET() {
     );
   }
 }
-
 export async function POST(req) {
   try {
     const cookieStore = await cookies();
@@ -90,7 +89,7 @@ export async function POST(req) {
     }
 
     const body = await req.json();
-    const { points_requested, affiliate_note } = body;
+    const { points_requested, exchange_type, affiliate_note } = body;
 
     const amount = Number(points_requested);
 
@@ -101,15 +100,42 @@ export async function POST(req) {
       );
     }
 
-    const MIN_WITHDRAW = 20; // Ajustable
+    /**
+     * Validar tipo de exchange
+     */
+    const allowedTypes = ['cash', 'discount','store_credit'];
 
-    if (amount < MIN_WITHDRAW) {
+    if (!allowedTypes.includes(exchange_type)) {
       return NextResponse.json(
-        { success: false, message: `El retiro mínimo es ${MIN_WITHDRAW}` },
+        { success: false, message: 'Tipo de retiro inválido' },
         { status: 400 }
       );
     }
 
+    const MIN_WITHDRAW = 20;
+
+    if (amount < MIN_WITHDRAW) {
+      return NextResponse.json(
+        { success: false, message: `El mínimo es ${MIN_WITHDRAW}` },
+        { status: 400 }
+      );
+    }
+/**
+ * 0️⃣ Validar que no tenga un exchange pendiente
+ */
+const { data: pending } = await supabase
+  .from('point_exchanges')
+  .select('id')
+  .eq('customer_id', customerIdNum)
+  .eq('status', 'pending')
+  .limit(1);
+
+if (pending && pending.length > 0) {
+  return NextResponse.json(
+    { success: false, message: 'Ya tienes una solicitud pendiente' },
+    { status: 400 }
+  );
+}
     /**
      * 1️⃣ Calcular saldo disponible REAL
      */
@@ -146,11 +172,12 @@ export async function POST(req) {
         {
           customer_id: customerIdNum,
           points_requested: amount,
-          exchange_type: 'cash',
+          exchange_type: exchange_type,
           status: 'pending',
           affiliate_note: affiliate_note || null,
           metadata: {
             source: 'affiliate_wallet',
+            request_type: exchange_type
           },
         },
       ])

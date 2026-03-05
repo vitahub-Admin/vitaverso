@@ -64,6 +64,10 @@ export default function AffiliatesPage() {
       }
     }
   };
+
+  const exportAffiliates = () => {
+  window.open("/api/admin/affiliates/export", "_blank");
+};
   
   return (
     <div className="p-6">
@@ -77,14 +81,19 @@ export default function AffiliatesPage() {
         }}
         onLoading={setLoading}
       />
-      
+      <button
+  onClick={exportAffiliates}
+  className="px-4 py-2 bg-green-600 text-white rounded"
+>
+  Exportar afiliados
+</button>
       {/* Estadísticas rápidas */}
       <div className="my-6 grid grid-cols-1 md:grid-cols-4 gap-4">
         <div className="bg-white p-4 rounded-lg shadow">
           <div className="text-2xl font-bold">{meta?.pagination?.total || 0}</div>
           <div className="text-gray-600">Total Afiliados</div>
         </div>
-        {/* Más estadísticas... */}
+        
       </div>
       
       {/* Tabla de resultados */}

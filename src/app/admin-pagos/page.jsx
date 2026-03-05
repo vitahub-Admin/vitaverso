@@ -233,16 +233,27 @@ export default function AdminWalletPage() {
   /* RENDER */
   /* ============================= */
 
+
+  const handleExport = (type) => {
+  window.open(
+    `/api/admin/points/exchanges?status=${type}&export=csv`,
+    "_blank"
+  );
+};
   return (
     <div className="p-8">
-      <h1 className="text-2xl font-bold mb-10">
-        Administración de Wallet
-      </h1>
+    
+       <div className="w-full bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
+        <h1 className="text-3xl md:text-4xl text-white font-lato"> Administración de Wallet</h1>
+      </div>
 
       {/* ====================================================== */}
       {/* ================= GESTIÓN DE RETIROS ================= */}
       {/* ====================================================== */}
 
+  <div className="w-full bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
+        <h2 className="text-2xl md:text-4xl text-white font-lato"> Administración de Wallet</h2>
+      </div>
       <h2 className="text-xl font-semibold mb-6">
         Gestión de Retiros
       </h2>
@@ -251,75 +262,129 @@ export default function AdminWalletPage() {
         <p>Cargando retiros...</p>
       ) : (
         <>
-          {/* PENDIENTES */}
-          <h3 className="font-semibold mb-2">
-            Solicitudes Pendientes
-          </h3>
+      <div className="flex justify-between items-center mb-2">
+  <h3 className="font-semibold">
+    Solicitudes Pendientes
+  </h3>
+
+  {pending.length > 0 && (
+    <button
+      onClick={() => handleExport("pending")}
+      className="px-4 py-2 bg-[#1b3f7a] text-white text-xs rounded-lg hover:opacity-90"
+    >
+      Exportar CSV
+    </button>
+  )}
+</div>
 
           {pending.length === 0 ? (
             <p className="mb-8">
               No hay solicitudes pendientes.
             </p>
           ) : (
-            <div className="bg-white shadow rounded-xl overflow-hidden mb-10">
-              <table className="w-full text-sm">
-                <tbody>
-                  {pending.map((ex) => (
-                    <tr key={ex.id} className="border-t">
-                      <td className="p-3">{ex.id}</td>
-                      <td className="p-3">
-                        {ex.affiliate?.first_name}{" "}
-                        {ex.affiliate?.last_name}
-                      </td>
-                      <td className="p-3 font-semibold">
-                        ${Number(ex.points_requested).toFixed(2)}
-                      </td>
-                      <td className="p-3">
-                        {new Date(ex.requested_at).toLocaleDateString("es-AR")}
-                      </td>
-                      <td className="p-3 space-x-2">
-                        <button
-                          onClick={() => handleApprove(ex.id)}
-                          disabled={processingId === ex.id}
-                          className="px-3 py-1 bg-green-600 text-white rounded"
-                        >
-                          Aprobar
-                        </button>
-                        <button
-                          onClick={() => handleReject(ex.id)}
-                          disabled={processingId === ex.id}
-                          className="px-3 py-1 bg-red-600 text-white rounded"
-                        >
-                          Rechazar
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+           <div className="bg-white shadow rounded-xl overflow-hidden mb-10">
+  <table className="w-full text-sm">
+    <thead className="bg-gray-50 text-left">
+      <tr>
+        <th className="p-3">ID</th>
+        <th className="p-3">Afiliado</th>
+        <th className="p-3">Monto</th>
+        <th className="p-3">Tipo</th>
+        <th className="p-3">Fecha</th>
+        <th className="p-3">Acciones</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      {pending.map((ex) => (
+        <tr key={ex.id} className="border-t">
+          <td className="p-3">{ex.id}</td>
+
+          <td className="p-3">
+            {ex.affiliates?.first_name} {ex.affiliates?.last_name}
+          </td>
+
+          <td className="p-3 font-semibold">
+            ${Number(ex.points_requested).toFixed(2)}
+          </td>
+
+          <td className="p-3 font-semibold capitalize">
+            {ex.exchange_type === "cash"
+              ? "Retiro"
+              : "Crédito en tienda"}
+          </td>
+
+          <td className="p-3">
+            {new Date(ex.requested_at).toLocaleDateString("es-AR")}
+          </td>
+
+          <td className="p-3 space-x-2">
+            <button
+              onClick={() => handleApprove(ex.id)}
+              disabled={processingId === ex.id}
+              className="px-3 py-1 bg-green-600 text-white rounded"
+            >
+              Aprobar
+            </button>
+
+            <button
+              onClick={() => handleReject(ex.id)}
+              disabled={processingId === ex.id}
+              className="px-3 py-1 bg-red-600 text-white rounded"
+            >
+              Rechazar
+            </button>
+          </td>
+        </tr>
+      ))}
+    </tbody>
+  </table>
+</div>
           )}
 
           {/* HISTORIAL */}
-          <h3 className="font-semibold mb-2">
-            Historial de Retiros
-          </h3>
+        <div className="flex justify-between items-center mb-2">
+  <h3 className="font-semibold">
+    Historial de Retiros
+  </h3>
 
+  {history.length > 0 && (
+    <button
+      onClick={() => handleExport("history")}
+      className="px-4 py-2 bg-gray-700 text-white text-xs rounded-lg hover:opacity-90"
+    >
+      Exportar CSV
+    </button>
+  )}
+</div>
           {history.length === 0 ? (
             <p>No hay historial todavía.</p>
           ) : (
             <div className="bg-white shadow rounded-xl overflow-hidden">
               <table className="w-full text-sm">
+                    <thead className="bg-gray-50 text-left">
+      <tr>
+        <th className="p-3">ID</th>
+        <th className="p-3">Afiliado</th>
+        <th className="p-3">Monto</th>
+        <th className="p-3">Tipo</th>
+        <th className="p-3">Fecha</th>
+        <th className="p-3">Estado</th>
+      </tr>
+    </thead>
                 <tbody>
                   {history.map((ex) => (
                     <tr key={ex.id} className="border-t">
                       <td className="p-3">{ex.id}</td>
                       <td className="p-3">
-                        {ex.affiliate?.first_name}{" "}
-                        {ex.affiliate?.last_name}
+                        {ex.affiliates?.first_name}{" "}
+                        {ex.affiliates?.last_name}
                       </td>
                       <td className="p-3 font-semibold">
                         ${Number(ex.points_requested).toFixed(2)}
+                      </td>
+                      <td className="p-3 font-semibold">
+                        {ex.exchange_type}
                       </td>
                       <td className="p-3">
                         {new Date(
