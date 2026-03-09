@@ -16,7 +16,7 @@ export default function AcademiaVitahubPage() {
   <section className="mb-16">
 
 <h2 className="text-xl md:text-2xl text-[#1b3f7a] mb-6 font-lato">
-Capacitación Blife – Formulación, combinaciones y protocolos de suplementación
+Dra. Noelia Correa Pampillon - Suplementación inteligente desde el abordaje Pine
 </h2>
 <div className="aspect-w-16 aspect-h-9">
   <iframe 
