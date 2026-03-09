@@ -26,7 +26,7 @@ export default function Banner({ youtubeVideoUrl }) {
 
   const videoId = getYouTubeVideoId(youtubeVideoUrl);
   const hasVideo = Boolean(videoId);
-const bannerHref = "https://vitahub.mx"; 
+const bannerHref = "https://calendly.com/vitahubpro/vitahubpro-fundamentos-de-la-suplementacion-clon"; 
   return (
     <div className="flex flex-col md:flex-row gap-4 mb-6">
       {/* BANNER */}
