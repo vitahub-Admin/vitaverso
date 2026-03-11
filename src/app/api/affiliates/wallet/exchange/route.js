@@ -89,6 +89,7 @@ export async function POST(req) {
     }
 
     const body = await req.json();
+    console.log("🔍 body recibido:", JSON.stringify(body));
     const { points_requested, exchange_type, affiliate_note } = body;
 
     const amount = Number(points_requested);

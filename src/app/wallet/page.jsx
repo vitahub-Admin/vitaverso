@@ -50,18 +50,19 @@ export default function WalletPage() {
 
   const handleExchange = async () => {
     const amount = Number(withdrawAmount);
-    if (!exchangeType)                     return notify("Selecciona un tipo de solicitud");
+    const currentType = exchangeType; // capturamos el valor en esta ejecución
+    if (!currentType)                      return notify("Selecciona un tipo de solicitud");
     if (!amount || amount <= 0)            return notify("Ingresa un monto válido");
     if (amount < 200)                      return notify("El monto mínimo de retiro es $200 MXN");
     if (amount > wallet.available)         return notify("No tienes saldo suficiente");
     if (pendingExchange)                   return notify("Ya tienes una solicitud pendiente");
-    if (exchangeType === "cash" && !clabe) return notify("Debes registrar una CLABE para retirar dinero");
+    if (currentType === "cash" && !clabe)  return notify("Debes registrar una CLABE para retirar dinero");
     try {
       setWithdrawing(true); setMessage(null);
       const res  = await fetch("/api/affiliates/wallet/exchange", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ points_requested: amount, exchange_type: exchangeType }),
+        body: JSON.stringify({ points_requested: amount, exchange_type: currentType }),
       });
       const data = await res.json();
       if (!res.ok || !data.success) throw new Error(data?.message || "Error al solicitar");
@@ -109,7 +110,7 @@ export default function WalletPage() {
       {/* ── Título full-width ── */}
       <div className="w-full border-b border-gray-100 px-6">
         <div className="max-w-[960px] mx-auto py-6">
-          <h1 className="text-3xl font-bold text-[#1b3f7a] tracking-tight leading-none mb-1">
+          <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
             Mi Wallet
           </h1>
           <p className="text-sm text-gray-400 font-medium">Administrá tus ganancias y créditos</p>
@@ -124,7 +125,8 @@ export default function WalletPage() {
 
           {/* Balance */}
           <div className="relative bg-white border border-gray-100 rounded-2xl p-7 shadow-sm overflow-hidden">
-       
+            {/* círculo decorativo */}
+            <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-blue-50 opacity-60 pointer-events-none" />
 
             <p className="flex items-center gap-1.5 text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400 mb-3">
               <CircleDollarSign size={12} /> Saldo disponible
@@ -203,6 +205,7 @@ export default function WalletPage() {
               <div className="flex flex-col sm:flex-row gap-2.5 mb-5">
                 {/* Store credit — primero */}
                 <button
+                  type="button"
                   disabled={!!pendingExchange}
                   onClick={() => setExchangeType("store_credit")}
                   className={`flex-1 flex items-center gap-2.5 p-3 rounded-xl border-[1.5px] text-left transition-all
@@ -224,6 +227,7 @@ export default function WalletPage() {
 
                 {/* Cash — segundo */}
                 <button
+                  type="button"
                   disabled={!!pendingExchange}
                   onClick={() => setExchangeType("cash")}
                   className={`flex-1 flex items-center gap-2.5 p-3 rounded-xl border-[1.5px] text-left transition-all
@@ -311,10 +315,10 @@ export default function WalletPage() {
                   <p className="text-xs text-gray-400">Sin movimientos todavía</p>
                 </div>
               ) : transactions.map((tx) => (
-                <div key={tx.id} className="flex items-start gap-3 py-1 border-b border-gray-50 last:border-0">
+                <div key={tx.id} className="flex items-start gap-3 py-3 border-b border-gray-50 last:border-0">
                   <div className={`w-2 h-2 rounded-full shrink-0 mt-1.5 ${tx.type === "earning" ? "bg-emerald-400" : "bg-amber-400"}`} />
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-gray-700 truncate">{tx.description}</p>
+                    <p className="text-xs font-semibold text-gray-700 truncate">{tx.description}</p>
                     <p className="text-[0.66rem] text-gray-300 mt-0.5">
                       {new Date(tx.processed_at).toLocaleDateString("es-MX", { day: "2-digit", month: "short", year: "numeric" })}
                     </p>
