@@ -6,6 +6,70 @@ import Image from "next/image";
 import { Copy, Check, ExternalLink, X } from "lucide-react";
 import Banner from "../components/Banner";
 
+function ReviewModal({ show, onClose, comment, onCommentChange, onSubmit, loading }) {
+  if (!show) return null;
+
+  const minChars  = 20;
+  const charCount = comment.trim().length;
+  const isValid   = charCount >= minChars;
+
+  return (
+    <div className="fixed inset-0 bg-[#1b3f7a]/30 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
+      <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 relative">
+
+        {/* Cerrar */}
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-gray-700"
+        >
+          <X size={24} />
+        </button>
+
+        {/* Título */}
+        <h3 className="text-2xl font-bold text-[#1b3f7a] mb-2 text-center">
+          Dejá tu reseña
+        </h3>
+        <p className="text-sm text-gray-500 text-center mb-6">
+          Contale a la comunidad qué te parece VitaHub como plataforma de compra.
+        </p>
+
+        {/* Textarea */}
+        <textarea
+          value={comment}
+          onChange={(e) => onCommentChange(e.target.value)}
+          placeholder="¿Cómo te ayudó VitaHub a llegar a tu comunidad? ¿Qué destacarías de la plataforma?"
+          className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm resize-none h-36 focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
+          autoFocus
+        />
+
+        {/* Contador */}
+        <p className={`text-xs mt-1 mb-4 text-right ${isValid ? "text-gray-400" : "text-red-400"}`}>
+          {charCount} caracteres{!isValid && ` — mínimo ${minChars}`}
+        </p>
+
+        {/* Botones */}
+        <div className="flex flex-col gap-3">
+          <button
+            onClick={onSubmit}
+            disabled={!isValid || loading}
+            className="w-full py-3 bg-[#1b3f7a] text-white rounded-lg font-semibold hover:bg-[#16406a] disabled:bg-gray-300 disabled:text-gray-400 disabled:cursor-not-allowed transition"
+          >
+            {loading ? "Enviando..." : "Publicar reseña"}
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full py-3 border border-gray-300 text-gray-600 rounded-lg hover:bg-gray-50 transition"
+          >
+            Cancelar
+          </button>
+        </div>
+
+      </div>
+    </div>
+  );
+}
+
+
 export default function MiTiendaPage() {
   const [collection, setCollection] = useState(null);
   const [products, setProducts] = useState(null);
@@ -18,6 +82,11 @@ export default function MiTiendaPage() {
   const [copied, setCopied] = useState(false);
   const [socialUrl, setSocialUrl] = useState("");
   const [presentacion, setPresentacion] = useState("");
+  
+const [showReviewModal, setShowReviewModal] = useState(false);
+const [reviewComment, setReviewComment]     = useState("");
+const [reviewLoading, setReviewLoading]     = useState(false);
+
 
   const fileInputRef = useRef(null);
 
@@ -223,6 +292,38 @@ console.log("Response status:", res.status);
     }
   };
 
+const handleSubmitReview = async () => {
+  if (reviewComment.trim().length < 20) return;
+  setReviewLoading(true);
+
+  try {
+    const res = await fetch("/api/shopify/metaobjects/affiliate-review", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        collection_handle: collection.handle,
+        comment:           reviewComment.trim(),
+        affiliate_id:      customerId,
+      }),
+    });
+
+    const data = await res.json();
+
+    if (!data.success) {
+      setToast("Error al enviar la reseña ❌");
+      return;
+    }
+
+    setToast("¡Reseña enviada! Gracias 🎉");
+    setShowReviewModal(false);
+    setReviewComment("");
+  } catch (err) {
+    setToast("Error de conexión: " + err.message);
+  } finally {
+    setReviewLoading(false);
+  }
+};
+
   // ---------------- Modal de compartir ----------------
   const ShareModal = () => {
     if (!showShareModal) return null;
@@ -303,6 +404,7 @@ console.log("Response status:", res.status);
       </div>
     );
   };
+
 
   // ---------------- RENDER ----------------
 
@@ -422,26 +524,28 @@ console.log("Response status:", res.status);
           </div>
 
           {/* Botones */}
-          <div className="flex flex-row gap-3 w-full mt-4">
-            <a
-              href={shopifyLink}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex-1 px-4 py-2 text-white bg-[#1b3f7a] rounded hover:bg-[#16406a] text-center flex items-center justify-center gap-2"
-            >
-              <ExternalLink size={18} />
-              Ir a la tienda
-            </a>
+<div className="flex flex-row gap-3 w-full mt-4">
+  <a
+    href={shopifyLink}
+    target="_blank"
+    rel="noopener noreferrer"
+    className="flex-1 px-4 py-2 text-white bg-[#1b3f7a] rounded hover:bg-[#16406a] text-center flex items-center justify-center gap-2"
+  >
+    <ExternalLink size={18} />
+    Ir a la tienda
+  </a>
 
-            <button
-              onClick={() => setShowShareModal(true)}
-              className="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-center flex items-center justify-center gap-2"
-            >
-              <span>Compartir</span>
-            </button>
-          </div>
+  <button
+    onClick={() => setShowShareModal(true)}
+    className="flex-1 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600 text-center flex items-center justify-center gap-2"
+  >
+    <span>Compartir</span>
+  </button>
+
+
+</div>
         </div>
-
+        
         {/* Tutorial */}
         <div className="flex flex-col gap-4 max-w-[400px]">
           <div className="bg-white border border-gray-300 rounded-xl p-4 shadow-md">
@@ -472,6 +576,19 @@ console.log("Response status:", res.status);
             <p className="text-sm text-gray-700 leading-snug">
               Aquí puedes quitar productos que no quieras mostrar. Para agregar nuevos, hazlo desde la tienda principal.
             </p>
+          </div>  
+          <div className="bg-white border border-gray-300 rounded-xl p-4 shadow-md">
+            <h3 className="font-semibold text-[#1b3f7a] mb-2">
+             ¿Qué opinas sobre VitaHub?
+            </h3>
+            <p className="text-sm text-gray-700 leading-snug">
+Tus seguidores confían en vos. Compartí tu opinión sobre VitaHub como plataforma de compra y convertí tu respaldo profesional en confianza real para quienes te siguen.</p>
+  <button
+    onClick={() => setShowReviewModal(true)}
+    className="mt-2 bg-[#1b3f7a] text-white px-4 py-2 rounded hover:bg-[#16406a]"
+  >
+    <span>Deja tu reseña</span>
+  </button>
           </div>
         </div>
       </div>
@@ -535,6 +652,14 @@ console.log("Response status:", res.status);
 
       {/* Modal de compartir */}
       <ShareModal />
+      <ReviewModal
+  show={showReviewModal}
+  onClose={() => setShowReviewModal(false)}
+  comment={reviewComment}
+  onCommentChange={setReviewComment}
+  onSubmit={handleSubmitReview}
+  loading={reviewLoading}
+/>
     </div>
   );
 }

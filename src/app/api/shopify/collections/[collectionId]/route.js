@@ -1,4 +1,3 @@
-// pages/api/get-collection-products.js
 import { NextResponse } from "next/server";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
