@@ -2,22 +2,40 @@
 
 import { useMemo } from "react";
 import Cookies from "js-cookie";
-import { FaShareAlt } from "react-icons/fa";
+import { FaWhatsapp } from "react-icons/fa";
+import { Eye, Package, Hash } from "lucide-react";
 
+const statusStyle = {
+  completed: "bg-emerald-50 text-emerald-700 border-emerald-200",
+  pending:   "bg-amber-50  text-amber-700  border-amber-200",
+  abandoned: "bg-red-50    text-red-600    border-red-200",
+};
+
+const formatCurrency = (n) =>
+  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN" }).format(n || 0);
+
+const formatDate = (str) => {
+  if (!str || str === "-") return "-";
+  try {
+    return new Date(str).toLocaleDateString("es-ES", {
+      day: "2-digit", month: "short", year: "numeric",
+    });
+  } catch { return str; }
+};
 
 export default function Sheet({ data }) {
-  // Procesar datos
-  const processedData = useMemo(() => {
-    if (!data || data.length === 0) return [];
+  const customerId = Cookies.get("customerId");
 
+  const rows = useMemo(() => {
+    if (!data?.length) return [];
     return data.map((item) => ({
-      createdAt: item.created_at?.value || "-",
-      code: item.code || "-",
+      createdAt:  item.created_at?.value || "-",
+      code:       item.code        || "-",
       clientName: item.client_name || item.email || "-",
-      status: item.status || "-",
-      itemsCount: item.items_count ?? 0,
-      itemsValue: item.items_value ?? 0,
-      opensCount: item.opens_count ?? 0,
+      status:     item.status      || "-",
+      itemsCount: item.items_count  ?? 0,
+      itemsValue: item.items_value  ?? 0,
+      opensCount: item.opens_count  ?? 0,
     }));
   }, [data]);
 
@@ -27,76 +45,92 @@ export default function Sheet({ data }) {
     return `https://wa.me/?text=${message}`;
   }
 
-  const customerId = Cookies.get("customerId");
-  return (
-    <div className="w-full max-w-6xl mx-auto flex flex-col gap-8">
-      <h2 className="text-xl font-bold text-center text-[#1b3f7a]">
-        Carritos Generados
-      </h2>
+  if (!rows.length) return (
+    <div className="flex flex-col items-center gap-2 py-16 text-gray-300">
+      <Package size={32} strokeWidth={1.5} />
+      <p className="text-sm text-gray-400">No hay carritos disponibles</p>
+    </div>
+  );
 
-      <div className="overflow-x-auto">
-        <table className="min-w-full bg-[#f0f8ff] shadow-md rounded-lg text-xs">
-          <thead className="bg-[#1b3f7a] text-white">
-            <tr>
-              <th className="py-2 px-4 border-r border-gray-200">Fecha</th>
-              <th className="py-2 px-4 border-r border-gray-200">Código</th>
-              <th className="py-2 px-4 border-r border-gray-200">Cliente</th>
-              <th className="py-2 px-4 border-r border-gray-200">Status</th>
-              <th className="py-2 px-4 border-r border-gray-200"># Items</th>
-              <th className="py-2 px-4 border-r border-gray-200">Valor</th>
-              <th className="py-2 px-4"># Aperturas</th>
-              <th className="py-2 px-4">Compartir</th>
-            </tr>
-          </thead>
-          <tbody>
-            {processedData.length > 0 ? (
-              processedData.map((row, idx) => (
-                <tr
-                  key={idx}
-                  className="text-center border-b hover:bg-[#e6f2ff] transition"
-                >
-                  <td className="py-2 px-4 border-r border-gray-100">
-                    {row.createdAt}
-                  </td>
-                  <td className="py-2 px-4 border-r border-gray-100 font-mono">
-                    {row.code}
-                  </td>
-                  <td className="py-2 px-4 border-r border-gray-100 truncate max-w-[200px]">
-                    {row.clientName}
-                  </td>
-                  <td className="py-2 px-4 border-r border-gray-100">
-                    {row.status}
-                  </td>
-                  <td className="py-2 px-4 border-r border-gray-100">
-                    {row.itemsCount}
-                  </td>
-                  <td className="py-2 px-4 border-r border-gray-100">
-                    ${row.itemsValue?.toFixed?.(2) ?? "-"}
-                  </td>
-                  <td className="py-2 px-4">{row.opensCount}</td>
-                  <td className="py-1 px-4">  <button
-    key={row.code}
-    onClick={() => window.open(getWhatsAppLink(row.code), "_blank")}
-    className="flex items-center m-0 px-4 py-1 rounded-2xl bg-teal-500 text-white font-medium shadow-md transition-colors hover:bg-teal-600"
-  >
-    <FaShareAlt className="text-lg" />
-    Compartir
-  </button></td>
-                </tr>
-              ))
-            ) : (
-              <tr>
-                <td
-                  colSpan={7}
-                  className="py-4 text-center text-gray-500 italic"
-                >
-                  No hay carritos disponibles
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+  return (
+    <div className="flex flex-col divide-y divide-gray-50">
+
+      {/* ── Header de columnas ── */}
+      <div className="grid grid-cols-12 gap-2 px-6 py-3 text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400">
+        <div className="col-span-2">Fecha</div>
+        <div className="col-span-2">Código</div>
+        <div className="col-span-3">Cliente</div>
+        <div className="col-span-1 text-center">Status</div>
+        <div className="col-span-1 text-center">Items</div>
+        <div className="col-span-1 text-center">Valor</div>
+        <div className="col-span-1 text-center">
+          <Eye size={12} className="inline" />
+        </div>
+        <div className="col-span-1 text-center">WA</div>
       </div>
+
+      {/* ── Filas ── */}
+      {rows.map((row, idx) => {
+        const st = statusStyle[row.status?.toLowerCase()] || "bg-gray-50 text-gray-500 border-gray-200";
+
+        return (
+          <div
+            key={idx}
+            className="grid grid-cols-12 gap-2 px-6 py-3.5 items-center hover:bg-gray-50/60 transition text-sm"
+          >
+            {/* Fecha */}
+            <div className="col-span-2 text-xs text-gray-400">
+              {formatDate(row.createdAt)}
+            </div>
+
+            {/* Código */}
+            <div className="col-span-2 font-mono text-xs text-gray-500 truncate">
+              {row.code}
+            </div>
+
+            {/* Cliente */}
+            <div className="col-span-3 text-xs text-gray-700 truncate font-medium">
+              {row.clientName}
+            </div>
+
+            {/* Status */}
+            <div className="col-span-1 flex justify-center">
+              <span className={`text-[0.65rem] font-semibold px-2 py-0.5 rounded-full border ${st}`}>
+                {row.status}
+              </span>
+            </div>
+
+            {/* Items */}
+            <div className="col-span-1 text-center text-xs text-gray-500">
+              {row.itemsCount}
+            </div>
+
+            {/* Valor */}
+            <div className="col-span-1 text-center text-xs font-semibold text-[#1b3f7a]">
+              {formatCurrency(row.itemsValue)}
+            </div>
+
+            {/* Aperturas */}
+            <div className="col-span-1 text-center text-xs text-gray-400 flex items-center justify-center gap-1">
+              <Eye size={11} />
+              {row.opensCount}
+            </div>
+
+            {/* Compartir */}
+            <div className="col-span-1 flex justify-center">
+              <button
+                onClick={() => window.open(getWhatsAppLink(row.code), "_blank")}
+                className="w-7 h-7 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition"
+                title="Compartir por WhatsApp"
+              >
+                <FaWhatsapp size={12} />
+              </button>
+            </div>
+
+          </div>
+        );
+      })}
+
     </div>
   );
 }

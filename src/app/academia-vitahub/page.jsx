@@ -1,197 +1,144 @@
 "use client";
 import Banner from "../components/Banner";
+import { PlayCircle } from "lucide-react";
+
+const CLASES = [
+  {
+    titulo: "Dra. Noelia Correa Pampillon — Suplementación inteligente desde el abordaje PINE",
+    embedId: "FFsgaoN_Yz8",
+    intro: "Una base clínica sólida para indicar suplementación de forma racional, personalizada y sistémica, evitando la polisuplementación y el enfoque simplista de síntoma = suplemento.",
+    puntos: [
+      "Qué significa hoy la suplementación ortomolecular (más allá del concepto original de Linus Pauling).",
+      "Cómo integrar el modelo PINE (psico-neuro-inmuno-endocrino) en la toma de decisiones.",
+      "Diferencias entre suplementación correctiva, preventiva y moduladora de procesos.",
+      "Rol central de la mitocondria, inflamación crónica de bajo grado y estrés oxidativo.",
+      "Importancia del eje intestino-cerebro, microbiota y capacidad absortiva antes de suplementar.",
+      "Regulación neuroendocrina, ritmos circadianos, cortisol/melatonina y carga psicoemocional.",
+      "Uso de biomarcadores funcionales por tendencias y contexto metabólico (no solo rango normal).",
+      "Errores frecuentes: sobredosis, interacciones, cronificación de suplementos y falta de reevaluación.",
+    ],
+    cierre: "El foco final: usar el suplemento como puente adaptativo para facilitar la autorregulación del organismo, no como intervención aislada ni permanente.",
+  },
+  {
+    titulo: "Capacitación Blife — Formulación, combinaciones y protocolos de suplementación",
+    embedId: "HW1yPbM4vBc",
+    intro: "Accedés a una capacitación profunda sobre suplementación funcional aplicada. Eduardo Ortega (My Live Live) recorre los principales suplementos y sus aplicaciones específicas.",
+    puntos: [
+      "Magnesio y sus formas: aplicaciones en sueño, estrés, músculo y tránsito intestinal.",
+      "Omega 3, Krill y grasas funcionales: absorción, inflamación y salud cardiovascular.",
+      "Soporte hormonal: femenino (Myo + D-Chiro Inositol) y masculino (Mens Platinum).",
+      "Antioxidantes avanzados: Resveratrol, glutatión, astaxantina.",
+      "Probióticos y salud intestinal con tecnología de liberación controlada.",
+      "Vitaminas liposolubles (D3 + K2): rol en huesos, sistema inmune y energía.",
+    ],
+    cierre: "Módulo pensado para profesionales que quieren ordenar, profesionalizar y escalar su forma de recomendar suplementos dentro del ecosistema Vitahub.",
+  },
+  {
+    titulo: "Biodisponibilidad de Suplementos — Formación WOHL / Vidalabs",
+    embedId: "MgH1_DmxGvE",
+    intro: "Oscar Castañeda (Grupo Celeos – Vidalabs / WOHL) desarrolla una mirada integral sobre por qué la biodisponibilidad define si un suplemento funciona o no.",
+    puntos: [
+      "Diferencias reales entre formas de magnesio, rol de la microbiota en la absorción, y ejemplos con cúrcuma, curcumina y tetrahidrocurcumina.",
+      "Uso de ingredientes patentados y bases grasas para mejorar absorción, analizando calidad, precio y efectividad.",
+      "Productos de Vidalabs disponibles en Vitahub, con foco en alta concentración, alta absorción y uso clínico.",
+    ],
+    cierre: "Contenido para profesionales que buscan salir del suplemento genérico, fortalecer su criterio clínico y ofrecer recomendaciones realmente efectivas.",
+  },
+  {
+    titulo: "Bhavani — Suplementos Naturales para tu Bienestar",
+    embedId: "3G90B0J00Uw",
+    intro: "Fórmulas seguras con ingredientes de origen natural y respaldo científico para mantener energía, concentración y equilibrio diario.",
+    puntos: [
+      "Bienestar integral: equilibrio físico y emocional.",
+      "Apoyo en la menopausia: reduce sofocos y cambios de ánimo.",
+      "Concentración y energía: combate la fatiga y mejora la atención.",
+      "Ingredientes naturales: fórmulas seguras y responsables.",
+    ],
+    cierre: "Recomendamos siempre usar los suplementos bajo supervisión de un profesional de la salud, especialmente en embarazo, lactancia o enfermedades autoinmunes.",
+  },
+  {
+    titulo: "Cellx — Salud celular y longevidad",
+    embedId: "fJhSET3Mxvw",
+    intro: "Suplementos nutracéuticos clínicamente desarrollados para optimizar la salud celular. Sus fórmulas actúan sobre la mitocondria, la epigenética y los mecanismos de reparación celular.",
+    puntos: [
+      "Salud celular integral: mitocondrias, epigenética y reparación con enfoque clínico.",
+      "Prevención de enfermedades crónicas: aplicaciones en diabetes, cardiovasculares, SOP y cáncer.",
+      "Formulación avanzada: tecnologías como delivery liposomal y cofactores que mejoran biodisponibilidad.",
+      "Uso profesional: diseñados para acompañar protocolos médicos y optimizar la calidad de vida del paciente.",
+    ],
+    cierre: "Se subrayó la importancia de la prescripción responsable y la integración del producto dentro de planes clínicos personalizados.",
+  },
+];
 
 export default function AcademiaVitahubPage() {
   return (
-  
+    <div className="min-h-screen bg-white text-gray-900">
+      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=Xnnq8yGFoOs" />
 
-      <main className="flex flex-col items-center gap-6 p-4">
+      {/* ── Título ── */}
+      <div className="w-full border-b border-gray-100 px-6">
+        <div className="max-w-[960px] mx-auto py-6">
+          <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
+            Academia Vitahub
+          </h1>
+          <p className="text-sm text-gray-400 font-medium">
+            Capacitaciones exclusivas para profesionales y afiliados
+          </p>
+        </div>
+      </div>
 
-<Banner youtubeVideoUrl="https://www.youtube.com/watch?v=Xnnq8yGFoOs" />
-<div className="w-full bg-gradient-to-r from-[#1b3f7a] to-[#2a5298] rounded-lg p-4 mb-6">
-  <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
-  Academia Vitahub
-  </h1>
-</div>
-  <section className="mb-16">
+      {/* ── Clases ── */}
+      <div className="max-w-[960px] mx-auto px-6 py-7 flex flex-col gap-6">
+        {CLASES.map((clase, i) => (
+          <div key={i} className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
 
-<h2 className="text-xl md:text-2xl text-[#1b3f7a] mb-6 font-lato">
-Dra. Noelia Correa Pampillon - Suplementación inteligente desde el abordaje Pine
-</h2>
-<div className="aspect-w-16 aspect-h-9">
-  <iframe 
-    src="https://www.youtube.com/embed/FFsgaoN_Yz8"
+            {/* Header de clase */}
+            <div className="flex items-start gap-3 px-6 pt-5 pb-4 border-b border-gray-50">
+              <div className="w-8 h-8 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 text-[#1b3f7a] mt-0.5">
+                <PlayCircle size={16} />
+              </div>
+              <h2 className="text-base font-bold text-[#1b3f7a] leading-snug">{clase.titulo}</h2>
+            </div>
 
-    title="Vitahub PRO | Fundamentos de la suplementación ortomolecular desde la Medicina Funcional Integrativa"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-    className="w-full h-64 md:h-96 rounded-lg shadow-md"
-  ></iframe>
-</div>
-<div className="mt-6 max-w-3xl mx-auto text-left px-4 pt-5">
-  <p className="text-gray-600 mb-4">
-    En esta capacitación para afiliados y profesionales de Vitahub PRO, se desarrolla una base clínica sólida para 
-    indicar suplementación de forma racional, personalizada 
-    y sistémica, evitando la polisuplementación y el enfoque simplista de “síntoma = suplemento”.
-  </p>
-  <ul className="text-gray-600 list-disc list-inside mb-4 space-y-1">
-    <li>Qué significa hoy la suplementación ortomolecular (más allá del concepto original de Linus Pauling).</li>
-    <li>Cómo integrar el modelo PINE (psico-neuro-inmuno-endocrino) en la toma de decisiones</li>
-    <li>Diferencias entre suplementación correctiva, preventiva y moduladora de procesos.</li>
-    <li>Rol central de la mitocondria, inflamación crónica de bajo grado y estrés oxidativo.</li>
-    <li>Importancia del eje intestino-cerebro, microbiota y capacidad absortiva antes de suplementar.</li>
-    <li>Regulación neuroendocrina, ritmos circadianos, cortisol/melatonina y carga psicoemocional.</li>
-      <li>Uso de biomarcadores funcionales por tendencias y contexto metabólico (no solo “rango normal”)</li>
-      <li>Errores frecuentes: sobredosis, interacciones, cronificación de suplementos y falta de reevaluación</li>
+            {/* Video */}
+            <div className="px-6 pt-5">
+              <div className="w-full rounded-xl overflow-hidden aspect-video bg-gray-100">
+                <iframe
+                  src={`https://www.youtube.com/embed/${clase.embedId}`}
+                  title={clase.titulo}
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  className="w-full h-full"
+                />
+              </div>
+            </div>
 
-  </ul>
-  <p className="text-gray-600 mb-4">
-   Además, se analiza un caso clínico real (“Paciente Mariana”) para mostrar cómo construir una estrategia de suplementación inteligente: mínima dosis efectiva, tiempo definido, reevaluación periódica e integración con hábitos (alimentación, sueño, estrés y actividad física).</p>
-  <p className="text-gray-500 italic text-sm">
-    El foco final: usar el suplemento como puente adaptativo para facilitar la autorregulación del organismo, no como intervención aislada ni permanente.
-  </p>
-</div>
+            {/* Contenido */}
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <p className="text-sm text-gray-600 leading-relaxed">{clase.intro}</p>
 
-</section> 
-  <section className="mb-16">
+              <div>
+                <p className="text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400 mb-2">
+                  Contenidos
+                </p>
+                <ul className="flex flex-col gap-1.5">
+                  {clase.puntos.map((punto, j) => (
+                    <li key={j} className="flex items-start gap-2 text-sm text-gray-600">
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#1b3f7a] shrink-0 mt-2 opacity-50" />
+                      <span dangerouslySetInnerHTML={{ __html: punto }} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
 
-<h2 className="text-xl md:text-2xl text-[#1b3f7a] mb-6 font-lato">
-Capacitación Blife – Formulación, combinaciones y protocolos de suplementación
-</h2>
-<div className="aspect-w-16 aspect-h-9">
-  <iframe 
-    src="https://www.youtube.com/embed/HW1yPbM4vBc"
+              <p className="text-xs text-gray-400 italic border-t border-gray-50 pt-3">
+                {clase.cierre}
+              </p>
+            </div>
 
-    title="Capacitación Blife – Formulación, combinaciones y protocolos de suplementación"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-    className="w-full h-64 md:h-96 rounded-lg shadow-md"
-  ></iframe>
-</div>
-<div className="mt-6 max-w-3xl mx-auto text-left px-4 pt-5">
-  <p className="text-gray-600 mb-4">
-    En esta clase de Vitahub PRO, accedés a una capacitación profunda sobre suplementación funcional aplicada, enfocada en entender qué suplementar, por qué y cómo combinar según distintos objetivos clínicos y de bienestar.
-    Eduardo Ortega (My Live Live) recorre los principales suplementos y sus aplicaciones específicas.
-  </p>
-  <ul className="text-gray-600 list-disc list-inside mb-4 space-y-1">
-    <li><strong>Magnesio y sus formas: </strong> Aplicaciones en sueño, estrés, músculo y tránsito intestinal.</li>
-    <li><strong>Omega 3, Krill y grasas funcionales: </strong> Absorción, inflamación y salud cardiovascular.</li>
-    <li><strong>Soporte hormonal: </strong> Femenino (Myo + D-Chiro Inositol) y masculino (Mens Platinum).</li>
-    <li><strong>Antioxidantes avanzados: </strong> Resveratrol, glutatión, astaxantina.</li>
-    <li><strong>Probióticos y salud intestinal: </strong> Con tecnología de liberación controlada.</li>
-    <li><strong>Vitaminas liposolubles (D3 + K2): </strong> Rol en huesos, sistema inmune y energía.</li>
-  </ul>
-  <p className="text-gray-600 mb-4">
-    La clase incluye comparativa real de formulaciones y gramajes, combinaciones recomendadas según objetivo, casos prácticos y aclaraciones clínicas (Q&A), con un enfoque en criterio profesional y prescripción responsable.
-  </p>
-  <p className="text-gray-500 italic text-sm">
-    Al cierre, se presenta la herramienta de Planes Personalizados Vitahub PRO, diseñada para que los profesionales puedan crear protocolos propios, darles visibilidad en la plataforma y mantener el vínculo humano en la suplementación. Este módulo está pensado para profesionales que quieren ordenar, profesionalizar y escalar su forma de recomendar suplementos dentro del ecosistema Vitahub.
-  </p>
-</div>
-
-</section> 
-<section className="mb-16">
-
-<h2 className="text-xl md:text-2xl text-[#1b3f7a] mb-6 font-lato">
-Biodisponibilidad de Suplementos – Formación WOHL / Vidalabs
-</h2>
-<div className="aspect-w-16 aspect-h-9">
-  <iframe 
-    src="https://www.youtube.com/embed/MgH1_DmxGvE"
-
-    title="Biodisponibilidad de Suplementos – Formación WOHL / Vidalabs"
-    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-    allowFullScreen
-    className="w-full h-64 md:h-96 rounded-lg shadow-md"
-  ></iframe>
-</div>
-<div className="mt-6 max-w-3xl mx-auto text-left px-4 pt-5">
-  <p className="text-gray-600 mb-4">
-    En este módulo de Vitahub PRO, accedés a una formación clave para elevar tu criterio profesional: entender por qué la biodisponibilidad define si un suplemento funciona o no. Oscar Castañeda (Grupo Celeos – Vidalabs / WOHL) desarrolla una mirada integral sobre la evolución del cuerpo humano versus el estilo de vida moderno, la alimentación actual, la pérdida de nutrientes y la absorción real, cuándo y por qué suplementar, y la importancia de la formulación, dosis correcta y forma química.
-  </p>
-  <ul className="text-gray-600 list-disc list-inside mb-4 space-y-1">
-    <li><strong>Capacitación en profundidad: </strong> Diferencias reales entre formas de magnesio, rol de la microbiota en la absorción, y ejemplos prácticos como la cúrcuma, curcumina y tetrahidrocurcumina.</li>
-    <li><strong>Calidad y efectividad: </strong> Uso de ingredientes patentados y bases grasas para mejorar absorción, analizando la relación entre calidad, precio y efectividad.</li>
-    <li><strong>Productos estratégicos: </strong> Se presentan productos de Vidalabs disponibles en Vitahub, con foco en alta concentración, alta absorción, uso clínico y cotidiano, y facilidad de adherencia para el paciente.</li>
-  </ul>
-  <p className="text-gray-600 mb-4">
-    También se presentan las herramientas de Vitahub PRO: órdenes prescritas, carritos compartidos, “Mi Tienda” profesional, Academia Vitahub y el próximo lanzamiento de Planes de Suplementación Personalizados.
-  </p>
-  <p className="text-gray-500 italic text-sm">
-    Este contenido está diseñado para profesionales que buscan salir del suplemento genérico, fortalecer su criterio clínico y ofrecer recomendaciones realmente efectivas y responsables.
-  </p>
-</div>
-
-</section> 
-
-  <section className="mb-16">
-
-    <h2 className="text-xl md:text-2xl text-[#1b3f7a] mb-6 font-lato">
-    Bhavani: Suplementos Naturales para tu Bienestar
-  </h2>
-    <div className="aspect-w-16 aspect-h-9">
-      <iframe 
-        src="https://www.youtube.com/embed/3G90B0J00Uw"
-        title="Cómo registrarme y tener cuenta de Afiliado en Vitahub"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="w-full h-64 md:h-96 rounded-lg shadow-md"
-      ></iframe>
+          </div>
+        ))}
+      </div>
     </div>
-    <div className="mt-6 max-w-3xl mx-auto text-left px-4 pt-5">
-  <p className="text-gray-600 mb-4">
-    Descubre cómo nuestros suplementos naturales pueden ayudarte a mantener tu energía, concentración y equilibrio diario. Fórmulas seguras con ingredientes de origen natural y respaldo científico.
-  </p>
-  <ul className="text-gray-600 list-disc list-inside mb-4 space-y-1">
-    <li><strong>Bienestar integral:</strong> Equilibrio físico y emocional.</li>
-    <li><strong>Apoyo en la menopausia:</strong> Reduce sofocos y cambios de ánimo.</li>
-    <li><strong>Concentración y energía:</strong> Combate la fatiga y mejora la atención.</li>
-    <li><strong>Ingredientes naturales:</strong> Fórmulas seguras y responsables.</li>
-  </ul>
-  <p className="text-gray-500 italic text-sm">
-    Recomendamos siempre usar los suplementos bajo supervisión de un profesional de la salud, especialmente en embarazo, lactancia o enfermedades autoinmunes.
-  </p>
-</div>
-
-  </section> 
-  <section className="mb-16">
-
-    <h2 className="text-xl md:text-2xl text-[#1b3f7a] mb-6 font-lato">
-    Cellx
-  </h2>
-    <div className="aspect-w-16 aspect-h-9">
-      <iframe 
-        src="https://www.youtube.com/embed/fJhSET3Mxvw"
-
-        title="Cómo registrarme y tener cuenta de Afiliado en Vitahub"
-        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-        allowFullScreen
-        className="w-full h-64 md:h-96 rounded-lg shadow-md"
-      ></iframe>
-    </div>
-    <div className="mt-6 max-w-3xl mx-auto text-left px-4 pt-5">
-  <p className="text-gray-600 mb-4">
-  Cellx es una línea de suplementos nutracéuticos clínicamente desarrollados para optimizar la salud celular y prevenir enfermedades crónicas.
-Durante la capacitación se presentó cómo sus fórmulas actúan sobre la mitocondria, la epigenética y los mecanismos de reparación celular, con el objetivo de mejorar la energía, el metabolismo y la longevidad. Se destacó su enfoque médico-científico, basado en evidencia y con dosis efectivas de ingredientes activos.
-
-  </p>
-  <ul className="text-gray-600 list-disc list-inside mb-4 space-y-1">
-    <li><strong>Salud celular integral: </strong> Cellx aborda los pilares del envejecimiento (mitocondrias, epigenética y reparación) con un enfoque clínico.
-</li>
-    <li><strong>Prevención de enfermedades crónicas:</strong> Se mostraron aplicaciones en diabetes, cardiovasculares, SOP y cáncer.
-</li>
-    <li><strong>Formulación avanzada:</strong> Uso de tecnologías como delivery liposomal y cofactores que mejoran biodisponibilidad.
-</li>
-    <li><strong>Uso profesional:</strong>  Suplementos diseñados para acompañar protocolos médicos y optimizar la calidad de vida del paciente.
-</li>
-  </ul>
-  <p className="text-gray-500 italic text-sm">
-  Hacia el cierre se subrayó la importancia de la prescripción responsable y la integración del producto dentro de planes clínicos personalizados.
-  </p>
-</div>
-
-  </section> 
-
-</main>
   );
 }

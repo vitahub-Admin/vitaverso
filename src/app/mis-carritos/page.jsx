@@ -3,131 +3,173 @@
 import { useEffect, useState, useMemo } from "react";
 import Cookies from "js-cookie";
 import Sheet from "./components/Sheet";
-import Banner from "../components/Banner"
+import Banner from "../components/Banner";
+import { ShoppingCart, Package, TrendingUp, SlidersHorizontal } from "lucide-react";
 
+function fmt(n) {
+  return Number(n).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
 
 export default function CarritosPage() {
-  const [error, setError] = useState("");
+  const [error, setError]           = useState("");
   const [ordenesData, setOrdenesData] = useState([]);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  const [startDate, setStartDate]   = useState("");
+  const [endDate, setEndDate]       = useState("");
+  const [loading, setLoading]       = useState(false);
 
-  // Setear fechas por defecto últimos 30 días
   useEffect(() => {
-    const today = new Date();
+    const today     = new Date();
     const priorDate = new Date();
     priorDate.setDate(today.getDate() - 30);
 
-    setStartDate(priorDate.toISOString().split("T")[0]);
-    setEndDate(today.toISOString().split("T")[0]);
+    const start = priorDate.toISOString().split("T")[0];
+    const end   = today.toISOString().split("T")[0];
+
+    setStartDate(start);
+    setEndDate(end);
+
+    const customerId = Cookies.get("customerId");
+    if (!customerId) { setError("No hay customerId disponible"); return; }
+    fetchData(customerId, start, end);
   }, []);
 
   const fetchData = (customerId, from, to) => {
+    setLoading(true);
     let url = `/api/google/carts/${customerId}`;
-    if (from && to) {
-      url += `?from=${from}&to=${to}`;
-    }
+    if (from && to) url += `?from=${from}&to=${to}`;
 
     fetch(url)
       .then((res) => res.json())
       .then((data) => {
-        if (!data.success) {
-          setError(data.message);
-          return;
-        }
+        if (!data.success) { setError(data.message); return; }
         setOrdenesData(data.data);
-        console.log(data.data)
       })
-      .catch((err) => setError(err.message));
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false));
   };
-
-  useEffect(() => {
-    const today = new Date();
-    const priorDate = new Date();
-    priorDate.setDate(today.getDate() - 30);
-  
-    const start = priorDate.toISOString().split("T")[0];
-    const end = today.toISOString().split("T")[0];
-  
-    setStartDate(start);
-    setEndDate(end);
-  
-    const customerId = Cookies.get("customerId");
-    if (!customerId) {
-      setError("No hay customerId disponible");
-      return;
-    }
-    fetchData(customerId, start, end);
-  }, []); // 👈 solo una vez al montar
 
   const handleFilter = () => {
     const customerId = Cookies.get("customerId");
- 
     if (!customerId) return;
-  fetchData(customerId, startDate, endDate);
+    fetchData(customerId, startDate, endDate);
   };
 
-  // Totales para cards
   const totals = useMemo(() => {
     let ganancia = 0;
-    let items = 0;
-    let carritos = 0;
-
+    let items    = 0;
     ordenesData.forEach((item) => {
       ganancia += item.line_items_price * item.comission * item.line_items_quantity;
-      items += item.line_items_quantity;
-      carritos += 1;
+      items    += item.line_items_quantity;
     });
-
-    return { ganancia, items, carritos };
+    return { ganancia, items, carritos: ordenesData.length };
   }, [ordenesData]);
 
   return (
-    <div className="flex flex-col items-center gap-6 p-4">
-      <Banner/>
-    {/* Header de sección con filtros */}
-<div className="w-full  bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
-  {/* Título */}
-  <h1 className="text-3xl md:text-4xl text-white font-lato">
-    Mis Carritos Compartidos
-  </h1>
+    <div className="min-h-screen bg-white text-gray-900">
 
-  {/* Filtros */}
-  <div className="flex gap-2 mt-2 md:mt-0 items-center">
-    <input
-      type="date"
-      value={startDate}
-      onChange={(e) => setStartDate(e.target.value)}
-      className="border p-2 rounded text-white border-white"
-    />
-    <span className="text-white">a</span>
-    <input
-      type="date"
-      value={endDate}
-      onChange={(e) => setEndDate(e.target.value)}
-      className="border p-2 rounded text-white border-white"
-    />
-    <button
-      onClick={handleFilter}
-      className="px-4 py-2 bg-white text-[#1b3f7a] rounded border border-gray-200 
-      hover:bg-[#f0f0f0] active:bg-[#d6d6d6] transition-colors"
- 
-    >
-      Filtrar
-    </button>
-  </div>
-</div>
+      <Banner />
 
-      {/* Charts */}
-   {/* Charts */}
+      {/* ── Título ── */}
+      <div className="w-full border-b border-gray-100 px-6">
+        <div className="max-w-[960px] mx-auto py-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          <div>
+            <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
+              Mis Carritos Compartidos
+            </h1>
+            <p className="text-sm text-gray-400 font-medium">
+              Carritos generados a partir de tus recomendaciones
+            </p>
+          </div>
 
-{ordenesData.length > 0 && (
- 
-  <div className="bg-white shadow-md rounded p-4">
-    <Sheet data={ordenesData} />
-  </div>
-)}
+          {/* Filtros */}
+          <div className="flex items-center gap-2">
+            <SlidersHorizontal size={14} className="text-gray-400 shrink-0" />
+            <input
+              type="date"
+              value={startDate}
+              onChange={(e) => setStartDate(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none focus:border-[#1b3f7a] transition"
+            />
+            <span className="text-gray-400 text-sm">a</span>
+            <input
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-700 outline-none focus:border-[#1b3f7a] transition"
+            />
+            <button
+              onClick={handleFilter}
+              disabled={loading}
+              className="px-4 py-2 bg-[#1b3f7a] text-white text-sm font-semibold rounded-lg hover:bg-[#163264] disabled:opacity-50 transition"
+            >
+              {loading ? "Cargando..." : "Filtrar"}
+            </button>
+          </div>
+        </div>
+      </div>
 
+      {/* ── Body ── */}
+      <div className="max-w-[960px] mx-auto px-6 py-7 flex flex-col gap-5">
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl">
+            {error}
+          </div>
+        )}
+
+        {/* ══ Cards de resumen ══ */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <StatCard icon={TrendingUp}   label="Ganancia estimada" value={`$${fmt(totals.ganancia)}`} color="emerald" />
+          <StatCard icon={Package}      label="Items en carritos"  value={totals.items}               color="blue"    />
+          <StatCard icon={ShoppingCart} label="Carritos"           value={totals.carritos}            color="amber"   />
+        </div>
+
+        {/* ══ Tabla ══ */}
+        {ordenesData.length > 0 ? (
+          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+            <Sheet data={ordenesData} />
+          </div>
+        ) : (
+          !loading && (
+            <div className="flex flex-col items-center gap-2 py-16 text-gray-300">
+              <ShoppingCart size={32} strokeWidth={1.5} />
+              <p className="text-sm text-gray-400">
+                No se encontraron carritos en el período seleccionado
+              </p>
+            </div>
+          )
+        )}
+
+      </div>
+    </div>
+  );
+}
+
+// ── StatCard (mismo que OrdenesPage) ───────────────────────
+const colorMap = {
+  emerald: { bg: "bg-emerald-50", text: "text-emerald-600" },
+  blue:    { bg: "bg-blue-50",    text: "text-[#1b3f7a]"   },
+  amber:   { bg: "bg-amber-50",   text: "text-amber-600"   },
+};
+
+function StatCard({ icon: Icon, label, value, color }) {
+  const c = colorMap[color];
+  return (
+    <div className="relative bg-white border border-gray-100 rounded-2xl p-6 shadow-sm overflow-hidden">
+      <div className="absolute -top-8 -right-8 w-32 h-32 rounded-full bg-gray-50 opacity-60 pointer-events-none" />
+      <div className="flex items-start gap-4">
+        <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center shrink-0 ${c.text}`}>
+          <Icon size={18} />
+        </div>
+        <div className="flex flex-col gap-0.5">
+          <p className="text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400">
+            {label}
+          </p>
+          <p className={`text-2xl font-extrabold tracking-tight ${c.text}`}>
+            {value}
+          </p>
+        </div>
+      </div>
     </div>
   );
 }

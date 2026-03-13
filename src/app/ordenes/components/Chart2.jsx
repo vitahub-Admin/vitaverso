@@ -1,25 +1,22 @@
+// "use client";
+//
+// import { useMemo } from "react";
+// import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip } from "recharts";
+
+
 "use client";
 
 import { useMemo } from "react";
 import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
+  ResponsiveContainer, BarChart, Bar,
+  XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
 
-// helper para truncar texto
 function truncateText(text, maxCharsPerLine = 15, maxLines = 2) {
   if (!text) return "";
   text = String(text);
-
   const words = text.split(/\s+/);
-  let lines = [];
-  let currentLine = "";
-
+  let lines = [], currentLine = "";
   for (let word of words) {
     if ((currentLine + " " + word).trim().length <= maxCharsPerLine) {
       currentLine = (currentLine + " " + word).trim();
@@ -29,44 +26,42 @@ function truncateText(text, maxCharsPerLine = 15, maxLines = 2) {
     }
     if (lines.length === maxLines) break;
   }
-
   if (currentLine && lines.length < maxLines) lines.push(currentLine);
-
-  if (words.join(" ").length > lines.join(" ").length) {
-    lines[lines.length - 1] += "...";
-  }
-
+  if (words.join(" ").length > lines.join(" ").length) lines[lines.length - 1] += "...";
   return lines.join("\n");
 }
 
-// renderer
 const CustomTick = ({ x, y, payload }) => {
   const truncated = truncateText(payload.value, 15, 2);
   return (
-    <text x={x} y={y} dy={4} textAnchor="end" fill="#333" fontSize={12}>
-      {truncated.split("\n").map((line, index) => (
-        <tspan key={index} x={x} dy={index === 0 ? 0 : 14}>
-          {line}
-        </tspan>
+    <text x={x} y={y} dy={4} textAnchor="end" fill="#9ca3af" fontSize={11}>
+      {truncated.split("\n").map((line, i) => (
+        <tspan key={i} x={x} dy={i === 0 ? 0 : 14}>{line}</tspan>
       ))}
     </text>
   );
 };
 
+function CustomTooltip({ active, payload, label }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="bg-white border border-gray-100 rounded-xl shadow-md px-4 py-3 text-sm">
+      <p className="text-gray-400 text-xs mb-1">{label}</p>
+      <p className="font-bold text-[#1b3f7a]">{payload[0].value} vendidos</p>
+    </div>
+  );
+}
+
 export default function Chart2({ data }) {
   const topProducts = useMemo(() => {
     const map = {};
-
     data.forEach((order) => {
       order.productos.forEach((p) => {
         const name = p.producto;
-        const quantity = p.cantidad || 0;
-
         if (!map[name]) map[name] = 0;
-        map[name] += quantity;
+        map[name] += p.cantidad || 0;
       });
     });
-
     return Object.entries(map)
       .map(([name, quantity]) => ({ name, quantity }))
       .sort((a, b) => b.quantity - a.quantity)
@@ -74,25 +69,38 @@ export default function Chart2({ data }) {
   }, [data]);
 
   return (
-    <div className="w-full h-80">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          layout="vertical"
-          data={topProducts}
-          margin={{ top: 20, right: 30, left: 20, bottom: 20 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis type="number" />
-          <YAxis
-            type="category"
-            dataKey="name"
-            width={250}
-            tick={<CustomTick />}
-          />
-          <Tooltip formatter={(value) => `${value} vendidos`} />
-          <Bar dataKey="quantity" fill="#1b3f7a" />
-        </BarChart>
-      </ResponsiveContainer>
+    <div className="flex flex-col gap-3">
+      <p className="text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400">
+        Top productos
+      </p>
+      <div className="w-full h-64">
+        <ResponsiveContainer width="100%" height="100%">
+          <BarChart
+            layout="vertical"
+            data={topProducts}
+            margin={{ top: 4, right: 8, left: 20, bottom: 0 }}
+          >
+            <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={false} />
+            <XAxis
+              type="number"
+              tick={{ fontSize: 11, fill: "#9ca3af" }}
+              tickLine={false}
+              axisLine={false}
+            />
+            <YAxis
+              type="category"
+              dataKey="name"
+              width={120}
+              tick={<CustomTick />}
+              tickLine={false}
+              axisLine={false}
+            />
+            <Tooltip content={<CustomTooltip />} />
+            <Bar dataKey="quantity" fill="#1b3f7a" radius={[0, 6, 6, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </div>
     </div>
   );
 }
+

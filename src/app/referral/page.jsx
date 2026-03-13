@@ -1,187 +1,149 @@
+// ═══════════════════════════════════════════════
+// CompartirReferralPage.jsx
+// ═══════════════════════════════════════════════
 "use client";
 
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import Banner from "../components/Banner";
+import { Link, Copy, Check, Users, Gift, TrendingUp, AlertCircle } from "lucide-react";
 
 export default function CompartirReferralPage() {
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [customerId, setCustomerId] = useState(null);
+  const [error,        setError]       = useState("");
+  const [loading,      setLoading]     = useState(true);
+  const [customerId,   setCustomerId]  = useState(null);
   const [referralLink, setReferralLink] = useState("");
-  const [copied, setCopied] = useState(false);
+  const [copied,       setCopied]      = useState(false);
 
   useEffect(() => {
-    const customerIdFromCookie = Cookies.get("customerId");
-    console.log('🔍 CustomerId from cookie:', customerIdFromCookie);
-    
-    if (!customerIdFromCookie) {
-      setError("No hay customerId disponible - necesitas estar logueado");
+    const id = Cookies.get("customerId");
+    if (!id) {
+      setError("No hay customerId disponible — necesitás estar logueado");
       setLoading(false);
       return;
     }
-    
-    const numericCustomerId = parseInt(customerIdFromCookie);
-    console.log('🔍 Numeric customerId:', numericCustomerId);
-    
-    setCustomerId(numericCustomerId);
-    
-    // Generar el link de referral
-    if (numericCustomerId) {
-      const baseUrl = window.location.origin;
-      const registerUrl = `https://vitahub.mx/pages/registro-afiliados?sourceRef=${numericCustomerId}`;
-      setReferralLink(registerUrl);
-    }
-    
+    const numericId = parseInt(id);
+    setCustomerId(numericId);
+    setReferralLink(`https://vitahub.mx/pages/registro-afiliados?sourceRef=${numericId}`);
     setLoading(false);
   }, []);
 
   const copyToClipboard = async () => {
     try {
       await navigator.clipboard.writeText(referralLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Error al copiar: ', err);
-      // Fallback
-      const textArea = document.createElement('textarea');
-      textArea.value = referralLink;
-      document.body.appendChild(textArea);
-      textArea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textArea);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      const ta = document.createElement("textarea");
+      ta.value = referralLink;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand("copy");
+      document.body.removeChild(ta);
     }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   };
 
-  const goToRegistration = () => {
-    if (referralLink) {
-      window.open(referralLink, '_blank');
-    }
-  };
-
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center gap-6 p-4">
-        <Banner/>
-        <div className="w-full bg-white shadow-md rounded-lg p-8 text-center">
-          <p className="text-gray-500">Cargando...</p>
-        </div>
-      </div>
-    );
-  }
+  const PASOS = [
+    { icon: Link,       title: "Compartí tu link único",        desc: "Enviá tu link personalizado a otros profesionales de la salud." },
+    { icon: Users,      title: "Se registran como afiliados",   desc: "Tus referidos completan el registro en el programa." },
+    { icon: TrendingUp, title: "Ganás comisiones",              desc: "Recibís $300 cuando tu referido realice su primera venta." },
+  ];
 
   return (
-    <div className="flex flex-col items-center gap-6 p-4">
-  
+    <div className="min-h-screen bg-white text-gray-900">
       <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=-qgYe5UelcE" />
 
-      {/* Header */}
-      <div className="w-full bg-[#1b3f7a] rounded-lg p-4 mb-6">
-        <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
-          Compartir Referral
-        </h1>
+      {/* ── Título ── */}
+      <div className="w-full border-b border-gray-100 px-6">
+        <div className="max-w-[960px] mx-auto py-6">
+          <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
+            Compartir Referral
+          </h1>
+          <p className="text-sm text-gray-400 font-medium">
+            Invitá colegas y ganá por cada nuevo afiliado
+          </p>
+        </div>
       </div>
 
-      {error && (
-        <div className="w-full bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded">
-          <strong>Error: </strong> {error}
-        </div>
-      )}
+      <div className="max-w-[960px] mx-auto px-6 py-7 flex flex-col gap-5">
 
-      {!customerId ? (
-        <div className="w-full bg-white shadow-md rounded-lg p-8 text-center">
-          <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-2xl">⚠️</span>
+        {loading && (
+          <div className="flex items-center justify-center py-16 gap-3 text-gray-400">
+            <div className="w-6 h-6 rounded-full border-[3px] border-gray-200 border-t-[#1b3f7a] animate-spin" />
+            <span className="text-sm">Cargando…</span>
           </div>
-          <h2 className="text-xl font-bold text-gray-800 mb-4">Acceso no autorizado</h2>
-          <p className="text-gray-600 mb-6">Necesitas estar logueado para generar tu link de referral.</p>
-          <button 
-            onClick={() => window.location.href = '/login'}
-            className="px-6 py-3 bg-[#1b3f7a] text-white rounded-lg hover:bg-[#2a5298] transition-colors font-medium"
-          >
-            Ir al Login
-          </button>
-        </div>
-      ) : (
-        <>
-          {/* Explicación del proceso */}
-          <div className="w-full bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-800 text-center">¿Cómo funciona el programa de referidos?</h2>
-            </div>
-            
-            <div className="p-6 space-y-6">
-              {[
-                {
-                  step: "1",
-                  title: "Comparte tu link único",
-                  description: "Envía tu link personalizado a otros profesionales de la salud"
-                },
-                {
-                  step: "2", 
-                  title: "Se registran como afiliados",
-                  description: "Tus referidos completan el registro en el programa"
-                },
-                {
-                  step: "3",
-                  title: "Ganas comisiones", 
-                  description: "Recibe una comision de $300 cuando  tu referido haga su primer venta"
-                }
-              ].map((item, idx) => (
-                <div key={idx} className="flex items-start gap-4">
-                  <div className="w-8 h-8 bg-[#1b3f7a] rounded-full flex items-center justify-center text-white font-semibold text-sm flex-shrink-0">
-                    {item.step}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-gray-800 mb-1">{item.title}</h3>
-                    <p className="text-gray-600 text-sm">{item.description}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
+        )}
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 text-sm px-4 py-3 rounded-xl flex items-center gap-2">
+            <AlertCircle size={15} className="shrink-0" />
+            {error}
           </div>
+        )}
 
-          {/* Tu Link de Referral */}
-          <div className="w-full bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
-            <div className="p-6 border-b border-gray-200 bg-gray-50">
-              <h2 className="text-xl font-semibold text-gray-800 text-center">Tu Link Personalizado</h2>
+        {!loading && !customerId && !error && (
+          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-10 flex flex-col items-center gap-4 text-center">
+            <div className="w-12 h-12 bg-red-50 rounded-2xl flex items-center justify-center text-red-400">
+              <AlertCircle size={22} />
             </div>
-            
-            <div className="p-6">
+            <h2 className="text-base font-bold text-gray-700">Acceso no autorizado</h2>
+            <p className="text-sm text-gray-400">Necesitás estar logueado para generar tu link de referral.</p>
+            <button
+              onClick={() => window.location.href = "/login"}
+              className="px-5 py-2.5 bg-[#1b3f7a] text-white rounded-xl text-sm font-semibold hover:bg-[#163264] transition"
+            >
+              Ir al Login
+            </button>
+          </div>
+        )}
 
-
-              {/* Link y botones */}
-              <div className="space-y-4">
-                <div className="flex flex-col sm:flex-row gap-4">
-                  <div className="flex-1">
-                    <input
-                      type="text"
-                      value={referralLink}
-                      readOnly
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg bg-gray-50 text-gray-700 focus:outline-none focus:ring-2 focus:ring-[#1b3f7a] font-mono text-sm"
-                      placeholder="Generando link..."
-                    />
+        {!loading && customerId && (
+          <>
+            {/* ══ Cómo funciona ══ */}
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
+              <p className="text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400 mb-4">
+                Cómo funciona
+              </p>
+              <div className="flex flex-col gap-4">
+                {PASOS.map((paso, i) => (
+                  <div key={i} className="flex items-start gap-4">
+                    <div className="w-9 h-9 rounded-xl bg-blue-50 text-[#1b3f7a] flex items-center justify-center shrink-0">
+                      <paso.icon size={16} />
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold text-gray-800 mb-0.5">{paso.title}</p>
+                      <p className="text-xs text-gray-500 leading-relaxed">{paso.desc}</p>
+                    </div>
                   </div>
-                  <button
-                    onClick={copyToClipboard}
-                    className={`px-6 py-3 rounded-lg font-medium whitespace-nowrap transition-colors ${
-                      copied 
-                        ? "bg-green-600 text-white" 
-                        : "bg-gray-600 text-white hover:bg-gray-700"
-                    }`}
-                  >
-                    {copied ? "✓ Copiado" : "Copiar Link"}
-                  </button>
-                </div>
-
+                ))}
               </div>
             </div>
-          </div>
 
-        </>
-      )}
+            {/* ══ Tu link ══ */}
+            <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6">
+              <p className="text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400 mb-3">
+                Tu link personalizado
+              </p>
+              <div className="flex gap-2">
+                <div className="flex-1 border border-gray-200 rounded-xl px-4 py-3 bg-gray-50 overflow-hidden">
+                  <code className="text-xs text-gray-600 truncate block">{referralLink}</code>
+                </div>
+                <button
+                  onClick={copyToClipboard}
+                  className={`shrink-0 flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-semibold transition ${
+                    copied
+                      ? "bg-emerald-50 text-emerald-600 border border-emerald-200"
+                      : "bg-[#1b3f7a] text-white hover:bg-[#163264]"
+                  }`}
+                >
+                  {copied ? <Check size={15} /> : <Copy size={15} />}
+                  {copied ? "Copiado" : "Copiar"}
+                </button>
+              </div>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
