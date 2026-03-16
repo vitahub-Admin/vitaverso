@@ -10,7 +10,7 @@ function shopifyCollectionUrl(id) {
   return `https://admin.shopify.com/store/${SHOPIFY_STORE_ID}/collections/${id}`;
 }
 function vitaPro(id) {
-  return `https://pro.vitahub.mx/ganancias?aId=${id}`;
+  return `https://pro.vitahub.mx/wallet?aId=${id}`;
 }
 
 export default function AffiliatesTable({ affiliates, meta, onEdit, onDelete }) {

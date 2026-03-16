@@ -6,8 +6,14 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 );
 
-export async function GET() {
-  try {
+async function getAllAffiliates() {
+  const PAGE_SIZE = 1000;
+  let allAffiliates = [];
+  let page = 0;
+
+  while (true) {
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
 
     const { data, error } = await supabase
       .from("affiliates")
@@ -31,15 +37,27 @@ export async function GET() {
         address,
         created_at
       `)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .range(from, to);
 
     if (error) throw error;
 
-    // convertir a CSV
-    const headers = Object.keys(data[0] || {});
-    const csvRows = [];
+    allAffiliates = [...allAffiliates, ...data];
 
-    csvRows.push(headers.join(","));
+    if (data.length < PAGE_SIZE) break;
+
+    page++;
+  }
+
+  return allAffiliates;
+}
+
+export async function GET() {
+  try {
+    const data = await getAllAffiliates();
+
+    const headers = Object.keys(data[0] || {});
+    const csvRows = [headers.join(",")];
 
     for (const row of data) {
       const values = headers.map((header) => {
@@ -57,10 +75,8 @@ export async function GET() {
         "Content-Disposition": "attachment; filename=affiliates.csv",
       },
     });
-
   } catch (error) {
     console.error("Export error:", error);
-
     return NextResponse.json(
       { success: false, error: "Error exportando afiliados" },
       { status: 500 }

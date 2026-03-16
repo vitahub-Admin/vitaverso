@@ -55,7 +55,7 @@ function AuthManager({ children }) {
           if (data.ok && data.customerId) {
             Cookies.set("customerId", data.customerId, { expires: 30 });
             setShowAuthModal(false);
-            window.history.replaceState({}, "", "/ganancias");
+            window.history.replaceState({}, "", "/wallet");
           } else {
             Cookies.remove("customerId");
             setShowAuthModal(true);

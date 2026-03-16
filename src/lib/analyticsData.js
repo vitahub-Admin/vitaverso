@@ -7,23 +7,39 @@ const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SECRET_KEY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
 
+async function getAllAffiliates() {
+  const PAGE_SIZE = 1000;
+  let allAffiliates = [];
+  let page = 0;
+
+  while (true) {
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
+    const { data, error } = await supabase
+      .from("affiliates")
+      .select("shopify_customer_id, first_name, last_name, email, active_store, id, created_at")
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (error) throw new Error(`Supabase error: ${error.message}`);
+
+    allAffiliates = [...allAffiliates, ...data];
+
+    if (data.length < PAGE_SIZE) break;
+
+    page++;
+  }
+
+  return allAffiliates;
+}
+
 export async function getCombinedAnalyticsData() {
   try {
     console.time("✅ Analytics data loaded");
 
     // 1️⃣ Obtener TODOS los afiliados de Supabase
-    const { data: allAffiliates, error: supabaseError } = await supabase
-      .from("affiliates")
-      .select(
-        "shopify_customer_id, first_name, last_name, email, active_store, id, created_at"
-      )
-      .order("created_at", { ascending: false });
-
-    if (supabaseError) {
-      console.error("❌ Error fetching affiliates:", supabaseError);
-      throw new Error(`Supabase error: ${supabaseError.message}`);
-    }
-
+    const allAffiliates = await getAllAffiliates();
     console.log(`📊 Total afiliados en Supabase: ${allAffiliates.length}`);
 
     // 2️⃣ Configurar BigQuery
@@ -35,11 +51,8 @@ export async function getCombinedAnalyticsData() {
       },
     });
 
-    // 3️⃣ Query unificada: SHARECARTS + ORDENES (todo en BigQuery)
+    // 3️⃣ Query unificada: SHARECARTS + ORDENES
     const query = `
-      /* =========================
-         SHARECARTS (BRONZE)
-      ========================== */
       WITH SHARECARTS AS (
         SELECT
           sh.owner_id AS specialist_id,
@@ -50,9 +63,6 @@ export async function getCombinedAnalyticsData() {
         GROUP BY sh.owner_id, year_month
       ),
 
-      /* =========================
-         ORDENES
-      ========================== */
       ORDENES AS (
         SELECT
           COALESCE(o.specialist_ref, o.referrer_id) AS specialist_id,
@@ -64,9 +74,6 @@ export async function getCombinedAnalyticsData() {
         GROUP BY specialist_id, year_month
       ),
 
-      /* =========================
-         COMBINAR
-      ========================== */
       COMBINED AS (
         SELECT
           COALESCE(s.specialist_id, o.specialist_id) AS specialist_id,
@@ -84,37 +91,23 @@ export async function getCombinedAnalyticsData() {
         SUM(sharecarts) AS total_sharecarts,
         SUM(orders) AS total_orders,
         ARRAY_AGG(
-          STRUCT(
-            year_month,
-            sharecarts,
-            orders
-          )
+          STRUCT(year_month, sharecarts, orders)
           ORDER BY year_month
         ) AS monthly
       FROM COMBINED
       GROUP BY specialist_id
     `;
 
-    const [bigQueryRows] = await bigquery.query({
-      query,
-      location: "us-east1",
-    });
-
-    console.log(
-      `📊 Afiliados con actividad en BigQuery: ${bigQueryRows.length}`
-    );
+    const [bigQueryRows] = await bigquery.query({ query, location: "us-east1" });
+    console.log(`📊 Afiliados con actividad en BigQuery: ${bigQueryRows.length}`);
 
     // 4️⃣ Crear mapa de actividad
     const activityMap = {};
 
     bigQueryRows.forEach((row) => {
       const monthlyObj = {};
-
       row.monthly.forEach((m) => {
-        monthlyObj[m.year_month] = {
-          sharecarts: m.sharecarts,
-          orders: m.orders,
-        };
+        monthlyObj[m.year_month] = { sharecarts: m.sharecarts, orders: m.orders };
       });
 
       activityMap[row.affiliate_shopify_customer_id] = {
@@ -127,52 +120,30 @@ export async function getCombinedAnalyticsData() {
     });
 
     // 5️⃣ Combinar con TODOS los afiliados
+    const NOW = Date.now();
+    const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
     const data = allAffiliates.map((affiliate) => {
       const shopifyId = affiliate.shopify_customer_id;
       const hasActivity = activityMap[shopifyId];
+      const isNew = affiliate.created_at && NOW - new Date(affiliate.created_at).getTime() <= SEVEN_DAYS_MS;
 
-      const NOW = Date.now();
-      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
-
-      const isNew =
-        affiliate.created_at &&
-        NOW - new Date(affiliate.created_at).getTime() <= SEVEN_DAYS_MS;
-
-      if (hasActivity) {
-        return {
-          id: affiliate.id,
-          affiliate_shopify_customer_id: shopifyId,
-          first_name: affiliate.first_name || "",
-          last_name: affiliate.last_name || "",
-          email: affiliate.email || "",
-          is_new: isNew,
-          totals: {
-            sharecarts: hasActivity.totals.sharecarts,
-            orders: hasActivity.totals.orders,
-          },
-          monthly: hasActivity.monthly,
-          activo_carrito: hasActivity.totals.sharecarts > 0,
-          vendio: hasActivity.totals.orders > 0,
-          activo_tienda: affiliate.active_store || false,
-        };
-      } else {
-        return {
-          id: affiliate.id,
-          affiliate_shopify_customer_id: shopifyId,
-          first_name: affiliate.first_name || "",
-          last_name: affiliate.last_name || "",
-          email: affiliate.email || "",
-          is_new: isNew,
-          totals: {
-            sharecarts: 0,
-            orders: 0,
-          },
-          monthly: {},
-          activo_carrito: false,
-          vendio: false,
-          activo_tienda: affiliate.active_store || false,
-        };
-      }
+      return {
+        id: affiliate.id,
+        affiliate_shopify_customer_id: shopifyId,
+        first_name: affiliate.first_name || "",
+        last_name: affiliate.last_name || "",
+        email: affiliate.email || "",
+        is_new: isNew,
+        totals: {
+          sharecarts: hasActivity?.totals.sharecarts ?? 0,
+          orders: hasActivity?.totals.orders ?? 0,
+        },
+        monthly: hasActivity?.monthly ?? {},
+        activo_carrito: (hasActivity?.totals.sharecarts ?? 0) > 0,
+        vendio: (hasActivity?.totals.orders ?? 0) > 0,
+        activo_tienda: affiliate.active_store || false,
+      };
     });
 
     // 6️⃣ Estadísticas globales
@@ -180,19 +151,9 @@ export async function getCombinedAnalyticsData() {
       total_afiliados: data.length,
       con_sharecarts: data.filter((row) => row.totals.sharecarts > 0).length,
       con_ordenes: data.filter((row) => row.totals.orders > 0).length,
-      total_sharecarts: data.reduce(
-        (sum, row) => sum + row.totals.sharecarts,
-        0
-      ),
+      total_sharecarts: data.reduce((sum, row) => sum + row.totals.sharecarts, 0),
       total_ordenes: data.reduce((sum, row) => sum + row.totals.orders, 0),
     };
-
-    console.log("📊 Estadísticas combinadas:");
-    console.log(`   - Afiliados totales: ${stats.total_afiliados}`);
-    console.log(`   - Con sharecarts: ${stats.con_sharecarts}`);
-    console.log(`   - Con órdenes: ${stats.con_ordenes}`);
-    console.log(`   - Total sharecarts: ${stats.total_sharecarts}`);
-    console.log(`   - Total órdenes: ${stats.total_ordenes}`);
 
     console.timeEnd("✅ Analytics data loaded");
 
