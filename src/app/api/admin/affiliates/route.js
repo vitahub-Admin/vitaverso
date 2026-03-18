@@ -67,7 +67,8 @@ const isSearchMode =
         shopify_customer_id,
         referral_id,
         created_at,
-        clabe_interbancaria
+        clabe_interbancaria,
+        vambe_contact_id
       `
       : "*";
 

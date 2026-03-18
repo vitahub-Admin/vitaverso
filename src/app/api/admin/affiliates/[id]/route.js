@@ -1,13 +1,14 @@
+// src/app/api/admin/affiliates/[id]/route.js
+
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { upsertAffiliate } from "@/services/vambeService"; // ← importás el servicio
 
-// 🔐 SUPABASE ADMIN CLIENT
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 );
 
-// Campos permitidos para update (admin)
 const ALLOWED_UPDATE_FIELDS = [
   'first_name',
   'last_name',
@@ -19,7 +20,6 @@ const ALLOWED_UPDATE_FIELDS = [
   'clabe_interbancaria'
 ];
 
-// Helper ID
 function parseId(id) {
   const num = Number(id);
   return isNaN(num) ? id : num;
@@ -106,6 +106,11 @@ export async function PUT(req, { params }) {
 
     if (error) throw error;
 
+    // ← Sincronizar con Vambe (fire-and-forget, no bloquea la respuesta)
+    upsertAffiliate(data, supabase).catch(err =>
+      console.error('[Vambe] Error en upsert tras PUT:', err.message)
+    );
+
     return NextResponse.json({
       success: true,
       data,
@@ -158,6 +163,11 @@ export async function PATCH(req, { params }) {
     }
 
     if (error) throw error;
+
+    // ← Sincronizar con Vambe (fire-and-forget)
+    upsertAffiliate(data, supabase).catch(err =>
+      console.error('[Vambe] Error en upsert tras PATCH:', err.message)
+    );
 
     return NextResponse.json({
       success: true,

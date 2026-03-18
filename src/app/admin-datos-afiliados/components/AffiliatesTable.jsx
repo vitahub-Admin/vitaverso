@@ -1,6 +1,8 @@
 // components/AffiliatesTable.jsx
 'use client';
+
 const SHOPIFY_STORE_ID = '7798ab-86';
+const VAMBE_PIPELINE_ID = 'e62197d9-4933-4ad9-87d2-64fe03166ef5';
 
 function shopifyCustomerUrl(id) {
   return `https://admin.shopify.com/store/${SHOPIFY_STORE_ID}/customers/${id}`;
@@ -9,8 +11,14 @@ function shopifyCustomerUrl(id) {
 function shopifyCollectionUrl(id) {
   return `https://admin.shopify.com/store/${SHOPIFY_STORE_ID}/collections/${id}`;
 }
+
 function vitaPro(id) {
   return `https://pro.vitahub.mx/wallet?aId=${id}`;
+}
+
+function getVambeUrl(vambeContactId) {
+  if (!vambeContactId) return null;
+  return `https://app.vambeai.com/pipeline?id=${VAMBE_PIPELINE_ID}&chatContactId=${vambeContactId}`;
 }
 
 export default function AffiliatesTable({ affiliates, meta, onEdit, onDelete }) {
@@ -23,6 +31,7 @@ export default function AffiliatesTable({ affiliates, meta, onEdit, onDelete }) 
             <th className="py-3 px-4 text-left">CLABE</th>
             <th className="py-3 px-4 text-left">Shopify</th>
             <th className="py-3 px-4 text-left">Link ProVitahub</th>
+            <th className="py-3 px-4 text-left">Vambe</th>
             <th className="py-3 px-2 text-left">Estado</th>
             <th className="py-3 px-4 text-right">Acciones</th>
           </tr>
@@ -59,7 +68,6 @@ export default function AffiliatesTable({ affiliates, meta, onEdit, onDelete }) 
                     👤 Cliente #{affiliate.shopify_customer_id}
                   </a>
                 )}
-
                 {affiliate.shopify_collection_id && (
                   <a
                     href={shopifyCollectionUrl(affiliate.shopify_collection_id)}
@@ -71,20 +79,34 @@ export default function AffiliatesTable({ affiliates, meta, onEdit, onDelete }) 
                   </a>
                 )}
               </td>
+
+              {/* Link ProVitahub */}
               <td className="py-3 px-4 text-sm space-y-1">
                 {affiliate.shopify_customer_id && (
-                  <p
-                  className="block text-blue-600 hover:underline" >
+                  <p className="block text-blue-600 hover:underline">
                     {vitaPro(affiliate.shopify_customer_id)}
                   </p>
                 )}
-
                 {affiliate.shopify_collection_id && (
-                  <p
-                    className="block text-gray-600 hover:underline"
-                  >
+                  <p className="block text-gray-600">
                     Usa el link y accede en modo incognito
                   </p>
+                )}
+              </td>
+
+              {/* Vambe */}
+              <td className="py-3 px-4 text-sm">
+                {affiliate.vambe_contact_id ? (
+                  <a
+                    href={getVambeUrl(affiliate.vambe_contact_id)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-purple-600 hover:underline"
+                  >
+                    💬 Ver chat
+                  </a>
+                ) : (
+                  <span className="text-gray-400 text-xs">Sin sincronizar</span>
                 )}
               </td>
 
@@ -116,6 +138,7 @@ export default function AffiliatesTable({ affiliates, meta, onEdit, onDelete }) 
                   {affiliate.status === 'active' ? 'Desactivar' : 'Activar'}
                 </button>
               </td>
+
             </tr>
           ))}
         </tbody>
