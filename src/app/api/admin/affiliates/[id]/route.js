@@ -2,7 +2,7 @@
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { upsertAffiliate } from "@/services/vambeService"; // ← importás el servicio
+import { upsertAffiliate } from "@/app/services/vambeService"; // ← importás el servicio
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
