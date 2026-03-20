@@ -9,5 +9,5 @@
 
 
   export default function Page() {
-      redirect("/ganancias"); // Cambiá la ruta destino aquí
+      redirect("/wallet"); // Cambiá la ruta destino aquí
   }

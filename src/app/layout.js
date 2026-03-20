@@ -106,7 +106,7 @@ function AuthManager({ children }) {
         setPendingBackdoorId(null);
         setBackdoorPassword("");
 
-        window.history.replaceState({}, "", "/ganancias");
+        window.history.replaceState({}, "", "/wallet");
         setShowAuthModal(false);
       } else {
         setBackdoorError("Password incorrecta");

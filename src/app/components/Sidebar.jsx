@@ -9,6 +9,7 @@ import {
   DollarSign, ShoppingBag, ShoppingCart, Store,
   BookOpen, GraduationCap, HelpCircle, Newspaper,
   Contact, UserPlus, Settings, Layers,
+  Calendar,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -30,6 +31,7 @@ const NAV_ITEMS = [
   { href: "/admin-datos-analytics", label: "Analytics",          icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-pagos",         label: "Pagos",                icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-resena",        label: "Reseñas",              icon: Layers,      requireTag: "vitahuber" },
+  { href: "/calendar",      label: "Calendar",            icon: Calendar,      requireTag: "vitahuber" },
 ];
 
 const WHATSAPP = `https://wa.me/5215548592403?text=${encodeURIComponent("Estoy en el programa de afiliados y tengo una duda")}`;

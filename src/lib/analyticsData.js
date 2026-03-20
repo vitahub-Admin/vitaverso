@@ -1,11 +1,10 @@
-// lib/analyticsData.js
 import { BigQuery } from "@google-cloud/bigquery";
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL;
-const SUPABASE_SERVICE_ROLE = process.env.SUPABASE_SECRET_KEY;
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE);
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
 
 async function getAllAffiliates() {
   const PAGE_SIZE = 1000;
@@ -16,18 +15,27 @@ async function getAllAffiliates() {
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    const { data, error } = await supabase
+   const { data, error } = await supabase
       .from("affiliates")
-      .select("shopify_customer_id, first_name, last_name, email, active_store, id, created_at")
+      .select(`
+        shopify_customer_id,
+        first_name,
+        last_name,
+        email,
+        active_store,
+        id,
+        created_at,
+        vambe_contact_id,
+        scheduled_call_invitees!scheduled_call_invitees_affiliate_id_fkey (
+          id
+        )
+      `)
       .order("created_at", { ascending: false })
       .range(from, to);
 
     if (error) throw new Error(`Supabase error: ${error.message}`);
-
     allAffiliates = [...allAffiliates, ...data];
-
     if (data.length < PAGE_SIZE) break;
-
     page++;
   }
 
@@ -38,11 +46,8 @@ export async function getCombinedAnalyticsData() {
   try {
     console.time("✅ Analytics data loaded");
 
-    // 1️⃣ Obtener TODOS los afiliados de Supabase
     const allAffiliates = await getAllAffiliates();
-    console.log(`📊 Total afiliados en Supabase: ${allAffiliates.length}`);
 
-    // 2️⃣ Configurar BigQuery
     const bigquery = new BigQuery({
       projectId: process.env.GOOGLE_PROJECT_ID,
       credentials: {
@@ -51,120 +56,125 @@ export async function getCombinedAnalyticsData() {
       },
     });
 
-    // 3️⃣ Query unificada: SHARECARTS + ORDENES
     const query = `
+      DECLARE today DATE DEFAULT CURRENT_DATE();
+
       WITH SHARECARTS AS (
         SELECT
           sh.owner_id AS specialist_id,
-          FORMAT_DATE('%Y-%m', DATE(sh.created_at)) AS year_month,
+          DATE(sh.created_at) AS event_date,
           COUNT(*) AS sharecarts
         FROM \`vitahub-435120.bronce.carritos\` sh
         WHERE sh.owner_id IS NOT NULL
-        GROUP BY sh.owner_id, year_month
+          AND DATE(sh.created_at) >= DATE_SUB(today, INTERVAL 90 DAY)
+        GROUP BY sh.owner_id, event_date
       ),
 
       ORDENES AS (
         SELECT
           COALESCE(o.specialist_ref, o.referrer_id) AS specialist_id,
-          FORMAT_DATE('%Y-%m', DATE(o.created_at)) AS year_month,
+          DATE(o.created_at) AS event_date,
           COUNT(DISTINCT o.order_number) AS orders
         FROM \`vitahub-435120.silver.orders\` o
         WHERE o.customer_email IS NOT NULL
           AND COALESCE(o.specialist_ref, o.referrer_id) IS NOT NULL
-        GROUP BY specialist_id, year_month
+          AND DATE(o.created_at) >= DATE_SUB(today, INTERVAL 90 DAY)
+        GROUP BY specialist_id, event_date
       ),
 
       COMBINED AS (
         SELECT
           COALESCE(s.specialist_id, o.specialist_id) AS specialist_id,
-          COALESCE(s.year_month, o.year_month) AS year_month,
+          COALESCE(s.event_date, o.event_date) AS event_date,
           COALESCE(s.sharecarts, 0) AS sharecarts,
           COALESCE(o.orders, 0) AS orders
         FROM SHARECARTS s
         FULL OUTER JOIN ORDENES o
           ON s.specialist_id = o.specialist_id
-         AND s.year_month = o.year_month
+         AND s.event_date = o.event_date
       )
 
       SELECT
         specialist_id AS affiliate_shopify_customer_id,
-        SUM(sharecarts) AS total_sharecarts,
-        SUM(orders) AS total_orders,
-        ARRAY_AGG(
-          STRUCT(year_month, sharecarts, orders)
-          ORDER BY year_month
-        ) AS monthly
+        SUM(CASE WHEN event_date >= DATE_SUB(today, INTERVAL 30 DAY)  THEN sharecarts ELSE 0 END) AS sc_30,
+        SUM(CASE WHEN event_date >= DATE_SUB(today, INTERVAL 30 DAY)  THEN orders    ELSE 0 END) AS ord_30,
+        SUM(CASE WHEN event_date >= DATE_SUB(today, INTERVAL 60 DAY)
+                  AND event_date <  DATE_SUB(today, INTERVAL 30 DAY)  THEN sharecarts ELSE 0 END) AS sc_60,
+        SUM(CASE WHEN event_date >= DATE_SUB(today, INTERVAL 60 DAY)
+                  AND event_date <  DATE_SUB(today, INTERVAL 30 DAY)  THEN orders    ELSE 0 END) AS ord_60,
+        SUM(CASE WHEN event_date >= DATE_SUB(today, INTERVAL 90 DAY)
+                  AND event_date <  DATE_SUB(today, INTERVAL 60 DAY)  THEN sharecarts ELSE 0 END) AS sc_90,
+        SUM(CASE WHEN event_date >= DATE_SUB(today, INTERVAL 90 DAY)
+                  AND event_date <  DATE_SUB(today, INTERVAL 60 DAY)  THEN orders    ELSE 0 END) AS ord_90
       FROM COMBINED
       GROUP BY specialist_id
     `;
 
     const [bigQueryRows] = await bigquery.query({ query, location: "us-east1" });
-    console.log(`📊 Afiliados con actividad en BigQuery: ${bigQueryRows.length}`);
 
-    // 4️⃣ Crear mapa de actividad
     const activityMap = {};
-
     bigQueryRows.forEach((row) => {
-      const monthlyObj = {};
-      row.monthly.forEach((m) => {
-        monthlyObj[m.year_month] = { sharecarts: m.sharecarts, orders: m.orders };
-      });
-
       activityMap[row.affiliate_shopify_customer_id] = {
-        totals: {
-          sharecarts: row.total_sharecarts || 0,
-          orders: row.total_orders || 0,
-        },
-        monthly: monthlyObj,
+        sc_30:  Number(row.sc_30)  || 0,
+        ord_30: Number(row.ord_30) || 0,
+        sc_60:  Number(row.sc_60)  || 0,
+        ord_60: Number(row.ord_60) || 0,
+        sc_90:  Number(row.sc_90)  || 0,
+        ord_90: Number(row.ord_90) || 0,
       };
     });
 
-    // 5️⃣ Combinar con TODOS los afiliados
     const NOW = Date.now();
     const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+    const VAMBE_PIPELINE_ID = 'e62197d9-4933-4ad9-87d2-64fe03166ef5';
 
     const data = allAffiliates.map((affiliate) => {
       const shopifyId = affiliate.shopify_customer_id;
-      const hasActivity = activityMap[shopifyId];
-      const isNew = affiliate.created_at && NOW - new Date(affiliate.created_at).getTime() <= SEVEN_DAYS_MS;
+      const activity = activityMap[shopifyId] ?? {
+        sc_30: 0, ord_30: 0,
+        sc_60: 0, ord_60: 0,
+        sc_90: 0, ord_90: 0,
+      };
+      const isNew = affiliate.created_at &&
+        NOW - new Date(affiliate.created_at).getTime() <= SEVEN_DAYS_MS;
 
       return {
         id: affiliate.id,
         affiliate_shopify_customer_id: shopifyId,
         first_name: affiliate.first_name || "",
-        last_name: affiliate.last_name || "",
-        email: affiliate.email || "",
-        is_new: isNew,
-        totals: {
-          sharecarts: hasActivity?.totals.sharecarts ?? 0,
-          orders: hasActivity?.totals.orders ?? 0,
-        },
-        monthly: hasActivity?.monthly ?? {},
-        activo_carrito: (hasActivity?.totals.sharecarts ?? 0) > 0,
-        vendio: (hasActivity?.totals.orders ?? 0) > 0,
-        activo_tienda: affiliate.active_store || false,
+        last_name:  affiliate.last_name  || "",
+        email:      affiliate.email      || "",
+        created_at: affiliate.created_at,
+        is_new:     isNew,
+        active_store: affiliate.active_store || false,
+        vambe_url: affiliate.vambe_contact_id
+          ? `https://app.vambeai.com/pipeline?id=${VAMBE_PIPELINE_ID}&chatContactId=${affiliate.vambe_contact_id}`
+          : null,
+        // períodos
+        sc_30:  activity.sc_30,
+        ord_30: activity.ord_30,
+        sc_60:  activity.sc_60,
+        ord_60: activity.ord_60,
+        sc_90:  activity.sc_90,
+        ord_90: activity.ord_90,
+        // flags
+        activo_carrito: activity.sc_30 > 0,
+        vendio:         activity.ord_30 > 0,
+            had_meeting: (affiliate.scheduled_call_invitees?.length ?? 0) > 0,
       };
     });
 
-    // 6️⃣ Estadísticas globales
     const stats = {
-      total_afiliados: data.length,
-      con_sharecarts: data.filter((row) => row.totals.sharecarts > 0).length,
-      con_ordenes: data.filter((row) => row.totals.orders > 0).length,
-      total_sharecarts: data.reduce((sum, row) => sum + row.totals.sharecarts, 0),
-      total_ordenes: data.reduce((sum, row) => sum + row.totals.orders, 0),
+      total_afiliados:  data.length,
+      con_sharecarts:   data.filter(r => r.sc_30 > 0).length,
+      con_ordenes:      data.filter(r => r.ord_30 > 0).length,
+      total_sharecarts: data.reduce((s, r) => s + r.sc_30, 0),
+      total_ordenes:    data.reduce((s, r) => s + r.ord_30, 0),
     };
 
     console.timeEnd("✅ Analytics data loaded");
+    return { data, stats, meta: { source: "bigquery_periods", timestamp: new Date().toISOString() } };
 
-    return {
-      data,
-      stats,
-      meta: {
-        source: "bigquery_only",
-        timestamp: new Date().toISOString(),
-      },
-    };
   } catch (err) {
     console.error("❌ Error en getCombinedAnalyticsData:", err);
     throw err;

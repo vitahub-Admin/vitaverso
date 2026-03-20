@@ -27,6 +27,7 @@ export const config = {
     "/admin/:path*",
     "/admin-sharecarts/:path*",
     "/admin-sharecarts",
-    "/admin-datos-afiliados"
+    "/admin-datos-afiliados",
+    "/calendar"
   ],
 };

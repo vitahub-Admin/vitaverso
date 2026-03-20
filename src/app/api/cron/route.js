@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import { syncActiveStore } from '@/lib/syncStore';
 import { syncCalendarEvents } from '@/app/services/googleCalendarService';
+import { syncInviteesMatch } from '@/lib/syncInviteesMatch';
 
 export async function GET(req) {
   if (req.headers.get('Authorization') !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -25,6 +26,14 @@ export async function GET(req) {
   } catch (err) {
     console.error('❌ Sync calendar failed:', err);
     results.calendar = { error: err.message };
+  }
+
+  // ── Re-match invitees ──────────────────────────────
+  try {
+    results.inviteesMatch = await syncInviteesMatch();
+  } catch (err) {
+    console.error('❌ Re-match invitees failed:', err);
+    results.inviteesMatch = { error: err.message };
   }
 
   return NextResponse.json({ success: true, results });
