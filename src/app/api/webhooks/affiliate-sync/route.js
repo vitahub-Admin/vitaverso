@@ -8,6 +8,14 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 );
+
+// Campos que justifican un sync con Vambe
+const VAMBE_RELEVANT_FIELDS = [
+  'first_name', 'last_name', 'email', 'phone',
+  'profession', 'city', 'state', 'status',
+  'shopify_customer_id', 'shopify_collection_id', 'referral_id',
+];
+
 async function matchPendingInvitees(affiliate) {
   if (!affiliate?.email) return;
 
@@ -15,12 +23,10 @@ async function matchPendingInvitees(affiliate) {
     .from('scheduled_call_invitees')
     .update({ affiliate_id: affiliate.id })
     .eq('email', affiliate.email)
-    .is('affiliate_id', null); // solo los que no tienen match
+    .is('affiliate_id', null);
 
   if (error) {
     console.error('[Invitees] Error matching:', error.message);
-  } else {
-    console.log(`[Invitees] Match intentado para ${affiliate.email}`);
   }
 }
 
@@ -33,9 +39,21 @@ export async function POST(req) {
 
     const payload = await req.json();
     const affiliate = payload.record;
+    const old = payload.old_record;
 
     if (!affiliate?.phone) {
       return NextResponse.json({ success: true, skipped: 'no phone' });
+    }
+
+    // ── Solo procesar si cambió algo relevante para Vambe ──
+    if (old) {
+      const hasRelevantChange = VAMBE_RELEVANT_FIELDS.some(
+        field => affiliate[field] !== old[field]
+      );
+
+      if (!hasRelevantChange) {
+        return NextResponse.json({ success: true, skipped: 'no relevant fields changed' });
+      }
     }
 
     // Sync con Vambe
