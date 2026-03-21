@@ -35,4 +35,12 @@ async function run() {
   console.log('\n🏁 Sync manual completado');
 }
 
+
+export async function cleanHttpResponses() {
+  const { error } = await supabase.rpc('execute_sql', {
+    sql: `DELETE FROM net._http_response WHERE created < now() - interval '3 days'`
+  });
+
+}
+
 run();

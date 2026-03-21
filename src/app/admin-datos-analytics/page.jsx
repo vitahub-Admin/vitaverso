@@ -5,7 +5,7 @@ import { useEffect, useState, useMemo } from "react";
 import AGGridAnalyticsTable from "./components/AnalyticsTable";
 import {
   ShoppingCart, DollarSign, Store, MessageSquare,
-  ArrowUpRight, ArrowDownRight, Search, X
+  ArrowUpRight, ArrowDownRight, Search, X,CalendarOff, CalendarClock, CalendarCheck, CalendarX
 } from "lucide-react";
 
 const VAMBE_COLOR = "#7c3aed";
@@ -198,7 +198,27 @@ const clearAll = () => {
   orange: { active: "bg-orange-100 text-orange-800 border-orange-300", inactive: "bg-orange-50 text-orange-700 border-orange-200", badge: "bg-orange-200 text-orange-800" },
 
   };
+function MeetLegend() {
+  const items = [
+    { icon: CalendarOff,   color: "text-gray-300",    bg: "bg-gray-100",    label: "Sin reunión"       },
+    { icon: CalendarClock, color: "text-blue-500",    bg: "bg-blue-100",    label: "Reunión a futuro"  },
+    { icon: CalendarCheck, color: "text-emerald-500", bg: "bg-emerald-100", label: "Asistió"           },
+    { icon: CalendarX,     color: "text-red-400",     bg: "bg-red-100",     label: "Faltó"             },
+  ];
 
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      {items.map(({ icon: Icon, color, bg, label }) => (
+        <div key={label} className="flex items-center gap-1.5">
+          <div className={`w-5 h-5 rounded-full ${bg} flex items-center justify-center`}>
+            <Icon size={10} className={color} />
+          </div>
+          <span className="text-[0.7rem] text-gray-400 font-medium">{label}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
   return (
     <div className="min-h-screen bg-white text-gray-900">
 
@@ -266,7 +286,10 @@ const clearAll = () => {
             </span>
           </div>
         </div>
-
+<div className="flex items-center gap-3 flex-wrap border-t border-gray-100 pt-3">
+  <span className="text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400">Estados reunión:</span>
+  <MeetLegend />
+</div>
         {/* Desktop: AG Grid */}
         <div className="hidden md:block">
           <AGGridAnalyticsTable data={filteredData} />

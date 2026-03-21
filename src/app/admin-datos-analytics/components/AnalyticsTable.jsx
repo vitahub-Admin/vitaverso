@@ -1,4 +1,3 @@
-// components/AnalyticsTable.jsx
 "use client";
 
 import { useMemo } from "react";
@@ -8,7 +7,8 @@ import "ag-grid-community/styles/ag-grid.css";
 import "ag-grid-community/styles/ag-theme-alpine.css";
 import {
   ArrowUpRight, ArrowDownRight,
-  ShoppingCart, DollarSign, Store, MessageSquare, Video
+  ShoppingCart, DollarSign, Store, MessageSquare, Video,
+  CalendarClock, CalendarCheck, CalendarX, CalendarOff
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -16,8 +16,16 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 
 const VAMBE_COLOR = "#7c3aed";
 
+// ── Meet status config ─────────────────────────────────────────────────────
+const MEET_STATUS = {
+  none:     { icon: CalendarOff,   color: "text-gray-300",    bg: "bg-gray-100",    title: "Sin reunión"         },
+  future:   { icon: CalendarClock, color: "text-blue-500",    bg: "bg-blue-100",    title: "Reunión a futuro"    },
+  attended: { icon: CalendarCheck, color: "text-emerald-500", bg: "bg-emerald-100", title: "Asistió a reunión"   },
+  missed:   { icon: CalendarX,     color: "text-red-400",     bg: "bg-red-100",     title: "Faltó a reunión"     },
+};
+
 // ── Trend cell ─────────────────────────────────────────────────────────────
-function TrendCell({ current, previous, label }) {
+function TrendCell({ current, previous }) {
   const diff = current - previous;
   const isUp   = diff > 0;
   const isDown = diff < 0;
@@ -67,8 +75,8 @@ function NameRenderer({ data }) {
   );
 }
 
-// ── Tags cell ──────────────────────────────────────────────────────────────
-function TagsRenderer({ data }) {
+// ── Actividad comercial ────────────────────────────────────────────────────
+function ActividadRenderer({ data }) {
   return (
     <div className="flex items-center justify-center gap-1 h-full">
       {data.activo_carrito && (
@@ -86,7 +94,22 @@ function TagsRenderer({ data }) {
           <Store size={11} className="text-yellow-600" />
         </div>
       )}
-      {data.vambe_url && (
+      {!data.activo_carrito && !data.vendio && !data.active_store && (
+        <span className="text-xs text-gray-300">—</span>
+      )}
+    </div>
+  );
+}
+
+// ── Comunicaciones ─────────────────────────────────────────────────────────
+function ComunicacionesRenderer({ data }) {
+  const meet = MEET_STATUS[data.meet_status ?? 'none'];
+  const MeetIcon = meet.icon;
+
+  return (
+    <div className="flex items-center justify-center gap-1.5 h-full">
+      {/* Vambe */}
+      {data.vambe_url ? (
         <a
           href={data.vambe_url}
           target="_blank"
@@ -97,15 +120,16 @@ function TagsRenderer({ data }) {
         >
           <MessageSquare size={11} style={{ color: VAMBE_COLOR }} />
         </a>
+      ) : (
+        <div title="Sin Vambe" className="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center">
+          <MessageSquare size={11} className="text-gray-300" />
+        </div>
       )}
-      {!data.activo_carrito && !data.vendio && !data.active_store && !data.vambe_url && (
-        <span className="text-xs text-gray-300">—</span>
-      )}
-      {data.had_meeting && (
-  <div title="Tuvo reunión" className="w-6 h-6 rounded-full bg-green-100 flex items-center justify-center">
-    <Video size={11} className="text-green-600" />
-  </div>
-)}
+
+      {/* Meet status */}
+      <div title={meet.title} className={`w-6 h-6 rounded-full ${meet.bg} flex items-center justify-center`}>
+        <MeetIcon size={11} className={meet.color} />
+      </div>
     </div>
   );
 }
@@ -135,11 +159,22 @@ export default function AGGridAnalyticsTable({ data = [] }) {
       valueGetter: p => `${p.data?.first_name || ""} ${p.data?.last_name || ""}`.trim(),
     },
     {
-      headerName: "",
-      field: "tags",
+      headerName: "Actividad",
+      field: "actividad",
       pinned: "left",
       width: 90,
-      cellRenderer: TagsRenderer,
+      cellRenderer: ActividadRenderer,
+      suppressMovable: true,
+      cellClass: "bg-white",
+      sortable: false,
+      filter: false,
+    },
+    {
+      headerName: "Comms",
+      field: "comms",
+      pinned: "left",
+      width: 80,
+      cellRenderer: ComunicacionesRenderer,
       suppressMovable: true,
       cellClass: "bg-white",
       sortable: false,

@@ -6,6 +6,37 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 );
 
+// ─── HELPERS ───────────────────────────────────────────────────────────────
+
+function getMeetStatus(invitees) {
+  if (!invitees?.length) return 'none';
+
+  const now = new Date();
+
+  // ¿Tiene algún meet a futuro?
+  const hasFuture = invitees.some(i =>
+    i.scheduled_calls?.starts_at &&
+    new Date(i.scheduled_calls.starts_at) > now &&
+    i.scheduled_calls?.status !== 'canceled'
+  );
+  if (hasFuture) return 'future';
+
+  // Meets pasados
+  const pastInvitees = invitees.filter(i =>
+    i.scheduled_calls?.starts_at &&
+    new Date(i.scheduled_calls.starts_at) <= now
+  );
+
+  if (!pastInvitees.length) return 'none';
+
+  // Si asistió a alguno → attended
+  if (pastInvitees.some(i => i.attended === true)) return 'attended';
+
+  // Si tiene meets pasados (attended null o false) → missed
+  return 'missed';
+}
+// ─── DATA FETCHING ─────────────────────────────────────────────────────────
+
 async function getAllAffiliates() {
   const PAGE_SIZE = 1000;
   let allAffiliates = [];
@@ -15,7 +46,7 @@ async function getAllAffiliates() {
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-   const { data, error } = await supabase
+    const { data, error } = await supabase
       .from("affiliates")
       .select(`
         shopify_customer_id,
@@ -27,7 +58,12 @@ async function getAllAffiliates() {
         created_at,
         vambe_contact_id,
         scheduled_call_invitees!scheduled_call_invitees_affiliate_id_fkey (
-          id
+          id,
+          attended,
+          scheduled_calls (
+            starts_at,
+            status
+          )
         )
       `)
       .order("created_at", { ascending: false })
@@ -42,12 +78,17 @@ async function getAllAffiliates() {
   return allAffiliates;
 }
 
+// ─── MAIN ──────────────────────────────────────────────────────────────────
+
 export async function getCombinedAnalyticsData() {
   try {
     console.time("✅ Analytics data loaded");
 
     const allAffiliates = await getAllAffiliates();
-
+// En getCombinedAnalyticsData, después de getAllAffiliates()
+const withMeetings = allAffiliates.filter(a => a.scheduled_call_invitees?.length > 0);
+console.log(`📊 Afiliados con invitees: ${withMeetings.length}`);
+console.log('Sample:', JSON.stringify(withMeetings[0]?.scheduled_call_invitees?.slice(0, 2), null, 2));
     const bigquery = new BigQuery({
       projectId: process.env.GOOGLE_PROJECT_ID,
       credentials: {
@@ -129,46 +170,46 @@ export async function getCombinedAnalyticsData() {
     const VAMBE_PIPELINE_ID = 'e62197d9-4933-4ad9-87d2-64fe03166ef5';
 
     const data = allAffiliates.map((affiliate) => {
-      const shopifyId = affiliate.shopify_customer_id;
-      const activity = activityMap[shopifyId] ?? {
+      const shopifyId  = affiliate.shopify_customer_id;
+      const activity   = activityMap[shopifyId] ?? {
         sc_30: 0, ord_30: 0,
         sc_60: 0, ord_60: 0,
         sc_90: 0, ord_90: 0,
       };
-      const isNew = affiliate.created_at &&
+      const isNew      = affiliate.created_at &&
         NOW - new Date(affiliate.created_at).getTime() <= SEVEN_DAYS_MS;
+      const meetStatus = getMeetStatus(affiliate.scheduled_call_invitees);
 
       return {
-        id: affiliate.id,
+        id:                           affiliate.id,
         affiliate_shopify_customer_id: shopifyId,
-        first_name: affiliate.first_name || "",
-        last_name:  affiliate.last_name  || "",
-        email:      affiliate.email      || "",
-        created_at: affiliate.created_at,
-        is_new:     isNew,
-        active_store: affiliate.active_store || false,
+        first_name:                   affiliate.first_name  || "",
+        last_name:                    affiliate.last_name   || "",
+        email:                        affiliate.email       || "",
+        created_at:                   affiliate.created_at,
+        is_new:                       isNew,
+        active_store:                 affiliate.active_store || false,
         vambe_url: affiliate.vambe_contact_id
           ? `https://app.vambeai.com/pipeline?id=${VAMBE_PIPELINE_ID}&chatContactId=${affiliate.vambe_contact_id}`
           : null,
-        // períodos
         sc_30:  activity.sc_30,
         ord_30: activity.ord_30,
         sc_60:  activity.sc_60,
         ord_60: activity.ord_60,
         sc_90:  activity.sc_90,
         ord_90: activity.ord_90,
-        // flags
-        activo_carrito: activity.sc_30 > 0,
+        activo_carrito: activity.sc_30  > 0,
         vendio:         activity.ord_30 > 0,
-            had_meeting: (affiliate.scheduled_call_invitees?.length ?? 0) > 0,
+        had_meeting:    meetStatus !== 'none',
+        meet_status:    meetStatus,
       };
     });
 
     const stats = {
       total_afiliados:  data.length,
-      con_sharecarts:   data.filter(r => r.sc_30 > 0).length,
+      con_sharecarts:   data.filter(r => r.sc_30  > 0).length,
       con_ordenes:      data.filter(r => r.ord_30 > 0).length,
-      total_sharecarts: data.reduce((s, r) => s + r.sc_30, 0),
+      total_sharecarts: data.reduce((s, r) => s + r.sc_30,  0),
       total_ordenes:    data.reduce((s, r) => s + r.ord_30, 0),
     };
 
