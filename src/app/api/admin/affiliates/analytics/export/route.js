@@ -1,6 +1,6 @@
 // pages/api/admin/affiliates/analytics/export.js
 import { NextResponse } from "next/server";
-import { getCombinedAnalyticsData } from "@/lib/analyticsData";
+import { getCombinedAnalyticsData } from "@/lib/analyticsExport";
 
 /**
  * Convierte datos a CSV

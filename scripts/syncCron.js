@@ -8,13 +8,6 @@ import { syncInviteesMatch } from '../src/lib/syncInviteesMatch.js';
 async function run() {
   console.log('🚀 Corriendo sync manual...\n');
 
-  console.log('─── Active Store ───────────────────────');
-  try {
-    const result = await syncActiveStore();
-    console.log('✅ activeStore:', result);
-  } catch (err) {
-    console.error('❌ activeStore failed:', err.message);
-  }
 
   console.log('\n─── Google Calendar ────────────────────');
   try {
