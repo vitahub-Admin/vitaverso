@@ -46,26 +46,28 @@ async function getAllAffiliates() {
     const from = page * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    const { data, error } = await supabase
-      .from("affiliates")
-      .select(`
-        shopify_customer_id,
-        first_name,
-        last_name,
-        email,
-        active_store,
-        id,
-        created_at,
-        vambe_contact_id,
-        scheduled_call_invitees!scheduled_call_invitees_affiliate_id_fkey (
-          id,
-          attended,
-          scheduled_calls (
-            starts_at,
-            status
-          )
-        )
-      `)
+  const { data, error } = await supabase
+  .from("affiliates")
+  .select(`
+    shopify_customer_id,
+    first_name,
+    last_name,
+    email,
+    active_store,
+    id,
+    created_at,
+    vambe_contact_id,
+    total_orders,
+    total_sharecarts,
+    scheduled_call_invitees!scheduled_call_invitees_affiliate_id_fkey (
+      id,
+      attended,
+      scheduled_calls (
+        starts_at,
+        status
+      )
+    )
+  `)
       .order("created_at", { ascending: false })
       .range(from, to);
 
@@ -198,8 +200,8 @@ console.log('Sample:', JSON.stringify(withMeetings[0]?.scheduled_call_invitees?.
         ord_60: activity.ord_60,
         sc_90:  activity.sc_90,
         ord_90: activity.ord_90,
-        activo_carrito: activity.sc_30  > 0,
-        vendio:         activity.ord_30 > 0,
+        activo_carrito: (affiliate.total_sharecarts || 0) > 0,
+        vendio:(affiliate.total_orders     || 0) > 0,
         had_meeting:    meetStatus !== 'none',
         meet_status:    meetStatus,
       };
