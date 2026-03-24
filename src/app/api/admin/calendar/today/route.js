@@ -8,12 +8,18 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 );
 
-export async function GET() {
+export async function GET(request) {
   try {
-    // Rango de hoy en México (UTC-6)
-    const now = new Date();
+    const { searchParams } = new URL(request.url);
+    const dateParam = searchParams.get('date'); // YYYY-MM-DD, opcional
+
+    // Rango del día en México (UTC-6)
     const mexicoOffset = -6 * 60;
-    const mexicoNow = new Date(now.getTime() + (mexicoOffset - now.getTimezoneOffset()) * 60000);
+    const base = dateParam
+      ? new Date(`${dateParam}T12:00:00Z`) // mediodía UTC → fecha correcta en MX
+      : new Date();
+
+    const mexicoNow = new Date(base.getTime() + (mexicoOffset - base.getTimezoneOffset()) * 60000);
 
     const startOfDay = new Date(mexicoNow);
     startOfDay.setHours(0, 0, 0, 0);

@@ -4,13 +4,13 @@
 import { useEffect, useState } from 'react';
 import {
   Calendar,
-  Clock,
   Video,
   ChevronDown,
+  ChevronLeft,
+  ChevronRight,
   CheckCircle2,
   XCircle,
   MinusCircle,
-  ExternalLink,
   User,
   Phone,
   MapPin,
@@ -269,13 +269,34 @@ function CallCard({ call, onUpdate }) {
   );
 }
 
-export default function CalendarPage() {
-  const [calls, setCalls]   = useState([]);
-  const [loading, setLoading] = useState(true);
+function todayMX() {
+  return new Date().toLocaleDateString('sv-SE', { timeZone: 'America/Mexico_City' }); // YYYY-MM-DD
+}
 
-  async function fetchCalls() {
+function offsetDate(dateStr, days) {
+  const d = new Date(`${dateStr}T12:00:00`);
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+function formatDateLabel(dateStr) {
+  // dateStr = YYYY-MM-DD
+  return new Date(`${dateStr}T12:00:00`).toLocaleDateString('es-MX', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+}
+
+export default function CalendarPage() {
+  const [calls, setCalls]     = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [selectedDate, setSelectedDate] = useState(todayMX);
+
+  const isToday = selectedDate === todayMX();
+
+  async function fetchCalls(date = selectedDate) {
+    setLoading(true);
     try {
-      const res  = await fetch('/api/admin/calendar/today');
+      const res  = await fetch(`/api/admin/calendar/today?date=${date}`);
       const data = await res.json();
       if (data.success) setCalls(data.data ?? []);
     } catch (err) {
@@ -285,12 +306,11 @@ export default function CalendarPage() {
     }
   }
 
-  useEffect(() => { fetchCalls(); }, []);
+  useEffect(() => { fetchCalls(selectedDate); }, [selectedDate]);
 
-  const today = new Date().toLocaleDateString('es-MX', {
-    weekday: 'long', day: 'numeric', month: 'long',
-    timeZone: 'America/Mexico_City',
-  });
+  function goTo(date) {
+    setSelectedDate(date);
+  }
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-white">
@@ -305,14 +325,45 @@ export default function CalendarPage() {
       {/* Título */}
       <div className="w-full border-b border-gray-100 px-6">
         <div className="max-w-[960px] mx-auto py-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
-              Agenda del día
-            </h1>
-            <p className="text-sm text-gray-400 font-medium capitalize">{today}</p>
+
+          {/* Navegación de fecha */}
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => goTo(offsetDate(selectedDate, -1))}
+              className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg text-gray-400 hover:border-[#1b3f7a] hover:text-[#1b3f7a] transition-colors"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <div>
+              <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
+                Agenda{isToday && <span className="ml-2 text-sm font-semibold text-emerald-500">Hoy</span>}
+              </h1>
+              <p className="text-sm text-gray-400 font-medium capitalize">
+                {formatDateLabel(selectedDate)}
+              </p>
+            </div>
+
+            <button
+              onClick={() => goTo(offsetDate(selectedDate, 1))}
+              disabled={isToday}
+              className="w-8 h-8 flex items-center justify-center border border-gray-200 rounded-lg text-gray-400 hover:border-[#1b3f7a] hover:text-[#1b3f7a] transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+            >
+              <ChevronRight size={16} />
+            </button>
+
+            {!isToday && (
+              <button
+                onClick={() => goTo(todayMX())}
+                className="text-xs font-semibold text-[#1b3f7a] hover:underline"
+              >
+                Volver a hoy
+              </button>
+            )}
           </div>
+
           <button
-            onClick={fetchCalls}
+            onClick={() => fetchCalls(selectedDate)}
             className="flex items-center gap-2 px-4 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-500 hover:border-[#1b3f7a] hover:text-[#1b3f7a] transition-colors"
           >
             <RefreshCw size={13} /> Actualizar

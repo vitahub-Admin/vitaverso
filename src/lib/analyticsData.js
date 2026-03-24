@@ -64,7 +64,8 @@ async function getAllAffiliates() {
       attended,
       scheduled_calls (
         starts_at,
-        status
+        status,
+        event_type
       )
     )
   `)
@@ -87,10 +88,6 @@ export async function getCombinedAnalyticsData() {
     console.time("✅ Analytics data loaded");
 
     const allAffiliates = await getAllAffiliates();
-// En getCombinedAnalyticsData, después de getAllAffiliates()
-const withMeetings = allAffiliates.filter(a => a.scheduled_call_invitees?.length > 0);
-console.log(`📊 Afiliados con invitees: ${withMeetings.length}`);
-console.log('Sample:', JSON.stringify(withMeetings[0]?.scheduled_call_invitees?.slice(0, 2), null, 2));
     const bigquery = new BigQuery({
       projectId: process.env.GOOGLE_PROJECT_ID,
       credentials: {
@@ -180,7 +177,17 @@ console.log('Sample:', JSON.stringify(withMeetings[0]?.scheduled_call_invitees?.
       };
       const isNew      = affiliate.created_at &&
         NOW - new Date(affiliate.created_at).getTime() <= SEVEN_DAYS_MS;
-      const meetStatus = getMeetStatus(affiliate.scheduled_call_invitees);
+      const invitees = affiliate.scheduled_call_invitees ?? [];
+      const meetStatus = getMeetStatus(invitees);
+      const meets = invitees
+        .filter(i => i.scheduled_calls?.starts_at)
+        .map(i => ({
+          attended:   i.attended ?? null,
+          event_type: i.scheduled_calls.event_type ?? null,
+          starts_at:  i.scheduled_calls.starts_at,
+        }))
+        .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+      const meetEventTypes = [...new Set(meets.map(m => m.event_type).filter(Boolean))];
 
       return {
         id:                           affiliate.id,
@@ -202,8 +209,10 @@ console.log('Sample:', JSON.stringify(withMeetings[0]?.scheduled_call_invitees?.
         ord_90: activity.ord_90,
         activo_carrito: (affiliate.total_sharecarts || 0) > 0,
         vendio:(affiliate.total_orders     || 0) > 0,
-        had_meeting:    meetStatus !== 'none',
-        meet_status:    meetStatus,
+        had_meeting:      meetStatus !== 'none',
+        meet_status:      meetStatus,
+        meet_event_types: meetEventTypes,
+        meets,
       };
     });
 

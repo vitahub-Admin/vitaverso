@@ -29,7 +29,9 @@ function getEventSource(event) {
 }
 
 function getEventType(eventName) {
-  return 'onboarding';
+  if (!eventName) return 'otros';
+  if (/onboarding/i.test(eventName) || /<> vitahub/i.test(eventName)) return 'onboarding';
+  return 'otros';
 }
 
 function extractMeetLink(event) {
@@ -81,6 +83,7 @@ async function getCalendlyInvitees(eventUuid) {
 }
 
 // ─── UPSERT INVITEES ───────────────────────────────────────────────────────
+
 async function upsertInvitees(callId, invitees) {
   for (const invitee of invitees) {
     const { data: affiliate } = await supabase
@@ -104,46 +107,30 @@ async function upsertInvitees(callId, invitees) {
       }, { onConflict: 'call_id,email' })
       .select();
 
-    // ← log del error
-    if (error) {
-      console.error(`❌ upsertInvitee error [${invitee.email}]:`, error);
-    } else {
-      console.log(`✅ Invitee guardado: ${invitee.email}`);
-    }
+    if (error) console.error(`❌ upsertInvitee error [${invitee.email}]:`, error);
   }
 }
 
-// ─── SYNC PRINCIPAL ────────────────────────────────────────────────────────
+// ─── CORE SYNC ─────────────────────────────────────────────────────────────
 
-export async function syncCalendarEvents() {
-  console.log('🔹 Iniciando sync Google Calendar...');
-
+async function syncEvents({ timeMin, timeMax } = {}) {
   const calendar = getCalendarClient();
 
-  const now = new Date();
-  const today = new Date(now);
-  today.setHours(0, 0, 0, 0);
-
-  const dayOfWeek = now.getDay();
-  const sunday = new Date(now);
-  sunday.setDate(now.getDate() + (dayOfWeek === 0 ? 0 : 7 - dayOfWeek));
-  sunday.setHours(23, 59, 59, 999);
-
-  // ── Paginación ─────────────────────────────────────
   let allEvents = [];
-  let pageToken = undefined;
+  let pageToken  = undefined;
 
   do {
-    const { data: eventsData } = await calendar.events.list({
-      calendarId: process.env.GOOGLE_CALENDAR_ID,
-      timeMin: today.toISOString(),
-      timeMax: sunday.toISOString(),
-      singleEvents: true,
-      orderBy: 'startTime',
-      maxResults: 250,
+    const params = {
+      calendarId:    process.env.GOOGLE_CALENDAR_ID,
+      singleEvents:  true,
+      orderBy:       'startTime',
+      maxResults:    250,
       pageToken,
-    });
+      ...(timeMin && { timeMin }),
+      ...(timeMax && { timeMax }),
+    };
 
+    const { data: eventsData } = await calendar.events.list(params);
     allEvents = [...allEvents, ...(eventsData.items ?? [])];
     pageToken = eventsData.nextPageToken;
 
@@ -152,52 +139,44 @@ export async function syncCalendarEvents() {
   console.log(`🔹 Eventos encontrados: ${allEvents.length}`);
 
   let upserted = 0;
-  let errors = 0;
+  let errors   = 0;
 
   for (const event of allEvents) {
     try {
       const source = getEventSource(event);
 
-      // Upsert evento principal
       const { data: call, error: callError } = await supabase
         .from('scheduled_calls')
         .upsert({
           google_event_id: event.id,
-          event_name: event.summary,
-          event_type: getEventType(event.summary),
+          event_name:      event.summary,
+          event_type:      getEventType(event.summary),
           source,
-          meet_link: extractMeetLink(event),
-          starts_at: event.start?.dateTime ?? event.start?.date,
-          ends_at: event.end?.dateTime ?? event.end?.date,
-          status: event.status === 'cancelled' ? 'canceled' : 'active',
-          updated_at: new Date().toISOString(),
+          meet_link:       extractMeetLink(event),
+          starts_at:       event.start?.dateTime ?? event.start?.date,
+          ends_at:         event.end?.dateTime   ?? event.end?.date,
+          status:          event.status === 'cancelled' ? 'canceled' : 'active',
+          updated_at:      new Date().toISOString(),
         }, { onConflict: 'google_event_id' })
         .select()
         .single();
 
       if (callError) throw callError;
-      // Después de upsert evento principal, antes de los invitados
-console.log(`📅 Evento: ${event.summary} | source: ${source}`);
 
-if (source === 'vambe') {
-  const attendees = event.attendees?.filter(
-    a => a.email !== process.env.GOOGLE_CALENDAR_ID
-  ) ?? [];
-  console.log(`👥 Vambe attendees: ${attendees.length}`, attendees.map(a => a.email));
-  await upsertInvitees(call.id, attendees);
+      if (source === 'vambe') {
+        const attendees = event.attendees?.filter(
+          a => a.email !== process.env.GOOGLE_CALENDAR_ID
+        ) ?? [];
+        await upsertInvitees(call.id, attendees);
 
-} else if (source === 'calendly') {
-  const uuid = extractCalendlyUuid(event);
-  console.log(`🔗 Calendly UUID extraído: ${uuid}`);
-  if (uuid) {
-    const invitees = await getCalendlyInvitees(uuid);
-    console.log(`👥 Calendly invitees: ${invitees.length}`, invitees.map(i => i.email));
-    await upsertInvitees(call.id, invitees);
-  }
-}
+      } else if (source === 'calendly') {
+        const uuid = extractCalendlyUuid(event);
+        if (uuid) {
+          const invitees = await getCalendlyInvitees(uuid);
+          await upsertInvitees(call.id, invitees);
+        }
 
-   else {
-        // Manual: usar attendees si existen
+      } else {
         const attendees = event.attendees?.filter(
           a => a.email !== process.env.GOOGLE_CALENDAR_ID
         ) ?? [];
@@ -211,6 +190,40 @@ if (source === 'vambe') {
     }
   }
 
-  console.log('✅ Sync Calendar completado');
   return { total: allEvents.length, upserted, errors };
+}
+
+// ─── EXPORTS ───────────────────────────────────────────────────────────────
+
+// Sync semanal (hoy → próximo domingo) — usado por el cron
+export async function syncCalendarEvents() {
+  console.log('🔹 Iniciando sync Google Calendar (semana actual)...');
+
+  const now       = new Date();
+  const today     = new Date(now);
+  today.setHours(0, 0, 0, 0);
+
+  const sunday = new Date(now);
+  sunday.setDate(now.getDate() + (now.getDay() === 0 ? 0 : 7 - now.getDay()));
+  sunday.setHours(23, 59, 59, 999);
+
+  const result = await syncEvents({
+    timeMin: today.toISOString(),
+    timeMax: sunday.toISOString(),
+  });
+
+  console.log('✅ Sync Calendar completado');
+  return result;
+}
+
+// Sync histórico completo (desde 2023-01-01 sin límite superior) — one-shot
+export async function syncCalendarEventsHistorical() {
+  console.log('🔹 Iniciando sync histórico Google Calendar...');
+
+  const result = await syncEvents({
+    timeMin: '2023-01-01T00:00:00Z',
+  });
+
+  console.log('✅ Sync histórico completado');
+  return result;
 }
