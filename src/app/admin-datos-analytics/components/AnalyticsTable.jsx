@@ -208,7 +208,13 @@ function ComunicacionesRenderer({ data, context }) {
   const onboardingStatus = getOnboardingStatus(data.meets);
   const meet             = MEET_STATUS[onboardingStatus];
   const MeetIcon         = meet.icon;
+  const otrosMeets       = (data.meets ?? []).filter(m => m.event_type !== "onboarding");
   const hasMeets         = (data.meets ?? []).length > 0;
+
+  function openModal(e) {
+    e.stopPropagation();
+    if (hasMeets) context?.onMeetClick(data);
+  }
 
   return (
     <div className="flex items-center justify-center gap-1.5 h-full">
@@ -230,17 +236,29 @@ function ComunicacionesRenderer({ data, context }) {
         </div>
       )}
 
-      {/* Meet button */}
+      {/* Tag onboarding */}
       <button
-        title={hasMeets ? "Ver reuniones" : meet.title}
-        onClick={e => {
-          e.stopPropagation();
-          if (hasMeets) context?.onMeetClick(data);
-        }}
+        title={meet.title}
+        onClick={openModal}
         className={`w-6 h-6 rounded-full ${meet.bg} flex items-center justify-center transition-opacity ${hasMeets ? "hover:opacity-70 cursor-pointer" : "cursor-default"}`}
       >
         <MeetIcon size={11} className={meet.color} />
       </button>
+
+      {/* Tag otros (solo si tiene) */}
+      {otrosMeets.length > 0 ? (
+        <button
+          title={`${otrosMeets.length} otra${otrosMeets.length > 1 ? "s" : ""} reunión`}
+          onClick={openModal}
+          className="w-6 h-6 rounded-full bg-yellow-100 flex items-center justify-center hover:opacity-70 transition-opacity cursor-pointer"
+        >
+          <CalendarClock size={11} className="text-yellow-600" />
+        </button>
+      ) : (
+        <div className="w-6 h-6 rounded-full bg-gray-50 flex items-center justify-center">
+          <CalendarOff size={11} className="text-gray-200" />
+        </div>
+      )}
     </div>
   );
 }
@@ -287,7 +305,7 @@ export default function AGGridAnalyticsTable({ data = [] }) {
       headerName: "Comms",
       field: "comms",
       pinned: "left",
-      width: 80,
+      width: 105,
       cellRenderer: ComunicacionesRenderer,
       suppressMovable: true,
       cellClass: "bg-white",
