@@ -29,7 +29,7 @@ export async function syncInviteesMatch() {
     const { data: affiliate } = await supabase
       .from('affiliates')
       .select('id')
-      .eq('email', invitee.email)
+      .ilike('email', invitee.email)
       .single();
 
     if (affiliate?.id) {

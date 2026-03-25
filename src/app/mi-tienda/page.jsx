@@ -163,11 +163,12 @@ export default function MiTiendaPage() {
     const customerId = Cookies.get("customerId");
     if (!customerId) { setError("No hay customerId disponible"); return; }
 
-    fetch(`/api/sheet/${customerId}`)
+    fetch(`/api/affiliates/profile`)
       .then(r => r.json())
-      .then(sheetData => {
-        if (!sheetData.success) { setError(sheetData.message); return; }
-        const collectionId = sheetData.data[1];
+      .then(profileData => {
+        if (!profileData.success) { setError(profileData.message); return; }
+        const collectionId = profileData.data.shopify_collection_id;
+        if (!collectionId) { setError("No hay colección asignada a este afiliado"); return; }
 
         fetch(`/api/shopify/collections/${collectionId}`)
           .then(r => r.json())

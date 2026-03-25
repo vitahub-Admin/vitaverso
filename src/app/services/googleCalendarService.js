@@ -50,8 +50,11 @@ function extractMeetLink(event) {
 
 function extractCalendlyUuid(event) {
   const match = event.description?.match(
-    /calendly\.com\/events\/([0-9a-f-]{36})\//
+    /calendly\.com\/events\/([0-9a-f-]{36})\/?/
   );
+  if (!match) {
+    console.warn(`[Calendly] UUID no encontrado en descripción. Preview: "${event.description?.slice(0, 300)}"`);
+  }
   return match ? match[1] : null;
 }
 
@@ -70,11 +73,13 @@ async function getCalendlyInvitees(eventUuid) {
     );
 
     if (!res.ok) {
-      console.warn(`[Calendly] No se pudo obtener invitees para ${eventUuid} [${res.status}]`);
+      const body = await res.text();
+      console.error(`[Calendly] Error ${res.status} para UUID ${eventUuid}: ${body}`);
       return [];
     }
 
     const data = await res.json();
+    console.log(`[Calendly] Invitees recibidos para ${eventUuid}: ${data.collection?.length ?? 0}`);
     return data.collection ?? [];
   } catch (err) {
     console.error(`[Calendly] Error obteniendo invitees:`, err.message);
@@ -173,7 +178,10 @@ async function syncEvents({ timeMin, timeMax } = {}) {
         const uuid = extractCalendlyUuid(event);
         if (uuid) {
           const invitees = await getCalendlyInvitees(uuid);
+          console.log(`[Calendly] Upserting ${invitees.length} invitees para call ${call.id} (evento: ${event.summary})`);
           await upsertInvitees(call.id, invitees);
+        } else {
+          console.warn(`[Calendly] Evento sin UUID válido, se omiten invitees: ${event.id} - ${event.summary}`);
         }
 
       } else {
@@ -191,6 +199,77 @@ async function syncEvents({ timeMin, timeMax } = {}) {
   }
 
   return { total: allEvents.length, upserted, errors };
+}
+
+// ─── CALENDLY SYNC ─────────────────────────────────────────────────────────
+
+async function fetchCalendlyEvents({ timeMin, timeMax } = {}) {
+  const userUri = `https://api.calendly.com/users/${process.env.CALENDLY_USER_UUID}`;
+  const headers = {
+    Authorization: `Bearer ${process.env.CALENDLY_API_TOKEN}`,
+    'Content-Type': 'application/json',
+  };
+
+  let allEvents = [];
+  let pageToken  = undefined;
+
+  do {
+    const params = new URLSearchParams({ user: userUri, count: '100' });
+    if (timeMin) params.set('min_start_time', timeMin);
+    if (timeMax) params.set('max_start_time', timeMax);
+    if (pageToken) params.set('page_token', pageToken);
+
+    const res = await fetch(`https://api.calendly.com/scheduled_events?${params}`, { headers });
+    if (!res.ok) {
+      const body = await res.text();
+      throw new Error(`[Calendly] Error ${res.status} al listar eventos: ${body}`);
+    }
+
+    const data = await res.json();
+    allEvents = [...allEvents, ...(data.collection ?? [])];
+    pageToken = data.pagination?.next_page_token ?? undefined;
+  } while (pageToken);
+
+  return allEvents;
+}
+
+export async function syncCalendlyInvitees({ timeMin, timeMax } = {}) {
+  console.log('🔹 Iniciando sync Calendly invitees...');
+
+  const events = await fetchCalendlyEvents({ timeMin, timeMax });
+  console.log(`🔹 Eventos Calendly encontrados: ${events.length}`);
+
+  let synced = 0;
+  let errors = 0;
+
+  for (const event of events) {
+    try {
+      const googleEventId = event.calendar_event?.external_id;
+      if (!googleEventId) continue;
+
+      const { data: call } = await supabase
+        .from('scheduled_calls')
+        .select('id')
+        .eq('google_event_id', googleEventId)
+        .single();
+
+      if (!call) {
+        console.warn(`[Calendly] No se encontró scheduled_call para google_event_id: ${googleEventId}`);
+        continue;
+      }
+
+      const uuid = event.uri.split('/').pop();
+      const invitees = await getCalendlyInvitees(uuid);
+      await upsertInvitees(call.id, invitees);
+      synced++;
+    } catch (err) {
+      console.error(`❌ Error Calendly evento ${event.uri}:`, err.message);
+      errors++;
+    }
+  }
+
+  console.log('✅ Sync Calendly invitees completado');
+  return { total: events.length, synced, errors };
 }
 
 // ─── EXPORTS ───────────────────────────────────────────────────────────────
