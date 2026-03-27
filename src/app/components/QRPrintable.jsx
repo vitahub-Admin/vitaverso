@@ -35,10 +35,12 @@ export function QRPrintableModal({ show, onClose, collection, customerId, logo }
       .join("\n");
 
     // Convertir rutas relativas a absolutas para que carguen en el blob
-    const htmlContent = ref.current.outerHTML.replace(
-      /src="(\/[^"]+)"/g,
-      (_, path) => `src="${window.location.origin}${path}"`
-    );
+    const htmlContent = ref.current.outerHTML
+      .replace(/src="([^"]+)"/g, (match, url) => {
+        if (url.startsWith('http') || url.startsWith('data:')) return match;
+        if (url.startsWith('/')) return `src="${window.location.origin}${url}"`;
+        return match;
+      });
 
     const html = `<html>
       <head>
@@ -86,14 +88,14 @@ export function QRPrintableModal({ show, onClose, collection, customerId, logo }
 
         {/* Preview — solo visual, escalada */}
         <div className="mb-6 bg-gray-50 rounded-lg overflow-hidden flex justify-center items-start p-2"
-          style={{ minHeight: "auto" }}
+          style={{ minHeight: "auto", maxHeight: format === "plegable" ? "500px" : "auto" }}
         >
           {format === "cartel" ? (
             <div style={{ transform: "scale(0.75)", transformOrigin: "top center", width: "210mm" }}>
               <CartelFormat collection={collection} shopifyLink={shopifyLink} imageUrl={imageUrl} logo={logo} />
             </div>
           ) : (
-            <div style={{ transform: "scale(0.6)", transformOrigin: "top center", width: "210mm" }}>
+            <div style={{ transform: "scale(0.45)", transformOrigin: "top center", width: "210mm" }}>
               <PlegableFormat collection={collection} shopifyLink={shopifyLink} imageUrl={imageUrl} logo={logo} />
             </div>
           )}
