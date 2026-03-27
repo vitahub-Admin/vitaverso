@@ -6,9 +6,10 @@ import Image from "next/image";
 import {
   Copy, Check, ExternalLink, X, Upload, ImageIcon,
   Instagram, Share2, Star, Package, Pencil, Link,
-  FileText, Tag,
+  FileText, Tag, QrCode,
 } from "lucide-react";
 import Banner from "../components/Banner";
+import { QRPrintableModal } from "../components/QRPrintable";
 
 // ── ReviewModal (sin cambios de lógica) ────────────────────
 function ReviewModal({ show, onClose, comment, onCommentChange, onSubmit, loading }) {
@@ -146,6 +147,7 @@ export default function MiTiendaPage() {
   const [toast,        setToast]        = useState(null);
   const [showShareModal,  setShowShareModal]  = useState(false);
   const [showReviewModal, setShowReviewModal] = useState(false);
+  const [showQRModal,     setShowQRModal]     = useState(false);
   const [socialUrl,    setSocialUrl]    = useState("");
   const [presentacion, setPresentacion] = useState("");
   const [reviewComment, setReviewComment] = useState("");
@@ -358,6 +360,15 @@ export default function MiTiendaPage() {
                 Compartir
               </button>
             </div>
+
+            {/* Botón QR */}
+            <button
+              onClick={() => setShowQRModal(true)}
+              className="w-full flex items-center justify-center gap-1.5 px-3 py-2.5 bg-purple-500 text-white rounded-xl text-sm font-semibold hover:bg-purple-600 transition"
+            >
+              <QrCode size={14} />
+              Generar QR imprimible
+            </button>
           </div>
 
           {/* ── Card edición ── */}
@@ -434,6 +445,21 @@ export default function MiTiendaPage() {
               <TipRow icon={ImageIcon} text="Usá una imagen cuadrada para mejor resultado en la tienda." />
               <TipRow icon={Share2}    text="Compartir genera un mensaje con tu link personal para WhatsApp." />
               <TipRow icon={Package}   text="Podés quitar productos abajo. Para agregar, usá la tienda principal." />
+            </div>
+
+            {/* QR Imprimible */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
+              <SectionLabel>QR Imprimible</SectionLabel>
+              <p className="text-sm text-gray-600 leading-snug mb-3">
+                Genera un código QR imprimible con diseño profesional. Elige entre un cartel para pegar o un plegable tipo carpa.
+              </p>
+              <button
+                onClick={() => setShowQRModal(true)}
+                className="flex items-center gap-2 px-4 py-2.5 bg-[#1b3f7a] text-white rounded-xl text-sm font-semibold hover:bg-[#163264] transition"
+              >
+                <QrCode size={14} />
+                Generar QR
+              </button>
             </div>
 
             {/* Reseña */}
@@ -519,6 +545,13 @@ export default function MiTiendaPage() {
         onCommentChange={setReviewComment}
         onSubmit={handleSubmitReview}
         loading={reviewLoading}
+      />
+      <QRPrintableModal
+        show={showQRModal}
+        onClose={() => setShowQRModal(false)}
+        collection={collection}
+        customerId={customerId}
+        logo="/logosimple.png"
       />
     </div>
   );

@@ -63,7 +63,17 @@ export async function POST(req) {
     const convertedTokens = new Set(bqRows.map(r => r.share_cart));
 
     // 3. LEFT JOIN: quedarse solo con los que NO convirtieron
-    const pendingCarts = carts.filter(c => !convertedTokens.has(c.token));
+    const filtered = carts.filter(c => !convertedTokens.has(c.token));
+
+    // 3b. Deduplicar por phone: quedarse con el sharecart más nuevo por número
+    const latestByPhone = new Map();
+    for (const c of filtered) {
+      const existing = latestByPhone.get(c.phone);
+      if (!existing || c.created_at > existing.created_at) {
+        latestByPhone.set(c.phone, c);
+      }
+    }
+    const pendingCarts = [...latestByPhone.values()];
 
     if (!pendingCarts.length) {
       return NextResponse.json({ success: true, count: 0, data: [] });
@@ -82,12 +92,12 @@ export async function POST(req) {
       affiliateMap[a.shopify_customer_id] = `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim();
     });
 
-    // 5. Marcar como exportados (solo los que pasan el filtro)
-    const cartIds = pendingCarts.map(c => c.id);
+    // 5. Marcar como exportados TODOS los filtered (incluyendo duplicados de phone)
+    const allFilteredIds = filtered.map(c => c.id);
     const { error: updateError } = await supabase
       .from('sharecarts')
       .update({ recovery_exported_at: new Date().toISOString() })
-      .in('id', cartIds);
+      .in('id', allFilteredIds);
 
     if (updateError) throw updateError;
 
