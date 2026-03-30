@@ -34,7 +34,7 @@ const NAV_ITEMS = [
   { href: "/calendar",      label: "Calendar",            icon: Calendar,      requireTag: "vitahuber" },
 ];
 
-const WHATSAPP = `https://wa.me/5215544828852?text=${encodeURIComponent("Estoy en el programa de afiliados y tengo una duda")}`;
+const WHATSAPP = `https://wa.me/5215548592403?text=${encodeURIComponent("Estoy en el programa de afiliados y tengo una duda")}`;
 
 export default function Sidebar() {
   const pathname  = usePathname();
