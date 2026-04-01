@@ -133,6 +133,8 @@ export async function POST(req) {
       throw error;
     }
 
+    await supabase.rpc('increment_affiliate_orders', { p_shopify_id: specialistId });
+
     return NextResponse.json({ success: true }, { status: 200 });
 
   } catch (err) {
