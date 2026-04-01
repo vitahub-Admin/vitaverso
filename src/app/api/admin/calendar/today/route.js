@@ -36,6 +36,7 @@ export async function GET(request) {
         event_name,
         event_type,
         source,
+        calendar_id,
         meet_link,
         starts_at,
         ends_at,

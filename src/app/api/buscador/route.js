@@ -9,15 +9,46 @@ export async function GET(req) {
 
   if (!q) return NextResponse.json({ ok: false, error: "Missing query" }, { status: 400 });
 
-  // Usamos REST API que soporta búsqueda de texto libre
-  const url = `https://${SHOPIFY_STORE}/admin/api/2024-01/products.json?limit=15&title=${encodeURIComponent(q)}`;
+  const gqlQuery = `
+    {
+      products(first: 20, query: "title:*${q}* OR tag:${q} status:active") {
+        edges {
+          node {
+            id
+            title
+            descriptionHtml
+            tags
+            images(first: 1) { edges { node { src } } }
+            variants(first: 1) {
+              edges {
+                node {
+                  id
+                  title
+                  price
+                  availableForSale
+                  comision: metafield(namespace: "custom", key: "comision_afiliado") {
+                    value
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
 
-  const res = await fetch(url, {
-    headers: {
-      "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-      "Content-Type": "application/json",
-    },
-  });
+  const res = await fetch(
+    `https://${SHOPIFY_STORE}/admin/api/2024-01/graphql.json`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+      },
+      body: JSON.stringify({ query: gqlQuery }),
+    }
+  );
 
   if (!res.ok) {
     const text = await res.text();
@@ -26,21 +57,28 @@ export async function GET(req) {
   }
 
   const json = await res.json();
-  console.log("[buscador] total productos:", json.products?.length);
 
-  const products = (json.products || []).map((p) => ({
-    id: String(p.id),
-    title: p.title,
-    description: p.body_html?.replace(/<[^>]+>/g, "").slice(0, 300) || "",
-    tags: p.tags ? p.tags.split(", ") : [],
-    image: p.images?.[0]?.src || null,
-    variants: (p.variants || []).map((v) => ({
-      id: String(v.id),
-      title: v.title,
-      price: v.price,
-      available: v.inventory_quantity > 0,
-    })),
-  }));
+  if (json.errors) {
+    console.error("[buscador] GraphQL errors:", json.errors);
+    return NextResponse.json({ ok: false, error: "GraphQL error", details: json.errors }, { status: 500 });
+  }
+
+  const products = (json.data?.products?.edges || []).map(({ node }) => {
+    const variant = node.variants.edges[0]?.node;
+    return {
+      id: node.id.replace("gid://shopify/Product/", ""),
+      title: node.title,
+      description: node.descriptionHtml?.replace(/<[^>]+>/g, "").trim().slice(0, 400) || "",
+      tags: node.tags,
+      image: node.images?.edges?.[0]?.node?.src || null,
+      variant_id: variant?.id.replace("gid://shopify/ProductVariant/", "") || null,
+      price: variant?.price || "0",
+      available: variant?.availableForSale || false,
+      comision: variant?.comision?.value || null,
+    };
+  });
+
+  console.log("[buscador] q:", q, "| productos:", products.length);
 
   return NextResponse.json({ ok: true, products });
 }

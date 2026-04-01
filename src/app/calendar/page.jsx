@@ -187,12 +187,20 @@ function InviteeRow({ invitee, onUpdate }) {
   );
 }
 
+function getCalendarAccent(calendarId) {
+  if (!calendarId) return 'bg-white';
+  if (calendarId === 'afiliados@vitahub.mx') return 'bg-sky-100';
+  if (calendarId.startsWith('c_3c3a720e')) return 'bg-green-100';
+  return 'bg-white';
+}
+
 function CallCard({ call, onUpdate }) {
   const [open, setOpen] = useState(false);
   const source = SOURCE_LABELS[call.source] ?? SOURCE_LABELS.manual;
+  const accentClass = getCalendarAccent(call.calendar_id);
 
   return (
-    <div className="bg-white border border-gray-100 rounded-2xl shadow-sm overflow-hidden">
+    <div className={`border border-gray-100 rounded-2xl shadow-sm overflow-hidden ${accentClass}`}>
 
       {/* Header */}
       <div

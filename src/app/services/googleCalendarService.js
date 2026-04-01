@@ -41,6 +41,7 @@ function extractMeetLink(event) {
     );
     if (meet) return meet.uri;
   }
+  if (event.hangoutLink) return event.hangoutLink;
   const meetMatch = event.description?.match(/https:\/\/meet\.google\.com\/[a-z-]+/);
   if (meetMatch) return meetMatch[0];
   const calendlyMatch = event.description?.match(/https:\/\/calendly\.com\/events\/[^/\s]+\/google_meet/);
@@ -50,11 +51,8 @@ function extractMeetLink(event) {
 
 function extractCalendlyUuid(event) {
   const match = event.description?.match(
-    /calendly\.com\/events\/([0-9a-f-]{36})\/?/
+    /calendly\.com\/events\/([0-9a-f-]{36})\//
   );
-  if (!match) {
-    console.warn(`[Calendly] UUID no encontrado en descripción. Preview: "${event.description?.slice(0, 300)}"`);
-  }
   return match ? match[1] : null;
 }
 
@@ -73,13 +71,11 @@ async function getCalendlyInvitees(eventUuid) {
     );
 
     if (!res.ok) {
-      const body = await res.text();
-      console.error(`[Calendly] Error ${res.status} para UUID ${eventUuid}: ${body}`);
+      console.warn(`[Calendly] No se pudo obtener invitees para ${eventUuid} [${res.status}]`);
       return [];
     }
 
     const data = await res.json();
-    console.log(`[Calendly] Invitees recibidos para ${eventUuid}: ${data.collection?.length ?? 0}`);
     return data.collection ?? [];
   } catch (err) {
     console.error(`[Calendly] Error obteniendo invitees:`, err.message);
@@ -121,32 +117,49 @@ async function upsertInvitees(callId, invitees) {
 async function syncEvents({ timeMin, timeMax } = {}) {
   const calendar = getCalendarClient();
 
+  const calendarIds = process.env.GOOGLE_CALENDAR_IDS
+    ? process.env.GOOGLE_CALENDAR_IDS.split(',').map(s => s.trim()).filter(Boolean)
+    : [process.env.GOOGLE_CALENDAR_ID];
+
+  console.log(`📅 Sincronizando ${calendarIds.length} calendario(s):`, calendarIds);
+
   let allEvents = [];
-  let pageToken  = undefined;
 
-  do {
-    const params = {
-      calendarId:    process.env.GOOGLE_CALENDAR_ID,
-      singleEvents:  true,
-      orderBy:       'startTime',
-      maxResults:    250,
-      pageToken,
-      ...(timeMin && { timeMin }),
-      ...(timeMax && { timeMax }),
-    };
+  for (const calendarId of calendarIds) {
+    let pageToken = undefined;
+    do {
+      const params = {
+        calendarId,
+        singleEvents:         true,
+        orderBy:              'startTime',
+        maxResults:           250,
+        conferenceDataVersion: 1,
+        pageToken,
+        ...(timeMin && { timeMin }),
+        ...(timeMax && { timeMax }),
+      };
 
-    const { data: eventsData } = await calendar.events.list(params);
-    allEvents = [...allEvents, ...(eventsData.items ?? [])];
-    pageToken = eventsData.nextPageToken;
+      const { data: eventsData } = await calendar.events.list(params);
+      const items = (eventsData.items ?? []).map(e => ({ _calendarId: calendarId, _raw: e }));
+      allEvents = [...allEvents, ...items];
+      pageToken = eventsData.nextPageToken;
+    } while (pageToken);
+  }
 
-  } while (pageToken);
+  // Deduplicar por event.id
+  const seen = new Set();
+  allEvents = allEvents.filter(({ _raw }) => {
+    if (seen.has(_raw.id)) return false;
+    seen.add(_raw.id);
+    return true;
+  });
 
   console.log(`🔹 Eventos encontrados: ${allEvents.length}`);
 
   let upserted = 0;
   let errors   = 0;
 
-  for (const event of allEvents) {
+  for (const { _calendarId, _raw: event } of allEvents) {
     try {
       const source = getEventSource(event);
 
@@ -157,6 +170,7 @@ async function syncEvents({ timeMin, timeMax } = {}) {
           event_name:      event.summary,
           event_type:      getEventType(event.summary),
           source,
+          calendar_id:     _calendarId,
           meet_link:       extractMeetLink(event),
           starts_at:       event.start?.dateTime ?? event.start?.date,
           ends_at:         event.end?.dateTime   ?? event.end?.date,
@@ -170,7 +184,7 @@ async function syncEvents({ timeMin, timeMax } = {}) {
 
       if (source === 'vambe') {
         const attendees = event.attendees?.filter(
-          a => a.email !== process.env.GOOGLE_CALENDAR_ID
+          a => !calendarIds.includes(a.email)
         ) ?? [];
         await upsertInvitees(call.id, attendees);
 
@@ -178,15 +192,12 @@ async function syncEvents({ timeMin, timeMax } = {}) {
         const uuid = extractCalendlyUuid(event);
         if (uuid) {
           const invitees = await getCalendlyInvitees(uuid);
-          console.log(`[Calendly] Upserting ${invitees.length} invitees para call ${call.id} (evento: ${event.summary})`);
           await upsertInvitees(call.id, invitees);
-        } else {
-          console.warn(`[Calendly] Evento sin UUID válido, se omiten invitees: ${event.id} - ${event.summary}`);
         }
 
       } else {
         const attendees = event.attendees?.filter(
-          a => a.email !== process.env.GOOGLE_CALENDAR_ID
+          a => !calendarIds.includes(a.email)
         ) ?? [];
         await upsertInvitees(call.id, attendees);
       }
@@ -199,77 +210,6 @@ async function syncEvents({ timeMin, timeMax } = {}) {
   }
 
   return { total: allEvents.length, upserted, errors };
-}
-
-// ─── CALENDLY SYNC ─────────────────────────────────────────────────────────
-
-async function fetchCalendlyEvents({ timeMin, timeMax } = {}) {
-  const userUri = `https://api.calendly.com/users/${process.env.CALENDLY_USER_UUID}`;
-  const headers = {
-    Authorization: `Bearer ${process.env.CALENDLY_API_TOKEN}`,
-    'Content-Type': 'application/json',
-  };
-
-  let allEvents = [];
-  let pageToken  = undefined;
-
-  do {
-    const params = new URLSearchParams({ user: userUri, count: '100' });
-    if (timeMin) params.set('min_start_time', timeMin);
-    if (timeMax) params.set('max_start_time', timeMax);
-    if (pageToken) params.set('page_token', pageToken);
-
-    const res = await fetch(`https://api.calendly.com/scheduled_events?${params}`, { headers });
-    if (!res.ok) {
-      const body = await res.text();
-      throw new Error(`[Calendly] Error ${res.status} al listar eventos: ${body}`);
-    }
-
-    const data = await res.json();
-    allEvents = [...allEvents, ...(data.collection ?? [])];
-    pageToken = data.pagination?.next_page_token ?? undefined;
-  } while (pageToken);
-
-  return allEvents;
-}
-
-export async function syncCalendlyInvitees({ timeMin, timeMax } = {}) {
-  console.log('🔹 Iniciando sync Calendly invitees...');
-
-  const events = await fetchCalendlyEvents({ timeMin, timeMax });
-  console.log(`🔹 Eventos Calendly encontrados: ${events.length}`);
-
-  let synced = 0;
-  let errors = 0;
-
-  for (const event of events) {
-    try {
-      const googleEventId = event.calendar_event?.external_id;
-      if (!googleEventId) continue;
-
-      const { data: call } = await supabase
-        .from('scheduled_calls')
-        .select('id')
-        .eq('google_event_id', googleEventId)
-        .single();
-
-      if (!call) {
-        console.warn(`[Calendly] No se encontró scheduled_call para google_event_id: ${googleEventId}`);
-        continue;
-      }
-
-      const uuid = event.uri.split('/').pop();
-      const invitees = await getCalendlyInvitees(uuid);
-      await upsertInvitees(call.id, invitees);
-      synced++;
-    } catch (err) {
-      console.error(`❌ Error Calendly evento ${event.uri}:`, err.message);
-      errors++;
-    }
-  }
-
-  console.log('✅ Sync Calendly invitees completado');
-  return { total: events.length, synced, errors };
 }
 
 // ─── EXPORTS ───────────────────────────────────────────────────────────────
@@ -305,4 +245,56 @@ export async function syncCalendarEventsHistorical() {
 
   console.log('✅ Sync histórico completado');
   return result;
+}
+
+// Re-sync Calendly invitees for events in a time range — used by cron
+export async function syncCalendlyInvitees({ timeMin, timeMax } = {}) {
+  console.log('🔹 Iniciando sync Calendly invitees...');
+
+  let query = supabase
+    .from('scheduled_calls')
+    .select('id, google_event_id, source')
+    .eq('source', 'calendly')
+    .gte('starts_at', timeMin ?? '2023-01-01T00:00:00Z');
+
+  if (timeMax) query = query.lte('starts_at', timeMax);
+
+  const { data: calls, error } = await query;
+
+  if (error) throw error;
+
+  const calendar = getCalendarClient();
+  const calendarIds = process.env.GOOGLE_CALENDAR_IDS
+    ? process.env.GOOGLE_CALENDAR_IDS.split(',').map(s => s.trim()).filter(Boolean)
+    : [process.env.GOOGLE_CALENDAR_ID];
+
+  let updated = 0;
+  let errors  = 0;
+
+  for (const call of calls ?? []) {
+    try {
+      let event = null;
+      for (const calendarId of calendarIds) {
+        try {
+          const { data } = await calendar.events.get({ calendarId, eventId: call.google_event_id });
+          event = data;
+          break;
+        } catch (_) { /* try next */ }
+      }
+      if (!event) { errors++; continue; }
+
+      const uuid = extractCalendlyUuid(event);
+      if (!uuid) continue;
+
+      const invitees = await getCalendlyInvitees(uuid);
+      await upsertInvitees(call.id, invitees);
+      updated++;
+    } catch (err) {
+      console.error(`❌ syncCalendlyInvitees [${call.google_event_id}]:`, err.message);
+      errors++;
+    }
+  }
+
+  console.log('✅ syncCalendlyInvitees completado');
+  return { total: calls?.length ?? 0, updated, errors };
 }
