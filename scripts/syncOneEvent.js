@@ -16,12 +16,13 @@ const auth = new google.auth.JWT({
 });
 const calendar = google.calendar({ version: 'v3', auth });
 
-const EVENT_ID = 'e3fqo45lvv5ogir3cqt0amicfk';
-const CALENDAR_ID = 'afiliados@vitahub.mx';
+const EVENT_ID = '9dmvltrhc0rimagiaf3n2bb2oc';
+const CALENDAR_ID = 'c_3c3a720e16513e8c493d69760af7e1ab491a28f9a9da0f0c64e1342c3f414872@group.calendar.google.com';
 
 const { data: event } = await calendar.events.get({ calendarId: CALENDAR_ID, eventId: EVENT_ID });
 
 console.log('summary:', event.summary);
+console.log('description:', event.description ?? '(vacía)');
+console.log('attendees:', JSON.stringify(event.attendees, null, 2));
 console.log('hangoutLink:', event.hangoutLink);
-console.log('conferenceData:', JSON.stringify(event.conferenceData, null, 2));
-console.log('description:', event.description?.slice(0, 200));
+console.log('extendedProperties:', JSON.stringify(event.extendedProperties, null, 2));

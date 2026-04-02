@@ -106,12 +106,17 @@ function InviteeRow({ invitee, onUpdate }) {
             <User size={14} className="text-[#1b3f7a]" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-gray-800">
-              {affiliate
-                ? `${affiliate.first_name ?? ''} ${affiliate.last_name ?? ''}`.trim()
-                : invitee.name ?? invitee.email}
-            </p>
-            <p className="text-xs text-gray-400">{invitee.email}</p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <p className="text-sm font-semibold text-gray-800">
+                {affiliate
+                  ? `${affiliate.first_name ?? ''} ${affiliate.last_name ?? ''}`.trim()
+                  : invitee.name ?? invitee.email}
+              </p>
+              {!affiliate && (
+                <span className="text-[0.6rem] font-semibold px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 border border-amber-200">Sin match</span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 font-medium">{invitee.email}</p>
           </div>
         </div>
 
