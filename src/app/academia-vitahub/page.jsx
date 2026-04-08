@@ -4,6 +4,22 @@ import { PlayCircle } from "lucide-react";
 
 const CLASES = [
   {
+    titulo: "Dra. Noelia Correa Pampillon — Vitamina D: Más allá del déficit",
+    embedId: "HwNeRwXBGFQ",
+    intro: "Una base clínica sólida para comprender la Vitamina D como una hormona esteroidea inmunometabólica esencial para la regulación de genes y el sistema inmunológico, evitando un enfoque simplista.",
+    puntos: [
+      "La Vitamina D como hormona: su origen en el colesterol y la dependencia crítica del magnesio para su activación en hígado y riñones.",
+      "Interpretación de rangos: por qué 30 ng/mL solo garantiza salud ósea y por qué el rango óptimo funcional debe ser de 47 ng/mL.",
+      "El rol de la Paratormona (PTH): cómo usarla como marcador para identificar la resistencia a la vitamina D y la falta de activación en los tejidos.",
+      "Funciones pleiotrópicas: su impacto en la prevención cardiovascular, enfermedades autoinmunes, salud mental (depresión) y como agente antiproliferativo en cáncer.",
+      "Sinergia con Vitamina K2: la importancia de combinar suplementos para dirigir el calcio al hueso y evitar la calcificación de tejidos blandos.",
+      "Optimización de la síntesis endógena: protocolos de exposición solar (20-30 min) y factores que bloquean su producción como la edad, obesidad y protectores solares.",
+      "Importancia de la salud intestinal: cómo la hipoclorhidria y la inflamación del colon afectan la capacidad absortiva antes de suplementar.",
+      "Errores frecuentes: suplementar sin medir niveles previos, el riesgo de desensibilizar receptores y la falta de reevaluación clínica periódica.",
+    ],
+    cierre: "El foco final: usar la vitamina D como un modulador biológico sistémico para facilitar la autorregulación del organismo, no solo como una intervención para los huesos.",
+},
+  {
     titulo: "Dra. Noelia Correa Pampillon — Suplementación inteligente desde el abordaje PINE",
     embedId: "FFsgaoN_Yz8",
     intro: "Una base clínica sólida para indicar suplementación de forma racional, personalizada y sistémica, evitando la polisuplementación y el enfoque simplista de síntoma = suplemento.",
