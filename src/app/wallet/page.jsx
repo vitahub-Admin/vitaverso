@@ -113,7 +113,7 @@ export default function WalletPage() {
           <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
             Mi Wallet
           </h1>
-          <p className="text-sm text-gray-400 font-medium">Administrá tus ganancias y créditos</p>
+          <p className="text-sm text-gray-400 font-medium">Administra tus ganancias y créditos</p>
         </div>
       </div>
 
@@ -200,7 +200,7 @@ export default function WalletPage() {
                 </div>
               )}
 
-              <p className="text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400 mb-2.5">¿Qué querés solicitar?</p>
+              <p className="text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400 mb-2.5">¿Qué deseas solicitar?</p>
 
               <div className="flex flex-col sm:flex-row gap-2.5 mb-5">
                 {/* Store credit — primero */}
@@ -342,7 +342,7 @@ export default function WalletPage() {
               {[
                 { icon: ShieldCheck, title: "Validación de solicitudes", text: "Toda solicitud es revisada por el equipo admin antes de procesarse." },
                 { icon: Banknote,    title: "Retiro mínimo $200 MXN",    text: "El monto mínimo para retirar dinero en efectivo es de $200 MXN." },
-                { icon: BadgePercent,title: "+5% en crédito de tienda",  text: "Al elegir crédito en tienda recibís un 5% extra sobre el monto en cupón." },
+                { icon: BadgePercent,title: "+5% en crédito de tienda",  text: "Al elegir crédito en tienda recibes un 5% extra sobre el monto en cupón." },
                 { icon: Timer,       title: "3 a 5 días hábiles",        text: "Los retiros y créditos aprobados se acreditan dentro de ese plazo." },
               ].map(({ icon: Icon, title, text }) => (
                 <div key={title} className="flex items-start gap-3">

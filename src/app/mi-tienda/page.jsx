@@ -232,7 +232,7 @@ export default function MiTiendaPage() {
   };
 
   const handleRemoveProduct = async (productId) => {
-    if (!confirm("¿Seguro querés quitar este producto de la colección?")) return;
+    if (!confirm("¿Seguro que deseas quitar este producto de la colección?")) return;
     try {
       const simpleId = collection.id.split("/").pop();
       const res  = await fetch(`/api/shopify/collections/${simpleId}/remove-product`, {
@@ -442,9 +442,9 @@ export default function MiTiendaPage() {
             {/* Tips */}
             <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm flex flex-col gap-3">
               <SectionLabel>Ayuda rápida</SectionLabel>
-              <TipRow icon={ImageIcon} text="Usá una imagen cuadrada para mejor resultado en la tienda." />
+              <TipRow icon={ImageIcon} text="Usa una imagen cuadrada para mejor resultado en la tienda." />
               <TipRow icon={Share2}    text="Compartir genera un mensaje con tu link personal para WhatsApp." />
-              <TipRow icon={Package}   text="Podés quitar productos abajo. Para agregar, usá la tienda principal." />
+              <TipRow icon={Package}   text="Puedes quitar productos abajo. Para agregar, usa la tienda principal." />
             </div>
 
             {/* QR Imprimible */}
@@ -466,14 +466,14 @@ export default function MiTiendaPage() {
             <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
               <SectionLabel>Reseña</SectionLabel>
               <p className="text-sm text-gray-600 leading-snug mb-3">
-                Tus seguidores confían en vos. Compartí tu opinión sobre VitaHub y convertí tu respaldo en confianza real para tu comunidad.
+                Tus seguidores confían en vos. Comparte tu opinión sobre VitaHub y convierte tu respaldo en confianza real para tu comunidad.
               </p>
               <button
                 onClick={() => setShowReviewModal(true)}
                 className="flex items-center gap-2 px-4 py-2.5 bg-[#1b3f7a] text-white rounded-xl text-sm font-semibold hover:bg-[#163264] transition"
               >
                 <Star size={14} />
-                Dejá tu reseña
+                Deja tu reseña
               </button>
             </div>
 

@@ -21,7 +21,7 @@ export default function RequireTag({ tag, children }) {
   if (!allowed)
     return (
       <div className="p-8 text-center text-red-600 font-bold">
-        🚫 No tenés permiso para ver esta página.
+        🚫 No tienes permiso para ver esta página.
       </div>
     );
 

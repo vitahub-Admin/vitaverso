@@ -44,9 +44,9 @@ export default function CompartirReferralPage() {
   };
 
   const PASOS = [
-    { icon: Link,       title: "Compartí tu link único",        desc: "Enviá tu link personalizado a otros profesionales de la salud." },
+    { icon: Link,       title: "Comparte tu link único",        desc: "Envia tu link personalizado a otros profesionales de la salud." },
     { icon: Users,      title: "Se registran como afiliados",   desc: "Tus referidos completan el registro en el programa." },
-    { icon: TrendingUp, title: "Ganás comisiones",              desc: "Recibís $300 cuando tu referido realice su primera venta." },
+    { icon: TrendingUp, title: "Ganas comisiones",              desc: "Recibes $300 cuando tu referido realice su primera venta." },
   ];
 
   return (
@@ -60,7 +60,7 @@ export default function CompartirReferralPage() {
             Compartir Referral
           </h1>
           <p className="text-sm text-gray-400 font-medium">
-            Invitá colegas y ganá por cada nuevo afiliado
+            Invita colegas y gana por cada nuevo afiliado
           </p>
         </div>
       </div>
@@ -87,7 +87,7 @@ export default function CompartirReferralPage() {
               <AlertCircle size={22} />
             </div>
             <h2 className="text-base font-bold text-gray-700">Acceso no autorizado</h2>
-            <p className="text-sm text-gray-400">Necesitás estar logueado para generar tu link de referral.</p>
+            <p className="text-sm text-gray-400">Necesitas estar logueado para generar tu link de referral.</p>
             <button
               onClick={() => window.location.href = "/login"}
               className="px-5 py-2.5 bg-[#1b3f7a] text-white rounded-xl text-sm font-semibold hover:bg-[#163264] transition"

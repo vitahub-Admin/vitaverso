@@ -222,7 +222,7 @@ export default function FusionCartsPage() {
           </h1>
           <p className="text-sm text-gray-400 font-medium">
             {carts.length === 0
-              ? "No tenés carritos compartidos aún"
+              ? "No tienes carritos compartidos aún"
               : `${stats.total} carrito${stats.total !== 1 ? "s" : ""} · ${stats.new} nuevos · ${stats.legacy} históricos`}
           </p>
         </div>

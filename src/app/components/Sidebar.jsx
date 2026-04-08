@@ -21,7 +21,7 @@ const NAV_ITEMS = [
   { href: "/manual",              label: "Manual",               icon: BookOpen,    requireTag: "vitahuber" },
   { href: "/academia-vitahub",    label: "Academia Vitahub",     icon: GraduationCap },
   { href: "/notificaciones",      label: "Novedades",            icon: Newspaper    },
-  { href: "/referral",            label: "Invitá y ganá",        icon: UserPlus     },
+  { href: "/referral",            label: "Invita y gana",        icon: UserPlus     },
   { href: "/mis-datos",           label: "Mis Datos",            icon: Settings     },
   // ── Vitahuber only ──
   { href: "/vitahuber",           label: "Vitahuber",            icon: Settings,    requireTag: "vitahuber" },
@@ -32,7 +32,7 @@ const NAV_ITEMS = [
   { href: "/admin-pagos",         label: "Pagos",                icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-resena",        label: "Reseñas",              icon: Layers,      requireTag: "vitahuber" },
   { href: "/calendar",      label: "Calendar",            icon: Calendar,      requireTag: "vitahuber" },
-  //{ href: "/armador-carritos",      label: "Armador de Carritos",     icon: ShoppingCart,    requireTag: "vitahuber" },
+  { href: "/armador-carritos",      label: "Armador de Carritos",     icon: ShoppingCart,    requireTag: "vitahuber" },
 ];
 
 const WHATSAPP = `https://wa.me/5215548592403?text=${encodeURIComponent("Estoy en el programa de afiliados y tengo una duda")}`;

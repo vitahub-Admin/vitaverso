@@ -19,6 +19,18 @@ const bigquery = new BigQuery({
   },
 });
 
+export async function GET() {
+  const { data } = await supabase
+    .from('sharecarts')
+    .select('recovery_exported_at')
+    .not('recovery_exported_at', 'is', null)
+    .order('recovery_exported_at', { ascending: false })
+    .limit(1)
+    .single();
+
+  return NextResponse.json({ last_export: data?.recovery_exported_at ?? null });
+}
+
 export async function POST(req) {
   try {
     const { from, to } = await req.json();
