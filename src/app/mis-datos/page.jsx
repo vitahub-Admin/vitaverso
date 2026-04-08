@@ -183,7 +183,7 @@ export default function PerfilAfiliado() {
                     value={form[key] || ""}
                     readOnly={key === "email"}
                     onChange={e => handleChange(key, e.target.value)}
-                    placeholder={`Ingresá tu ${LABEL[key]?.toLowerCase() || key}`}
+                    placeholder={`Ingresa tu ${LABEL[key]?.toLowerCase() || key}`}
                     className={`border rounded-xl px-3 py-2.5 text-sm outline-none transition ${
                       key === "email"
                         ? "bg-gray-50 text-gray-400 cursor-not-allowed border-gray-100"
