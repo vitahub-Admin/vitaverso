@@ -161,11 +161,11 @@ const saveNews = async () => {
 };
 
 // Borrar una noticia
-const deleteNews = async (index) => {
+const deleteNews = async (id) => {
   await fetch("/api/data/news", {
     method: "DELETE",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ index }),
+    body: JSON.stringify({ id }),
   });
 
   loadNews();
@@ -334,7 +334,7 @@ const saveNewsOrder = async () => {
   <div className="flex flex-col gap-4">
   {news.map((n, index) => (
   <div
-    key={index}
+    key={n.id ?? index}
     className="flex items-center justify-between border p-3 rounded shadow-sm"
   >
     <div className="flex items-center gap-4">
@@ -357,7 +357,7 @@ const saveNewsOrder = async () => {
         <ArrowDown size={18} />
       </button>
       <button
-        onClick={() => deleteNews(index)}
+        onClick={() => deleteNews(n.id)}
         className="p-2 bg-red-600 text-white rounded"
       >
         <Trash2 size={18} />

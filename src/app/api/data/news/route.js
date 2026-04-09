@@ -1,59 +1,74 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
+import { createClient } from "@supabase/supabase-js";
 
-const filePath = path.join(process.cwd(), "data", "news.json");
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
 
-// Helpers
-function readFile() {
-  return JSON.parse(fs.readFileSync(filePath, "utf8"));
-}
-
-function writeFile(data) {
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
-}
-
-// GET — lista completa
+// GET — lista completa ordenada
 export async function GET() {
-  const data = readFile();
-  return NextResponse.json({ news: data.news || [] });
+  const { data, error } = await supabase
+    .from("news")
+    .select("*")
+    .order("orden", { ascending: true });
 
+  if (error) return NextResponse.json({ news: [] }, { status: 500 });
+  return NextResponse.json({ news: data });
 }
 
 // POST — agregar noticia
 export async function POST(req) {
   const body = await req.json();
-  const data = readFile();
 
-  data.news.push({
+  // Obtener el máximo orden actual
+  const { data: last } = await supabase
+    .from("news")
+    .select("orden")
+    .order("orden", { ascending: false })
+    .limit(1)
+    .single();
+
+  const orden = last ? (last.orden ?? 0) + 1 : 0;
+
+  const { error } = await supabase.from("news").insert({
     titulo: body.titulo || "",
     imagen: body.imagen || "",
     contenido: body.contenido || "",
     fecha: body.fecha || "",
+    orden,
   });
 
-  writeFile(data);
-
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 
-// PUT — guardar reordenamiento o edición
+// PUT — guardar reordenamiento o edición (array completo con id + orden)
 export async function PUT(req) {
   const body = await req.json();
+  const rows = (body.news || []).map((n, i) => ({
+    id: n.id,
+    titulo: n.titulo,
+    imagen: n.imagen,
+    contenido: n.contenido,
+    fecha: n.fecha,
+    orden: i,
+  }));
 
-  writeFile({ news: body.news || [] });
+  const { error } = await supabase
+    .from("news")
+    .upsert(rows, { onConflict: "id" });
 
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
 
-// DELETE — borrar por índice
+// DELETE — borrar por id
 export async function DELETE(req) {
-  const { index } = await req.json();
+  const { id } = await req.json();
 
-  const data = readFile();
-  data.news.splice(index, 1);
+  const { error } = await supabase.from("news").delete().eq("id", id);
 
-  writeFile(data);
-
+  if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true });
 }
