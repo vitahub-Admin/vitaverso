@@ -173,7 +173,7 @@ export async function GET(req) {
     if (createdAfter) query = query.gte("created_at", createdAfter);
     if (updatedAfter) query = query.gte("updated_at", updatedAfter);
 
-    query = query.order("updated_at", { ascending: false });
+    query = query.order("created_at", { ascending: false });
 
     const { data, error } = await query;
 
