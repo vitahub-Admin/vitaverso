@@ -104,13 +104,14 @@ export default function AdminSharecartsPage() {
     setRecoveryResult(null);
     try {
       const today = new Date();
+      const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
       const from4 = new Date(today); from4.setDate(today.getDate() - 4);
       const fmt = d => d.toISOString().slice(0, 10);
 
       const res = await fetch('/api/admin/sharecarts/recovery', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from: fmt(from4), to: fmt(today) }),
+        body: JSON.stringify({ from: fmt(from4), to: fmt(yesterday) }),
       });
       const json = await res.json();
 
