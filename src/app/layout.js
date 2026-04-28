@@ -116,8 +116,33 @@ function AuthManager({ children }) {
     }
   };
 
-  const redirectToShop = () => {
-    window.location.href = "https://vitahub.mx/account";
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginError, setLoginError] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+
+  const handleLogin = async () => {
+    setLoginError("");
+    setLoginLoading(true);
+    try {
+      const res = await fetch("/api/pro/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      const data = await res.json();
+      if (data.ok && data.customer?.id) {
+        Cookies.set("customerId", data.customer.id, { expires: 30 });
+        setShowAuthModal(false);
+        window.history.replaceState({}, "", "/wallet");
+      } else {
+        setLoginError(data.error || "Email o contraseña incorrectos");
+      }
+    } catch {
+      setLoginError("Error de conexión");
+    } finally {
+      setLoginLoading(false);
+    }
   };
 
   const redirectToAffiliateRegister = () => {
@@ -179,35 +204,48 @@ function AuthManager({ children }) {
   // 🔐 Modal normal
   if (showAuthModal) {
     return (
-      <div className="fixed inset-0  flex items-center justify-center z-50 p-4"
-      style={{ backgroundColor: "rgba(27, 63, 122, 0.8)" }}>
+      <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
+        style={{ backgroundColor: "rgba(27, 63, 122, 0.8)" }}>
         <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-auto">
           <div className="bg-[#1b3f7a] text-white p-6 rounded-t-xl text-center">
             <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
               <span className="text-2xl">🔐</span>
             </div>
-            <h2 className="text-2xl font-bold mb-2">
-              Acceso Requerido
-            </h2>
-            <p className="text-blue-100">
-              Necesitas identificarte para continuar
-            </p>
+            <h2 className="text-2xl font-bold mb-2">Iniciar sesión</h2>
+            <p className="text-blue-100">Ingresa con tu cuenta de VitaHub</p>
           </div>
 
           <div className="p-6 space-y-4">
-            <p className="text-gray-600 text-center">
-              Para acceder al panel profesional de VitaHub,
-              necesitas tu cuenta de cliente.
-            </p>
-
             <div className="space-y-3">
+              <input
+                type="email"
+                placeholder="Email"
+                value={loginEmail}
+                onChange={(e) => setLoginEmail(e.target.value)}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
+              />
+              <input
+                type="password"
+                placeholder="Contraseña"
+                value={loginPassword}
+                onChange={(e) => setLoginPassword(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
+                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
+              />
+              {loginError && (
+                <p className="text-red-500 text-sm text-center">{loginError}</p>
+              )}
               <button
-                onClick={redirectToShop}
-                className="w-full px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors font-medium"
+                onClick={handleLogin}
+                disabled={loginLoading}
+                className="w-full px-6 py-3 bg-[#1b3f7a] text-white rounded-lg hover:bg-[#2a5298] transition-colors font-medium disabled:opacity-60"
               >
-                Ir a Mi Cuenta VitaHub
+                {loginLoading ? "Ingresando..." : "Ingresar"}
               </button>
+            </div>
 
+            <div className="border-t pt-4 text-center">
+              <p className="text-sm text-gray-500 mb-3">¿No tienes cuenta?</p>
               <button
                 onClick={redirectToAffiliateRegister}
                 className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
