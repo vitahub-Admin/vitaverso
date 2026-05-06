@@ -91,17 +91,27 @@ export async function POST(req) {
       return NextResponse.json({ success: true, count: 0, data: [] });
     }
 
-    // 4. Traer nombres de especialistas por owner_id
+    // 4. Traer nombres y teléfonos de especialistas por owner_id
     const ownerIds = [...new Set(pendingCarts.map(c => c.owner_id).filter(Boolean))];
 
     const { data: affiliates } = await supabase
       .from('affiliates')
-      .select('shopify_customer_id, first_name, last_name')
+      .select('shopify_customer_id, first_name, last_name, phone')
       .in('shopify_customer_id', ownerIds);
 
     const affiliateMap = {};
+    const affiliatePhoneMap = {};
     affiliates?.forEach(a => {
       affiliateMap[a.shopify_customer_id] = `${a.first_name ?? ''} ${a.last_name ?? ''}`.trim();
+      if (a.phone) affiliatePhoneMap[a.shopify_customer_id] = a.phone.replace(/\D/g, '');
+    });
+
+    // 4b. Filtrar carritos donde el phone del receptor es el mismo que el del afiliado (se lo mandó a sí mismo)
+    const pendingCartsFiltered = pendingCarts.filter(c => {
+      const affiliatePhone = affiliatePhoneMap[c.owner_id];
+      if (!affiliatePhone) return true;
+      const cartPhone = c.phone.replace(/\D/g, '');
+      return cartPhone !== affiliatePhone;
     });
 
     // 5. Marcar como exportados TODOS los filtered (incluyendo duplicados de phone)
@@ -114,7 +124,7 @@ export async function POST(req) {
     if (updateError) throw updateError;
 
     // 6. Formatear respuesta para N8N
-    const data = pendingCarts.map(c => ({
+    const data = pendingCartsFiltered.map(c => ({
       phone:      c.phone,
       name:       c.name ?? '',
       specialist: affiliateMap[c.owner_id] ?? '',
