@@ -66,7 +66,7 @@ function ProductCard({ product, comment, collectionHandle, onSave }) {
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value.slice(0, 250))}
-          placeholder="¿Por qué lo recomendás? ¿Qué resultados viste? Tu experiencia real es lo que más convierte."
+          placeholder="¿Por qué lo recomiendas? ¿Qué resultados viste? Tu experiencia real es lo que más convierte."
           className="mt-auto w-full text-xs border border-gray-200 rounded-xl px-3 py-2 resize-none h-20 focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]/30 transition"
         />
         <p className={`text-[10px] text-right -mt-1 ${text.length >= 250 ? "text-red-400" : "text-gray-300"}`}>
@@ -180,11 +180,11 @@ export default function ComunidadPage() {
       <div className="max-w-[960px] mx-auto px-6 py-7 flex flex-col gap-6">
 
         <div className="bg-gradient-to-r from-[#1b3f7a]/5 to-[#2BB9B8]/5 border border-[#1b3f7a]/10 rounded-2xl p-4">
-          <p className="text-sm font-semibold text-[#1b3f7a] mb-1">Dale visibilidad a tu tienda</p>
+          <p className="text-sm font-semibold text-[#1b3f7a] mb-1">Gana visibilidad a tu perfil profesional.</p>
           <p className="text-sm text-gray-500 leading-relaxed">
-            Tu opinión sobre los productos que recomendás aparece directamente en la tienda de Vitahub,
+            Tu opinión sobre los productos que recomiendas aparece directamente en la tienda de Vitahub,
             asociada a tu colección. Cuanto más auténtico y detallado sea tu comentario, más confianza
-            generás en quienes visitan tu tienda.
+            generas en quienes visitan tu tienda.
           </p>
           <p className="text-xs text-gray-400 mt-2">
             Los comentarios son revisados por el equipo antes de publicarse. Una vez aprobados, quedan visibles para tus clientes.
