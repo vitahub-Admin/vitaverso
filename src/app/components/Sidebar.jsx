@@ -9,7 +9,7 @@ import {
   DollarSign, ShoppingBag, ShoppingCart, Store,
   BookOpen, GraduationCap, HelpCircle, Newspaper,
   Contact, UserPlus, Settings, Layers,
-  Calendar,
+  Calendar, Users,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/mis-carritos-merge",  label: "Mis Carritos",         icon: ShoppingCart },
   { href: "/contactos",           label: "Mis Contactos",        icon: Contact      },
   { href: "/mi-tienda",           label: "Mi Tienda",            icon: Store        },
+  { href: "/comunidad",           label: "Comunidad",            icon: Users        },
   { href: "/manual",              label: "Manual",               icon: BookOpen,    requireTag: "vitahuber" },
   { href: "/academia-vitahub",    label: "Academia Vitahub",     icon: GraduationCap },
   { href: "/notificaciones",      label: "Novedades",            icon: Newspaper    },
@@ -30,7 +31,8 @@ const NAV_ITEMS = [
   { href: "/admin-datos-afiliados", label: "Afiliados Data",     icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-datos-analytics", label: "Analytics",          icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-pagos",         label: "Pagos",                icon: Layers,      requireTag: "vitahuber" },
-  { href: "/admin-resena",        label: "Reseñas",              icon: Layers,      requireTag: "vitahuber" },
+  { href: "/admin-resena",        label: "Reseñas tienda",              icon: Layers,      requireTag: "vitahuber" },
+  { href: "/admin-comunidad",     label: "Reseñas productos",          icon: Layers,      requireTag: "vitahuber" },
   { href: "/calendar",      label: "Calendar",            icon: Calendar,      requireTag: "vitahuber" },
   { href: "/armador-carritos",      label: "Armador de Carritos",     icon: ShoppingCart,    requireTag: "vitahuber" },
 ];
