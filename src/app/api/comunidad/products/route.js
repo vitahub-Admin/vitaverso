@@ -54,9 +54,10 @@ export async function GET() {
         .query({
           query: `
             SELECT
-              o.line_items_product_id AS product_id,
-              o.line_items_sku        AS sku,
-              SUM(o.line_items_quantity) AS total_sold
+              o.line_items_product_id       AS product_id,
+              o.line_items_sku              AS sku,
+              ANY_VALUE(o.line_items_name)  AS name,
+              SUM(o.line_items_quantity)    AS total_sold
             FROM \`vitahub-435120.silver.orders\` o
             WHERE COALESCE(o.specialist_ref, o.referrer_id) = @specialistId
               AND o.line_items_product_id IS NOT NULL
@@ -100,7 +101,7 @@ export async function GET() {
       .map((r) => ({
         product_id: Number(r.product_id),
         handle: null,
-        title: r.sku || String(r.product_id),
+        title: r.name || r.sku || String(r.product_id),
         sku: r.sku,
         image: null,
         price: null,

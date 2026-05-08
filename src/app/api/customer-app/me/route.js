@@ -16,88 +16,88 @@ export async function GET(req) {
   const payload = verifyCustomerToken(req);
   if (!payload) return unauthorized();
 
-  const { customerId } = payload;
-  const gid = `gid://shopify/Customer/${customerId}`;
+  const { userId, email, shopifyCustomerId } = payload;
 
   try {
-    // 1. Obtener customer + metafield "referido"
-    const res = await fetch(
-      `https://${SHOPIFY_STORE}/admin/api/2024-04/graphql.json`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-        },
-        body: JSON.stringify({
-          query: `query getCustomerMe($id: ID!) {
-            customer(id: $id) {
-              id
-              firstName
-              lastName
-              email
-              phone
-              referido: metafield(namespace: "custom", key: "referido") {
-                value
-              }
-            }
-          }`,
-          variables: { id: gid },
-        }),
-      }
-    );
+    // 1. Datos base desde customer_app_users
+    const { data: appUser } = await supabase
+      .from("customer_app_users")
+      .select("id, first_name, last_name, email, phone, shopify_customer_id")
+      .eq("id", userId)
+      .maybeSingle();
 
-    const data = await res.json();
-    const customer = data?.data?.customer;
+    let customer = {
+      id: userId,
+      firstName: appUser?.first_name ?? null,
+      lastName: appUser?.last_name ?? null,
+      email: appUser?.email ?? email,
+      phone: appUser?.phone ?? null,
+      shopifyLinked: !!shopifyCustomerId,
+    };
 
-    if (!customer) {
-      return NextResponse.json(
-        { ok: false, error: "Cliente no encontrado" },
-        { status: 404 }
-      );
-    }
-
-    const specialistRef = customer.referido?.value;
-
-    // 2. Si tiene referido, buscar el afiliado en Supabase
     let specialist = null;
-    if (specialistRef) {
-      const { data: affiliateData } = await supabase
-        .from("affiliates")
-        .select("id, first_name, last_name, email, phone, profession, social_media")
-        .eq("shopify_customer_id", Number(specialistRef))
-        .maybeSingle();
 
-      if (affiliateData) {
-        specialist = {
-          id: affiliateData.id,
-          firstName: affiliateData.first_name,
-          lastName: affiliateData.last_name,
-          email: affiliateData.email,
-          phone: affiliateData.phone,
-          profession: affiliateData.profession,
-          socialMedia: affiliateData.social_media,
+    // 2. Si tiene cuenta Shopify linkeada, enriquecemos con datos de Shopify
+    if (shopifyCustomerId) {
+      const gid = `gid://shopify/Customer/${shopifyCustomerId}`;
+      const res = await fetch(
+        `https://${SHOPIFY_STORE}/admin/api/2024-04/graphql.json`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
+          },
+          body: JSON.stringify({
+            query: `query getCustomerMe($id: ID!) {
+              customer(id: $id) {
+                firstName lastName email phone
+                referido: metafield(namespace: "custom", key: "referido") { value }
+              }
+            }`,
+            variables: { id: gid },
+          }),
+        }
+      );
+
+      const data = await res.json();
+      const shopifyCustomer = data?.data?.customer;
+
+      if (shopifyCustomer) {
+        customer = {
+          ...customer,
+          firstName: shopifyCustomer.firstName,
+          lastName: shopifyCustomer.lastName,
+          email: shopifyCustomer.email,
+          phone: shopifyCustomer.phone,
         };
+
+        const specialistRef = shopifyCustomer.referido?.value;
+        if (specialistRef) {
+          const { data: affiliateData } = await supabase
+            .from("affiliates")
+            .select("id, first_name, last_name, email, phone, profession, social_media")
+            .eq("shopify_customer_id", Number(specialistRef))
+            .maybeSingle();
+
+          if (affiliateData) {
+            specialist = {
+              id: affiliateData.id,
+              firstName: affiliateData.first_name,
+              lastName: affiliateData.last_name,
+              email: affiliateData.email,
+              phone: affiliateData.phone,
+              profession: affiliateData.profession,
+              socialMedia: affiliateData.social_media,
+            };
+          }
+        }
       }
     }
 
-    return NextResponse.json({
-      ok: true,
-      customer: {
-        id: customerId,
-        firstName: customer.firstName,
-        lastName: customer.lastName,
-        email: customer.email,
-        phone: customer.phone,
-      },
-      specialist,
-    });
-
+    return NextResponse.json({ ok: true, customer, specialist });
   } catch (err) {
     console.error("customer-app/me error:", err);
-    return NextResponse.json(
-      { ok: false, error: "Error del servidor" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: "Error del servidor" }, { status: 500 });
   }
 }

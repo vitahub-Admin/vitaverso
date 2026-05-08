@@ -6,11 +6,12 @@ import { Suspense, useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import Script from "next/script";
 import Cookies from "js-cookie";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import { CustomerProvider } from "./context/CustomerContext.jsx";
 
 function AuthManager({ children }) {
   const searchParams = useSearchParams();
+  const router = useRouter();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showBackdoorModal, setShowBackdoorModal] = useState(false);
@@ -55,7 +56,7 @@ function AuthManager({ children }) {
           if (data.ok && data.customerId) {
             Cookies.set("customerId", data.customerId, { expires: 30 });
             setShowAuthModal(false);
-            window.history.replaceState({}, "", "/wallet");
+            router.replace("/wallet");
           } else {
             Cookies.remove("customerId");
             setShowAuthModal(true);
@@ -106,7 +107,7 @@ function AuthManager({ children }) {
         setPendingBackdoorId(null);
         setBackdoorPassword("");
 
-        window.history.replaceState({}, "", "/wallet");
+        router.replace("/wallet");
         setShowAuthModal(false);
       } else {
         setBackdoorError("Password incorrecta");
@@ -134,7 +135,7 @@ function AuthManager({ children }) {
       if (data.ok && data.customer?.id) {
         Cookies.set("customerId", data.customer.id, { expires: 30 });
         setShowAuthModal(false);
-        window.history.replaceState({}, "", "/wallet");
+        router.replace("/wallet");
       } else {
         setLoginError(data.error || "Email o contraseña incorrectos");
       }
@@ -278,7 +279,7 @@ export default function RootLayout({ children }) {
           strategy="afterInteractive"
         />
 
-        <Suspense fallback={<div />}>
+        <Suspense fallback={<div className="fixed inset-0 bg-white flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1b3f7a]" /></div>}>
           <AuthManager>
             <CustomerProvider>
               <div className="flex flex-col h-screen">

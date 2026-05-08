@@ -35,12 +35,17 @@ export async function GET(req) {
                     totalPriceSet {
                       shopMoney { amount currencyCode }
                     }
-                    lineItems(first: 10) {
+                    noteAttributes {
+                      name
+                      value
+                    }
+                    lineItems(first: 20) {
                       edges {
                         node {
                           title
                           quantity
                           variant {
+                            id
                             title
                             price { amount currencyCode }
                             image { url altText }
@@ -61,21 +66,28 @@ export async function GET(req) {
     const data = await res.json();
     const rawOrders = data?.data?.customer?.orders?.edges ?? [];
 
-    const orders = rawOrders.map(({ node }) => ({
-      id: node.id.split("/").pop(),
-      name: node.name,
-      createdAt: node.createdAt,
-      financialStatus: node.financialStatus,
-      total: node.totalPriceSet?.shopMoney?.amount,
-      currency: node.totalPriceSet?.shopMoney?.currencyCode,
-      lineItems: node.lineItems.edges.map(({ node: item }) => ({
-        title: item.title,
-        variantTitle: item.variant?.title ?? "",
-        quantity: item.quantity,
-        price: item.variant?.price?.amount,
-        image: item.variant?.image?.url ?? null,
-      })),
-    }));
+    const orders = rawOrders.map(({ node }) => {
+      const sharecartToken = node.noteAttributes
+        ?.find((a) => a.name === "shared-cart-id")?.value ?? null;
+
+      return {
+        id: node.id.split("/").pop(),
+        name: node.name,
+        createdAt: node.createdAt,
+        financialStatus: node.financialStatus,
+        total: node.totalPriceSet?.shopMoney?.amount,
+        currency: node.totalPriceSet?.shopMoney?.currencyCode,
+        sharecartToken,
+        lineItems: node.lineItems.edges.map(({ node: item }) => ({
+          title: item.title,
+          variantId: item.variant?.id?.split("/").pop() ?? null,
+          variantTitle: item.variant?.title ?? "",
+          quantity: item.quantity,
+          price: item.variant?.price?.amount,
+          image: item.variant?.image?.url ?? null,
+        })),
+      };
+    });
 
     return NextResponse.json({ ok: true, orders });
   } catch (err) {

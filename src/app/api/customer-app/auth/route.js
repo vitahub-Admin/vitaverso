@@ -2,9 +2,15 @@
 // Login para clientes regulares via Shopify Storefront API
 import { NextResponse } from "next/server";
 import { signCustomerToken } from "@/lib/customerAppAuth";
+import { createClient } from "@supabase/supabase-js";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN;
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
 
 async function storefrontRequest(query, variables = {}) {
   const res = await fetch(
@@ -23,7 +29,7 @@ async function storefrontRequest(query, variables = {}) {
 
 export async function POST(req) {
   try {
-    const { email, password } = await req.json();
+    const { email, password, platform } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json(
@@ -85,20 +91,39 @@ export async function POST(req) {
       );
     }
 
-    // GID → numeric ID  (gid://shopify/Customer/1234567890 → 1234567890)
-    const numericId = customer.id.split("/").pop();
+    const numericId = Number(customer.id.split("/").pop());
 
-    const jwtToken = signCustomerToken(numericId, customer.email);
+    // 3. Upsert en Supabase y obtener el id interno
+    const { data: appUser } = await supabase
+      .from("customer_app_users")
+      .upsert(
+        {
+          shopify_customer_id: numericId,
+          first_name: customer.firstName,
+          last_name: customer.lastName,
+          email: customer.email,
+          phone: customer.phone ?? null,
+          platform: platform ?? null,
+          last_login_at: new Date().toISOString(),
+        },
+        { onConflict: "shopify_customer_id", ignoreDuplicates: false }
+      )
+      .select("id")
+      .single();
+
+    const userId = appUser?.id ?? numericId;
+    const jwtToken = signCustomerToken(userId, customer.email, numericId);
 
     return NextResponse.json({
       ok: true,
       token: jwtToken,
       customer: {
-        id: numericId,
+        id: userId,
         firstName: customer.firstName,
         lastName: customer.lastName,
         email: customer.email,
         phone: customer.phone,
+        shopifyLinked: true,
       },
     });
   } catch (err) {
