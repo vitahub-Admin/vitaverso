@@ -74,10 +74,18 @@ export async function GET(req) {
 
         const specialistRef = shopifyCustomer.referido?.value;
         if (specialistRef) {
+          const specialistShopifyId = Number(specialistRef);
+
+          // Persistir specialist_shopify_id en customer_app_users
+          await supabase
+            .from("customer_app_users")
+            .update({ specialist_shopify_id: specialistShopifyId })
+            .eq("id", userId);
+
           const { data: affiliateData } = await supabase
             .from("affiliates")
             .select("id, first_name, last_name, email, phone, profession, social_media")
-            .eq("shopify_customer_id", Number(specialistRef))
+            .eq("shopify_customer_id", specialistShopifyId)
             .maybeSingle();
 
           if (affiliateData) {
