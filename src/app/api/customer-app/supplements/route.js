@@ -193,7 +193,7 @@ export async function PATCH(req) {
   const { shopifyCustomerId } = payload;
 
   try {
-    const { variantId, productTitle, variantTitle, orderId, startDate, dailyDose, durationDays } =
+    const { variantId, productTitle, productHandle, variantTitle, orderId, startDate, dailyDose, durationDays } =
       await req.json();
 
     if (!variantId || !startDate) {
@@ -207,6 +207,7 @@ export async function PATCH(req) {
         shopify_customer_id: Number(shopifyCustomerId),
         shopify_variant_id: Number(variantId),
         product_title: productTitle,
+        product_handle: productHandle ?? null,
         variant_title: variantTitle,
         order_id: resolvedOrderId,
         start_date: startDate,

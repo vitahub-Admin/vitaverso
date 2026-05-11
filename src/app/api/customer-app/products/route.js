@@ -65,6 +65,7 @@ export async function GET(req) {
     const products = raw.map(({ node }) => ({
       id: node.id.split("/").pop(),
       title: node.title,
+      handle: node.handle,
       image: node.images?.edges?.[0]?.node?.url ?? null,
       variants: node.variants.edges.map(({ node: v }) => ({
         id: v.id.split("/").pop(),

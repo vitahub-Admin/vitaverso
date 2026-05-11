@@ -3,6 +3,7 @@
 import { NextResponse } from 'next/server';
 import { syncCalendarEvents, syncCalendlyInvitees } from '@/app/services/googleCalendarService';
 import { syncInviteesMatch } from '@/lib/syncInviteesMatch';
+import { sendRestockNotifications } from '@/lib/restockNotifications';
 
 export const maxDuration = 300;
 
@@ -43,6 +44,14 @@ export async function GET(req) {
   } catch (err) {
     console.error('❌ Re-match invitees failed:', err);
     results.inviteesMatch = { error: err.message };
+  }
+
+  // ── Restock notifications ──────────────────────────
+  try {
+    results.restockNotifications = await sendRestockNotifications();
+  } catch (err) {
+    console.error('❌ Restock notifications failed:', err);
+    results.restockNotifications = { error: err.message };
   }
 
   return NextResponse.json({ success: true, results });
