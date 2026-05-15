@@ -109,7 +109,26 @@ export async function GET() {
         total_sold: Number(r.total_sold),
       }));
 
-    // 6. Merge: vendidos primero (desc), luego sin ventas
+    // 6. Fetch imágenes de Shopify para productos fuera de colección
+    if (extraSold.length > 0) {
+      const ids = extraSold.map((p) => p.product_id).join(",");
+      try {
+        const imgRes = await fetch(
+          `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/products.json?ids=${ids}&fields=id,image`,
+          { headers: { "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN }, cache: "no-store" }
+        );
+        if (imgRes.ok) {
+          const { products: shopifyProducts } = await imgRes.json();
+          const imgMap = {};
+          for (const sp of shopifyProducts) imgMap[String(sp.id)] = sp.image?.src || null;
+          for (const p of extraSold) p.image = imgMap[String(p.product_id)] || null;
+        }
+      } catch {
+        // si falla la imagen no es crítico, seguimos sin ella
+      }
+    }
+
+    // 7. Merge: vendidos primero (desc), luego sin ventas
     const all = [...collectionProducts, ...extraSold];
     all.sort((a, b) => b.total_sold - a.total_sold);
 

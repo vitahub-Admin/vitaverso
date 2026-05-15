@@ -34,7 +34,8 @@ const NAV_ITEMS = [
   { href: "/admin-resena",        label: "Reseñas tienda",              icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-comunidad",     label: "Reseñas productos",          icon: Layers,      requireTag: "vitahuber" },
   { href: "/calendar",      label: "Calendar",            icon: Calendar,      requireTag: "vitahuber" },
-  { href: "/armador-carritos",      label: "Armador de Carritos",     icon: ShoppingCart,    requireTag: "vitahuber" },
+  { href: "/armador-carritos",        label: "Armador de Carritos",  icon: ShoppingCart, requireTag: "vitahuber" },
+  { href: "/admin-capacitaciones",    label: "Capacitaciones",       icon: Layers,       requireTag: "vitahuber" },
 ];
 
 const WHATSAPP = `https://wa.me/5215548592403?text=${encodeURIComponent("Estoy en el programa de afiliados y tengo una duda")}`;

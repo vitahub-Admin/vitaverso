@@ -60,7 +60,7 @@ function ProductCard({ product, comment, collectionHandle, onSave }) {
       </div>
 
       <div className="p-3 flex flex-col gap-2 flex-1">
-        <p className="text-sm font-semibold text-gray-800 leading-tight line-clamp-2">{product.title}</p>
+        <p className="text-sm font-semibold text-gray-800 leading-tight">{product.title}</p>
         {product.sku && <p className="text-[10px] text-gray-400 font-mono">{product.sku}</p>}
 
         <textarea
