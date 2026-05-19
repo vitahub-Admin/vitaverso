@@ -1,37 +1,20 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { resolveCustomerId, unauthorized } from '@/lib/customerAppAuth';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 );
 
-export async function GET() {
+export async function GET(req) {
   try {
-    const cookieStore = await cookies();
+    const customerIdNum = await resolveCustomerId(req);
 
-    const customerId = cookieStore.get('customerId')?.value;
-
-    if (!customerId) {
-      return NextResponse.json(
-        { success: false, message: 'No hay sesión activa' },
-        { status: 401 }
-      );
+    if (!customerIdNum || Number.isNaN(customerIdNum)) {
+      return unauthorized();
     }
 
-    const customerIdNum = Number(customerId);
-
-    if (Number.isNaN(customerIdNum)) {
-      return NextResponse.json(
-        { success: false, message: 'CustomerId inválido' },
-        { status: 400 }
-      );
-    }
-
-    /**
-     * 1️⃣ Traemos SOLO confirmadas
-     */
     const { data: transactions, error } = await supabase
       .from('point_transactions_live')
       .select(`
@@ -51,24 +34,15 @@ export async function GET() {
 
     if (error) throw error;
 
-    /**
-     * 2️⃣ Calculamos saldo
-     */
     let totalIn = 0;
     let totalOut = 0;
 
     for (const tx of transactions || []) {
       const amount = Number(tx.points);
-
       if (tx.direction === 'IN') totalIn += amount;
       if (tx.direction === 'OUT') totalOut += amount;
     }
 
-    const availableBalance = totalIn - totalOut;
-
-    /**
-     * 3️⃣ Transformamos para frontend
-     */
     const formattedTransactions = (transactions || [])
       .slice(0, 20)
       .map((tx) => ({
@@ -82,13 +56,11 @@ export async function GET() {
         processed_at: tx.processed_at,
       }));
 
-    /**
-     * 4️⃣ Response
-     */
     return NextResponse.json({
       success: true,
+      ok: true,
       wallet: {
-        available: availableBalance,
+        available: totalIn - totalOut,
         total_earned: totalIn,
         total_withdrawn: totalOut,
         currency: 'MXN',
@@ -98,16 +70,10 @@ export async function GET() {
         transaction_count: transactions?.length || 0,
         last_transaction_at: transactions?.[0]?.processed_at || null,
       },
+      _debug: { customer_id_used: customerIdNum },
     });
   } catch (err) {
-    console.error('❌ Error GET /api/affiliate/wallet:', err);
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: err?.message || 'Internal Server Error',
-      },
-      { status: 500 }
-    );
+    console.error('❌ Error GET /api/affiliates/wallet:', err);
+    return NextResponse.json({ success: false, error: err?.message || 'Internal Server Error' }, { status: 500 });
   }
 }

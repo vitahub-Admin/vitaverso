@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
+import { sendPushToAffiliate } from '@/lib/affiliateNotifications';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -117,6 +118,13 @@ const available = totalIn - totalOut;
       .eq('id', exchangeId);
 
     if (updateError) throw updateError;
+
+    sendPushToAffiliate(
+      exchange.customer_id,
+      '¡Cobro aprobado! 🎉',
+      `Tu solicitud de ${exchange.points_requested} puntos fue procesada correctamente.`,
+      { type: 'exchange_approved', exchangeId: exchange.id }
+    ).catch(() => {});
 
     return NextResponse.json({
       success: true,

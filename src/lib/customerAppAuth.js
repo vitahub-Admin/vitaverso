@@ -26,3 +26,20 @@ export function verifyCustomerToken(req) {
 export function unauthorized() {
   return NextResponse.json({ ok: false, error: "Unauthorized" }, { status: 401 });
 }
+
+// Resuelve el shopify_customer_id tanto desde cookie (web) como desde Bearer JWT (app móvil)
+export async function resolveCustomerId(req) {
+  // 1. Intentar Bearer JWT (app móvil)
+  const decoded = verifyCustomerToken(req);
+  if (decoded?.userId) return Number(decoded.userId);
+
+  // 2. Fallback a cookie (web)
+  try {
+    const { cookies } = await import("next/headers");
+    const cookieStore = await cookies();
+    const val = cookieStore.get("customerId")?.value;
+    if (val) return Number(val);
+  } catch {}
+
+  return null;
+}
