@@ -37,6 +37,7 @@ const NAV_ITEMS = [
   { href: "/armador-carritos",        label: "Armador de Carritos",  icon: ShoppingCart, requireTag: "vitahuber" },
   { href: "/admin-capacitaciones",    label: "Capacitaciones",       icon: Layers,       requireTag: "vitahuber" },
   { href: "/admin-ordenes",           label: "Órdenes Admin",         icon: ShoppingBag,  requireTag: "vitahuber" },
+  { href: "/admin-notificaciones",          label: "Notificaciones Admin",        icon: Users,        requireTag: "vitahuber" },    
 ];
 
 const WHATSAPP = `https://wa.me/5215548592403?text=${encodeURIComponent("Estoy en el programa de afiliados y tengo una duda")}`;
