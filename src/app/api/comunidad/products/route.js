@@ -133,10 +133,14 @@ export async function GET() {
     all.sort((a, b) => b.total_sold - a.total_sold);
 
     const collectionHandle = shopifyRes.collection?.handle || null;
+    const collectionTitle  = shopifyRes.collection?.title  || null;
+    const collectionImage  = shopifyRes.collection?.image?.src || null;
 
     return NextResponse.json({
       success: true,
       collection_handle: collectionHandle,
+      collection_title:  collectionTitle,
+      collection_image:  collectionImage,
       products: all,
     });
   } catch (err) {
