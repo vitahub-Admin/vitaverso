@@ -5,7 +5,7 @@ import Image from "next/image";
 import Banner from "../components/Banner.jsx";
 import {
   Trash2, Plus, ChevronLeft, ChevronRight,
-  Calendar as CalIcon, Loader2,
+  Calendar as CalIcon, Loader2, Pencil, X,
 } from "lucide-react";
 
 const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -77,13 +77,34 @@ function fmtTime(s) {
 }
 
 export default function AdminCapacitacionesPage() {
-  const [events,  setEvents]  = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [saving,  setSaving]  = useState(false);
-  const [toast,   setToast]   = useState(null);
+  const [events,     setEvents]     = useState([]);
+  const [loading,    setLoading]    = useState(true);
+  const [saving,     setSaving]     = useState(false);
+  const [toast,      setToast]      = useState(null);
+  const [editingId,  setEditingId]  = useState(null);
   const [form, setForm] = useState({
     title: "", description: "", event_date: "", event_time: "", image_url: "", link: "",
   });
+
+  const EMPTY_FORM = { title: "", description: "", event_date: "", event_time: "", image_url: "", link: "" };
+
+  function startEdit(ev) {
+    setEditingId(ev.id);
+    setForm({
+      title:      ev.title       || "",
+      description:ev.description || "",
+      event_date: ev.event_date  || "",
+      event_time: ev.event_time  || "",
+      image_url:  ev.image_url   || "",
+      link:       ev.link        || "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  }
+
+  function cancelEdit() {
+    setEditingId(null);
+    setForm(EMPTY_FORM);
+  }
 
   function showToast(msg, type = "ok") {
     setToast({ msg, type });
@@ -103,22 +124,32 @@ export default function AdminCapacitacionesPage() {
 
   useEffect(() => { loadEvents(); }, []);
 
-  async function handleCreate(e) {
+  async function handleSubmit(e) {
     e.preventDefault();
     setSaving(true);
     try {
-      const res  = await fetch("/api/admin/capacitaciones", {
-        method:  "POST",
-        headers: { "Content-Type": "application/json" },
-        body:    JSON.stringify(form),
-      });
+      const isEdit = !!editingId;
+      const res = await fetch(
+        isEdit ? `/api/admin/capacitaciones/${editingId}` : "/api/admin/capacitaciones",
+        {
+          method:  isEdit ? "PUT" : "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify(form),
+        }
+      );
       const data = await res.json();
       if (data.success) {
-        setEvents(prev => [data.data, ...prev]);
-        setForm({ title: "", description: "", event_date: "", event_time: "", image_url: "", link: "" });
-        showToast("Capacitación creada ✅");
+        if (isEdit) {
+          setEvents(prev => prev.map(ev => ev.id === editingId ? data.data : ev));
+          showToast("Cambios guardados ✅");
+          cancelEdit();
+        } else {
+          setEvents(prev => [data.data, ...prev]);
+          setForm(EMPTY_FORM);
+          showToast("Capacitación creada ✅");
+        }
       } else {
-        showToast(data.error || "Error al crear", "err");
+        showToast(data.error || "Error al guardar", "err");
       }
     } catch {
       showToast("Error de conexión", "err");
@@ -171,11 +202,11 @@ export default function AdminCapacitacionesPage() {
 
         {/* Form */}
         <form
-          onSubmit={handleCreate}
+          onSubmit={handleSubmit}
           className="bg-gradient-to-br from-[#1b3f7a]/5 to-[#2BB9B8]/5 border border-[#1b3f7a]/10 rounded-2xl p-5"
         >
           <h2 className="text-sm font-bold text-[#1b3f7a] mb-4 flex items-center gap-2">
-            <Plus size={15} /> Nueva capacitación
+            {editingId ? <><Pencil size={15} /> Editar capacitación</> : <><Plus size={15} /> Nueva capacitación</>}
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <input
@@ -219,15 +250,27 @@ export default function AdminCapacitacionesPage() {
               className={`sm:col-span-2 resize-none ${field}`}
             />
           </div>
-          <button
-            type="submit"
-            disabled={saving}
-            className="mt-4 px-5 py-2 bg-[#1b3f7a] text-white text-sm font-semibold rounded-xl
-              hover:bg-[#163264] disabled:opacity-60 flex items-center gap-2 transition"
-          >
-            {saving ? <Loader2 size={14} className="animate-spin" /> : <Plus size={14} />}
-            {saving ? "Guardando..." : "Crear capacitación"}
-          </button>
+          <div className="mt-4 flex gap-2">
+            <button
+              type="submit"
+              disabled={saving}
+              className="px-5 py-2 bg-[#1b3f7a] text-white text-sm font-semibold rounded-xl
+                hover:bg-[#163264] disabled:opacity-60 flex items-center gap-2 transition"
+            >
+              {saving ? <Loader2 size={14} className="animate-spin" /> : editingId ? <Pencil size={14} /> : <Plus size={14} />}
+              {saving ? "Guardando..." : editingId ? "Guardar cambios" : "Crear capacitación"}
+            </button>
+            {editingId && (
+              <button
+                type="button"
+                onClick={cancelEdit}
+                className="px-4 py-2 text-sm font-semibold rounded-xl border border-gray-200
+                  text-gray-500 hover:bg-gray-50 flex items-center gap-2 transition"
+              >
+                <X size={14} /> Cancelar
+              </button>
+            )}
+          </div>
         </form>
 
         {/* List + Calendar */}
@@ -266,6 +309,12 @@ export default function AdminCapacitacionesPage() {
                       <p className="text-sm font-semibold text-gray-800 truncate">{ev.title}</p>
                       <p className="text-xs text-gray-400">{fmtDate(ev.event_date)} · {fmtTime(ev.event_time)}</p>
                     </div>
+                    <button
+                      onClick={() => startEdit(ev)}
+                      className="p-1.5 rounded-lg text-[#1b3f7a] hover:bg-[#1b3f7a]/10 transition shrink-0"
+                    >
+                      <Pencil size={15} />
+                    </button>
                     <button
                       onClick={() => handleDelete(ev.id)}
                       className="p-1.5 rounded-lg text-red-400 hover:bg-red-50 hover:text-red-600 transition shrink-0"

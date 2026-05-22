@@ -24,6 +24,7 @@ export default function WalletPage() {
   const [withdrawAmount, setWithdrawAmount]   = useState("");
   const [exchangeType, setExchangeType]       = useState(null);
   const [clabe, setClabe]                     = useState(null);
+  const [creditCodes, setCreditCodes]         = useState([]);
 
   useEffect(() => {
     async function fetchWallet() {
@@ -44,8 +45,16 @@ export default function WalletPage() {
         if (r.data.success) setClabe(r.data.clabe_interbancaria);
       } catch (e) { console.error(e); }
     };
+    const getCreditCodes = async () => {
+      try {
+        const r = await fetch("/api/affiliate-app/store-credit");
+        const d = await r.json();
+        if (d.ok) setCreditCodes(d.codes || []);
+      } catch {}
+    };
     fetchWallet();
     getClabe();
+    getCreditCodes();
   }, []);
 
   const handleExchange = async () => {
@@ -59,19 +68,41 @@ export default function WalletPage() {
     if (currentType === "cash" && !clabe)  return notify("Debes registrar una CLABE para retirar dinero");
     try {
       setWithdrawing(true); setMessage(null);
-      const res  = await fetch("/api/affiliates/wallet/exchange", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ points_requested: amount, exchange_type: currentType }),
-      });
-      const data = await res.json();
-      if (!res.ok || !data.success) throw new Error(data?.message || "Error al solicitar");
-      notify("¡Solicitud enviada correctamente!", "success");
-      setWithdrawAmount(""); setExchangeType(null);
-      const exRes  = await fetch("/api/affiliates/wallet/exchange");
-      const exData = await exRes.json();
-      if (exData.success)
-        setPendingExchange(exData.exchanges?.find((ex) => ex.status === "pending") || null);
+
+      if (currentType === "store_credit") {
+        const res  = await fetch("/api/affiliate-app/store-credit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ points_requested: amount }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.ok) throw new Error(data?.error || "Error al generar crédito");
+        notify(`¡Crédito generado! Tu código es: ${data.code} — $${fmt(data.amount)} MXN`, "success");
+        setWithdrawAmount(""); setExchangeType(null);
+        // Refrescar códigos y wallet
+        const [codesRes, walletRes] = await Promise.all([
+          fetch("/api/affiliate-app/store-credit"),
+          fetch("/api/affiliates/wallet"),
+        ]);
+        const codesData  = await codesRes.json();
+        const walletData = await walletRes.json();
+        if (codesData.ok)      setCreditCodes(codesData.codes || []);
+        if (walletData.success) { setWallet(walletData.wallet); setTransactions(walletData.transactions || []); }
+      } else {
+        const res  = await fetch("/api/affiliates/wallet/exchange", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ points_requested: amount, exchange_type: currentType }),
+        });
+        const data = await res.json();
+        if (!res.ok || !data.success) throw new Error(data?.message || "Error al solicitar");
+        notify("¡Solicitud enviada correctamente!", "success");
+        setWithdrawAmount(""); setExchangeType(null);
+        const exRes  = await fetch("/api/affiliates/wallet/exchange");
+        const exData = await exRes.json();
+        if (exData.success)
+          setPendingExchange(exData.exchanges?.find((ex) => ex.status === "pending") || null);
+      }
     } catch (err) { notify(err?.message || "Error inesperado", "error"); }
     finally { setWithdrawing(false); }
   };
@@ -299,6 +330,34 @@ export default function WalletPage() {
             </div>
           </div>
         </div>
+
+        {/* ══ Cupones de crédito en tienda ══ */}
+        {creditCodes.length > 0 && (
+          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <h2 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+              <BadgePercent size={15} className="text-emerald-500" />
+              Créditos en tienda disponibles
+            </h2>
+            <div className="flex flex-col gap-3">
+              {creditCodes.map((item) => (
+                <div key={item.id} className="flex items-center gap-4 border border-emerald-100 bg-emerald-50 rounded-xl px-4 py-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold text-gray-800 tracking-wider">{item.code}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">${fmt(item.amount)} MXN de crédito</p>
+                  </div>
+                  <a
+                    href={item.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="shrink-0 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors"
+                  >
+                    Usar cupón
+                  </a>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* ══ FILA 2: Historial + Guías ══ */}
         <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-5 items-start">

@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { sendPushToAffiliate } from "@/lib/affiliateNotifications";
 
 export const runtime = "nodejs";
 
@@ -203,6 +204,13 @@ export async function POST(req) {
       ]);
 
     if (txError) throw txError;
+
+    sendPushToAffiliate(
+      specialistId,
+      '¡Nueva comisión! 💰',
+      `Ganaste $${totalCommission.toFixed(2)} MXN por la orden #${orderNumber}.`,
+      { type: 'new_commission', orderId, orderNumber, amount: totalCommission }
+    ).catch(() => {});
 
     await supabase.rpc("increment_affiliate_orders", {
       p_shopify_id: specialistId,

@@ -330,7 +330,7 @@ function EventModal({ events, inscripciones, onClose, onInscribirse }) {
 
 // ─── Página principal ──────────────────────────────────────────────────────────
 
-const SHOW_CALENDAR = false; // lanzar el lunes — cambiar a true
+const SHOW_CALENDAR = true;
 
 export default function AcademiaVitahubPage() {
   const [events,       setEvents]       = useState([]);
