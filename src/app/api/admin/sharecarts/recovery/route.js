@@ -4,20 +4,11 @@
 
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { BigQuery } from '@google-cloud/bigquery';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 );
-
-const bigquery = new BigQuery({
-  projectId: process.env.GOOGLE_PROJECT_ID,
-  credentials: {
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key:  process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-  },
-});
 
 export async function GET() {
   const { data } = await supabase
@@ -58,21 +49,14 @@ export async function POST(req) {
       return NextResponse.json({ success: true, count: 0, data: [] });
     }
 
-    // 2. Traer tokens que ya convirtieron a orden en BigQuery (desde `from` hasta hoy)
-    const bqQuery = `
-      SELECT DISTINCT share_cart
-      FROM \`vitahub-435120.silver.orders\`
-      WHERE share_cart IS NOT NULL
-        AND TIMESTAMP_TRUNC(created_at, DAY) >= TIMESTAMP(@from)
-    `;
+    // 2. Traer tokens que ya convirtieron a orden en Supabase (desde `from` hasta hoy)
+    const { data: convertedOrders } = await supabase
+      .from('orders')
+      .select('share_cart')
+      .not('share_cart', 'is', null)
+      .gte('shopify_created_at', `${from}T00:00:00Z`);
 
-    const [bqRows] = await bigquery.query({
-      query:    bqQuery,
-      location: 'us-east1',
-      params:   { from },
-    });
-
-    const convertedTokens = new Set(bqRows.map(r => r.share_cart));
+    const convertedTokens = new Set((convertedOrders || []).map(r => r.share_cart));
 
     // 3. LEFT JOIN: quedarse solo con los que NO convirtieron
     const filtered = carts.filter(c => !convertedTokens.has(c.token));

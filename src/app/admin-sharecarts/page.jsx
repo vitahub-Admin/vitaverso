@@ -6,6 +6,17 @@ import * as XLSX from "xlsx";
 
 const VIDEO_URL = 'https://vambe-bkt.s3.us-east-1.amazonaws.com/upload/private/5cc1d04f-36ef-4986-9858-84770fdf302c/32bb19a5-f7d0-4ced-b341-0f0074962ba5-whatsapp-video-2026-03-24-at-16.32.56.mp4';
 
+function downloadBaseDatos(rows) {
+  const data = [
+    ['Nombre', 'Teléfono'],
+    ...rows.map(r => [r.name ?? '', r.phone ?? '']),
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(data);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Base');
+  XLSX.writeFile(wb, `base_datos_${new Date().toISOString().slice(0, 10)}.xlsx`);
+}
+
 function downloadXlsx(rows) {
   const data = [
     ['Teléfono', 'Nombre', 'Variable 1', 'Variable 2', 'Variable 3', 'Variable 4'],
@@ -30,6 +41,8 @@ export default function AdminSharecartsPage() {
   const [recoveryLoading, setRecoveryLoading] = useState(false);
   const [recoveryResult, setRecoveryResult] = useState(null);
   const [lastExport, setLastExport] = useState(null);
+  const [baseLoading, setBaseLoading] = useState(false);
+  const [baseResult,  setBaseResult]  = useState(null);
 
   // Filtros de fecha
   const [from, setFrom] = useState("");
@@ -99,6 +112,27 @@ export default function AdminSharecartsPage() {
     : null;
   const exportedRecently = horasSinceExport !== null && horasSinceExport < 12;
 
+  async function handleBaseDatos() {
+    setBaseLoading(true);
+    setBaseResult(null);
+    try {
+      const res  = await fetch('/api/admin/sharecarts/base-datos');
+      const json = await res.json();
+      if (json.success && json.count > 0) {
+        downloadBaseDatos(json.data);
+        setBaseResult({ count: json.count, ok: true });
+      } else if (json.success && json.count === 0) {
+        setBaseResult({ count: 0, ok: true });
+      } else {
+        setBaseResult({ error: json.error, ok: false });
+      }
+    } catch (err) {
+      setBaseResult({ error: err.message, ok: false });
+    } finally {
+      setBaseLoading(false);
+    }
+  }
+
   async function handleRecovery() {
     setRecoveryLoading(true);
     setRecoveryResult(null);
@@ -145,34 +179,59 @@ export default function AdminSharecartsPage() {
           </p>
         </div>
 
-        {/* Recovery export */}
-        <div className="flex flex-col items-end gap-1">
-          <button
-            onClick={handleRecovery}
-            disabled={recoveryLoading}
-            className="flex items-center gap-2 bg-[#1b3f7a] text-white text-sm px-4 py-2 rounded-lg hover:bg-[#163264] disabled:opacity-50 transition-colors"
-          >
-            <Download size={15} />
-            {recoveryLoading ? 'Generando…' : 'Recovery últimos 4 días (CSV)'}
-          </button>
+        {/* Exports */}
+        <div className="flex flex-col items-end gap-3">
+          {/* Recovery */}
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleRecovery}
+              disabled={recoveryLoading}
+              className="flex items-center gap-2 bg-[#1b3f7a] text-white text-sm px-4 py-2 rounded-lg hover:bg-[#163264] disabled:opacity-50 transition-colors"
+            >
+              <Download size={15} />
+              {recoveryLoading ? 'Generando…' : 'Recovery últimos 4 días (CSV)'}
+            </button>
 
-          {lastExport && (
-            <p className={`text-xs ${exportedRecently ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
-              {exportedRecently
-                ? `⚠️ Exportado hace ${Math.round(horasSinceExport * 60)} min — puede estar vacío`
-                : `Último export: ${new Date(lastExport).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}`}
-            </p>
-          )}
+            {lastExport && (
+              <p className={`text-xs ${exportedRecently ? 'text-amber-600 font-medium' : 'text-gray-400'}`}>
+                {exportedRecently
+                  ? `⚠️ Exportado hace ${Math.round(horasSinceExport * 60)} min — puede estar vacío`
+                  : `Último export: ${new Date(lastExport).toLocaleString('es-MX', { timeZone: 'America/Mexico_City' })}`}
+              </p>
+            )}
 
-          {recoveryResult && (
-            <p className={`text-xs ${recoveryResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
-              {recoveryResult.ok
-                ? recoveryResult.count === 0
-                  ? 'Sin carritos pendientes'
-                  : `✓ ${recoveryResult.count} carrito(s) exportados`
-                : `Error: ${recoveryResult.error}`}
-            </p>
-          )}
+            {recoveryResult && (
+              <p className={`text-xs ${recoveryResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                {recoveryResult.ok
+                  ? recoveryResult.count === 0
+                    ? 'Sin carritos pendientes'
+                    : `✓ ${recoveryResult.count} carrito(s) exportados`
+                  : `Error: ${recoveryResult.error}`}
+              </p>
+            )}
+          </div>
+
+          {/* Base de datos 30 días */}
+          <div className="flex flex-col items-end gap-1">
+            <button
+              onClick={handleBaseDatos}
+              disabled={baseLoading}
+              className="flex items-center gap-2 bg-gray-700 text-white text-sm px-4 py-2 rounded-lg hover:bg-gray-800 disabled:opacity-50 transition-colors"
+            >
+              <Download size={15} />
+              {baseLoading ? 'Generando…' : 'Base datos 30 días (XLSX)'}
+            </button>
+
+            {baseResult && (
+              <p className={`text-xs ${baseResult.ok ? 'text-emerald-600' : 'text-red-500'}`}>
+                {baseResult.ok
+                  ? baseResult.count === 0
+                    ? 'Sin carritos pendientes'
+                    : `✓ ${baseResult.count} contacto(s) exportados`
+                  : `Error: ${baseResult.error}`}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 

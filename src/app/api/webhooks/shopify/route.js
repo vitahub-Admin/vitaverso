@@ -108,6 +108,27 @@ export async function POST(req) {
 
     if (orderError) console.error("Order upsert error:", orderError);
 
+    // Marcar como convertido en base_datos_exports si la orden tiene sharecart
+    if (shareCart) {
+      supabase
+        .from('sharecarts')
+        .select('phone')
+        .eq('token', shareCart)
+        .maybeSingle()
+        .then(({ data: cartData }) => {
+          const cartPhone = (cartData?.phone ?? '').replace(/\D/g, '');
+          if (!cartPhone) return;
+          supabase
+            .from('base_datos_exports')
+            .update({ deleted_at: new Date().toISOString() })
+            .eq('phone', cartPhone)
+            .is('deleted_at', null)
+            .then(({ error }) => {
+              if (error) console.error('base_datos_exports update error:', error);
+            });
+        });
+    }
+
     // Determinar especialista efectivo para comisiones
     const effectiveSpecialist =
       correctedRef || (specialistRef !== "0000" ? specialistRef : null);
