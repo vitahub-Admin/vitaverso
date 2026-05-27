@@ -21,7 +21,15 @@ function isValidPhone(digits) {
   return false;
 }
 
-export async function GET() {
+export async function GET(req) {
+  const apiKey = req.headers.get('x-api-key');
+  const cookieHeader = req.headers.get('cookie') ?? '';
+  const hasAdminCookie = cookieHeader.includes('customerId=');
+
+  if (apiKey !== process.env.SHARECART_API_KEY && !hasAdminCookie) {
+    return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+  }
+
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
