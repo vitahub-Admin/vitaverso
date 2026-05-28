@@ -35,8 +35,8 @@ export async function POST(req) {
       .update({ verify_code: code, verify_code_expires_at: expires })
       .eq('shopify_customer_id', customerIdNum);
 
-    // Disparar n8n (non-blocking)
-    fetch(N8N_WEBHOOK, {
+    // Disparar n8n
+    await fetch(N8N_WEBHOOK, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -44,7 +44,7 @@ export async function POST(req) {
         nombre: affiliate.first_name,
         code,
       }),
-    }).catch(() => {});
+    });
 
     return NextResponse.json({ ok: true, message: 'Código enviado al email registrado' });
   } catch (err) {
