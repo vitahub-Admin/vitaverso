@@ -54,8 +54,7 @@ export async function GET(req) {
     if (!col) {
       return NextResponse.json({
         ok: false,
-        error: `Colección no encontrada en Shopify (collection_id: ${collectionId})`,
-        shopify_errors: shopifyData.errors ?? null,
+        error: `id:${collectionId} | status:${shopifyRes.status} | raw:${JSON.stringify(shopifyData).slice(0, 300)}`,
       }, { status: 404 });
     }
 
