@@ -31,7 +31,7 @@ export async function GET(req) {
       collection(id: "gid://shopify/Collection/${collectionId}") {
         title
         handle
-        image { src alt }
+        image { src }
         presentacion: metafield(namespace: "custom", key: "presentacion") { value }
       }
     }`;
@@ -52,10 +52,7 @@ export async function GET(req) {
     const col = shopifyData.data?.collection;
 
     if (!col) {
-      return NextResponse.json({
-        ok: false,
-        error: `id:${collectionId} | status:${shopifyRes.status} | raw:${JSON.stringify(shopifyData).slice(0, 300)}`,
-      }, { status: 404 });
+      return NextResponse.json({ ok: false, error: 'Colección no encontrada en Shopify' }, { status: 404 });
     }
 
     return NextResponse.json({
@@ -65,7 +62,6 @@ export async function GET(req) {
         title: col.title,
         handle: col.handle,
         imageUrl: col.image?.src || null,
-        imageAlt: col.image?.alt || col.title,
         presentacion: col.presentacion?.value || '',
       },
     });
