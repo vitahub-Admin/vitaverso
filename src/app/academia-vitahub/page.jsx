@@ -107,9 +107,9 @@ function fmtDateLong(s) {
 
 // ─── Card de evento ────────────────────────────────────────────────────────────
 
-function EventCard({ event, isInscripto: initialInscripto, onInscribirse }) {
+function EventCard({ event, isInscripto: initialInscrito, onInscribirse }) {
   const [inscribing, setInscribing] = useState(false);
-  const [inscripto,  setInscripto]  = useState(initialInscripto);
+  const [inscrito,   setInscrito]   = useState(initialInscrito);
 
   async function handleInscribirse() {
     setInscribing(true);
@@ -121,8 +121,9 @@ function EventCard({ event, isInscripto: initialInscripto, onInscribirse }) {
       });
       const data = await res.json();
       if (data.success) {
-        setInscripto(true);
+        setInscrito(true);
         onInscribirse(event.id);
+        if (event.link) window.open(event.link, "_blank");
       }
     } finally {
       setInscribing(false);
@@ -158,10 +159,10 @@ function EventCard({ event, isInscripto: initialInscripto, onInscribirse }) {
         )}
 
         <div className="mt-auto flex flex-col gap-2 pt-1">
-          {inscripto ? (
+          {inscrito ? (
             <div className="flex items-center justify-center gap-2 py-2.5 bg-emerald-50
               text-emerald-600 text-sm font-semibold rounded-xl border border-emerald-200 cursor-default">
-              <CheckCircle2 size={14} /> Ya estás inscripto
+              <CheckCircle2 size={14} /> Ya estás inscrito
             </div>
           ) : (
             <button
@@ -173,7 +174,7 @@ function EventCard({ event, isInscripto: initialInscripto, onInscribirse }) {
               {inscribing ? "Guardando..." : "Anótate"}
             </button>
           )}
-          {event.link && inscripto && (
+          {event.link && inscrito && (
             <a
               href={event.link}
               target="_blank"

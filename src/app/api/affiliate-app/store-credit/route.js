@@ -40,6 +40,20 @@ async function shopifyPost(path, body) {
   return json;
 }
 
+async function getCodeUsageCount(code) {
+  try {
+    const res = await fetch(
+      `${SHOPIFY_BASE}/discount_codes/lookup.json?code=${encodeURIComponent(code)}`,
+      { headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN } }
+    );
+    if (!res.ok) return 0;
+    const data = await res.json();
+    return data.discount_code?.usage_count ?? 0;
+  } catch {
+    return 0;
+  }
+}
+
 // ─── GET — fetch approved store_credit codes for this affiliate ───────────────
 export async function GET(req) {
   try {
@@ -56,16 +70,22 @@ export async function GET(req) {
 
     if (error) throw error;
 
-    const codes = (data || [])
-      .filter((ex) => ex.metadata?.discount_code)
-      .map((ex) => ({
-        id: ex.id,
-        amount: Number(ex.points_requested) * BONUS_RATE,
-        code: ex.metadata.discount_code,
-        url: `${STORE_FRONT_URL}/${ex.metadata.discount_code}`,
-        requested_at: ex.requested_at,
-        processed_at: ex.processed_at,
-      }));
+    const exchanges = (data || []).filter((ex) => ex.metadata?.discount_code);
+
+    const codes = await Promise.all(
+      exchanges.map(async (ex) => {
+        const usage = await getCodeUsageCount(ex.metadata.discount_code);
+        return {
+          id: ex.id,
+          amount: Number(ex.points_requested) * BONUS_RATE,
+          code: ex.metadata.discount_code,
+          url: `${STORE_FRONT_URL}/${ex.metadata.discount_code}`,
+          requested_at: ex.requested_at,
+          processed_at: ex.processed_at,
+          used: usage > 0,
+        };
+      })
+    );
 
     return NextResponse.json({ ok: true, codes });
   } catch (err) {
