@@ -5,7 +5,7 @@ import Image from "next/image";
 import Banner from "../components/Banner";
 import {
   PlayCircle, Clock, Calendar as CalIcon,
-  CheckCircle2, ExternalLink,
+  CheckCircle2, ExternalLink, Hourglass,
 } from "lucide-react";
 
 // ─── Datos de clases ───────────────────────────────────────────────────────────
@@ -107,9 +107,9 @@ function fmtDateLong(s) {
 
 // ─── Card de evento ────────────────────────────────────────────────────────────
 
-function EventCard({ event, isInscripto: initialInscrito, onInscribirse }) {
+function EventCard({ event, status: initialStatus, onInscribirse }) {
   const [inscribing, setInscribing] = useState(false);
-  const [inscrito,   setInscrito]   = useState(initialInscrito);
+  const [status,     setStatus]     = useState(initialStatus); // null | "pendiente" | "inscrito"
 
   async function handleInscribirse() {
     setInscribing(true);
@@ -121,7 +121,7 @@ function EventCard({ event, isInscripto: initialInscrito, onInscribirse }) {
       });
       const data = await res.json();
       if (data.success) {
-        setInscrito(true);
+        setStatus("pendiente");
         onInscribirse(event.id);
         if (event.link) window.open(event.link, "_blank");
       }
@@ -159,10 +159,15 @@ function EventCard({ event, isInscripto: initialInscrito, onInscribirse }) {
         )}
 
         <div className="mt-auto flex flex-col gap-2 pt-1">
-          {inscrito ? (
+          {status === "inscrito" ? (
             <div className="flex items-center justify-center gap-2 py-2.5 bg-emerald-50
               text-emerald-600 text-sm font-semibold rounded-xl border border-emerald-200 cursor-default">
               <CheckCircle2 size={14} /> Ya estás inscrito
+            </div>
+          ) : status === "pendiente" ? (
+            <div className="flex items-center justify-center gap-2 py-2.5 bg-amber-50
+              text-amber-600 text-sm font-semibold rounded-xl border border-amber-200 cursor-default">
+              <Hourglass size={14} /> Pendiente de confirmación
             </div>
           ) : (
             <button
@@ -174,7 +179,7 @@ function EventCard({ event, isInscripto: initialInscrito, onInscribirse }) {
               {inscribing ? "Guardando..." : "Anótate"}
             </button>
           )}
-          {event.link && inscrito && (
+          {event.link && status && (
             <a
               href={event.link}
               target="_blank"
@@ -195,7 +200,7 @@ function EventCard({ event, isInscripto: initialInscrito, onInscribirse }) {
 
 export default function AcademiaVitahubPage() {
   const [events,        setEvents]        = useState([]);
-  const [inscripciones, setInscripciones] = useState(new Set());
+  const [inscripciones, setInscripciones] = useState({}); // { [id]: "pendiente" | "inscrito" }
 
   useEffect(() => {
     Promise.all([
@@ -203,12 +208,16 @@ export default function AcademiaVitahubPage() {
       fetch("/api/capacitaciones/inscripciones").then(r => r.json()),
     ]).then(([evData, inData]) => {
       if (evData.success) setEvents(evData.data);
-      if (inData.success) setInscripciones(new Set(inData.inscripciones));
+      if (inData.success) {
+        const map = {};
+        for (const i of inData.inscripciones) map[i.id] = i.status;
+        setInscripciones(map);
+      }
     });
   }, []);
 
   function handleInscribirse(id) {
-    setInscripciones(prev => new Set([...prev, id]));
+    setInscripciones(prev => ({ ...prev, [id]: "pendiente" }));
   }
 
   const today    = new Date().toISOString().split("T")[0];
@@ -244,7 +253,7 @@ export default function AcademiaVitahubPage() {
                 <EventCard
                   key={ev.id}
                   event={ev}
-                  isInscripto={inscripciones.has(ev.id)}
+                  status={inscripciones[ev.id] || null}
                   onInscribirse={handleInscribirse}
                 />
               ))}

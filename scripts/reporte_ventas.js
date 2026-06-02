@@ -93,11 +93,12 @@ async function blRequest(method, params) {
 }
 
 async function getTikTokOrders(year, month) {
-  const lastDay = new Date(year, month, 0).getDate()
-  const tsDesde = Math.floor(new Date(year, month - 1, 1, 0, 0, 0).getTime() / 1000)
-  const tsHasta = Math.floor(new Date(year, month - 1, lastDay, 23, 59, 59).getTime() / 1000)
+  // Rango en UTC puro con buffer para cubrir cualquier timezone
+  const tsDesde = Math.floor(Date.UTC(year, month - 1, 1, 0, 0, 0) / 1000)
+  const tsHasta = Math.floor(Date.UTC(year, month, 1, 12, 0, 0) / 1000) // +12h sobre fin de mes
 
-  const all = []
+  const seen = new Set() // deduplicar por order_id
+  const all  = []
   let tsCursor = tsDesde
 
   while (true) {
@@ -115,18 +116,29 @@ async function getTikTokOrders(year, month) {
     const orders = result.orders || []
     if (!orders.length) break
 
-    const sources = [...new Set(orders.map(o => o.order_source || o.order_source_info || '(vacío)'))]
-    console.log('  → order_source values:', sources)
-
     const tiktok = orders.filter(o =>
       (o.order_source || '').toLowerCase().includes('tiktok') ||
       (o.order_source_info || '').toLowerCase().includes('tiktok')
     )
-    all.push(...tiktok)
-    console.log(`  → ${all.length} órdenes TikTok acumuladas...`)
+
+    let newCount = 0
+    for (const o of tiktok) {
+      if (!seen.has(o.order_id)) {
+        seen.add(o.order_id)
+        all.push(o)
+        newCount++
+      }
+    }
+    console.log(`  → ${all.length} órdenes TikTok acumuladas (${newCount} nuevas)`)
 
     if (orders.length < 100) break
-    tsCursor = Math.max(...orders.map(o => o.date_confirmed || o.date_add || 0)) + 1
+
+    // Sin órdenes nuevas aunque había 100 resultados → estamos ciclando, salir
+    if (newCount === 0) break
+
+    // Overlap de 5 min para cubrir bloques de órdenes con el mismo date_confirmed
+    const maxTs = Math.max(...orders.map(o => o.date_confirmed || o.date_add || 0))
+    tsCursor = maxTs - 300
     await sleep(BL_DELAY)
   }
 
@@ -138,9 +150,9 @@ async function getTikTokOrders(year, month) {
 async function getShopifyOrders(year, month) {
   const pad = n => String(n).padStart(2, '0')
   const dateMin = `${year}-${pad(month)}-01T00:00:00Z`
-  // +2 días de buffer para cubrir desfase UTC vs timezone local (ej. México UTC-6)
-  const bufferEnd = new Date(Date.UTC(year, month, 2))
-  const dateMax = bufferEnd.toISOString()
+  // +6h sobre el fin del mes para cubrir órdenes de México (UTC-6) hasta medianoche local
+  const endUTC = new Date(Date.UTC(year, month, 0, 23, 59, 59) + 6 * 3600 * 1000)
+  const dateMax = endUTC.toISOString()
 
   const all = []
   let url = `https://${SHOPIFY_STORE}/admin/api/2025-01/orders.json?status=any&financial_status=paid&limit=250&created_at_min=${dateMin}&created_at_max=${dateMax}`
@@ -275,13 +287,24 @@ function calcCartFields(lineItems) {
 // ── Date helpers ──────────────────────────────────────────────
 
 function fmtTimestamp(ts) {
-  const d = new Date(Number(ts) * 1000)
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+  return new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+  }).format(new Date(Number(ts) * 1000))
+}
+
+function tsMexicoMonth(ts) {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Mexico_City',
+    year: 'numeric', month: '2-digit',
+  }).format(new Date(Number(ts) * 1000)).slice(0, 7) // "2026-05"
 }
 
 function fmtISO(iso) {
-  const d = new Date(iso)
-  return `${String(d.getDate()).padStart(2, '0')}/${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+  return new Intl.DateTimeFormat('es-MX', {
+    timeZone: 'America/Mexico_City',
+    day: '2-digit', month: '2-digit', year: 'numeric',
+  }).format(new Date(iso))
 }
 
 function parseDMY(s) {
@@ -291,13 +314,16 @@ function parseDMY(s) {
 
 // ── Transform TikTok ──────────────────────────────────────────
 
-function transformTikTok(orders, skuData) {
+function transformTikTok(orders, skuData, targetYear, targetMonth) {
   const rows = []
+  const targetKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`
 
   for (const order of orders) {
     if (order.order_status_id === STATUS_CANCELADO) continue
     const ts = order.date_confirmed || order.date_add
     if (!ts) continue
+    if (tsMexicoMonth(ts) !== targetKey) continue
+
 
     const products = (order.products || []).filter(p => (p.sku || '').trim())
     if (!products.length) continue
@@ -342,9 +368,8 @@ function transformShopify(orders, skuData, targetYear, targetMonth) {
 
   for (const order of orders) {
     const orderName = order.name || ''
-    const d = new Date(order.created_at)
-    // Filtrar al mes exacto en timezone local (cubre el buffer de la query)
-    if (d.getFullYear() !== targetYear || d.getMonth() + 1 !== targetMonth) continue
+    const targetKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`
+    if (order.created_at.slice(0, 7) !== targetKey) continue
     const fecha = fmtISO(order.created_at)
 
     const specialistRef = (order.note_attributes || []).find(a => a.name === 'specialist_ref')?.value || ''
@@ -409,7 +434,7 @@ async function main() {
   console.log(`  ${Object.keys(skuData).length} SKUs enriquecidos`)
 
   console.log('Transformando...')
-  const tiktokRows  = transformTikTok(tiktokOrders, skuData)
+  const tiktokRows  = transformTikTok(tiktokOrders, skuData, year, month)
   const shopifyRows = transformShopify(shopifyOrders, skuData, year, month)
   const rows = [...tiktokRows, ...shopifyRows].sort((a, b) => parseDMY(a[12]) - parseDMY(b[12]))
   console.log(`  TikTok: ${tiktokRows.length} | Shopify: ${shopifyRows.length} | Total: ${rows.length}`)
