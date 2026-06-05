@@ -6,7 +6,7 @@ import { Suspense, useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import Script from "next/script";
 import Cookies from "js-cookie";
-import { useSearchParams, useRouter } from "next/navigation";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { CustomerProvider } from "./context/CustomerContext.jsx";
 
 function AuthManager({ children }) {
@@ -134,6 +134,7 @@ function AuthManager({ children }) {
       const data = await res.json();
       if (data.ok && data.customer?.id) {
         Cookies.set("customerId", data.customer.id, { expires: 30 });
+        if (data.token) Cookies.set("proJwt", data.token, { expires: 30 });
         setShowAuthModal(false);
         router.replace("/wallet");
       } else {
@@ -264,6 +265,32 @@ function AuthManager({ children }) {
   return children;
 }
 
+// Rutas públicas que no requieren auth ni el shell (Header/Sidebar)
+const PUBLIC_PATHS = ["/book/"];
+
+function PublicOrAuthShell({ children }) {
+  const pathname = usePathname();
+  const isPublic = PUBLIC_PATHS.some((p) => pathname?.startsWith(p));
+
+  if (isPublic) return children;
+
+  return (
+    <AuthManager>
+      <CustomerProvider>
+        <div className="flex flex-col h-screen">
+          <Header />
+          <div className="flex flex-1 overflow-hidden">
+            <Sidebar />
+            <main className="flex-1 bg-white overflow-y-auto">
+              {children}
+            </main>
+          </div>
+        </div>
+      </CustomerProvider>
+    </AuthManager>
+  );
+}
+
 export default function RootLayout({ children }) {
   useEffect(() => {
     import("react-microsoft-clarity").then(({ clarity }) => {
@@ -280,19 +307,7 @@ export default function RootLayout({ children }) {
         />
 
         <Suspense fallback={<div className="fixed inset-0 bg-white flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#1b3f7a]" /></div>}>
-          <AuthManager>
-            <CustomerProvider>
-              <div className="flex flex-col h-screen">
-                <Header />
-                <div className="flex flex-1 overflow-hidden">
-                  <Sidebar />
-                  <main className="flex-1 bg-white overflow-y-auto">
-                    {children}
-                  </main>
-                </div>
-              </div>
-            </CustomerProvider>
-          </AuthManager>
+          <PublicOrAuthShell>{children}</PublicOrAuthShell>
         </Suspense>
       </body>
     </html>

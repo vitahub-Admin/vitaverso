@@ -6,7 +6,7 @@ import axios from "axios";
 import {
   Banknote, ShoppingBag, TrendingUp, ArrowUpRight,
   Clock, CheckCircle2, XCircle, Sparkles, CircleDollarSign,
-  ShieldCheck, BadgePercent, Timer,
+  ShieldCheck, BadgePercent, Timer, Zap,
 } from "lucide-react";
 
 function fmt(n) {
@@ -249,7 +249,12 @@ export default function WalletPage() {
                     <ShoppingBag size={16} />
                   </div>
                   <div className="flex flex-col gap-0.5">
-                    <strong className="text-xs font-700 text-gray-900">Crédito en tienda</strong>
+                    <div className="flex flex-col gap-0.5 sm:flex-row sm:items-center sm:gap-1.5">
+                      <span className="inline-flex items-center gap-0.5 self-start px-1.5 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-xs font-bold leading-none">
+                        <Zap size={11} strokeWidth={2.5} /> Al instante
+                      </span>
+                      <strong className="text-xs font-700 text-gray-900">Crédito en tienda</strong>
+                    </div>
                     <span className="text-[0.68rem] text-emerald-600 font-semibold flex items-center gap-1">
                       <Sparkles size={9} /> +5% bonificación
                     </span>
@@ -402,7 +407,7 @@ export default function WalletPage() {
                 { icon: ShieldCheck, title: "Validación de solicitudes", text: "Toda solicitud es revisada por el equipo admin antes de procesarse." },
                 { icon: Banknote,    title: "Retiro mínimo $200 MXN",    text: "El monto mínimo para retirar dinero en efectivo es de $200 MXN." },
                 { icon: BadgePercent,title: "+5% en crédito de tienda",  text: "Al elegir crédito en tienda recibes un 5% extra sobre el monto en cupón." },
-                { icon: Timer,       title: "3 a 5 días hábiles",        text: "Los retiros y créditos aprobados se acreditan dentro de ese plazo." },
+                { icon: Timer,       title: "Retiros: 3 a 5 días hábiles", text: "Los retiros en efectivo se procesan en ese plazo. El crédito en tienda se acredita al instante." },
               ].map(({ icon: Icon, title, text }) => (
                 <div key={title} className="flex items-start gap-3">
                   <div className="w-7 h-7 rounded-lg bg-blue-50 text-[#1b3f7a] flex items-center justify-center shrink-0">

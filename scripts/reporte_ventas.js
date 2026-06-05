@@ -154,12 +154,16 @@ async function getShopifyOrders(year, month) {
   const endUTC = new Date(Date.UTC(year, month, 0, 23, 59, 59) + 6 * 3600 * 1000)
   const dateMax = endUTC.toISOString()
 
+  console.log(`  dateMin: ${dateMin}`)
+  console.log(`  dateMax: ${dateMax}`)
+
   const all = []
   let url = `https://${SHOPIFY_STORE}/admin/api/2025-01/orders.json?status=any&financial_status=paid&limit=250&created_at_min=${dateMin}&created_at_max=${dateMax}`
 
   while (url) {
     const res = await fetch(url, { headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN } })
     const data = await res.json()
+    console.log(`  raw orders en respuesta: ${data.orders?.length ?? 'error'}, error: ${data.errors ?? 'ninguno'}`)
     const orders = (data.orders || []).filter(o => !o.cancelled_at)
     all.push(...orders)
     console.log(`  → ${all.length} órdenes Shopify cargadas...`)

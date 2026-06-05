@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPushToAffiliate } from "@/lib/affiliateNotifications";
+import { createCalendarEvent } from "@/lib/bookingCalendar";
 
 export const runtime = "nodejs";
 
@@ -9,6 +10,62 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 );
+
+async function handleBookingPayment(payload) {
+  const getAttr = (name) =>
+    payload.note_attributes?.find((a) => a.name === name)?.value || null;
+
+  const appointmentId = getAttr("booking_appointment_id");
+  if (!appointmentId) return false;
+
+  const { data: appointment } = await supabase
+    .from("booking_appointments")
+    .select(`
+      *,
+      booking_affiliates (display_name, google_calendar_token, google_calendar_id),
+      booking_services (name, duration_minutes)
+    `)
+    .eq("id", appointmentId)
+    .maybeSingle();
+
+  if (!appointment) return false;
+
+  // Confirmar la cita
+  await supabase
+    .from("booking_appointments")
+    .update({
+      status: "confirmed",
+      shopify_order_id: String(payload.id),
+      shopify_order_number: String(payload.order_number),
+    })
+    .eq("id", appointmentId);
+
+  // Crear evento en Google Calendar del afiliado
+  const affiliate = appointment.booking_affiliates;
+  if (affiliate?.google_calendar_token) {
+    try {
+      const event = await createCalendarEvent(
+        affiliate.google_calendar_token,
+        affiliate.google_calendar_id,
+        {
+          summary: `${appointment.booking_services.name} — ${appointment.client_name}`,
+          description: appointment.client_notes || "",
+          start: { dateTime: appointment.starts_at },
+          end: { dateTime: appointment.ends_at },
+          attendees: [{ email: appointment.client_email }],
+        }
+      );
+      await supabase
+        .from("booking_appointments")
+        .update({ google_calendar_event_id: event.id })
+        .eq("id", appointmentId);
+    } catch {
+      // No bloquear si falla Calendar
+    }
+  }
+
+  return true;
+}
 
 export async function POST(req) {
   try {
@@ -32,6 +89,12 @@ export async function POST(req) {
 
     if (payload.financial_status !== "paid") {
       return NextResponse.json({ message: "Not paid" }, { status: 200 });
+    }
+
+    // Si es una orden de booking, la procesamos aparte y terminamos
+    const isBooking = await handleBookingPayment(payload);
+    if (isBooking) {
+      return NextResponse.json({ success: true, type: "booking" }, { status: 200 });
     }
 
     const orderId = payload.id;
