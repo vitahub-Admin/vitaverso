@@ -5,6 +5,16 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { resolveBookingAffiliate } from "@/lib/bookingAuth";
 
+const CORS = {
+  "Access-Control-Allow-Origin": "https://vitahub.mx",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "Content-Type",
+};
+
+export async function OPTIONS() {
+  return new Response(null, { status: 204, headers: CORS });
+}
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
@@ -33,10 +43,10 @@ export async function GET(req) {
     .eq("booking_services.is_active", true)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  if (!data) return NextResponse.json({ error: "Afiliado no encontrado" }, { status: 404 });
+  if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS });
+  if (!data) return NextResponse.json({ error: "Afiliado no encontrado" }, { status: 404, headers: CORS });
 
-  return NextResponse.json(data);
+  return NextResponse.json(data, { headers: CORS });
 }
 
 export async function POST(req) {
@@ -112,11 +122,14 @@ export async function POST(req) {
     return NextResponse.json({ error: insertError.message }, { status: 500 });
   }
 
+  // Activar el metafield en la colección de Shopify
+  await syncBookingMetafield(affiliateRow.shopify_collection_id, true);
+
   return NextResponse.json(data, { status: 201 });
 }
 
 export async function PATCH(req) {
-  const { affiliate, error } = await resolveBookingAffiliate(req);
+  const { payload, affiliate, error } = await resolveBookingAffiliate(req);
   if (error) return NextResponse.json({ error }, { status: 401 });
   if (!affiliate) return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
 
@@ -135,5 +148,48 @@ export async function PATCH(req) {
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
 
+  // Sincronizar metafield de Shopify cuando cambia is_active
+  if ("is_active" in updates) {
+    const { data: affiliateRow } = await supabase
+      .from("affiliates")
+      .select("shopify_collection_id")
+      .eq("shopify_customer_id", Number(payload.userId))
+      .maybeSingle();
+
+    if (affiliateRow?.shopify_collection_id) {
+      await syncBookingMetafield(affiliateRow.shopify_collection_id, updates.is_active);
+    }
+  }
+
   return NextResponse.json(data);
+}
+
+async function syncBookingMetafield(collectionId, isActive) {
+  const mutation = `
+    mutation metafieldsSet($metafields: [MetafieldsSetInput!]!) {
+      metafieldsSet(metafields: $metafields) {
+        metafields { key value }
+        userErrors { field message }
+      }
+    }
+  `;
+  await fetch(`https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/graphql.json`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+    },
+    body: JSON.stringify({
+      query: mutation,
+      variables: {
+        metafields: [{
+          ownerId: `gid://shopify/Collection/${collectionId}`,
+          namespace: "custom",
+          key: "afiliado_booking",
+          type: "boolean",
+          value: isActive ? "true" : "false",
+        }],
+      },
+    }),
+  });
 }

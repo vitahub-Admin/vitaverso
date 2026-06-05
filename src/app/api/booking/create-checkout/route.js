@@ -133,7 +133,6 @@ export async function POST(req) {
       },
     });
 
-    console.error("Shopify draft order response:", JSON.stringify(draftOrderRes));
     const draftOrder = draftOrderRes.draft_order;
     if (!draftOrder) {
       // Rollback: marcar cita como expirada si Shopify falla

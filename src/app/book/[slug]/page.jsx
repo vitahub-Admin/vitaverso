@@ -1,12 +1,15 @@
 "use client";
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 
 const STEPS = { SERVICE: 0, DATE: 1, TIME: 2, FORM: 3 };
 
 export default function BookingPage() {
   const { slug } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isEmbed = searchParams.get("embed") === "1";
+  const preselectedServiceId = searchParams.get("service_id");
 
   const [affiliate, setAffiliate] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -26,8 +29,12 @@ export default function BookingPage() {
     fetch(`/api/booking/affiliate?slug=${slug}`)
       .then((r) => r.json())
       .then((data) => {
-        if (data.error) setError(data.error);
-        else setAffiliate(data);
+        if (data.error) { setError(data.error); return; }
+        setAffiliate(data);
+        if (preselectedServiceId) {
+          const svc = (data.booking_services || []).find((s) => String(s.id) === preselectedServiceId);
+          if (svc) { setSelectedService(svc); setStep(STEPS.DATE); }
+        }
       })
       .finally(() => setLoading(false));
   }, [slug]);
@@ -70,7 +77,11 @@ export default function BookingPage() {
     setSubmitting(false);
 
     if (data.checkout_url) {
-      window.location.href = data.checkout_url;
+      if (isEmbed) {
+        window.parent.postMessage({ type: "vhb-checkout", url: data.checkout_url }, "*");
+      } else {
+        window.location.href = data.checkout_url;
+      }
     } else {
       setError(data.error || "Error al procesar la reserva");
     }
