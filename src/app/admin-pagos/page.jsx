@@ -30,6 +30,49 @@ export default function AdminWalletPage() {
   const [adjustNote, setAdjustNote] = useState("");
   const [adjusting, setAdjusting] = useState(false);
 
+  /* ============================= */
+  /* PLATFORM SETTINGS */
+  /* ============================= */
+  const [settings, setSettings] = useState({});
+  const [settingEdits, setSettingEdits] = useState({});
+  const [savingKey, setSavingKey] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/admin/settings")
+      .then((r) => r.json())
+      .then((data) => {
+        const map = {};
+        (data || []).forEach((s) => { map[s.key] = s; });
+        setSettings(map);
+        const edits = {};
+        (data || []).forEach((s) => { edits[s.key] = String(Math.round(s.value * 100)); });
+        setSettingEdits(edits);
+      });
+  }, []);
+
+  async function saveSetting(key) {
+    setSavingKey(key);
+    const pct = parseFloat(settingEdits[key]);
+    if (isNaN(pct) || pct < 0 || pct > 100) {
+      showToast("Valor inválido (0–100)", "error");
+      setSavingKey(null);
+      return;
+    }
+    const res = await fetch("/api/admin/settings", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, value: pct / 100 }),
+    });
+    if (res.ok) {
+      const updated = await res.json();
+      setSettings((prev) => ({ ...prev, [key]: updated }));
+      showToast("Guardado correctamente");
+    } else {
+      showToast("Error al guardar", "error");
+    }
+    setSavingKey(null);
+  }
+
   function showToast(message, type = "success") {
     setToast({ message, type });
     setTimeout(() => setToast(null), 3000);
@@ -590,8 +633,65 @@ export default function AdminWalletPage() {
         </div>
       )}
 
+      {/* ===== COMISIONES DE PLATAFORMA ===== */}
+      <div className="mt-10">
+        <h2 className="text-lg font-bold text-gray-800 mb-1">Comisiones de plataforma</h2>
+        <p className="text-sm text-gray-500 mb-4">Valores en porcentaje (%). Los cambios aplican a las próximas transacciones.</p>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          {[
+            {
+              key: "booking_commission_rate",
+              title: "Comisión sobre booking",
+              description: "% que Vitahub retiene de cada cita pagada. El afiliado recibe el resto.",
+              icon: "📅",
+            },
+            {
+              key: "store_credit_bonus_rate",
+              title: "Bonus store credit",
+              description: "% extra que recibe el afiliado cuando elige cobrar en crédito de tienda.",
+              icon: "🏪",
+            },
+          ].map(({ key, title, description, icon }) => (
+            <div key={key} className="bg-white border border-gray-200 rounded-xl p-5">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">{icon}</span>
+                <h3 className="font-semibold text-gray-800 text-sm">{title}</h3>
+              </div>
+              <p className="text-xs text-gray-400 mb-4">{description}</p>
+              <div className="flex items-center gap-3">
+                <div className="relative flex-1">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={settingEdits[key] ?? ""}
+                    onChange={(e) => setSettingEdits((prev) => ({ ...prev, [key]: e.target.value }))}
+                    className="w-full border border-gray-200 rounded-lg px-3 py-2 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm">%</span>
+                </div>
+                <button
+                  onClick={() => saveSetting(key)}
+                  disabled={savingKey === key}
+                  className="px-4 py-2 bg-[#1b3f7a] text-white rounded-lg text-sm font-medium disabled:opacity-60 hover:bg-[#16336a] transition-colors"
+                >
+                  {savingKey === key ? "..." : "Guardar"}
+                </button>
+              </div>
+              {settings[key] && (
+                <p className="text-xs text-gray-400 mt-2">
+                  Actual: <span className="font-semibold text-gray-600">{Math.round(settings[key].value * 100)}%</span>
+                  {" · "}última modificación: {new Date(settings[key].updated_at).toLocaleDateString("es-AR")}
+                </p>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+
       {toast && (
-        <div className="fixed bottom-4 right-4 px-4 py-2 bg-green-600 text-white rounded shadow">
+        <div className={`fixed bottom-4 right-4 px-4 py-2 text-white rounded shadow ${toast.type === "error" ? "bg-red-600" : "bg-green-600"}`}>
           {toast.message}
         </div>
       )}

@@ -22,7 +22,7 @@ async function handleBookingPayment(payload) {
     .from("booking_appointments")
     .select(`
       *,
-      booking_affiliates (display_name, google_calendar_token, google_calendar_id),
+      booking_affiliates (shopify_customer_id, display_name, google_calendar_token, google_calendar_id),
       booking_services (name, duration_minutes)
     `)
     .eq("id", appointmentId)
@@ -40,8 +40,80 @@ async function handleBookingPayment(payload) {
     })
     .eq("id", appointmentId);
 
-  // Crear evento en Google Calendar del afiliado
+  // Registrar ganancia en el wallet del afiliado (idempotente)
   const affiliate = appointment.booking_affiliates;
+  if (affiliate) {
+    const { data: existingEarning } = await supabase
+      .from("point_transactions_live")
+      .select("id")
+      .eq("reference_id", String(appointmentId))
+      .eq("reference_type", "booking_appointment")
+      .maybeSingle();
+
+    if (!existingEarning) {
+      const servicePrice = Number(appointment.booking_services?.price || 0);
+      const { data: commissionSetting } = await supabase
+        .from("platform_settings")
+        .select("value")
+        .eq("key", "booking_commission_rate")
+        .maybeSingle();
+      const commissionRate = Number(commissionSetting?.value ?? 0.10);
+      const earning = Number((servicePrice * (1 - commissionRate)).toFixed(2));
+
+      if (earning > 0) {
+        await supabase.from("point_transactions_live").insert([{
+          customer_id: Number(affiliate.shopify_customer_id),
+          points: earning,
+          direction: "IN",
+          category: "booking",
+          status: "confirmed",
+          reference_id: String(appointmentId),
+          reference_type: "booking_appointment",
+          description: `Cita: ${appointment.booking_services?.name} — ${appointment.client_name}`,
+          actor_type: "system",
+          metadata: {
+            appointment_id: appointmentId,
+            service_name: appointment.booking_services?.name,
+            client_email: appointment.client_email,
+            shopify_order_id: String(payload.id),
+            gross_amount: servicePrice,
+            commission_rate: commissionRate,
+          },
+        }]);
+      }
+    }
+  }
+
+  // Notificar a n8n para emails de confirmación (cliente + afiliado)
+  if (process.env.N8N_BOOKING_CONFIRMED_WEBHOOK) {
+    const { data: affiliateAccount } = await supabase
+      .from("affiliates")
+      .select("email")
+      .eq("shopify_customer_id", Number(affiliate?.shopify_customer_id))
+      .maybeSingle();
+
+    fetch(process.env.N8N_BOOKING_CONFIRMED_WEBHOOK, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        appointment_id: appointmentId,
+        client_name: appointment.client_name,
+        client_email: appointment.client_email,
+        client_phone: appointment.client_phone || null,
+        service_name: appointment.booking_services?.name,
+        duration_minutes: appointment.booking_services?.duration_minutes,
+        starts_at: appointment.starts_at,
+        ends_at: appointment.ends_at,
+        affiliate_name: affiliate?.display_name || null,
+        affiliate_email: affiliateAccount?.email || null,
+        meet_link: meetLink,
+        shopify_order_id: String(payload.id),
+      }),
+    }).catch(() => {});
+  }
+
+  // Crear evento en Google Calendar del afiliado
+  let meetLink = null;
   if (affiliate?.google_calendar_token) {
     try {
       const event = await createCalendarEvent(
@@ -55,9 +127,13 @@ async function handleBookingPayment(payload) {
           attendees: [{ email: appointment.client_email }],
         }
       );
+      meetLink = event.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")?.uri || null;
       await supabase
         .from("booking_appointments")
-        .update({ google_calendar_event_id: event.id })
+        .update({
+          google_calendar_event_id: event.id,
+          meet_link: meetLink,
+        })
         .eq("id", appointmentId);
     } catch {
       // No bloquear si falla Calendar

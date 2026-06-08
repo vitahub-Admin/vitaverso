@@ -15,7 +15,6 @@ const SHOPIFY_BASE    = `https://${SHOPIFY_STORE}/admin/api/${SHOPIFY_API_VER}`;
 const STORE_FRONT_URL = 'https://vitahub.mx/discount';
 
 const MIN_AMOUNT = 200;
-const BONUS_RATE = 1.05;
 
 function randomCode(len = 8) {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -77,7 +76,7 @@ export async function GET(req) {
         const usage = await getCodeUsageCount(ex.metadata.discount_code);
         return {
           id: ex.id,
-          amount: Number(ex.points_requested) * BONUS_RATE,
+          amount: Number(ex.metadata?.credit_amount ?? ex.points_requested),
           code: ex.metadata.discount_code,
           url: `${STORE_FRONT_URL}/${ex.metadata.discount_code}`,
           requested_at: ex.requested_at,
@@ -157,7 +156,15 @@ export async function POST(req) {
     if (exErr) throw exErr;
     exchangeId = exchange.id;
 
-    const creditAmount = +(amount * BONUS_RATE).toFixed(2);
+    const { data: bonusSetting } = await supabase
+      .from('platform_settings')
+      .select('value')
+      .eq('key', 'store_credit_bonus_rate')
+      .maybeSingle();
+    const bonusRate = Number(bonusSetting?.value ?? 0.05);
+
+    const creditAmount = +(amount * (1 + bonusRate)).toFixed(2);
+    const bonusAmount  = +(amount * bonusRate).toFixed(2);
     const code = randomCode();
 
     // 2. Create Shopify price rule
@@ -199,13 +206,15 @@ export async function POST(req) {
           discount_code: code,
           price_rule_id: price_rule.id,
           credit_amount: creditAmount,
+          bonus_rate: bonusRate,
+          bonus_amount: bonusAmount,
         },
       })
       .eq('id', exchangeId);
 
     if (updateErr) throw updateErr;
 
-    // 5. OUT transaction
+    // 5. OUT transaction (costo del canje)
     const { error: txErr } = await supabase
       .from('point_transactions_live')
       .insert([{
@@ -214,7 +223,7 @@ export async function POST(req) {
         direction: 'OUT',
         category: 'exchange',
         status: 'confirmed',
-        reference_id: exchangeId,
+        reference_id: String(exchangeId),
         reference_type: 'point_exchange',
         description: `Crédito en tienda — ${code}`,
         actor_type: 'system',

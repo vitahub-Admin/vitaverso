@@ -66,7 +66,13 @@ export async function createCalendarEvent(storedToken, calendarId, event) {
   const calendar = google.calendar({ version: "v3", auth: client });
   const res = await calendar.events.insert({
     calendarId: calendarId || "primary",
-    requestBody: event,
+    conferenceDataVersion: 1,
+    requestBody: {
+      ...event,
+      conferenceData: {
+        createRequest: { requestId: `vhb-${Date.now()}` },
+      },
+    },
   });
   return res.data;
 }

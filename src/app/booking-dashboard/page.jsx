@@ -334,6 +334,28 @@ export default function BookingDashboard() {
         </div>
       )}
 
+      {/* Banner: conectar Google Calendar */}
+      {affiliate && !affiliate.google_calendar_token && (
+        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
+          <div className="max-w-2xl mx-auto flex items-center gap-3">
+            <span className="text-xl flex-shrink-0">📅</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-amber-800 font-semibold text-sm">Conectá Google Calendar para activar la experiencia completa</p>
+              <p className="text-amber-700 text-xs mt-0.5">
+                Sin Calendar: tus clientes <strong>no reciben invitación</strong> ni link de Meet en el email de confirmación.
+                Con Calendar: todo queda agendado automáticamente con videollamada incluida.
+              </p>
+            </div>
+            <a
+              href="/api/booking/calendar/connect"
+              className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg px-4 py-2 transition-colors whitespace-nowrap"
+            >
+              Conectar ahora
+            </a>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <div className="bg-white border-b border-gray-100 px-4 py-4">
         <div className="max-w-2xl mx-auto flex items-center justify-between">

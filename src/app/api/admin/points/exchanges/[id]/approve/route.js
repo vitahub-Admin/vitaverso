@@ -85,7 +85,7 @@ const available = totalIn - totalOut;
     }
 
     /**
-     * 3. Creamos OUT transaction
+     * 3. Creamos OUT transaction + bonus si es store_credit
      */
     const { error: txCreateError } = await supabase
       .from('point_transactions_live')
@@ -96,7 +96,7 @@ const available = totalIn - totalOut;
           direction: 'OUT',
           category: 'exchange',
           status: 'confirmed',
-          reference_id: exchange.id,
+          reference_id: String(exchange.id),
           reference_type: 'point_exchange',
           description: `Canje aprobado (${exchange.exchange_type})`,
           actor_type: 'admin',
@@ -104,6 +104,7 @@ const available = totalIn - totalOut;
       ]);
 
     if (txCreateError) throw txCreateError;
+
 
     /**
      * 4. Marcamos exchange como aprobado
