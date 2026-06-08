@@ -6,48 +6,17 @@
     border: 1px solid #e8edf5;
     border-radius: 16px;
     padding: 24px;
-    margin: 24px 0;
+    margin: 24px auto;
+    max-width: 1200px;
     font-family: inherit;
-  }
-  .vhb-card-header {
-    display: flex;
-    align-items: center;
-    gap: 14px;
-    margin-bottom: 20px;
-  }
-  .vhb-avatar {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    object-fit: cover;
-    flex-shrink: 0;
-    background: #e8edf5;
-  }
-  .vhb-avatar-placeholder {
-    width: 56px;
-    height: 56px;
-    border-radius: 50%;
-    background: #e8edf5;
-    flex-shrink: 0;
-  }
-  .vhb-affiliate-name {
-    font-size: 16px;
-    font-weight: 700;
-    color: #111;
-    margin: 0 0 2px;
-  }
-  .vhb-affiliate-specialty {
-    font-size: 13px;
-    color: {{ section.settings.button_color }};
-    margin: 0;
   }
   .vhb-section-title {
     font-size: 13px;
-    font-weight: 600;
+    font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.06em;
-    color: #888;
-    margin: 0 0 12px;
+    letter-spacing: 0.07em;
+    color: #1b3f7a;
+    margin: 0 0 14px;
   }
   .vhb-services {
     display: flex;
@@ -59,9 +28,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    background: #f8f9fc;
+    background: #f4f7fc;
     border-radius: 12px;
-    padding: 14px 16px;
+    padding: 14px 18px;
   }
   .vhb-service-info { flex: 1; min-width: 0; }
   .vhb-service-name {
@@ -81,29 +50,29 @@
   .vhb-service-right {
     display: flex;
     align-items: center;
-    gap: 12px;
+    gap: 14px;
     flex-shrink: 0;
   }
   .vhb-service-price {
     font-size: 15px;
     font-weight: 700;
-    color: #111;
+    color: #1b3f7a;
     white-space: nowrap;
   }
   .vhb-reserve-btn {
-    background: {{ section.settings.button_color }};
+    background: #1b3f7a;
     color: #fff;
     border: none;
     border-radius: 8px;
-    padding: 8px 16px;
+    padding: 9px 18px;
     font-size: 13px;
     font-weight: 600;
     cursor: pointer;
     white-space: nowrap;
-    transition: opacity 0.15s;
+    transition: background 0.15s;
     font-family: inherit;
   }
-  .vhb-reserve-btn:hover { opacity: 0.85; }
+  .vhb-reserve-btn:hover { background: #16336a; }
 
   .vhb-skeleton {
     background: linear-gradient(90deg, #f0f0f0 25%, #e8e8e8 50%, #f0f0f0 75%);
@@ -115,18 +84,19 @@
     0% { background-position: 200% 0; }
     100% { background-position: -200% 0; }
   }
-  .vhb-skeleton-line { height: 14px; margin-bottom: 8px; }
 
-  /* Modal */
+  /* Modal — appended to body via JS para evitar z-index/transform del tema */
   .vhb-overlay {
     display: none;
     position: fixed;
-    inset: 0;
+    top: 0; left: 0; right: 0; bottom: 0;
+    width: 100%; height: 100%;
     background: rgba(0,0,0,0.55);
-    z-index: 9999;
+    z-index: 2147483646;
     align-items: center;
     justify-content: center;
     padding: 16px;
+    box-sizing: border-box;
   }
   .vhb-overlay.open { display: flex; }
   .vhb-modal {
@@ -135,6 +105,7 @@
     width: 100%;
     max-width: 480px;
     height: 90vh;
+    height: 90dvh;
     max-height: 800px;
     display: flex;
     flex-direction: column;
@@ -155,8 +126,7 @@
     background: #f5f5f5;
     border: none;
     border-radius: 50%;
-    width: 32px;
-    height: 32px;
+    width: 32px; height: 32px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -180,41 +150,46 @@
   }
   .vhb-loader.hidden { opacity: 0; }
   .vhb-spinner {
-    width: 32px;
-    height: 32px;
+    width: 32px; height: 32px;
     border: 3px solid #e5e7eb;
-    border-top-color: {{ section.settings.button_color }};
+    border-top-color: #1b3f7a;
     border-radius: 50%;
     animation: vhb-spin 0.7s linear infinite;
   }
   @keyframes vhb-spin { to { transform: rotate(360deg); } }
 
-  @media (max-width: 500px) {
-    .vhb-modal { height: 100vh; max-height: 100vh; border-radius: 16px 16px 0 0; }
-    .vhb-overlay { align-items: flex-end; padding: 0; }
+  @media (max-width: 600px) {
+    .vhb-overlay { padding: 0; align-items: flex-end; }
+    .vhb-modal {
+      border-radius: 20px 20px 0 0;
+      max-width: 100%;
+      height: 92vh;
+      height: 92dvh;
+      max-height: none;
+    }
+  }
+
+  @media (max-width: 600px) {
+    .vhb-card { margin: 12px; padding: 16px; }
     .vhb-service-row { flex-wrap: wrap; }
     .vhb-service-right { width: 100%; justify-content: space-between; margin-top: 8px; }
   }
 </style>
 
-<!-- Card inline -->
-<div class="vhb-card" id="vhb-card-{{ section.id }}">
-  <div class="vhb-card-header" id="vhb-header-{{ section.id }}">
-    <div class="vhb-avatar-placeholder vhb-skeleton"></div>
-    <div style="flex:1">
-      <div class="vhb-skeleton vhb-skeleton-line" style="width:60%"></div>
-      <div class="vhb-skeleton vhb-skeleton-line" style="width:40%"></div>
-    </div>
-  </div>
-  <p class="vhb-section-title">{{ section.settings.services_label }}</p>
+<!-- Card inline (desktop) -->
+<div class="vhb-card">
+  <p class="vhb-section-title">{{ section.settings.cta_label }}</p>
   <div class="vhb-services" id="vhb-services-{{ section.id }}">
     <div class="vhb-service-row">
-      <div class="vhb-skeleton vhb-skeleton-line" style="width:100%;height:48px;border-radius:12px"></div>
+      <div class="vhb-skeleton" style="width:100%;height:46px;border-radius:12px"></div>
+    </div>
+    <div class="vhb-service-row">
+      <div class="vhb-skeleton" style="width:75%;height:46px;border-radius:12px"></div>
     </div>
   </div>
 </div>
 
-<!-- Modal -->
+
 <div class="vhb-overlay" id="vhb-overlay-{{ section.id }}" role="dialog" aria-modal="true">
   <div class="vhb-modal">
     <div class="vhb-modal-header">
@@ -230,31 +205,31 @@
 
 <script>
 (function () {
-  var sid       = "{{ section.id }}";
-  var slug      = "{{ collection.handle }}";
-  var baseUrl   = "https://pro.vitahub.mx";
-  var overlay   = document.getElementById("vhb-overlay-" + sid);
-  var iframe    = document.getElementById("vhb-iframe-" + sid);
-  var loader    = document.getElementById("vhb-loader-" + sid);
-  var btnClose  = document.getElementById("vhb-close-" + sid);
-  var headerEl  = document.getElementById("vhb-header-" + sid);
-  var servicesEl= document.getElementById("vhb-services-" + sid);
-  var iframeLoaded = false;
+  var sid        = "{{ section.id }}";
+  var slug       = "{{ collection.handle }}";
+  var baseUrl    = "https://pro.vitahub.mx";
+  var overlay    = document.getElementById("vhb-overlay-" + sid);
+  var iframe     = document.getElementById("vhb-iframe-" + sid);
+  var loader     = document.getElementById("vhb-loader-" + sid);
+  var btnClose   = document.getElementById("vhb-close-" + sid);
+  var servicesEl = document.getElementById("vhb-services-" + sid);
+
+  // Mover overlay al body para que no quede atrapado en el z-index/transform del tema
+  document.body.appendChild(overlay);
 
   function fmt(price, currency) {
     return "$" + Number(price).toLocaleString("es-MX", { minimumFractionDigits: 0 }) + " " + currency;
   }
 
   function openModal(serviceId) {
-    var src = baseUrl + "/book/" + slug + "?embed=1" + (serviceId ? "&service_id=" + serviceId : "");
+    var src = baseUrl + "/book/" + slug + "?embed=1&service_id=" + serviceId;
     overlay.classList.add("open");
     document.body.style.overflow = "hidden";
-    if (!iframeLoaded || iframe.dataset.current !== src) {
+    if (iframe.dataset.current !== src) {
       loader.classList.remove("hidden");
       iframe.src = src;
       iframe.dataset.current = src;
-      iframe.onload = function() { loader.classList.add("hidden"); };
-      iframeLoaded = true;
+      iframe.onload = function () { loader.classList.add("hidden"); };
     }
   }
 
@@ -264,54 +239,45 @@
   }
 
   btnClose.addEventListener("click", closeModal);
-  overlay.addEventListener("click", function(e) { if (e.target === overlay) closeModal(); });
-  document.addEventListener("keydown", function(e) { if (e.key === "Escape") closeModal(); });
+  overlay.addEventListener("click", function (e) { if (e.target === overlay) closeModal(); });
+  document.addEventListener("keydown", function (e) { if (e.key === "Escape") closeModal(); });
 
-  window.addEventListener("message", function(e) {
+  window.addEventListener("message", function (e) {
     if (!e.data || e.data.type !== "vhb-checkout") return;
     if (e.data.url) window.top.location.href = e.data.url;
   });
 
-  // Cargar datos del afiliado
   fetch(baseUrl + "/api/booking/affiliate?slug=" + slug)
-    .then(function(r) { return r.json(); })
-    .then(function(data) {
-      // Header
-      var avatarHtml = data.photo_url
-        ? '<img class="vhb-avatar" src="' + data.photo_url + '" alt="' + data.display_name + '">'
-        : '<div class="vhb-avatar-placeholder"></div>';
-      headerEl.innerHTML = avatarHtml +
-        '<div><p class="vhb-affiliate-name">' + data.display_name + '</p>' +
-        (data.specialty ? '<p class="vhb-affiliate-specialty">' + data.specialty + '</p>' : '') +
-        '</div>';
-
-      // Servicios
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
       var services = data.booking_services || [];
       if (services.length === 0) {
-        servicesEl.innerHTML = '<p style="color:#999;font-size:13px">Sin servicios disponibles</p>';
+        servicesEl.innerHTML = '<p style="color:#999;font-size:13px;margin:0">Sin servicios disponibles</p>';
         return;
       }
-      servicesEl.innerHTML = services.map(function(s) {
-        return '<div class="vhb-service-row">' +
-          '<div class="vhb-service-info">' +
-            '<p class="vhb-service-name">' + s.name + '</p>' +
-            '<p class="vhb-service-meta">' + s.duration_minutes + ' min' +
-              (s.description ? ' · ' + s.description : '') +
-            '</p>' +
-          '</div>' +
-          '<div class="vhb-service-right">' +
-            '<span class="vhb-service-price">' + fmt(s.price, s.currency) + '</span>' +
-            '<button class="vhb-reserve-btn" data-service-id="' + s.id + '">Reservar</button>' +
-          '</div>' +
-        '</div>';
+      servicesEl.innerHTML = services.map(function (s) {
+        return (
+          '<div class="vhb-service-row">' +
+            '<div class="vhb-service-info">' +
+              '<p class="vhb-service-name">' + s.name + '</p>' +
+              '<p class="vhb-service-meta">' + s.duration_minutes + ' min' +
+                (s.description ? ' &middot; ' + s.description : '') +
+              '</p>' +
+            '</div>' +
+            '<div class="vhb-service-right">' +
+              '<span class="vhb-service-price">' + fmt(s.price, s.currency) + '</span>' +
+              '<button class="vhb-reserve-btn" data-id="' + s.id + '">Reservar</button>' +
+            '</div>' +
+          '</div>'
+        );
       }).join("");
 
-      servicesEl.querySelectorAll(".vhb-reserve-btn").forEach(function(btn) {
-        btn.addEventListener("click", function() { openModal(btn.dataset.serviceId); });
+      servicesEl.querySelectorAll(".vhb-reserve-btn").forEach(function (btn) {
+        btn.addEventListener("click", function () { openModal(btn.dataset.id); });
       });
     })
-    .catch(function() {
-      servicesEl.innerHTML = '<p style="color:#999;font-size:13px">No se pudo cargar la información</p>';
+    .catch(function () {
+      servicesEl.innerHTML = '<p style="color:#c00;font-size:13px;margin:0">No se pudo cargar la información</p>';
     });
 })();
 </script>
@@ -320,8 +286,7 @@
 
 {% schema %}
 {
-  "name": "Vitahub Booking",
-  "tag": null,
+  "name": "Afiliado Booking",
   "settings": [
     {
       "type": "checkbox",
@@ -331,26 +296,20 @@
     },
     {
       "type": "text",
-      "id": "services_label",
-      "label": "Título de la sección de servicios",
-      "default": "Servicios disponibles"
+      "id": "cta_label",
+      "label": "Título de la sección",
+      "default": "Agenda tu cita"
     },
     {
       "type": "text",
       "id": "modal_title",
       "label": "Título del modal",
       "default": "Reservar cita"
-    },
-    {
-      "type": "color",
-      "id": "button_color",
-      "label": "Color de acento",
-      "default": "#1b3f7a"
     }
   ],
   "presets": [
     {
-      "name": "Vitahub Booking"
+      "name": "Afiliado Booking"
     }
   ]
 }

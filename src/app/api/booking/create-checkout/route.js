@@ -72,14 +72,16 @@ export async function POST(req) {
     const startsAt = new Date(`${date}T${time}:00`);
     const endsAt = new Date(startsAt.getTime() + service.duration_minutes * 60 * 1000);
 
-    // Verificar que el slot sigue libre
+    // Verificar que el slot sigue libre.
+    // pending_payment expira a los 30 min; solo bloquea si es reciente.
+    const expiryThreshold = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     const { data: conflict } = await supabase
       .from("booking_appointments")
       .select("id")
       .eq("affiliate_id", affiliate.id)
-      .in("status", ["pending_payment", "confirmed"])
       .lt("starts_at", endsAt.toISOString())
       .gt("ends_at", startsAt.toISOString())
+      .or(`status.eq.confirmed,and(status.eq.pending_payment,created_at.gt.${expiryThreshold})`)
       .maybeSingle();
 
     if (conflict) {

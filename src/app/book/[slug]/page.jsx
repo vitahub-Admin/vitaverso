@@ -21,6 +21,11 @@ export default function BookingPage() {
   const [slots, setSlots] = useState([]);
   const [slotsLoading, setSlotsLoading] = useState(false);
 
+  const [calendarMonth, setCalendarMonth] = useState(() => {
+    const d = new Date();
+    return { year: d.getFullYear(), month: d.getMonth() };
+  });
+
   const [form, setForm] = useState({ name: "", email: "", phone: "", notes: "" });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState(null);
@@ -85,18 +90,6 @@ export default function BookingPage() {
     } else {
       setError(data.error || "Error al procesar la reserva");
     }
-  }
-
-  // Genera los días disponibles del mes actual y siguiente
-  function getCalendarDays() {
-    const today = new Date();
-    const days = [];
-    for (let i = 0; i < 60; i++) {
-      const d = new Date(today);
-      d.setDate(today.getDate() + i);
-      days.push(d.toISOString().split("T")[0]);
-    }
-    return days;
   }
 
   if (loading) {
@@ -189,40 +182,84 @@ export default function BookingPage() {
         )}
 
         {/* Step 1: Elegir fecha */}
-        {step === STEPS.DATE && (
-          <div>
-            <div className="flex items-center gap-2 mb-4">
-              <button onClick={() => setStep(STEPS.SERVICE)} className="text-gray-400 hover:text-gray-600 text-sm">← Volver</button>
-              <h2 className="text-gray-700 font-medium text-sm">Elegí una fecha</h2>
+        {step === STEPS.DATE && (() => {
+          const { year, month } = calendarMonth;
+          const firstDay = new Date(year, month, 1).getDay();
+          const daysInMonth = new Date(year, month + 1, 0).getDate();
+          const maxDate = new Date(today);
+          maxDate.setDate(today.getDate() + 90);
+          const monthStart = new Date(year, month, 1);
+          const canGoPrev = monthStart > today;
+          const canGoNext = monthStart < new Date(maxDate.getFullYear(), maxDate.getMonth(), 1);
+          const MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+          return (
+            <div className="bg-white rounded-2xl p-4 shadow-sm">
+              <div className="flex items-center gap-2 mb-4">
+                <button onClick={() => setStep(STEPS.SERVICE)} className="text-gray-400 hover:text-gray-600 text-sm">← Volver</button>
+                <h2 className="text-gray-700 font-medium text-sm flex-1">Elegí una fecha</h2>
+              </div>
+
+              {/* Navegación de mes */}
+              <div className="flex items-center justify-between mb-4">
+                <button
+                  onClick={() => setCalendarMonth(({ year: y, month: m }) => m === 0 ? { year: y - 1, month: 11 } : { year: y, month: m - 1 })}
+                  disabled={!canGoPrev}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default text-gray-600"
+                >‹</button>
+                <span className="font-semibold text-gray-800 text-sm">
+                  {MONTHS[month]} {year}
+                </span>
+                <button
+                  onClick={() => setCalendarMonth(({ year: y, month: m }) => m === 11 ? { year: y + 1, month: 0 } : { year: y, month: m + 1 })}
+                  disabled={!canGoNext}
+                  className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 disabled:opacity-30 disabled:cursor-default text-gray-600"
+                >›</button>
+              </div>
+
+              {/* Días de semana */}
+              <div className="grid grid-cols-7 gap-1 mb-1">
+                {["Do","Lu","Ma","Mi","Ju","Vi","Sa"].map((d) => (
+                  <div key={d} className="text-center text-xs text-gray-400 font-medium py-1">{d}</div>
+                ))}
+              </div>
+
+              {/* Grilla del mes */}
+              <div className="grid grid-cols-7 gap-1">
+                {Array.from({ length: firstDay }).map((_, i) => <div key={`e${i}`} />)}
+                {Array.from({ length: daysInMonth }, (_, i) => {
+                  const dayNum = i + 1;
+                  const date = new Date(year, month, dayNum);
+                  const dateStr = `${year}-${String(month + 1).padStart(2,"0")}-${String(dayNum).padStart(2,"0")}`;
+                  const isPast = date < today;
+                  const isTooFar = date > maxDate;
+                  const isDisabled = isPast || isTooFar;
+                  const isSelected = dateStr === selectedDate;
+                  const isToday = date.toDateString() === today.toDateString();
+
+                  return (
+                    <button
+                      key={dayNum}
+                      disabled={isDisabled}
+                      onClick={() => { setSelectedDate(dateStr); setStep(STEPS.TIME); }}
+                      className={`relative rounded-full aspect-square flex items-center justify-center text-sm font-medium transition-colors
+                        ${isSelected ? "bg-blue-600 text-white" : ""}
+                        ${!isSelected && isToday ? "text-blue-600 font-bold" : ""}
+                        ${!isSelected && !isDisabled ? "hover:bg-blue-50 text-gray-800" : ""}
+                        ${isDisabled ? "text-gray-300 cursor-default" : "cursor-pointer"}
+                      `}
+                    >
+                      {isToday && !isSelected && (
+                        <span className="absolute bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 bg-blue-600 rounded-full" />
+                      )}
+                      {dayNum}
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-            <div className="grid grid-cols-7 gap-1">
-              {["D","L","M","X","J","V","S"].map((d) => (
-                <div key={d} className="text-center text-xs text-gray-400 py-1">{d}</div>
-              ))}
-              {/* Offset para el primer día */}
-              {Array.from({ length: new Date(getCalendarDays()[0] + "T12:00:00").getDay() }).map((_, i) => (
-                <div key={`e${i}`} />
-              ))}
-              {getCalendarDays().map((d) => {
-                const dow = new Date(d + "T12:00:00").getDay();
-                const isSelected = d === selectedDate;
-                return (
-                  <button
-                    key={d}
-                    onClick={() => { setSelectedDate(d); setStep(STEPS.TIME); }}
-                    className={`rounded-lg py-2 text-sm font-medium transition-colors ${
-                      isSelected
-                        ? "bg-blue-600 text-white"
-                        : "bg-white text-gray-700 hover:bg-blue-50"
-                    }`}
-                  >
-                    {new Date(d + "T12:00:00").getDate()}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* Step 2: Elegir hora */}
         {step === STEPS.TIME && (

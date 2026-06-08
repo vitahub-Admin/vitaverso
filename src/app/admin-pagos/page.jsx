@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { affiliatesService } from "../services/affiliates";
 
 export default function AdminWalletPage() {
+  const [stats, setStats] = useState(null);
+
   const [pending, setPending] = useState([]);
   const [history, setHistory] = useState([]);
   const [loadingExchanges, setLoadingExchanges] = useState(true);
@@ -84,6 +86,9 @@ export default function AdminWalletPage() {
   useEffect(() => {
     fetchExchanges();
     fetchTransactions();
+    fetch('/api/admin/points/exchanges/stats')
+      .then(r => r.json())
+      .then(d => { if (d.success) setStats(d); });
   }, []);
 
   /* ============================= */
@@ -247,13 +252,47 @@ export default function AdminWalletPage() {
         <h1 className="text-3xl md:text-4xl text-white font-lato"> Administración de Wallet</h1>
       </div>
 
-      {/* ====================================================== */}
-      {/* ================= GESTIÓN DE RETIROS ================= */}
-      {/* ====================================================== */}
+      {/* ── Stats ── */}
+      {stats && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          {[
+            {
+              label: `Total movido (${stats.thisMonth.label})`,
+              value: `$${Number(stats.thisMonth.total).toLocaleString('es-MX', { minimumFractionDigits: 0 })}`,
+              sub: stats.growth_pct !== null
+                ? `${stats.growth_pct >= 0 ? '↑' : '↓'} ${Math.abs(stats.growth_pct)}% vs mes anterior`
+                : null,
+              subColor: stats.growth_pct >= 0 ? 'text-green-600' : 'text-red-500',
+            },
+            {
+              label: `Total movido (${stats.lastMonth.label})`,
+              value: `$${Number(stats.lastMonth.total).toLocaleString('es-MX', { minimumFractionDigits: 0 })}`,
+              sub: `${stats.lastMonth.count} operaciones`,
+              subColor: 'text-gray-400',
+            },
+            {
+              label: 'Prefieren crédito en tienda',
+              value: `${stats.thisMonth.credit_pct}%`,
+              sub: `$${Number(stats.thisMonth.store_credit.amount).toLocaleString('es-MX', { minimumFractionDigits: 0 })} · ${stats.thisMonth.store_credit.count} ops`,
+              subColor: 'text-blue-500',
+            },
+            {
+              label: 'Prefieren retiro en efectivo',
+              value: `${100 - stats.thisMonth.credit_pct}%`,
+              sub: `$${Number(stats.thisMonth.cash.amount).toLocaleString('es-MX', { minimumFractionDigits: 0 })} · ${stats.thisMonth.cash.count} ops`,
+              subColor: 'text-gray-400',
+            },
+          ].map(({ label, value, sub, subColor }) => (
+            <div key={label} className="bg-white rounded-xl border border-gray-200 p-4 shadow-sm">
+              <p className="text-[0.7rem] text-gray-400 font-medium mb-1">{label}</p>
+              <p className="text-2xl font-extrabold text-[#1b3f7a] leading-none">{value}</p>
+              {sub && <p className={`text-xs mt-1.5 font-medium ${subColor}`}>{sub}</p>}
+            </div>
+          ))}
+        </div>
+      )}
 
-  <div className="w-full bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
-        <h2 className="text-2xl md:text-4xl text-white font-lato"> Administración de Wallet</h2>
-      </div>
+
       <h2 className="text-xl font-semibold mb-6">
         Gestión de Retiros
       </h2>
