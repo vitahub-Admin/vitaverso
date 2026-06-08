@@ -142,18 +142,20 @@ export default function BookingPage() {
         {/* Steps indicator */}
         <div className="flex gap-2 mb-6">
           {["Servicio", "Fecha", "Hora", "Datos"].map((label, i) => (
-            <div
+            <button
               key={i}
+              disabled={i >= step}
+              onClick={() => i < step && setStep(i)}
               className={`flex-1 text-center text-xs py-1 rounded-full font-medium transition-colors ${
                 i === step
-                  ? "bg-blue-600 text-white"
+                  ? "bg-blue-600 text-white cursor-default"
                   : i < step
-                  ? "bg-blue-100 text-blue-600"
-                  : "bg-gray-100 text-gray-400"
+                  ? "bg-blue-100 text-blue-600 hover:bg-blue-200 cursor-pointer"
+                  : "bg-gray-100 text-gray-400 cursor-default"
               }`}
             >
               {label}
-            </div>
+            </button>
           ))}
         </div>
 

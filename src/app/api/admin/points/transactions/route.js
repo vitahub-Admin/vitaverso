@@ -25,7 +25,7 @@ let query = supabase
   .select(`
     id,
     customer_id,
-    amount,
+    points,
     direction,
     category,
     status,

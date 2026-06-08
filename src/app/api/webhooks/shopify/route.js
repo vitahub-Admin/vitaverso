@@ -125,6 +125,12 @@ async function handleBookingPayment(payload) {
           start: { dateTime: appointment.starts_at },
           end: { dateTime: appointment.ends_at },
           attendees: [{ email: appointment.client_email }],
+        },
+        async (newTokens) => {
+          await supabase
+            .from("booking_affiliates")
+            .update({ google_calendar_token: newTokens })
+            .eq("shopify_customer_id", Number(affiliate.shopify_customer_id));
         }
       );
       meetLink = event.conferenceData?.entryPoints?.find((e) => e.entryPointType === "video")?.uri || null;

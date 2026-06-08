@@ -9,7 +9,7 @@ import {
   DollarSign, ShoppingBag, ShoppingCart, Store,
   BookOpen, GraduationCap, HelpCircle, Newspaper,
   Contact, UserPlus, Settings, Layers,
-  Calendar, Users,
+  Calendar, Users, CalendarCheck,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { href: "/mis-carritos-merge",  label: "Mis Carritos",         icon: ShoppingCart },
   { href: "/contactos",           label: "Mis Contactos",        icon: Contact      },
   { href: "/mi-tienda",           label: "Mi Tienda",            icon: Store        },
+  { href: "/booking-dashboard",   label: "Mis Citas",            icon: CalendarCheck, requireTag: "vitahuber" },
   { href: "/comunidad",           label: "Comunidad",            icon: Users        },
   { href: "/manual",              label: "Manual",               icon: BookOpen,    requireTag: "vitahuber" },
   { href: "/academia-vitahub",    label: "Academia Vitahub",     icon: GraduationCap },

@@ -59,9 +59,15 @@ export async function getCalendarBusy(storedToken, calendarId, timeMin, timeMax)
 /**
  * Crea un evento en el calendario del afiliado para una cita confirmada.
  */
-export async function createCalendarEvent(storedToken, calendarId, event) {
+export async function createCalendarEvent(storedToken, calendarId, event, onTokenRefresh) {
   const client = createOAuthClient();
   client.setCredentials(storedToken);
+
+  if (onTokenRefresh) {
+    client.on("tokens", (newTokens) => {
+      onTokenRefresh({ ...storedToken, ...newTokens });
+    });
+  }
 
   const calendar = google.calendar({ version: "v3", auth: client });
   const res = await calendar.events.insert({
