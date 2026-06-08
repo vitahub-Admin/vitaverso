@@ -149,5 +149,21 @@ export async function GET(req) {
     results.variantCommissions = { error: err.message };
   }
 
+  // ── Cancelar booking appointments vencidos ─────────
+  try {
+    const expiryThreshold = new Date(Date.now() - 30 * 60 * 1000).toISOString();
+    const { data: cancelled, error } = await supabase
+      .from('booking_appointments')
+      .update({ status: 'cancelled', cancelled_reason: 'payment_timeout' })
+      .eq('status', 'pending_payment')
+      .lt('created_at', expiryThreshold)
+      .select('id');
+    if (error) throw error;
+    results.bookingCleanup = { cancelled: cancelled?.length ?? 0 };
+  } catch (err) {
+    console.error('❌ Booking cleanup failed:', err);
+    results.bookingCleanup = { error: err.message };
+  }
+
   return NextResponse.json({ success: true, results });
 }
