@@ -8,6 +8,7 @@ export default function Admin() {
   const [description, setDescription] = useState("");
   const [link, setLink] = useState("");
   const [banners, setBanners] = useState([]);
+  const [linkValues, setLinkValues] = useState({});
 
   const [news, setNews] = useState([]);
 
@@ -24,11 +25,11 @@ const [newsFecha, setNewsFecha] = useState("");
     fetch("/api/data/banner/list")
       .then((r) => r.json())
       .then((data) => {
-        if (!Array.isArray(data) || data.length === 0) {
-          setBanners([FALLBACK]);
-        } else {
-          setBanners(data);
-        }
+        const list = Array.isArray(data) && data.length > 0 ? data : [FALLBACK];
+        setBanners(list);
+        const map = {};
+        for (const b of list) map[b.id] = b.link || "";
+        setLinkValues(map);
       })
       .catch(() => {
         setBanners([FALLBACK]);
@@ -257,7 +258,8 @@ const saveNewsOrder = async () => {
                 <div className="flex items-center gap-1.5">
                   <Link2 size={12} className="text-gray-400 shrink-0" />
                   <input
-                    defaultValue={b.link || ""}
+                    value={linkValues[b.id] ?? ""}
+                    onChange={(e) => setLinkValues(prev => ({ ...prev, [b.id]: e.target.value }))}
                     onBlur={(e) => saveLink(b, e.target.value)}
                     placeholder="Sin link"
                     className="text-xs border rounded px-2 py-1 w-full text-gray-600 bg-white"
