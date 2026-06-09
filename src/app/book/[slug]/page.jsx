@@ -73,7 +73,7 @@ export default function BookingPage() {
         time: selectedTime,
         client_name: form.name,
         client_email: form.email,
-        client_phone: form.phone,
+        client_phone: form.phone ? `+52${form.phone}` : null,
         client_notes: form.notes,
       }),
     });
@@ -350,13 +350,20 @@ export default function BookingPage() {
               </div>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Teléfono</label>
-                <input
-                  type="tel"
-                  value={form.phone}
-                  onChange={(e) => setForm({ ...form, phone: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  placeholder="+52 55 0000 0000"
-                />
+                <div className="flex border border-gray-200 rounded-xl overflow-hidden focus-within:ring-2 focus-within:ring-blue-500">
+                  <span className="bg-gray-50 px-3 flex items-center text-sm text-gray-500 border-r border-gray-200 shrink-0">+52</span>
+                  <input
+                    type="tel"
+                    value={form.phone}
+                    onChange={(e) => {
+                      const digits = e.target.value.replace(/\D/g, "").slice(0, 10);
+                      setForm({ ...form, phone: digits });
+                    }}
+                    className="flex-1 px-3 py-3 text-sm focus:outline-none"
+                    placeholder="55 0000 0000"
+                    maxLength={10}
+                  />
+                </div>
               </div>
               <div>
                 <label className="text-xs text-gray-500 mb-1 block">Nota para el especialista</label>

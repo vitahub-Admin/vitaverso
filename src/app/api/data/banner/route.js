@@ -13,7 +13,7 @@ async function handleSupabaseError(operation, error) {
   return { success: false, error };
 }
 
-// GET - Último banner
+// GET - Primer banner visible
 export async function GET() {
   try {
     if (!supabase) {
@@ -24,28 +24,18 @@ export async function GET() {
     const { data, error } = await supabase
       .from('banners')
       .select('*')
-      .order('display_order', { ascending: false })
+      .eq('visible', true)
+      .order('display_order', { ascending: true })
       .limit(1)
       .single();
 
     if (error) {
-      console.error("Error fetching last banner:", error.message);
+      console.error("Error fetching banner:", error.message);
       return NextResponse.json(DEFAULT_BANNER);
     }
 
-    if (!data) {
-      // Si no hay banners, crear uno por defecto
-      const { data: defaultBanner } = await supabase
-        .from('banners')
-        .insert(DEFAULT_BANNER)
-        .select()
-        .single();
-      
-      return NextResponse.json(defaultBanner || DEFAULT_BANNER);
-    }
+    return NextResponse.json(data || DEFAULT_BANNER);
 
-    return NextResponse.json(data);
-    
   } catch (error) {
     console.error("Unexpected error in GET:", error);
     return NextResponse.json(DEFAULT_BANNER);
@@ -91,7 +81,9 @@ export async function POST(req) {
       .insert({
         url: body.url.trim(),
         description: (body.description || "").trim(),
-        display_order: newOrder
+        link: body.link?.trim() || null,
+        visible: body.visible !== false,
+        display_order: newOrder,
       })
       .select()
       .single();
@@ -145,8 +137,10 @@ export async function PUT(req) {
       id: banner.id,
       url: banner.url,
       description: banner.description || "",
+      link: banner.link || null,
+      visible: banner.visible !== false,
       display_order: index,
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
     }));
 
     // Actualizar todos los banners
@@ -181,6 +175,29 @@ export async function PUT(req) {
       { error: "Error interno del servidor", details: error.message },
       { status: 500 }
     );
+  }
+}
+
+// PATCH - Actualizar un banner (visible, link, description)
+export async function PATCH(req) {
+  try {
+    if (!supabase) return NextResponse.json({ error: "Database service unavailable" }, { status: 503 });
+
+    const { id, ...fields } = await req.json();
+    if (!id) return NextResponse.json({ error: "Se requiere id" }, { status: 400 });
+
+    const allowed = ['visible', 'link', 'description'];
+    const updates = Object.fromEntries(
+      Object.entries(fields).filter(([k]) => allowed.includes(k))
+    );
+    updates.updated_at = new Date().toISOString();
+
+    const { error } = await supabase.from('banners').update(updates).eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 

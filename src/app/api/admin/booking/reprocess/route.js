@@ -73,7 +73,7 @@ export async function POST(req) {
     try {
       const { data: affiliateAccount } = await supabase
         .from("affiliates")
-        .select("email")
+        .select("email, phone")
         .eq("shopify_customer_id", Number(affiliate?.shopify_customer_id))
         .maybeSingle();
 
@@ -93,6 +93,7 @@ export async function POST(req) {
           ends_at: appointment.ends_at,
           affiliate_name: affiliate?.display_name || null,
           affiliate_email: affiliateAccount?.email || null,
+          affiliate_phone: affiliateAccount?.phone || null,
           meet_link: meetLink,
           shopify_order_id: appointment.shopify_order_id,
         }),

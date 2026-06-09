@@ -22,6 +22,7 @@ export async function GET(req) {
     .from("booking_appointments")
     .select(`*, booking_services(name, duration_minutes, price)`)
     .eq("affiliate_id", affiliate.id)
+    .is("deleted_at", null)
     .order("starts_at");
 
   if (from) query = query.gte("starts_at", `${from}T00:00:00`);

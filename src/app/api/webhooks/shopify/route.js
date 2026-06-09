@@ -23,7 +23,7 @@ async function handleBookingPayment(payload) {
     .select(`
       *,
       booking_affiliates (shopify_customer_id, display_name, google_calendar_token, google_calendar_id),
-      booking_services (name, duration_minutes)
+      booking_services (name, duration_minutes, price, currency)
     `)
     .eq("id", appointmentId)
     .maybeSingle();
@@ -88,28 +88,33 @@ async function handleBookingPayment(payload) {
   if (process.env.N8N_BOOKING_CONFIRMED_WEBHOOK) {
     const { data: affiliateAccount } = await supabase
       .from("affiliates")
-      .select("email")
+      .select("email, phone")
       .eq("shopify_customer_id", Number(affiliate?.shopify_customer_id))
       .maybeSingle();
 
-    fetch(process.env.N8N_BOOKING_CONFIRMED_WEBHOOK, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        appointment_id: appointmentId,
-        client_name: appointment.client_name,
-        client_email: appointment.client_email,
-        client_phone: appointment.client_phone || null,
-        service_name: appointment.booking_services?.name,
-        duration_minutes: appointment.booking_services?.duration_minutes,
-        starts_at: appointment.starts_at,
-        ends_at: appointment.ends_at,
-        affiliate_name: affiliate?.display_name || null,
-        affiliate_email: affiliateAccount?.email || null,
-        meet_link: meetLink,
-        shopify_order_id: String(payload.id),
-      }),
-    }).catch(() => {});
+    try {
+      await fetch(process.env.N8N_BOOKING_CONFIRMED_WEBHOOK, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointment_id: appointmentId,
+          client_name: appointment.client_name,
+          client_email: appointment.client_email,
+          client_phone: appointment.client_phone || null,
+          service_name: appointment.booking_services?.name,
+          duration_minutes: appointment.booking_services?.duration_minutes,
+          starts_at: appointment.starts_at,
+          ends_at: appointment.ends_at,
+          affiliate_name: affiliate?.display_name || null,
+          affiliate_email: affiliateAccount?.email || null,
+          affiliate_phone: affiliateAccount?.phone || null,
+          meet_link: meetLink,
+          shopify_order_id: String(payload.id),
+        }),
+      });
+    } catch (err) {
+      console.error("❌ n8n booking webhook failed:", err.message);
+    }
   }
 
   // Crear evento en Google Calendar del afiliado

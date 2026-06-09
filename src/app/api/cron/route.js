@@ -154,8 +154,9 @@ export async function GET(req) {
     const expiryThreshold = new Date(Date.now() - 30 * 60 * 1000).toISOString();
     const { data: cancelled, error } = await supabase
       .from('booking_appointments')
-      .update({ status: 'cancelled', cancelled_reason: 'payment_timeout' })
+      .update({ status: 'cancelled', cancelled_reason: 'payment_timeout', deleted_at: new Date().toISOString() })
       .eq('status', 'pending_payment')
+      .is('deleted_at', null)
       .lt('created_at', expiryThreshold)
       .select('id');
     if (error) throw error;

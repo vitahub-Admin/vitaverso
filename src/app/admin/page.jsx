@@ -1,11 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Trash2, ArrowUp, ArrowDown, Plus } from "lucide-react";
+import { Trash2, ArrowUp, ArrowDown, Plus, Eye, EyeOff, Link2 } from "lucide-react";
 import Banner from "../components/Banner";
 
 export default function Admin() {
   const [url, setUrl] = useState("");
   const [description, setDescription] = useState("");
+  const [link, setLink] = useState("");
   const [banners, setBanners] = useState([]);
 
   const [news, setNews] = useState([]);
@@ -43,13 +44,29 @@ const [newsFecha, setNewsFecha] = useState("");
     await fetch("/api/data/banner", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ url, description }),
+      body: JSON.stringify({ url, description, link }),
     });
-
-    alert("Banner agregado");
-    setUrl("");
-    setDescription("");
+    setUrl(""); setDescription(""); setLink("");
     loadBanners();
+  };
+
+  // Toggle visibilidad
+  const toggleVisible = async (banner) => {
+    setBanners(prev => prev.map(b => b.id === banner.id ? { ...b, visible: !b.visible } : b));
+    await fetch("/api/data/banner", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: banner.id, visible: !banner.visible }),
+    });
+  };
+
+  // Actualizar link inline
+  const saveLink = async (banner, newLink) => {
+    await fetch("/api/data/banner", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id: banner.id, link: newLink || null }),
+    });
   };
 
   // Borrar un banner por índice (NO el último)
@@ -210,76 +227,61 @@ const saveNewsOrder = async () => {
       </div>
 
       {/* Formulario agregar banner */}
-      <div style={{ maxWidth: 500, margin: "20px auto" }}>
-        <h2 className="mb-2">Agregar Banner</h2>
-
-        <input
-          placeholder="URL de la imagen"
-          className="w-full p-2 border mb-2"
-          value={url}
-          onChange={(e) => setUrl(e.target.value)}
-        />
-
-        <input
-          placeholder="Descripción"
-          className="w-full p-2 border mb-4"
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-        />
-
-        <button
-          onClick={save}
-          className="px-4 py-2 bg-black text-white rounded flex items-center gap-2 mr-4"
-        >
-          <Plus size={18} /> Agregar
-        </button>
+      <div className="w-full max-w-2xl mt-4">
+        <h2 className="text-xl font-semibold mb-3">Agregar Banner</h2>
+        <div className="flex flex-col gap-2 p-4 border rounded-xl bg-gray-50">
+          <input placeholder="URL de la imagen" className="w-full p-2 border rounded text-sm" value={url} onChange={(e) => setUrl(e.target.value)} />
+          <input placeholder="Descripción" className="w-full p-2 border rounded text-sm" value={description} onChange={(e) => setDescription(e.target.value)} />
+          <input placeholder="Link al hacer clic (opcional)" className="w-full p-2 border rounded text-sm" value={link} onChange={(e) => setLink(e.target.value)} />
+          <button onClick={save} className="self-start px-4 py-2 bg-black text-white rounded flex items-center gap-2 text-sm mt-1">
+            <Plus size={16} /> Agregar
+          </button>
+        </div>
       </div>
 
       {/* Listado de banners */}
-      <div className="w-full max-w-2xl mt-10">
+      <div className="w-full max-w-2xl mt-6">
         <h2 className="text-xl mb-4 font-semibold">Lista de Banners</h2>
 
-        <div className="flex flex-col gap-4">
-        {banners.map((b, i) => (
-  <div
-    key={i}
-    className="flex items-center justify-between border p-3 rounded shadow-sm"
-  >
-    <div className="flex items-center gap-4">
-      <img
-        src={b.url}
-        alt={b.description}
-        className="w-24 h-12 object-cover rounded"
-      />
-      <span>{b.description || "(sin descripción)"}</span>
-    </div>
+        <div className="flex flex-col gap-3">
+          {banners.map((b, i) => (
+            <div key={b.id ?? i} className={`flex items-center gap-3 border p-3 rounded-xl shadow-sm transition-opacity ${b.visible === false ? 'opacity-40' : ''}`}>
+              <img src={b.url} alt={b.description} className="w-20 h-11 object-cover rounded shrink-0" />
 
-    <div className="flex items-center gap-2">
-      <button onClick={() => moveUp(i)} className="p-2 bg-gray-200 rounded">
-        <ArrowUp size={18} />
-      </button>
-      <button onClick={() => moveDown(i)} className="p-2 bg-gray-200 rounded">
-        <ArrowDown size={18} />
-      </button>
-      <button
-        onClick={() => deleteOne(i)}
-        className="p-2 bg-red-600 text-white rounded"
-      >
-        <Trash2 size={18} />
-      </button>
-    </div>
-  </div>
-))}
+              <div className="flex-1 min-w-0 flex flex-col gap-1.5">
+                <span className="text-sm font-medium truncate">{b.description || "(sin descripción)"}</span>
+                <div className="flex items-center gap-1.5">
+                  <Link2 size={12} className="text-gray-400 shrink-0" />
+                  <input
+                    defaultValue={b.link || ""}
+                    onBlur={(e) => saveLink(b, e.target.value)}
+                    placeholder="Sin link"
+                    className="text-xs border rounded px-2 py-1 w-full text-gray-600"
+                  />
+                </div>
+              </div>
 
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button onClick={() => moveUp(i)} className="p-1.5 bg-gray-100 rounded hover:bg-gray-200"><ArrowUp size={15} /></button>
+                <button onClick={() => moveDown(i)} className="p-1.5 bg-gray-100 rounded hover:bg-gray-200"><ArrowDown size={15} /></button>
+                <button
+                  onClick={() => toggleVisible(b)}
+                  title={b.visible === false ? "Activar" : "Ocultar"}
+                  className={`p-1.5 rounded ${b.visible === false ? 'bg-gray-200 text-gray-400' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+                >
+                  {b.visible === false ? <EyeOff size={15} /> : <Eye size={15} />}
+                </button>
+                <button onClick={() => deleteOne(b)} className="p-1.5 bg-red-50 text-red-500 rounded hover:bg-red-100">
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            </div>
+          ))}
         </div>
 
-        {/* Guardar orden */}
         <div className="text-right mt-4">
-          <button
-            onClick={saveOrder}
-            className="px-6 py-2 bg-blue-600 text-white rounded"
-          >
-            Guardar cambios
+          <button onClick={saveOrder} className="px-6 py-2 bg-blue-600 text-white rounded text-sm">
+            Guardar orden
           </button>
         </div>
       </div>

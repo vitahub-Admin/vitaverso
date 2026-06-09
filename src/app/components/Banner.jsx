@@ -7,14 +7,13 @@ export default function Banner({ youtubeVideoUrl }) {
   const [banner, setBanner] = useState({
     url: "/BANNER.jpg",
     description: "Default Banner",
+    link: null,
   });
 
   useEffect(() => {
     fetch("/api/data/banner")
       .then((r) => r.json())
-      .then((data) => {
-        if (data?.url) setBanner(data);
-      })
+      .then((data) => { if (data?.url) setBanner(data); })
       .catch(() => {});
   }, []);
 
@@ -26,18 +25,8 @@ export default function Banner({ youtubeVideoUrl }) {
 
   const videoId = getYouTubeVideoId(youtubeVideoUrl);
   const hasVideo = Boolean(videoId);
-const bannerHref = "https://calendly.com/vitahubpro/vitahubpro-capacitacion-matter"
-  return (
-    <div className="flex flex-col md:flex-row gap-4 mb-6">
-      {/* BANNER */}
-      {/* BANNER */}
-<div className="w-full md:w-4/5">
-  <a
-    href={bannerHref}
-    target="_blank"
-    rel="noopener noreferrer"
-    className="block"
-  >
+
+  const img = (
     <Image
       src={banner.url}
       alt={banner.description}
@@ -47,9 +36,20 @@ const bannerHref = "https://calendly.com/vitahubpro/vitahubpro-capacitacion-matt
       priority
       unoptimized={banner.url.startsWith("http")}
     />
-  </a>
-</div>
-      {/* VIDEO THUMBNAIL */}
+  );
+
+  return (
+    <div className="flex flex-col md:flex-row gap-4 mb-6">
+      <div className="w-full md:w-4/5">
+        {banner.link ? (
+          <a href={banner.link} target="_blank" rel="noopener noreferrer" className="block">
+            {img}
+          </a>
+        ) : (
+          img
+        )}
+      </div>
+
       <div className="hidden md:block md:w-1/5">
         {hasVideo && (
           <a
@@ -58,7 +58,6 @@ const bannerHref = "https://calendly.com/vitahubpro/vitahubpro-capacitacion-matt
             rel="noopener noreferrer"
             className="group relative block w-full h-0 pb-[56.25%] rounded-lg overflow-hidden bg-black"
           >
-            {/* Thumbnail */}
             <Image
               src={`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`}
               alt="Video thumbnail"
@@ -66,25 +65,8 @@ const bannerHref = "https://calendly.com/vitahubpro/vitahubpro-capacitacion-matt
               className="object-cover"
               priority
             />
-
-            {/* Overlay suave */}
             <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500 ease-out" />
-
-            {/* Play button */}
-            <div
-              className="
-                absolute
-                bottom-4 left-4
-                flex items-center justify-center
-                w-10 h-10 rounded-full
-                bg-white/90
-                transition-all duration-500 ease-out
-                group-hover:translate-x-2
-                group-hover:-translate-y-2
-                group-hover:w-12
-                group-hover:h-12
-              "
-            >
+            <div className="absolute bottom-4 left-4 flex items-center justify-center w-10 h-10 rounded-full bg-white/90 transition-all duration-500 ease-out group-hover:translate-x-2 group-hover:-translate-y-2 group-hover:w-12 group-hover:h-12">
               <Play className="w-6 h-6 text-[#2a5298] ml-0.5" />
             </div>
           </a>
