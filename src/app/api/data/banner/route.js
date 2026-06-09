@@ -24,7 +24,7 @@ export async function GET() {
     const { data, error } = await supabase
       .from('banners')
       .select('*')
-      .eq('visible', true)
+      .or('visible.is.null,visible.eq.true')
       .order('display_order', { ascending: true })
       .limit(1)
       .single();
@@ -140,7 +140,6 @@ export async function PUT(req) {
       link: banner.link || null,
       visible: banner.visible !== false,
       display_order: index,
-      updated_at: new Date().toISOString(),
     }));
 
     // Actualizar todos los banners
@@ -190,7 +189,11 @@ export async function PATCH(req) {
     const updates = Object.fromEntries(
       Object.entries(fields).filter(([k]) => allowed.includes(k))
     );
-    updates.updated_at = new Date().toISOString();
+
+    // Si se activa uno, desactivar todos los demás primero
+    if (updates.visible === true) {
+      await supabase.from('banners').update({ visible: false }).neq('id', id);
+    }
 
     const { error } = await supabase.from('banners').update(updates).eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

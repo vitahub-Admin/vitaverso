@@ -50,13 +50,14 @@ const [newsFecha, setNewsFecha] = useState("");
     loadBanners();
   };
 
-  // Toggle visibilidad
-  const toggleVisible = async (banner) => {
-    setBanners(prev => prev.map(b => b.id === banner.id ? { ...b, visible: !b.visible } : b));
+  // Seleccionar banner activo (desactiva todos los demás)
+  const setActiveBanner = async (banner) => {
+    if (banner.visible) return; // ya es el activo
+    setBanners(prev => prev.map(b => ({ ...b, visible: b.id === banner.id })));
     await fetch("/api/data/banner", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: banner.id, visible: !banner.visible }),
+      body: JSON.stringify({ id: banner.id, visible: true }),
     });
   };
 
@@ -245,18 +246,21 @@ const saveNewsOrder = async () => {
 
         <div className="flex flex-col gap-3">
           {banners.map((b, i) => (
-            <div key={b.id ?? i} className={`flex items-center gap-3 border p-3 rounded-xl shadow-sm transition-opacity ${b.visible === false ? 'opacity-40' : ''}`}>
+            <div key={b.id ?? i} className={`flex items-center gap-3 border-2 p-3 rounded-xl shadow-sm transition-all ${b.visible ? 'border-blue-400 bg-blue-50/30' : 'border-gray-100 opacity-50'}`}>
               <img src={b.url} alt={b.description} className="w-20 h-11 object-cover rounded shrink-0" />
 
               <div className="flex-1 min-w-0 flex flex-col gap-1.5">
-                <span className="text-sm font-medium truncate">{b.description || "(sin descripción)"}</span>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium truncate">{b.description || "(sin descripción)"}</span>
+                  {b.visible && <span className="text-[0.6rem] font-bold px-1.5 py-0.5 bg-blue-100 text-blue-600 rounded-full">ACTIVO</span>}
+                </div>
                 <div className="flex items-center gap-1.5">
                   <Link2 size={12} className="text-gray-400 shrink-0" />
                   <input
                     defaultValue={b.link || ""}
                     onBlur={(e) => saveLink(b, e.target.value)}
                     placeholder="Sin link"
-                    className="text-xs border rounded px-2 py-1 w-full text-gray-600"
+                    className="text-xs border rounded px-2 py-1 w-full text-gray-600 bg-white"
                   />
                 </div>
               </div>
@@ -265,11 +269,11 @@ const saveNewsOrder = async () => {
                 <button onClick={() => moveUp(i)} className="p-1.5 bg-gray-100 rounded hover:bg-gray-200"><ArrowUp size={15} /></button>
                 <button onClick={() => moveDown(i)} className="p-1.5 bg-gray-100 rounded hover:bg-gray-200"><ArrowDown size={15} /></button>
                 <button
-                  onClick={() => toggleVisible(b)}
-                  title={b.visible === false ? "Activar" : "Ocultar"}
-                  className={`p-1.5 rounded ${b.visible === false ? 'bg-gray-200 text-gray-400' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'}`}
+                  onClick={() => setActiveBanner(b)}
+                  title={b.visible ? "Banner activo" : "Usar este banner"}
+                  className={`p-1.5 rounded transition-colors ${b.visible ? 'bg-blue-500 text-white cursor-default' : 'bg-gray-100 text-gray-400 hover:bg-blue-100 hover:text-blue-600'}`}
                 >
-                  {b.visible === false ? <EyeOff size={15} /> : <Eye size={15} />}
+                  <Eye size={15} />
                 </button>
                 <button onClick={() => deleteOne(b)} className="p-1.5 bg-red-50 text-red-500 rounded hover:bg-red-100">
                   <Trash2 size={15} />
