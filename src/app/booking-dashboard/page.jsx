@@ -230,15 +230,23 @@ export default function BookingDashboard() {
     setLoading(true);
     const headers = authHeaders();
 
-    const [affRes, apptRes, svcRes, availRes] = await Promise.all([
-      fetch("/api/booking/affiliate", { headers }).then((r) => r.json()).catch(() => null),
+    const [affRaw, apptRes, svcRes, availRes] = await Promise.all([
+      fetch("/api/booking/affiliate", { headers }).then(async (r) => ({ status: r.status, ...(await r.json()) })).catch(() => null),
       fetch("/api/booking/appointments", { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
       fetch("/api/booking/services", { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
       fetch("/api/booking/availability", { headers }).then((r) => r.json()).catch(() => ({ data: [] })),
     ]);
 
-    if (affRes && !affRes.error) setAffiliate(affRes);
-    else setShowSetup(true);
+    if (affRaw && !affRaw.error) {
+      setAffiliate(affRaw);
+    } else if (!affRaw || affRaw.status === 401) {
+      // Sin sesión — redirigir al inicio para que haga login
+      window.location.href = "/";
+      return;
+    } else {
+      // 404: autenticado pero sin perfil de booking → primera vez
+      setShowSetup(true);
+    }
 
     setAppointments(apptRes?.data || []);
     setServices(svcRes?.data || []);
