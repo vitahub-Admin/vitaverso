@@ -2,6 +2,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import Cookies from "js-cookie";
 
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const FULL_DAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -211,6 +212,11 @@ export default function BookingDashboard() {
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("agenda"); // agenda | services | availability | profile
+  const [needsLogin, setNeedsLogin] = useState(false);
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  const [loginLoading, setLoginLoading] = useState(false);
+  const [loginError, setLoginError] = useState("");
 
   // Setup modal
   const [showSetup, setShowSetup] = useState(false);
@@ -240,9 +246,7 @@ export default function BookingDashboard() {
     if (affRaw && !affRaw.error) {
       setAffiliate(affRaw);
     } else if (!affRaw || affRaw.status === 401) {
-      // Sin sesión — redirigir al inicio con redirect de vuelta
-      window.location.href = "/?redirect=/booking-dashboard";
-      return;
+      setNeedsLogin(true);
     } else {
       // 404: autenticado pero sin perfil de booking → primera vez
       setShowSetup(true);
@@ -252,6 +256,32 @@ export default function BookingDashboard() {
     setServices(svcRes?.data || []);
     setAvailability(availRes?.data || []);
     setLoading(false);
+  }
+
+  async function handleBookingLogin(e) {
+    e.preventDefault();
+    setLoginError("");
+    setLoginLoading(true);
+    try {
+      const res = await fetch("/api/pro/auth", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+      });
+      const data = await res.json();
+      if (data.ok && data.token) {
+        Cookies.set("proJwt", data.token, { expires: 30 });
+        setNeedsLogin(false);
+        setLoginEmail(""); setLoginPassword("");
+        loadAll();
+      } else {
+        setLoginError(data.error || "Email o contraseña incorrectos");
+      }
+    } catch {
+      setLoginError("Error de conexión");
+    } finally {
+      setLoginLoading(false);
+    }
   }
 
   async function handleSetup(e) {
@@ -311,6 +341,36 @@ export default function BookingDashboard() {
 
   if (loading) {
     return <div className="min-h-screen flex items-center justify-center text-gray-400 text-sm">Cargando...</div>;
+  }
+
+  if (needsLogin) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-sm">
+          <h2 className="text-lg font-bold text-gray-900 mb-1">Accedé a tu dashboard</h2>
+          <p className="text-sm text-gray-500 mb-6">Ingresá con tu cuenta de afiliado Vitahub.</p>
+          <form onSubmit={handleBookingLogin} className="flex flex-col gap-3">
+            <input
+              type="email" required placeholder="Email"
+              value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
+              className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <input
+              type="password" required placeholder="Contraseña"
+              value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)}
+              className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {loginError && <p className="text-red-500 text-xs text-center">{loginError}</p>}
+            <button
+              type="submit" disabled={loginLoading}
+              className="bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
+            >
+              {loginLoading ? "Ingresando..." : "Ingresar"}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
   }
 
   return (
