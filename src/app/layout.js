@@ -136,7 +136,8 @@ function AuthManager({ children }) {
         Cookies.set("customerId", data.customer.id, { expires: 30 });
         if (data.token) Cookies.set("proJwt", data.token, { expires: 30 });
         setShowAuthModal(false);
-        router.replace("/wallet");
+        const redirect = searchParams.get("redirect");
+        router.replace(redirect && redirect.startsWith("/") ? redirect : "/wallet");
       } else {
         setLoginError(data.error || "Email o contraseña incorrectos");
       }

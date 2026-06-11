@@ -240,8 +240,8 @@ export default function BookingDashboard() {
     if (affRaw && !affRaw.error) {
       setAffiliate(affRaw);
     } else if (!affRaw || affRaw.status === 401) {
-      // Sin sesión — redirigir al inicio para que haga login
-      window.location.href = "/";
+      // Sin sesión — redirigir al inicio con redirect de vuelta
+      window.location.href = "/?redirect=/booking-dashboard";
       return;
     } else {
       // 404: autenticado pero sin perfil de booking → primera vez
