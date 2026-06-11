@@ -9,9 +9,12 @@ import Cookies from "js-cookie";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { CustomerProvider } from "./context/CustomerContext.jsx";
 
+const PUBLIC_ROUTES = ["/privacidad"];
+
 function AuthManager({ children }) {
   const searchParams = useSearchParams();
   const router = useRouter();
+  const pathname = usePathname();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showBackdoorModal, setShowBackdoorModal] = useState(false);
@@ -21,6 +24,8 @@ function AuthManager({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (PUBLIC_ROUTES.includes(pathname)) { setIsLoading(false); return; }
+
     const enc = searchParams.get("enc");
     const t = searchParams.get("t");
     const sig = searchParams.get("sig");
@@ -152,6 +157,9 @@ function AuthManager({ children }) {
     window.location.href =
       "https://vitahub.mx/pages/registro-afiliados";
   };
+
+  // 🌐 Rutas públicas — sin auth
+  if (PUBLIC_ROUTES.includes(pathname)) return <>{children}</>;
 
   // ⏳ Loader
   if (isLoading) {
