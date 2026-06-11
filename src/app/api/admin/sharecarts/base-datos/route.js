@@ -24,10 +24,27 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const isTest = searchParams.get('type') === 'test';
 
-    const { data, error } = await supabase.rpc('get_pending_sharecarts', { p_test: isTest });
-    if (error) throw error;
+    const PAGE_SIZE = 1000;
+    let all = [];
+    let page = 0;
 
-    const result = (data || []).map(c => ({
+    while (true) {
+      const from = page * PAGE_SIZE;
+      const to   = from + PAGE_SIZE - 1;
+
+      const { data, error } = await supabase
+        .rpc('get_pending_sharecarts', { p_test: isTest })
+        .range(from, to);
+
+      if (error) throw error;
+      if (!data?.length) break;
+
+      all = all.concat(data);
+      if (data.length < PAGE_SIZE) break;
+      page++;
+    }
+
+    const result = all.map(c => ({
       name:  c.name ?? '',
       phone: c.phone,
     }));

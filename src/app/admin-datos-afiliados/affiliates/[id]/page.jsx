@@ -70,6 +70,9 @@ export default function AffiliateDetailPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
+  const [showBajaModal, setShowBajaModal] = useState(false);
+  const [bajaLoading, setBajaLoading] = useState(false);
+  const [bajaLog, setBajaLog] = useState(null);
 
   const shopifyStore = "7798ab-86";
 
@@ -120,6 +123,20 @@ export default function AffiliateDetailPage() {
       alert(err.response?.data?.error || "Error guardando cambios");
     } finally {
       setSaving(false);
+    }
+  };
+
+  const darDeBaja = async () => {
+    try {
+      setBajaLoading(true);
+      const res = await axios.delete(`/api/admin/affiliates/${id}`);
+      setBajaLog(res.data.log);
+      setTimeout(() => router.push('/admin-datos-afiliados'), 3000);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Error al dar de baja');
+      setShowBajaModal(false);
+    } finally {
+      setBajaLoading(false);
     }
   };
 
@@ -314,6 +331,78 @@ export default function AffiliateDetailPage() {
           Bloquear
         </button>
       </div>
+
+      {/* Zona de peligro */}
+      <div className="border border-red-200 rounded-lg p-4 bg-red-50">
+        <h2 className="font-medium text-red-700 mb-1">Zona de peligro</h2>
+        <p className="text-xs text-red-500 mb-3">
+          Dar de baja elimina el tag "especialista" en Shopify, borra la colección del afiliado, rechaza retiros pendientes y marca el registro como inactivo. No se puede deshacer fácilmente.
+        </p>
+        <button
+          onClick={() => setShowBajaModal(true)}
+          disabled={!!affiliate.deleted_at}
+          className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          {affiliate.deleted_at ? 'Ya dado de baja' : 'Dar de baja del programa'}
+        </button>
+      </div>
+
+      {/* Modal confirmación baja */}
+      {showBajaModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl p-6 max-w-md w-full mx-4 shadow-xl">
+            {bajaLog ? (
+              <>
+                <h3 className="text-lg font-semibold text-green-700 mb-3">✅ Afiliado dado de baja</h3>
+                <ul className="text-sm space-y-1 mb-4">
+                  {bajaLog.map((entry, i) => (
+                    <li key={i} className="flex items-center gap-2">
+                      <span>{entry.ok || entry.count >= 0 ? '✓' : '✗'}</span>
+                      <span className="text-gray-600">
+                        {entry.action === 'shopify_tag_removed'       && 'Tag "especialista" eliminado de Shopify'}
+                        {entry.action === 'shopify_collection_deleted' && 'Colección de Shopify eliminada'}
+                        {entry.action === 'exchanges_rejected'         && `${entry.count} retiro(s) pendiente(s) rechazado(s)`}
+                        {entry.action === 'soft_deleted'               && 'Registro marcado como inactivo en Supabase'}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                <p className="text-xs text-gray-400">Redirigiendo al listado…</p>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-semibold text-red-700 mb-2">¿Dar de baja a este afiliado?</h3>
+                <p className="text-sm text-gray-700 mb-1">
+                  <strong>{affiliate.first_name} {affiliate.last_name}</strong>
+                </p>
+                <p className="text-sm text-gray-500 mb-4">{affiliate.email}</p>
+                <ul className="text-xs text-gray-500 space-y-1 mb-5">
+                  <li>• Se quitará el tag "especialista" en Shopify</li>
+                  <li>• Se eliminará su colección de Shopify</li>
+                  <li>• Los retiros pendientes serán rechazados</li>
+                  <li>• El registro quedará marcado como inactivo</li>
+                </ul>
+                <div className="flex gap-2 justify-end">
+                  <button
+                    onClick={() => setShowBajaModal(false)}
+                    disabled={bajaLoading}
+                    className="px-4 py-2 text-sm bg-gray-100 rounded hover:bg-gray-200"
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    onClick={darDeBaja}
+                    disabled={bajaLoading}
+                    className="px-4 py-2 text-sm bg-red-600 text-white rounded hover:bg-red-700 disabled:opacity-60"
+                  >
+                    {bajaLoading ? 'Procesando…' : 'Confirmar baja'}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Shopify */}
       <div className="border-t pt-4 space-y-2">
