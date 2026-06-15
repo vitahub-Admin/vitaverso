@@ -321,16 +321,15 @@ function parseDMY(s) {
 function transformTikTok(orders, skuData, targetYear, targetMonth) {
   const rows = []
   const targetKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`
+  let skippedCancelled = 0, skippedDate = 0, skippedNoSku = 0
 
   for (const order of orders) {
-    if (order.order_status_id === STATUS_CANCELADO) continue
+    if (order.order_status_id === STATUS_CANCELADO) { skippedCancelled++; continue }
     const ts = order.date_confirmed || order.date_add
-    if (!ts) continue
-    if (tsMexicoMonth(ts) !== targetKey) continue
-
+    if (!ts || tsMexicoMonth(ts) !== targetKey) { skippedDate++; continue }
 
     const products = (order.products || []).filter(p => (p.sku || '').trim())
-    if (!products.length) continue
+    if (!products.length) { skippedNoSku++; continue }
 
     const subtotal = products.reduce((s, p) => s + Number(p.price_brutto || 0) * Number(p.quantity || 0), 0)
     const tamano   = subtotal >= 599 ? 'mayor que $599' : 'menor que $599'
@@ -353,7 +352,7 @@ function transformTikTok(orders, skuData, targetYear, targetMonth) {
       const neto          = Math.round((ventaMenosCom - guia - extra) * 100) / 100
 
       rows.push([
-        String(order.order_id), tipoCarrito, 'tiktok', tamano,
+        `tiktok${order.external_order_id || order.order_id}`, tipoCarrito, 'tiktok', tamano,
         p.name || '', info.vendor || '', info.marca || '', info.sku_seller || '',
         precio, qty, comision, ventaMenosCom,
         fmtTimestamp(ts), guia, extra, neto,
@@ -362,6 +361,7 @@ function transformTikTok(orders, skuData, targetYear, targetMonth) {
     }
   }
 
+  console.log(`  TikTok descartadas → canceladas: ${skippedCancelled} | fuera de mes: ${skippedDate} | sin SKU: ${skippedNoSku}`)
   return rows
 }
 

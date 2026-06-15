@@ -45,7 +45,7 @@ export default function PrivacidadPage() {
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>5. Retención de datos</h2>
       <p>
         Los datos se conservan mientras la cuenta del especialista esté activa.
-        Podés solicitar la eliminación de tu cuenta y datos escribiendo a <strong>contacto@vitahub.mx</strong>.
+        Podés solicitar la eliminación de tu cuenta y datos escribiendo a <strong>maxi@vitahub.mx</strong>.
       </p>
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>6. Cambios a esta política</h2>
@@ -55,7 +55,7 @@ export default function PrivacidadPage() {
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>7. Contacto</h2>
       <p>
-        Para consultas sobre privacidad: <strong>contacto@vitahub.mx</strong>
+        Para consultas sobre privacidad: <strong>maxi@vitahub.mx</strong>
       </p>
     </main>
   );
