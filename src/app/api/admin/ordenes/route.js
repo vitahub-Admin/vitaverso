@@ -19,7 +19,7 @@ export async function GET() {
     const thirtyDaysAgo   = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
     const twelveMonthsAgo = new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString();
 
-    const [suspectRes, monthlyRes] = await Promise.all([
+    const [suspectRes, monthlyRes, correctedRes] = await Promise.all([
       // Órdenes sospechosas últimos 30 días
       supabase
         .from("orders")
@@ -35,6 +35,12 @@ export async function GET() {
         .select("shopify_created_at, status")
         .gte("shopify_created_at", twelveMonthsAgo)
         .order("shopify_created_at", { ascending: true }),
+
+      // Total órdenes corregidas automáticamente (all time)
+      supabase
+        .from("orders")
+        .select("id", { count: "exact", head: true })
+        .eq("status", "corrected"),
     ]);
 
     // Agregar por mes
@@ -70,7 +76,7 @@ export async function GET() {
       shopify_url: `https://admin.shopify.com/store/${storeHandle}/orders/${o.order_id}`,
     }));
 
-    return NextResponse.json({ suspect, monthly });
+    return NextResponse.json({ suspect, monthly, corrected_total: correctedRes.count ?? 0 });
   } catch (err) {
     console.error("admin/ordenes error:", err);
     return NextResponse.json({ error: err.message }, { status: 500 });

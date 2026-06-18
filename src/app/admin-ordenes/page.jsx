@@ -61,7 +61,7 @@ export default function AdminOrdenesPage() {
     <div className="p-6 text-center text-red-500 text-sm">{error}</div>
   );
 
-  const { suspect = [], monthly = [] } = data;
+  const { suspect = [], monthly = [], corrected_total = 0 } = data;
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
@@ -195,6 +195,21 @@ export default function AdminOrdenesPage() {
               </table>
             </div>
           )}
+        </section>
+
+        {/* ── Corregidas automáticamente ───────────────────────────── */}
+        <section className="flex items-center justify-between border border-gray-100 rounded-2xl px-6 py-4 bg-gray-50/50">
+          <div>
+            <p className="text-xs font-semibold tracking-widest uppercase text-gray-400 mb-0.5">
+              Órdenes corregidas automáticamente
+            </p>
+            <p className="text-xs text-gray-400">
+              Llegaron sin especialista pero se rescataron vía share cart
+            </p>
+          </div>
+          <span className="text-2xl font-extrabold text-[#1b3f7a] tabular-nums">
+            {corrected_total.toLocaleString()}
+          </span>
         </section>
 
       </div>

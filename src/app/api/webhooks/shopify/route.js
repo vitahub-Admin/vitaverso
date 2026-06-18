@@ -258,6 +258,28 @@ export async function POST(req) {
 
     if (orderError) console.error("Order upsert error:", orderError);
 
+    // Si fue corregida automáticamente → actualizar note_attributes en Shopify
+    if (status === "corrected" && correctedRef) {
+      const mergedAttributes = [
+        ...(payload.note_attributes || []).filter(
+          a => a.name !== "specialist_ref" && a.name !== "corregido"
+        ),
+        { name: "specialist_ref", value: correctedRef },
+        { name: "corregido",      value: "vitahubpro automat" },
+      ];
+
+      fetch(`https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/orders/${orderId}.json`, {
+        method: "PUT",
+        headers: {
+          "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ order: { id: orderId, note_attributes: mergedAttributes } }),
+      })
+        .then(r => { if (!r.ok) r.text().then(t => console.error("Shopify order update error:", t)) })
+        .catch(e => console.error("Shopify order update error:", e.message));
+    }
+
     // Marcar como convertido en base_datos_exports si la orden tiene sharecart
     if (shareCart) {
       supabase
