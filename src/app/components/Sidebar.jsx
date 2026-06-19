@@ -12,13 +12,18 @@ import {
   Calendar, Users, CalendarCheck,
 } from "lucide-react";
 
+const BOOKING_WHITELIST = [
+  // Agregar IDs de Shopify de afiliados beta aquí
+  9166283571521,8394066952513,8819754762561
+];
+
 const NAV_ITEMS = [
   { href: "/wallet",              label: "Wallet",               icon: DollarSign   },
   { href: "/ordenes",             label: "Órdenes",              icon: ShoppingBag  },
   { href: "/mis-carritos-merge",  label: "Mis Carritos",         icon: ShoppingCart },
   { href: "/contactos",           label: "Mis Contactos",        icon: Contact      },
   { href: "/mi-tienda",           label: "Mi Tienda",            icon: Store        },
-  { href: "/booking-dashboard",   label: "Mis Citas",            icon: CalendarCheck, requireTag: "vitahuber" },
+  { href: "/booking-dashboard",   label: "Mis Citas",            icon: CalendarCheck, requireBooking: true },
   { href: "/comunidad",           label: "Comunidad",            icon: Users        },
   { href: "/manual",              label: "Manual",               icon: BookOpen,    requireTag: "vitahuber" },
   { href: "/academia-vitahub",    label: "Academia Vitahub",     icon: GraduationCap },
@@ -50,6 +55,7 @@ export default function Sidebar() {
 
   const tagsArray = customer?.tags?.split(",")?.map(t => t.trim().toLowerCase()) || [];
   const isVitahuber = tagsArray.includes("vitahuber");
+  const hasBookingAccess = isVitahuber || BOOKING_WHITELIST.includes(String(customer?.id || ""));
 
   useEffect(() => {
     async function checkNovedades() {
@@ -74,9 +80,11 @@ export default function Sidebar() {
     checkNovedades();
   }, [pathname]);
 
-  const filteredItems = NAV_ITEMS.filter(item =>
-    !(item.requireTag === "vitahuber" && !isVitahuber)
-  );
+  const filteredItems = NAV_ITEMS.filter(item => {
+    if (item.requireTag === "vitahuber" && !isVitahuber) return false;
+    if (item.requireBooking && !hasBookingAccess) return false;
+    return true;
+  });
 
   // Separar items normales de los admin (vitahuber)
   const publicItems = filteredItems.filter(item => !item.requireTag);

@@ -26,6 +26,7 @@ export default function Banner({ youtubeVideoUrl }) {
   const videoId = getYouTubeVideoId(youtubeVideoUrl);
   const hasVideo = Boolean(videoId);
 
+
   const img = (
     <Image
       src={banner.url}

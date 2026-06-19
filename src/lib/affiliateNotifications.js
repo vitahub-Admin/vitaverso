@@ -23,6 +23,13 @@ export async function sendPushToAffiliate(shopifyCustomerId, title, body, data =
     .eq('shopify_customer_id', shopifyCustomerId)
     .single();
 
+  await supabase.from('affiliate_notifications').insert([{
+    customer_id: shopifyCustomerId,
+    title,
+    body,
+    data,
+  }]).catch(() => {});
+
   if (!affiliate?.push_token) return null;
 
   return sendBatch([{ to: affiliate.push_token, title, body, data, sound: 'default' }]);
@@ -31,10 +38,18 @@ export async function sendPushToAffiliate(shopifyCustomerId, title, body, data =
 export async function broadcastToAffiliates(title, body, data = {}) {
   const { data: affiliates } = await supabase
     .from('affiliates')
-    .select('push_token')
+    .select('shopify_customer_id, push_token')
     .not('push_token', 'is', null);
 
   if (!affiliates?.length) return null;
+
+  const notifRows = affiliates.map((a) => ({
+    customer_id: a.shopify_customer_id,
+    title,
+    body,
+    data,
+  }));
+  await supabase.from('affiliate_notifications').insert(notifRows).catch(() => {});
 
   const tokens = affiliates.map((a) => a.push_token).filter(Boolean);
   const results = [];
