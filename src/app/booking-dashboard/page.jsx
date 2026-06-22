@@ -599,9 +599,21 @@ export default function BookingDashboard() {
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <h3 className="font-medium text-gray-900 text-sm mb-3">Google Calendar</h3>
               {affiliate?.google_calendar_token ? (
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                  <span className="text-sm text-gray-700">Conectado</span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    <span className="text-sm text-gray-700">Conectado</span>
+                  </div>
+                  <button
+                    onClick={async () => {
+                      if (!confirm("¿Desconectar Google Calendar?")) return;
+                      await fetch("/api/booking/calendar/disconnect", { method: "POST", headers: authHeaders() });
+                      setAffiliate(prev => ({ ...prev, google_calendar_token: null, google_calendar_id: null }));
+                    }}
+                    className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                  >
+                    Desconectar
+                  </button>
                 </div>
               ) : (
                 <>
