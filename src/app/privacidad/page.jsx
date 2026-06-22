@@ -29,31 +29,48 @@ export default function PrivacidadPage() {
         <li>Gestionar inscripciones a capacitaciones</li>
       </ul>
 
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>3. Compartición de datos</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>3. Uso de Google Calendar</h2>
+      <p>
+        La App ofrece integración opcional con Google Calendar mediante OAuth 2.0. Al conectar tu cuenta de Google:
+      </p>
+      <ul>
+        <li><strong>Qué accedemos:</strong> eventos de tu calendario (lectura) y capacidad de crear nuevos eventos.</li>
+        <li><strong>Para qué lo usamos:</strong> leer eventos existentes para bloquear automáticamente los horarios ocupados en tu agenda de citas; crear eventos en tu calendario cuando se confirma una cita nueva.</li>
+        <li><strong>Qué no hacemos:</strong> no almacenamos el contenido de tus eventos, no los compartimos con terceros, no los usamos para ningún fin distinto al mencionado.</li>
+        <li><strong>Token de acceso:</strong> guardamos de forma segura el token OAuth para mantener la sincronización activa. Podés revocar este acceso en cualquier momento desde la sección Perfil de la App o directamente desde tu <a href="https://myaccount.google.com/permissions" target="_blank" rel="noopener noreferrer">cuenta de Google</a>.</li>
+      </ul>
+      <p>
+        El uso de datos obtenidos a través de Google APIs cumple con la{' '}
+        <a href="https://developers.google.com/terms/api-services-user-data-policy" target="_blank" rel="noopener noreferrer">
+          Política de datos de usuario de los servicios de Google API
+        </a>, incluyendo los requisitos de uso limitado.
+      </p>
+
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>4. Compartición de datos</h2>
       <p>
         No vendemos ni compartimos datos personales con terceros con fines comerciales.
         Los datos pueden ser procesados por proveedores de infraestructura (Supabase, Vercel, Expo)
         bajo acuerdos de confidencialidad.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>4. Seguridad</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>5. Seguridad</h2>
       <p>
         Toda la comunicación entre la App y nuestros servidores se realiza mediante HTTPS (cifrado en tránsito).
         Las credenciales se almacenan de forma segura en el dispositivo usando almacenamiento cifrado.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>5. Retención de datos</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>6. Retención de datos</h2>
       <p>
         Los datos se conservan mientras la cuenta del especialista esté activa.
         Podés solicitar la eliminación de tu cuenta y datos escribiendo a <strong>maxi@vitahub.mx</strong>.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>6. Cambios a esta política</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>7. Cambios a esta política</h2>
       <p>
         Podemos actualizar esta política ocasionalmente. Te notificaremos a través de la App ante cambios importantes.
       </p>
 
-      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>7. Contacto</h2>
+      <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>8. Contacto</h2>
       <p>
         Para consultas sobre privacidad: <strong>maxi@vitahub.mx</strong>
       </p>

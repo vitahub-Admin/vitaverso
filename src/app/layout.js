@@ -9,7 +9,7 @@ import Cookies from "js-cookie";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { CustomerProvider } from "./context/CustomerContext.jsx";
 
-const PUBLIC_ROUTES = ["/privacidad", "/soporte"];
+const PUBLIC_ROUTES = ["/", "/privacidad", "/soporte", "/terminos"];
 
 function AuthManager({ children }) {
   const searchParams = useSearchParams();
