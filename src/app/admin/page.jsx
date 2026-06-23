@@ -64,11 +64,14 @@ const [newsFecha, setNewsFecha] = useState("");
 
   // Actualizar link inline
   const saveLink = async (banner, newLink) => {
-    await fetch("/api/data/banner", {
+    const res = await fetch("/api/data/banner", {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: banner.id, link: newLink || null }),
     });
+    if (res.ok) {
+      setBanners(prev => prev.map(b => b.id === banner.id ? { ...b, link: newLink || null } : b));
+    }
   };
 
   // Borrar un banner por índice (NO el último)
@@ -120,7 +123,9 @@ const [newsFecha, setNewsFecha] = useState("");
         id: banner.id,
         url: banner.url,
         description: banner.description || "",
-        display_order: index
+        link: linkValues[banner.id] || null,
+        visible: banner.visible !== false,
+        display_order: index,
       }));
   
       const response = await fetch("/api/data/banner", {

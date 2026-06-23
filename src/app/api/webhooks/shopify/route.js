@@ -84,40 +84,7 @@ async function handleBookingPayment(payload) {
     }
   }
 
-  // Notificar a n8n para emails de confirmación (cliente + afiliado)
-  if (process.env.N8N_BOOKING_CONFIRMED_WEBHOOK) {
-    const { data: affiliateAccount } = await supabase
-      .from("affiliates")
-      .select("email, phone")
-      .eq("shopify_customer_id", Number(affiliate?.shopify_customer_id))
-      .maybeSingle();
-
-    try {
-      await fetch(process.env.N8N_BOOKING_CONFIRMED_WEBHOOK, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          appointment_id: appointmentId,
-          client_name: appointment.client_name,
-          client_email: appointment.client_email,
-          client_phone: appointment.client_phone || null,
-          service_name: appointment.booking_services?.name,
-          duration_minutes: appointment.booking_services?.duration_minutes,
-          starts_at: appointment.starts_at,
-          ends_at: appointment.ends_at,
-          affiliate_name: affiliate?.display_name || null,
-          affiliate_email: affiliateAccount?.email || null,
-          affiliate_phone: affiliateAccount?.phone || null,
-          meet_link: meetLink,
-          shopify_order_id: String(payload.id),
-        }),
-      });
-    } catch (err) {
-      console.error("❌ n8n booking webhook failed:", err.message);
-    }
-  }
-
-  // Crear evento en Google Calendar del afiliado
+  // Crear evento en Google Calendar del afiliado (primero, para tener el meet_link)
   let meetLink = null;
   if (affiliate?.google_calendar_token) {
     try {
@@ -148,6 +115,39 @@ async function handleBookingPayment(payload) {
         .eq("id", appointmentId);
     } catch {
       // No bloquear si falla Calendar
+    }
+  }
+
+  // Notificar a n8n para emails de confirmación (cliente + afiliado)
+  if (process.env.N8N_BOOKING_CONFIRMED_WEBHOOK) {
+    const { data: affiliateAccount } = await supabase
+      .from("affiliates")
+      .select("email, phone")
+      .eq("shopify_customer_id", Number(affiliate?.shopify_customer_id))
+      .maybeSingle();
+
+    try {
+      await fetch(process.env.N8N_BOOKING_CONFIRMED_WEBHOOK, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          appointment_id: appointmentId,
+          client_name: appointment.client_name,
+          client_email: appointment.client_email,
+          client_phone: appointment.client_phone || null,
+          service_name: appointment.booking_services?.name,
+          duration_minutes: appointment.booking_services?.duration_minutes,
+          starts_at: appointment.starts_at,
+          ends_at: appointment.ends_at,
+          affiliate_name: affiliate?.display_name || null,
+          affiliate_email: affiliateAccount?.email || null,
+          affiliate_phone: affiliateAccount?.phone || null,
+          meet_link: meetLink,
+          shopify_order_id: String(payload.id),
+        }),
+      });
+    } catch (err) {
+      console.error("❌ n8n booking webhook failed:", err.message);
     }
   }
 
