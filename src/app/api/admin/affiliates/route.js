@@ -79,6 +79,7 @@ const isSearchMode =
     // ========= FILTROS SIMPLES =========
     if (status) query = query.eq("status", status);
     if (profession) query = query.eq("profession", profession);
+    if (searchParams.get("has_app") === "true") query = query.not("push_token", "is", null);
 
     // ========= BÚSQUEDA =========
  if (isSearchMode) {
