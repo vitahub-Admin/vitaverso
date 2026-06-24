@@ -25,7 +25,7 @@ export async function GET(req) {
 
     const { data, error } = await supabase
       .from('affiliates')
-      .select('first_name, last_name, email, phone, social_media, clabe_interbancaria, city, state, address, shopify_collection_id, profession, status')
+      .select('first_name, last_name, email, phone, social_media, clabe_interbancaria, city, state, address, shopify_collection_id, profession, status, email_verified')
       .eq('shopify_customer_id', customerIdNum)
       .single();
 
@@ -50,6 +50,7 @@ export async function GET(req) {
         shopify_collection_id: data.shopify_collection_id || null,
         profesion: data.profession || '',
         status: data.status || '',
+        email_verified: !!data.email_verified,
       },
       // alias para compatibilidad con la app móvil
       affiliate: {
@@ -64,6 +65,7 @@ export async function GET(req) {
         estado: data.state || '',
         profesion: data.profession || '',
         status: data.status || '',
+        email_verified: !!data.email_verified,
       },
       _debug: { customer_id_used: customerIdNum },
     });
