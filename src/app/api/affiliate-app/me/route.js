@@ -26,7 +26,7 @@ export async function GET(req) {
 
   const { data, error } = await supabase
     .from('affiliates')
-    .select('first_name, last_name, email, phone, social_media, clabe_interbancaria, city, state, address, profession, status')
+    .select('first_name, last_name, email, phone, social_media, clabe_interbancaria, city, state, address, profession, status, email_verified')
     .eq('shopify_customer_id', shopifyCustomerId)
     .single();
 
@@ -49,6 +49,7 @@ export async function GET(req) {
       estado: data.state || '',
       profesion: data.profession || '',
       status: data.status || '',
+      email_verified: !!data.email_verified,
     },
   });
 }
