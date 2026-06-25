@@ -33,7 +33,7 @@ export async function GET(req) {
 
   const data = (capacitacionesRes.data || []).map((c) => ({
     ...c,
-    inscripto: enrolledIds.has(c.id),
+    inscrito: enrolledIds.has(c.id),
   }));
 
   return NextResponse.json({ ok: true, data });

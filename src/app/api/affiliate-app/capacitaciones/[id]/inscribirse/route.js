@@ -25,13 +25,24 @@ export async function POST(req, context) {
     return NextResponse.json({ ok: false, error: 'Capacitación no encontrada' }, { status: 404 });
   }
 
+  const { data: affiliate } = await supabase
+    .from('affiliates')
+    .select('email')
+    .eq('shopify_customer_id', shopifyCustomerId)
+    .maybeSingle();
+
   const { error } = await supabase
     .from('capacitacion_inscripciones')
-    .insert([{ capacitacion_id: id, customer_id: shopifyCustomerId }]);
+    .upsert(
+      {
+        capacitacion_id: id,
+        customer_id: shopifyCustomerId,
+        email: affiliate?.email || null,
+        status: 'pendiente',
+      },
+      { onConflict: 'capacitacion_id,customer_id' }
+    );
 
-  if (error?.code === '23505') {
-    return NextResponse.json({ ok: false, error: 'Ya estás inscripto' }, { status: 409 });
-  }
   if (error) return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true, message: `Inscripto a "${cap.title}"` }, { status: 201 });
