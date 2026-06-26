@@ -186,7 +186,7 @@ export default function AdminCapacitacionesPage() {
             Capacitaciones
           </h1>
           <p className="text-sm text-gray-400 font-medium">
-            Gestión de eventos y capacitaciones para afiliados
+            Gestión de eventos y capacitaciones para afiliados 
           </p>
         </div>
       </div>
