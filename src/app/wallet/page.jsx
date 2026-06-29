@@ -6,7 +6,7 @@ import axios from "axios";
 import {
   Banknote, ShoppingBag, TrendingUp, ArrowUpRight,
   Clock, CheckCircle2, XCircle, Sparkles, CircleDollarSign,
-  ShieldCheck, BadgePercent, Timer, Zap,
+  ShieldCheck, BadgePercent, Timer, Zap, Smartphone, X,
 } from "lucide-react";
 
 function fmt(n) {
@@ -25,6 +25,7 @@ export default function WalletPage() {
   const [exchangeType, setExchangeType]       = useState(null);
   const [clabe, setClabe]                     = useState(null);
   const [creditCodes, setCreditCodes]         = useState([]);
+  const [showAppModal, setShowAppModal]       = useState(false);
 
   useEffect(() => {
     async function fetchWallet() {
@@ -133,6 +134,7 @@ export default function WalletPage() {
   };
 
   return (
+    <>
     <div className="min-h-screen bg-white text-gray-900">
 
 
@@ -316,7 +318,7 @@ export default function WalletPage() {
 
                   <button
                     disabled={!withdrawAmount || withdrawing || !!pendingExchange || wallet.available <= 0}
-                    onClick={handleExchange}
+                    onClick={() => setShowAppModal(true)}
                     className="w-full py-3 bg-[#1b3f7a] text-white rounded-xl text-sm font-bold hover:bg-[#163264] hover:-translate-y-px transition-all disabled:bg-gray-200 disabled:text-gray-400 disabled:cursor-not-allowed disabled:translate-y-0"
                   >
                     {withdrawing ? "Procesando…" : exchangeType === "cash" ? "Solicitar retiro" : "Solicitar crédito en tienda"}
@@ -426,5 +428,53 @@ export default function WalletPage() {
 
       </div>
     </div>
+
+    {showAppModal && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6"
+        style={{ backgroundColor: "rgba(0,0,0,0.4)" }}>
+        <div className="bg-white rounded-2xl w-full max-w-md shadow-2xl overflow-hidden">
+          <div className="px-6 pt-7 pb-6 text-center relative"
+            style={{ backgroundColor: "rgba(27,63,122,0.08)" }}>
+            <button onClick={() => setShowAppModal(false)}
+              className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition">
+              <X size={18} />
+            </button>
+            <div className="w-14 h-14 bg-[#1b3f7a]/10 rounded-full flex items-center justify-center mx-auto mb-3">
+              <ShieldCheck size={26} className="text-[#1b3f7a]" />
+            </div>
+            <h2 className="text-lg font-bold leading-snug text-[#1b3f7a]">Tu wallet, más segura</h2>
+          </div>
+          <div className="px-5 py-5 text-center">
+            <p className="text-sm text-gray-600 leading-relaxed">
+              Por tu seguridad desarrollamos una app que te permite cuidar tus ingresos
+              y que nadie los retire por ti.
+            </p>
+            <p className="text-sm text-gray-800 font-semibold mt-3 mb-1">
+              A partir del <span className="text-[#1b3f7a]">28 de julio</span> los retiros a tu cuenta bancaria
+              se solicitan desde la aplicación.
+            </p>
+            <p className="text-sm text-gray-500 mt-1 mb-5">¡Es muy fácil! Descargala desde tu tienda:</p>
+            <div className="flex flex-col gap-2">
+              <a href="https://play.google.com/store/apps/details?id=mx.vitahub.afiliados&syclid=d9188r1e4rqs73btcu40"
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 bg-[#1b3f7a] text-white text-sm font-semibold py-3 rounded-xl hover:bg-[#163264] transition">
+                <Smartphone size={16} /> Descargar para Android
+              </a>
+              <a href="https://apps.apple.com/us/app/vitahub-pro/id6779682915"
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 bg-gray-900 text-white text-sm font-semibold py-3 rounded-xl hover:bg-black transition">
+                <Smartphone size={16} /> Descargar para iOS
+              </a>
+              <button
+                onClick={() => { setShowAppModal(false); handleExchange(); }}
+                className="text-xs text-gray-400 hover:text-gray-600 transition py-2">
+                Recordármelo más tarde
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    )}
+  </>
   );
 }
