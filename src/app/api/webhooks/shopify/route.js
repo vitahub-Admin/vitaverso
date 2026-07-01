@@ -203,12 +203,53 @@ export async function POST(req) {
 
     const discountTitle = payload.discount_codes?.[0]?.code || null;
 
-    // Detectar carrito corrupto e intentar corregir
+    // ── Resolución de specialist_ref (5 pasos) ──────────────────
     let correctedRef = null;
     let status = "ok";
 
     if (!specialistRef || specialistRef === "0000") {
-      if (shareCart) {
+      const customerId = customer.id;
+
+      // Fetch customer tags + metafields en paralelo
+      const [custRes, metaRes] = await Promise.all([
+        fetch(`https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/customers/${customerId}.json?fields=id,tags`, {
+          headers: { "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN },
+        }).then(r => r.json()).catch(() => ({})),
+        fetch(`https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/customers/${customerId}/metafields.json`, {
+          headers: { "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN },
+        }).then(r => r.json()).catch(() => ({ metafields: [] })),
+      ]);
+
+      const custTags      = custRes.customer?.tags || "";
+      const metafields    = metaRes.metafields || [];
+      const referidoMeta  = metafields.find(m => m.key === "referido");
+      const referidoValue = referidoMeta?.value || "";
+      const isEspecialista = custTags.split(",").map(t => t.trim().toLowerCase()).includes("especialista");
+
+      const setReferido = (value) => {
+        const body = referidoMeta
+          ? JSON.stringify({ metafield: { id: referidoMeta.id, value: String(value), type: "single_line_text_field" } })
+          : JSON.stringify({ metafield: { namespace: "custom", key: "referido", value: String(value), type: "single_line_text_field" } });
+        const url = referidoMeta
+          ? `https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/metafields/${referidoMeta.id}.json`
+          : `https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/customers/${customerId}/metafields.json`;
+        fetch(url, { method: referidoMeta ? "PUT" : "POST", headers: { "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN, "Content-Type": "application/json" }, body })
+          .catch(e => console.error("setReferido error:", e.message));
+      };
+
+      // Paso 2: Customer es especialista → self-referral
+      if (isEspecialista) {
+        correctedRef = String(customerId);
+        status = "corrected";
+        if (!referidoValue) setReferido(customerId);
+
+      // Paso 3: Customer tiene metafield referido
+      } else if (referidoValue) {
+        correctedRef = referidoValue;
+        status = "corrected";
+
+      // Paso 4: Share cart
+      } else if (shareCart) {
         const { data: cartData } = await supabase
           .from("sharecarts")
           .select("owner_id")
@@ -218,11 +259,34 @@ export async function POST(req) {
         if (cartData?.owner_id) {
           correctedRef = String(cartData.owner_id);
           status = "corrected";
+          if (!referidoValue) setReferido(cartData.owner_id);
         } else {
           status = "suspect";
         }
       } else {
         status = "suspect";
+      }
+    } else {
+      // Paso 1: Ya tiene ref válido → backfill referido si falta (fire-and-forget)
+      if (customer.id) {
+        fetch(`https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/customers/${customer.id}/metafields.json`, {
+          headers: { "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN },
+        })
+          .then(r => r.json())
+          .then(({ metafields = [] }) => {
+            const referidoMeta  = metafields.find(m => m.key === "referido");
+            if (!referidoMeta?.value) {
+              const url  = referidoMeta
+                ? `https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/metafields/${referidoMeta.id}.json`
+                : `https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/customers/${customer.id}/metafields.json`;
+              const body = referidoMeta
+                ? JSON.stringify({ metafield: { id: referidoMeta.id, value: specialistRef, type: "single_line_text_field" } })
+                : JSON.stringify({ metafield: { namespace: "custom", key: "referido", value: specialistRef, type: "single_line_text_field" } });
+              fetch(url, { method: referidoMeta ? "PUT" : "POST", headers: { "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN, "Content-Type": "application/json" }, body })
+                .catch(e => console.error("backfill referido error:", e.message));
+            }
+          })
+          .catch(e => console.error("backfill referido fetch error:", e.message));
       }
     }
 

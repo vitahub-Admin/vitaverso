@@ -13,8 +13,9 @@ import {
 } from "lucide-react";
 
 const BOOKING_WHITELIST = [
-  // Agregar IDs de Shopify de afiliados beta aquí
-  9166283571521,8394066952513,8819754762561
+  "9166283571521",
+  "8394066952513",
+  "8819754762561",
 ];
 
 const NAV_ITEMS = [
