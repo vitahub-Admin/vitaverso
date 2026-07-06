@@ -16,14 +16,14 @@ export async function GET() {
     .select(`
       earned_at,
       meta,
-      badge_definitions (
+      badge_definitions!badge_slug (
         slug,
         nombre,
         descripcion,
         image_url,
         hito,
         orden,
-        badge_levels (
+        badge_levels!level_slug (
           slug,
           nombre,
           color,

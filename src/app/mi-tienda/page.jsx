@@ -501,7 +501,7 @@ export default function MiTiendaPage() {
           {badges.length === 0 ? (
             <div className="border border-dashed border-gray-200 rounded-2xl p-8 flex flex-col items-center gap-2 text-gray-300">
               <Trophy size={28} strokeWidth={1.5} />
-              <p className="text-sm">Aún no tenés medallas — ¡seguí vendiendo!</p>
+              <p className="text-sm">Todavía no tienes medallas — ¡sigue vendiendo!</p>
             </div>
           ) : (
             <div className="flex flex-wrap gap-3">
