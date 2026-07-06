@@ -7,7 +7,7 @@ const supabase = createClient(
 )
 
 export async function GET() {
-  const cookieStore = cookies()
+  const cookieStore = await cookies()
   const customerId = cookieStore.get('customerId')?.value
   if (!customerId) return Response.json({ error: 'no auth' }, { status: 401 })
 
