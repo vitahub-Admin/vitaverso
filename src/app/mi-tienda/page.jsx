@@ -6,7 +6,7 @@ import Image from "next/image";
 import {
   Copy, Check, ExternalLink, X, Upload, ImageIcon,
   Instagram, Share2, Star, Package, Pencil, Link,
-  FileText, Tag, QrCode,
+  FileText, Tag, QrCode, Trophy,
 } from "lucide-react";
 import Banner from "../components/Banner";
 import { QRPrintableModal } from "../components/QRPrintable";
@@ -152,6 +152,7 @@ export default function MiTiendaPage() {
   const [presentacion, setPresentacion] = useState("");
   const [reviewComment, setReviewComment] = useState("");
   const [reviewLoading, setReviewLoading] = useState(false);
+  const [badges,        setBadges]        = useState([]);
 
   const fileInputRef = useRef(null);
 
@@ -162,6 +163,11 @@ export default function MiTiendaPage() {
   }
 
   useEffect(() => {
+    fetch("/api/mi-tienda/badges")
+      .then(r => r.json())
+      .then(d => { if (d.badges) setBadges(d.badges) })
+      .catch(() => {})
+
     const customerId = Cookies.get("customerId");
     if (!customerId) { setError("No hay customerId disponible"); return; }
 
@@ -480,6 +486,32 @@ export default function MiTiendaPage() {
           </div>
         </div>
 
+        {/* ══ Mis Medallas ══ */}
+        <div>
+          <div className="flex items-center gap-3 mb-4">
+            <Trophy size={16} className="text-[#1b3f7a]" />
+            <h2 className="text-lg font-extrabold text-[#1b3f7a]">
+              Mis Medallas
+              {badges.length > 0 && (
+                <span className="text-gray-400 font-normal text-sm ml-1">({badges.length})</span>
+              )}
+            </h2>
+          </div>
+
+          {badges.length === 0 ? (
+            <div className="border border-dashed border-gray-200 rounded-2xl p-8 flex flex-col items-center gap-2 text-gray-300">
+              <Trophy size={28} strokeWidth={1.5} />
+              <p className="text-sm">Aún no tenés medallas — ¡seguí vendiendo!</p>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {badges.map(b => (
+                <BadgeCard key={b.badge_definitions.slug} badge={b} />
+              ))}
+            </div>
+          )}
+        </div>
+
         {/* ══ Productos ══ */}
         <div>
           <div className="flex items-center gap-3 mb-4">
@@ -555,6 +587,31 @@ export default function MiTiendaPage() {
       />
     </div>
   );
+}
+
+// ── BadgeCard ──────────────────────────────────────────────
+function BadgeCard({ badge }) {
+  const def   = badge.badge_definitions
+  const level = def.badge_levels
+  const hito  = def.hito ? `${def.hito.valor} ${def.hito.unidad}` : null
+
+  return (
+    <div
+      className="flex flex-col items-center gap-1.5 p-3 rounded-2xl border border-gray-100 shadow-sm w-24 text-center"
+      style={{ backgroundColor: level?.color || '#F4F4F5' }}
+    >
+      {def.image_url ? (
+        <img src={def.image_url} alt={def.nombre} className="w-12 h-12 object-contain" />
+      ) : (
+        <div className="w-12 h-12 flex items-center justify-center rounded-full bg-white/60">
+          <Trophy size={22} className="text-gray-400" />
+        </div>
+      )}
+      <p className="text-xs font-bold text-gray-700 leading-tight">{def.nombre}</p>
+      {hito && <p className="text-[0.65rem] text-gray-500">{hito}</p>}
+      <p className="text-[0.6rem] font-semibold tracking-wide uppercase text-gray-400">{level?.nombre}</p>
+    </div>
+  )
 }
 
 // ── TipRow ─────────────────────────────────────────────────
