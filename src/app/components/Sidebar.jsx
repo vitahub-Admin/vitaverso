@@ -9,13 +9,13 @@ import {
   DollarSign, ShoppingBag, ShoppingCart, Store,
   BookOpen, GraduationCap, HelpCircle, Newspaper,
   Contact, UserPlus, Settings, Layers,
-  Calendar, Users, CalendarCheck,
+  Calendar, Users, CalendarCheck, Award,
 } from "lucide-react";
 
 const BOOKING_WHITELIST = [
   "9166283571521",
   "8394066952513",
-  "8819754762561","9730042724673","9375138775361","9351299400001"
+  "8819754762561","9730042724673","9375138775361","9351299400001","10324449034561"
 ];
 
 const NAV_ITEMS = [
@@ -30,6 +30,7 @@ const NAV_ITEMS = [
   { href: "/academia-vitahub",    label: "Academia Vitahub",     icon: GraduationCap },
   { href: "/notificaciones",      label: "Novedades",            icon: Newspaper    },
   { href: "/referral",            label: "Invita y gana",        icon: UserPlus     },
+  { href: "/mis-medallas",         label: "Mis Medallas",         icon: Award        ,    requireTag: "vitahuber"},
   { href: "/mis-datos",           label: "Mis Datos",            icon: Settings     },
   // ── Vitahuber only ──
   { href: "/vitahuber",           label: "Vitahuber",            icon: Settings,    requireTag: "vitahuber" },
