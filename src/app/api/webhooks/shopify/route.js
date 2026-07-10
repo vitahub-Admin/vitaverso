@@ -154,6 +154,31 @@ async function handleBookingPayment(payload) {
   return true;
 }
 
+const getCollectionHandle = (landingSite) => {
+  if (!landingSite) return null;
+  const match = landingSite.match(/^\/collections\/([^/?]+)/);
+  return match ? match[1] : null;
+};
+
+async function getEspecIdFromCollectionHandle(handle) {
+  const query = `
+    query($handle: String!) {
+      collectionByHandle(handle: $handle) {
+        metafield(namespace: "custom", key: "especId") { value }
+      }
+    }`;
+  const res = await fetch(`https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/graphql.json`, {
+    method: "POST",
+    headers: {
+      "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ query, variables: { handle } }),
+  }).then(r => r.json()).catch(() => null);
+
+  return res?.data?.collectionByHandle?.metafield?.value || null;
+}
+
 export async function POST(req) {
   try {
     const rawBody = await req.text();
@@ -203,7 +228,7 @@ export async function POST(req) {
 
     const discountTitle = payload.discount_codes?.[0]?.code || null;
 
-    // ── Resolución de specialist_ref (5 pasos) ──────────────────
+    // ── Resolución de specialist_ref (6 pasos) ──────────────────
     let correctedRef = null;
     let status = "ok";
 
@@ -260,12 +285,22 @@ export async function POST(req) {
           correctedRef = String(cartData.owner_id);
           status = "corrected";
           if (!referidoValue) setReferido(cartData.owner_id);
-        } else {
-          status = "suspect";
         }
-      } else {
-        status = "suspect";
       }
+
+      // Paso 5: landing_site → collection → metafield custom.especId
+      if (!correctedRef) {
+        const collectionHandle = getCollectionHandle(payload.landing_site);
+        if (collectionHandle) {
+          const especId = await getEspecIdFromCollectionHandle(collectionHandle);
+          if (especId) {
+            correctedRef = especId;
+            status = "corrected";
+          }
+        }
+      }
+
+      status = correctedRef ? "corrected" : "suspect";
     } else {
       // Paso 1: Ya tiene ref válido → backfill referido si falta (fire-and-forget)
       if (customer.id) {

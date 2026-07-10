@@ -47,13 +47,21 @@ function BadgeCard({ item }) {
       </div>
 
       {ganado && proximo && (
-        <p className="text-[0.6rem] text-[#1b3f7a] text-center leading-tight">
-          Próximo: {proximo.valor} {proximo.unidad}
-        </p>
+        <div className="w-full border-t border-gray-100 pt-1.5 mt-0.5">
+          <p className="text-[0.58rem] text-gray-400 text-center leading-tight">Siguiente objetivo</p>
+          <p className="text-[0.6rem] text-[#1b3f7a] font-semibold text-center leading-tight mt-0.5">
+            {proximo.descripcion || `${proximo.hito?.valor} ${proximo.hito?.unidad}`}
+          </p>
+        </div>
       )}
 
-      {!ganado && (
-        <p className="text-[0.6rem] text-gray-400 text-center">Por alcanzar</p>
+      {!ganado && badge?.descripcion && (
+        <div className="w-full border-t border-gray-100 pt-1.5 mt-0.5">
+          <p className="text-[0.58rem] text-gray-400 text-center leading-tight">Para obtenerla</p>
+          <p className="text-[0.6rem] text-gray-500 font-semibold text-center leading-tight mt-0.5">
+            {badge.descripcion}
+          </p>
+        </div>
       )}
     </div>
   );

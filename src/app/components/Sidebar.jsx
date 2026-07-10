@@ -15,7 +15,9 @@ import {
 const BOOKING_WHITELIST = [
   "9166283571521",
   "8394066952513",
-  "8819754762561","9730042724673","9375138775361","9351299400001","10324449034561"
+  "8819754762561","9730042724673",
+  "9375138775361","9351299400001",
+  "10324449034561","9784013783361"
 ];
 
 const NAV_ITEMS = [
@@ -45,6 +47,7 @@ const NAV_ITEMS = [
   { href: "/armador-carritos",        label: "Armador de Carritos",  icon: ShoppingCart, requireTag: "vitahuber" },
   { href: "/admin-capacitaciones",    label: "Capacitaciones",       icon: Layers,       requireTag: "vitahuber" },
   { href: "/admin-ordenes",           label: "Órdenes Admin",         icon: ShoppingBag,  requireTag: "vitahuber" },
+  { href: "/admin-badges",            label: "Badges Admin",          icon: Award,        requireTag: "vitahuber" },
   { href: "/admin-notificaciones",          label: "Notificaciones Admin",        icon: Users,        requireTag: "vitahuber" },    
 ];
 

@@ -13,7 +13,7 @@ export async function GET() {
 
   const { data: allDefs, error: e1 } = await supabase
     .from('badge_definitions')
-    .select('slug, nombre, image_url, hito, orden, grupo, level_slug')
+    .select('slug, nombre, descripcion, image_url, hito, orden, grupo, level_slug')
     .eq('activo', true)
     .order('orden')
 
@@ -67,9 +67,9 @@ export async function GET() {
     if (highestEarned) {
       const idx = tiers.findIndex(t => t.slug === highestEarned.slug)
       const next = tiers[idx + 1]
-      if (next) proximo = next.hito
+      if (next) proximo = { hito: next.hito, descripcion: next.descripcion }
     } else {
-      proximo = tiers[0].hito
+      proximo = { hito: tiers[0].hito, descripcion: tiers[0].descripcion }
     }
 
     result.push({

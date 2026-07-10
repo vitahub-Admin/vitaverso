@@ -176,7 +176,7 @@ function EventCard({ event, status: initialStatus, onInscribirse }) {
               className="py-2.5 bg-[#1b3f7a] text-white text-sm font-semibold rounded-xl
                 hover:bg-[#163264] disabled:opacity-60 transition"
             >
-              {inscribing ? "Guardando..." : "Anótate"}
+              {inscribing ? "Guardando..." : "Inscríbete"}
             </button>
           )}
           {event.link && status && (
