@@ -33,7 +33,7 @@ export async function POST(req) {
 
     return NextResponse.json({ ok: true });
   } catch (err) {
-    console.error('❌ recover:', err);
+    console.error('X recover:', err);
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
   }
 }
