@@ -338,6 +338,70 @@ function AppointmentEditor({ appointment, authHeaders, onSave, onClose }) {
   );
 }
 
+function ServiceEditForm({ service, authHeaders, onSave, onCancel }) {
+  const [form, setForm] = useState({
+    name:             service.name,
+    description:      service.description || "",
+    duration_minutes: service.duration_minutes,
+    price:            service.price,
+  });
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState(null);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true); setError(null);
+    try {
+      const res = await fetch(`/api/booking/services?id=${service.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify(form),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      onSave(data);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <form onSubmit={handleSave} className="space-y-2">
+      <input required value={form.name}
+        onChange={e => setForm({ ...form, name: e.target.value })}
+        placeholder="Nombre del servicio"
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <input value={form.description}
+        onChange={e => setForm({ ...form, description: e.target.value })}
+        placeholder="Descripción (opcional)"
+        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      <div className="flex gap-2">
+        <input required type="number" value={form.duration_minutes}
+          onChange={e => setForm({ ...form, duration_minutes: e.target.value })}
+          placeholder="Duración (min)"
+          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+        <input required type="number" value={form.price}
+          onChange={e => setForm({ ...form, price: e.target.value })}
+          placeholder="Precio (MXN)"
+          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+      </div>
+      {error && <p className="text-xs text-red-500">{error}</p>}
+      <div className="flex gap-2">
+        <button type="button" onClick={onCancel}
+          className="flex-1 border border-gray-200 text-gray-600 text-sm py-2 rounded-lg hover:bg-gray-50 transition">
+          Cancelar
+        </button>
+        <button type="submit" disabled={saving}
+          className="flex-1 bg-blue-600 text-white text-sm py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+          {saving ? "Guardando..." : "Guardar"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function ProfileEditor({ affiliate, authHeaders, onSave }) {
   const [form, setForm]       = useState({ specialty: affiliate?.specialty || "", bio: affiliate?.bio || "" });
   const [saving, setSaving]   = useState(false);
@@ -414,6 +478,7 @@ export default function BookingDashboard() {
   const [affiliate, setAffiliate] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [editingAppointment, setEditingAppointment] = useState(null);
+  const [editingService, setEditingService] = useState(null);
   const [copied, setCopied] = useState(false);
   const [services, setServices] = useState([]);
   const [availability, setAvailability] = useState([]);
@@ -772,19 +837,39 @@ export default function BookingDashboard() {
         {tab === "services" && (
           <>
             {services.filter((s) => s.is_active).map((s) => (
-              <div key={s.id} className="bg-white rounded-xl p-4 shadow-sm flex justify-between items-start">
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">{s.name}</p>
-                  {s.description && <p className="text-gray-500 text-xs mt-0.5">{s.description}</p>}
-                  <p className="text-gray-400 text-xs mt-1">{s.duration_minutes} min</p>
-                </div>
-                <div className="text-right flex-shrink-0 ml-4">
-                  <p className="font-semibold text-gray-900 text-sm">${Number(s.price).toLocaleString("es-MX")}</p>
-                  <button onClick={() => handleDeleteService(s.id)}
-                    className="text-xs text-red-400 hover:text-red-600 mt-1">
-                    Eliminar
-                  </button>
-                </div>
+              <div key={s.id} className="bg-white rounded-xl p-4 shadow-sm">
+                {editingService?.id === s.id ? (
+                  <ServiceEditForm
+                    service={s}
+                    authHeaders={authHeaders}
+                    onSave={(updated) => {
+                      setServices(prev => prev.map(x => x.id === updated.id ? updated : x));
+                      setEditingService(null);
+                    }}
+                    onCancel={() => setEditingService(null)}
+                  />
+                ) : (
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">{s.name}</p>
+                      {s.description && <p className="text-gray-500 text-xs mt-0.5">{s.description}</p>}
+                      <p className="text-gray-400 text-xs mt-1">{s.duration_minutes} min</p>
+                    </div>
+                    <div className="text-right flex-shrink-0 ml-4">
+                      <p className="font-semibold text-gray-900 text-sm">${Number(s.price).toLocaleString("es-MX")}</p>
+                      <div className="flex gap-2 justify-end mt-1">
+                        <button onClick={() => setEditingService(s)}
+                          className="text-xs text-blue-500 hover:text-blue-700">
+                          Editar
+                        </button>
+                        <button onClick={() => handleDeleteService(s.id)}
+                          className="text-xs text-red-400 hover:text-red-600">
+                          Eliminar
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
 

@@ -52,6 +52,36 @@ export async function POST(req) {
   return NextResponse.json(data, { status: 201 });
 }
 
+export async function PATCH(req) {
+  const { affiliate, error } = await resolveBookingAffiliate(req);
+  if (error) return NextResponse.json({ error }, { status: 401 });
+  if (!affiliate) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get("id");
+  const body = await req.json();
+
+  const allowed = ["name", "description", "duration_minutes", "price"];
+  const updates = Object.fromEntries(Object.entries(body).filter(([k]) => allowed.includes(k)));
+  if (updates.duration_minutes) updates.duration_minutes = Number(updates.duration_minutes);
+  if (updates.price)            updates.price            = Number(updates.price);
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
+  }
+
+  const { data, error: updateError } = await supabase
+    .from("booking_services")
+    .update(updates)
+    .eq("id", id)
+    .eq("affiliate_id", affiliate.id)
+    .select()
+    .single();
+
+  if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
+  return NextResponse.json(data);
+}
+
 export async function DELETE(req) {
   const { affiliate, error } = await resolveBookingAffiliate(req);
   if (error) return NextResponse.json({ error }, { status: 401 });
