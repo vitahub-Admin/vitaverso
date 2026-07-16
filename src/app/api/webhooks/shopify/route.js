@@ -220,6 +220,8 @@ export async function POST(req) {
     const shareCart = getAttr("share_cart") || null;
 
     const lineItems = (payload.line_items || []).map((item) => ({
+      product_id: item.product_id || null,
+      title: item.title || null,
       sku: item.sku || null,
       variant_title: item.variant_title || null,
       quantity: item.quantity,

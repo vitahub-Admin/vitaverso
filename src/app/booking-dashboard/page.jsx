@@ -201,6 +201,211 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function toLocalDatetimeInputs(isoString) {
+  const d = new Date(isoString);
+  const date = d.toISOString().slice(0, 10);
+  const time = d.toTimeString().slice(0, 5);
+  return { date, time };
+}
+
+function toISO(date, time) {
+  return new Date(`${date}T${time}:00`).toISOString();
+}
+
+function AppointmentEditor({ appointment, authHeaders, onSave, onClose }) {
+  const start = toLocalDatetimeInputs(appointment.starts_at);
+  const end   = toLocalDatetimeInputs(appointment.ends_at);
+
+  const [form, setForm] = useState({
+    status:          appointment.status,
+    date:            start.date,
+    start_time:      start.time,
+    end_time:        end.time,
+    affiliate_notes: appointment.affiliate_notes || "",
+  });
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState(null);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true); setError(null);
+    try {
+      const res = await fetch(`/api/booking/appointments?id=${appointment.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({
+          status:          form.status,
+          starts_at:       toISO(form.date, form.start_time),
+          ends_at:         toISO(form.date, form.end_time),
+          affiliate_notes: form.affiliate_notes,
+        }),
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error);
+      onSave(data);
+      onClose();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-gray-900">Editar cita</h3>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+        </div>
+
+        <p className="text-sm text-gray-500">{appointment.client_name} · {appointment.booking_services?.name}</p>
+
+        <form onSubmit={handleSave} className="space-y-3">
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Estado</label>
+            <select
+              value={form.status}
+              onChange={e => setForm({ ...form, status: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="pending">Pendiente</option>
+              <option value="confirmed">Confirmada</option>
+              <option value="completed">Completada</option>
+              <option value="cancelled">Cancelada</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Fecha</label>
+            <input
+              type="date"
+              value={form.date}
+              onChange={e => setForm({ ...form, date: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Hora inicio</label>
+              <select
+                value={form.start_time}
+                onChange={e => setForm({ ...form, start_time: e.target.value })}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-gray-500 mb-1 block">Hora fin</label>
+              <select
+                value={form.end_time}
+                onChange={e => setForm({ ...form, end_time: e.target.value })}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              >
+                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="text-xs text-gray-500 mb-1 block">Notas internas</label>
+            <textarea
+              rows={3}
+              placeholder="Notas visibles solo para ti..."
+              value={form.affiliate_notes}
+              onChange={e => setForm({ ...form, affiliate_notes: e.target.value })}
+              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+            />
+          </div>
+
+          {error && <p className="text-xs text-red-500">{error}</p>}
+
+          <div className="flex gap-2">
+            <button type="button" onClick={onClose}
+              className="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition">
+              Cancelar
+            </button>
+            <button type="submit" disabled={saving}
+              className="flex-1 bg-blue-600 text-white text-sm font-medium py-2.5 rounded-xl hover:bg-blue-700 transition disabled:opacity-50">
+              {saving ? "Guardando..." : "Guardar"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+function ProfileEditor({ affiliate, authHeaders, onSave }) {
+  const [form, setForm]       = useState({ specialty: affiliate?.specialty || "", bio: affiliate?.bio || "" });
+  const [saving, setSaving]   = useState(false);
+  const [saved,  setSaved]    = useState(false);
+  const [error,  setError]    = useState(null);
+
+  useEffect(() => {
+    setForm({ specialty: affiliate?.specialty || "", bio: affiliate?.bio || "" });
+  }, [affiliate?.specialty, affiliate?.bio]);
+
+  async function handleSave(e) {
+    e.preventDefault();
+    setSaving(true); setError(null); setSaved(false);
+    try {
+      const res = await fetch("/api/booking/affiliate", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+        body: JSON.stringify({ specialty: form.specialty, bio: form.bio }),
+      });
+      if (!res.ok) throw new Error("Error al guardar");
+      onSave({ specialty: form.specialty, bio: form.bio });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="bg-white rounded-xl p-4 shadow-sm">
+      <h3 className="font-medium text-gray-900 text-sm mb-3">Información de perfil</h3>
+      <form onSubmit={handleSave} className="space-y-3">
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Especialidad</label>
+          <input
+            type="text"
+            placeholder="Ej: Nutricionista, Médico funcional..."
+            value={form.specialty}
+            onChange={(e) => setForm({ ...form, specialty: e.target.value })}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+        <div>
+          <label className="text-xs text-gray-500 mb-1 block">Descripción para tus clientes</label>
+          <textarea
+            rows={3}
+            placeholder="Ej: Especialista en nutrición deportiva con 10 años de experiencia..."
+            value={form.bio}
+            onChange={(e) => setForm({ ...form, bio: e.target.value })}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+          />
+        </div>
+        {error  && <p className="text-xs text-red-500">{error}</p>}
+        {saved  && <p className="text-xs text-green-600">Guardado correctamente</p>}
+        <button
+          type="submit"
+          disabled={saving}
+          className="w-full bg-blue-600 text-white text-sm font-medium py-2.5 rounded-xl hover:bg-blue-700 transition disabled:opacity-50"
+        >
+          {saving ? "Guardando..." : "Guardar cambios"}
+        </button>
+      </form>
+    </div>
+  );
+}
+
 export default function BookingDashboard() {
   const params = useSearchParams();
   const calendarStatus = params.get("calendar");
@@ -208,6 +413,7 @@ export default function BookingDashboard() {
 
   const [affiliate, setAffiliate] = useState(null);
   const [appointments, setAppointments] = useState([]);
+  const [editingAppointment, setEditingAppointment] = useState(null);
   const [services, setServices] = useState([]);
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -527,14 +733,28 @@ export default function BookingDashboard() {
                 {a.client_notes && (
                   <p className="text-gray-400 text-xs mt-1 italic">"{a.client_notes}"</p>
                 )}
-                {a.status === "confirmed" && (
-                  <button onClick={() => handleCancelAppointment(a.id)}
-                    className="mt-2 text-xs text-red-500 hover:text-red-700">
-                    Cancelar cita
+                <div className="mt-2 flex gap-3">
+                  <button onClick={() => setEditingAppointment(a)}
+                    className="text-xs text-blue-500 hover:text-blue-700">
+                    Editar
                   </button>
-                )}
+                  {a.status === "confirmed" && (
+                    <button onClick={() => handleCancelAppointment(a.id)}
+                      className="text-xs text-red-500 hover:text-red-700">
+                      Cancelar
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
+            {editingAppointment && (
+              <AppointmentEditor
+                appointment={editingAppointment}
+                authHeaders={authHeaders}
+                onSave={(updated) => setAppointments(prev => prev.map(a => a.id === updated.id ? updated : a))}
+                onClose={() => setEditingAppointment(null)}
+              />
+            )}
           </>
         )}
 
@@ -596,6 +816,10 @@ export default function BookingDashboard() {
         {/* PERFIL */}
         {tab === "profile" && (
           <div className="space-y-4">
+
+            {/* Bio y especialidad */}
+            <ProfileEditor affiliate={affiliate} authHeaders={authHeaders} onSave={(updates) => setAffiliate(prev => ({ ...prev, ...updates }))} />
+
             <div className="bg-white rounded-xl p-4 shadow-sm">
               <h3 className="font-medium text-gray-900 text-sm mb-3">Google Calendar</h3>
               {affiliate?.google_calendar_token ? (

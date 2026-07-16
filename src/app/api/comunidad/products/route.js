@@ -1,20 +1,11 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
-import { BigQuery } from "@google-cloud/bigquery";
 import { createClient } from "@supabase/supabase-js";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 );
-
-const bigquery = new BigQuery({
-  projectId: process.env.GOOGLE_PROJECT_ID,
-  credentials: {
-    client_email: process.env.GOOGLE_CLIENT_EMAIL,
-    private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-  },
-});
 
 function extractShopifyId(gid) {
   if (!gid) return null;
@@ -30,7 +21,7 @@ export async function GET() {
       return NextResponse.json({ success: false, message: "No hay sesión activa" }, { status: 401 });
     }
 
-    // 1. Obtener collection_id del afiliado
+    // 1. Colección del afiliado
     const { data: affiliate, error: affError } = await supabase
       .from("affiliates")
       .select("shopify_collection_id")
@@ -43,73 +34,56 @@ export async function GET() {
 
     const collectionId = affiliate.shopify_collection_id;
 
-    // 2. Productos de la colección desde Shopify (en paralelo con BQ)
-    const [shopifyRes, bqRows] = await Promise.all([
+    // 2. Productos de la colección + ventas por SKU en paralelo
+    const [shopifyRes, skusData] = await Promise.all([
       fetch(
         `${process.env.NEXT_PUBLIC_APP_URL || "https://pro.vitahub.mx"}/api/shopify/collections/${collectionId}`,
         { cache: "no-store" }
       ).then((r) => r.json()),
 
-      bigquery
-        .query({
-          query: `
-            SELECT
-              o.line_items_product_id       AS product_id,
-              o.line_items_sku              AS sku,
-              ANY_VALUE(o.line_items_name)  AS name,
-              SUM(o.line_items_quantity)    AS total_sold
-            FROM \`vitahub-435120.silver.orders\` o
-            WHERE COALESCE(o.specialist_ref, o.referrer_id) = @specialistId
-              AND o.line_items_product_id IS NOT NULL
-              AND LOWER(o.line_items_name) NOT LIKE '%tip%'
-            GROUP BY product_id, sku
-            ORDER BY total_sold DESC
-          `,
-          params: { specialistId: parseInt(customerId, 10) },
-          location: "us-east1",
-        })
-        .then(([rows]) => rows),
+      supabase
+        .rpc("skus_vendidos_por_especialista", { specialist_id: customerId })
+        .then(({ data }) => data || []),
     ]);
 
-    // 3. Mapa de ventas por product_id
+    // 3. Mapa de ventas por SKU
     const salesMap = {};
-    for (const row of bqRows) {
-      salesMap[String(row.product_id)] = Number(row.total_sold);
+    for (const row of skusData) {
+      if (row.sku) salesMap[row.sku] = { total_sold: Number(row.total_sold), product_id: row.product_id, title: row.title };
     }
 
-    // 4. Productos de la colección con ventas mezcladas
+    // 4. Productos de la colección
     const collectionProducts = (shopifyRes.products || []).map((p) => {
-      const numericId = extractShopifyId(p.id);
+      const sku = p.variants?.edges?.[0]?.node?.sku || null;
+      const sale = sku ? salesMap[sku] : null;
       return {
-        product_id: numericId,
-        handle: p.handle,
-        title: p.title,
-        sku: p.variants?.edges?.[0]?.node?.id
-          ? null
-          : p.variants?.edges?.[0]?.node?.id,
-        image: p.images?.edges?.[0]?.node?.src || null,
-        price: p.variants?.edges?.[0]?.node?.price || null,
+        product_id:    extractShopifyId(p.id),
+        handle:        p.handle,
+        title:         p.title,
+        sku,
+        image:         p.images?.edges?.[0]?.node?.src || null,
+        price:         p.variants?.edges?.[0]?.node?.price || null,
         in_collection: true,
-        total_sold: salesMap[String(numericId)] || 0,
+        total_sold:    sale?.total_sold || 0,
       };
     });
 
-    // 5. Productos vendidos que NO están en la colección actual
-    const collectionIds = new Set(collectionProducts.map((p) => String(p.product_id)));
-    const extraSold = bqRows
-      .filter((r) => !collectionIds.has(String(r.product_id)))
+    // 5. Productos vendidos fuera de la colección
+    const collectionSkus = new Set(collectionProducts.map((p) => p.sku).filter(Boolean));
+    const extraSold = skusData
+      .filter((r) => r.sku && !collectionSkus.has(r.sku) && r.product_id)
       .map((r) => ({
-        product_id: Number(r.product_id),
-        handle: null,
-        title: r.name || r.sku || String(r.product_id),
-        sku: r.sku,
-        image: null,
-        price: null,
+        product_id:    Number(r.product_id),
+        handle:        null,
+        title:         r.title || r.sku,
+        sku:           r.sku,
+        image:         null,
+        price:         null,
         in_collection: false,
-        total_sold: Number(r.total_sold),
+        total_sold:    Number(r.total_sold),
       }));
 
-    // 6. Fetch imágenes de Shopify para productos fuera de colección
+    // 6. Fetch imágenes para extras
     if (extraSold.length > 0) {
       const ids = extraSold.map((p) => p.product_id).join(",");
       try {
@@ -124,24 +98,20 @@ export async function GET() {
           for (const p of extraSold) p.image = imgMap[String(p.product_id)] || null;
         }
       } catch {
-        // si falla la imagen no es crítico, seguimos sin ella
+        // imagen no crítica
       }
     }
 
-    // 7. Merge: vendidos primero (desc), luego sin ventas
+    // 7. Merge y orden por más vendidos
     const all = [...collectionProducts, ...extraSold];
     all.sort((a, b) => b.total_sold - a.total_sold);
 
-    const collectionHandle = shopifyRes.collection?.handle || null;
-    const collectionTitle  = shopifyRes.collection?.title  || null;
-    const collectionImage  = shopifyRes.collection?.image?.src || null;
-
     return NextResponse.json({
-      success: true,
-      collection_handle: collectionHandle,
-      collection_title:  collectionTitle,
-      collection_image:  collectionImage,
-      products: all,
+      success:           true,
+      collection_handle: shopifyRes.collection?.handle || null,
+      collection_title:  shopifyRes.collection?.title  || null,
+      collection_image:  shopifyRes.collection?.image?.src || null,
+      products:          all,
     });
   } catch (err) {
     console.error("comunidad/products error:", err);

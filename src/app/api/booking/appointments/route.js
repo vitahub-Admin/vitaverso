@@ -41,19 +41,32 @@ export async function PATCH(req) {
 
   const { searchParams } = new URL(req.url);
   const id = searchParams.get("id");
-  const { status } = await req.json();
+  const body = await req.json();
 
-  const allowed = ["cancelled", "completed"];
-  if (!allowed.includes(status)) {
-    return NextResponse.json({ error: "Status inválido" }, { status: 400 });
+  const updates = {};
+
+  if (body.status !== undefined) {
+    const allowed = ["pending", "confirmed", "cancelled", "completed"];
+    if (!allowed.includes(body.status)) {
+      return NextResponse.json({ error: "Status inválido" }, { status: 400 });
+    }
+    updates.status = body.status;
+  }
+
+  if (body.starts_at !== undefined) updates.starts_at = body.starts_at;
+  if (body.ends_at   !== undefined) updates.ends_at   = body.ends_at;
+  if (body.affiliate_notes !== undefined) updates.affiliate_notes = body.affiliate_notes;
+
+  if (Object.keys(updates).length === 0) {
+    return NextResponse.json({ error: "Nada que actualizar" }, { status: 400 });
   }
 
   const { data, error: updateError } = await supabase
     .from("booking_appointments")
-    .update({ status })
+    .update(updates)
     .eq("id", id)
     .eq("affiliate_id", affiliate.id)
-    .select()
+    .select(`*, booking_services(name, duration_minutes, price)`)
     .single();
 
   if (updateError) return NextResponse.json({ error: updateError.message }, { status: 500 });
