@@ -414,6 +414,7 @@ export default function BookingDashboard() {
   const [affiliate, setAffiliate] = useState(null);
   const [appointments, setAppointments] = useState([]);
   const [editingAppointment, setEditingAppointment] = useState(null);
+  const [copied, setCopied] = useState(false);
   const [services, setServices] = useState([]);
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -642,14 +643,23 @@ export default function BookingDashboard() {
               </a>
             )}
           </div>
-          <button
-            onClick={() => {
-              navigator.clipboard.writeText(`${window.location.origin}/book/${affiliate?.slug}`);
-            }}
-            className="bg-blue-600 text-white text-xs rounded-lg px-3 py-2 hover:bg-blue-700 transition-colors"
-          >
-            Copiar link
-          </button>
+          <div className="relative">
+            {copied && (
+              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2.5 py-1 rounded-lg whitespace-nowrap pointer-events-none">
+                ¡Copiado!
+              </div>
+            )}
+            <button
+              onClick={() => {
+                navigator.clipboard.writeText(`${window.location.origin}/book/${affiliate?.slug}`);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 2000);
+              }}
+              className={`text-white text-xs rounded-lg px-3 py-2 transition-colors ${copied ? "bg-green-500" : "bg-blue-600 hover:bg-blue-700"}`}
+            >
+              {copied ? "¡Copiado!" : "Copiar link"}
+            </button>
+          </div>
         </div>
       </div>
 
