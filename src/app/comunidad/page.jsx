@@ -286,7 +286,7 @@ export default function ComunidadPage() {
               <TrendingUp size={13} /> Tus productos
             </h2>
             <div className="grid grid-cols-1 sm:grid-cols-3 md:grid-cols-4 gap-3">
-              {products.filter((p) => p.total_sold > 0).map((p) => (
+              {products.map((p) => (
                 <ProductCard
                   key={p.product_id}
                   product={p}

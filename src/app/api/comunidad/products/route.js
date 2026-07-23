@@ -46,6 +46,10 @@ export async function GET() {
         .then(({ data }) => data || []),
     ]);
 
+    if (!shopifyRes.success) {
+      return NextResponse.json({ success: false, message: shopifyRes.message || "Colección no encontrada en Shopify" }, { status: 404 });
+    }
+
     // 3. Mapa de ventas por SKU
     const salesMap = {};
     for (const row of skusData) {

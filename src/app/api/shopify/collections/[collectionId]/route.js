@@ -37,6 +37,7 @@ export async function GET(req, { params }) {
                 edges {
                   node {
                     id
+                    sku
                     price
                     metafield(namespace: "custom", key: "comision_afiliado") {
                       value
@@ -62,7 +63,12 @@ export async function GET(req, { params }) {
     });
 
     const data = await res.json();
-    const collection = data.data.collection;
+    const collection = data.data?.collection;
+
+    if (!collection) {
+      return NextResponse.json({ success: false, message: "Colección no encontrada en Shopify" }, { status: 404 });
+    }
+
     const products = collection.products.edges.map(e => e.node);
 
     return NextResponse.json({ success: true, collection, products });
