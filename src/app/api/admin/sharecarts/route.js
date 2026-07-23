@@ -1,108 +1,111 @@
 import { NextResponse } from "next/server";
-import { BigQuery } from "@google-cloud/bigquery";
+import { createClient } from "@supabase/supabase-js";
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
 
 export async function GET(req) {
   try {
     const { searchParams } = new URL(req.url);
     const from = searchParams.get("from");
-    const to = searchParams.get("to");
+    const to   = searchParams.get("to");
 
-    const bigquery = new BigQuery({
-      projectId: process.env.GOOGLE_PROJECT_ID,
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-      },
+    // 1. Órdenes con specialist_ref, con filtro de fecha opcional
+    let ordersQuery = supabase
+      .from("orders")
+      .select("order_id, order_name, shopify_created_at, specialist_ref, line_items, total_discounts")
+      .not("specialist_ref", "is", null)
+      .not("customer_email", "is", null);
+
+    if (from && to) {
+      ordersQuery = ordersQuery
+        .gte("shopify_created_at", from)
+        .lte("shopify_created_at", to + "T23:59:59");
+    }
+
+    const { data: orders, error: ordersError } = await ordersQuery;
+    if (ordersError) throw ordersError;
+    if (!orders?.length) {
+      return NextResponse.json({ success: true, data: [], meta: { count: 0, dateRange: { from, to } } });
+    }
+
+    // 2. Comisiones y datos de afiliados en paralelo
+    const productIds    = [...new Set(orders.flatMap(o => (o.line_items || []).map(i => i.product_id).filter(Boolean)))];
+    const specialistIds = [...new Set(orders.map(o => o.specialist_ref).filter(Boolean))];
+
+    const [{ data: commissions }, { data: affiliates }] = await Promise.all([
+      supabase
+        .from("product_variant_commissions")
+        .select("product_id, commission_percent")
+        .in("product_id", productIds)
+        .eq("active", true),
+      supabase
+        .from("affiliates")
+        .select("shopify_customer_id, first_name, last_name, email, status")
+        .in("shopify_customer_id", specialistIds.map(Number)),
+    ]);
+
+    const commMap = {};
+    for (const c of (commissions || [])) commMap[String(c.product_id)] = Number(c.commission_percent);
+
+    const affMap = {};
+    for (const a of (affiliates || [])) affMap[String(a.shopify_customer_id)] = a;
+
+    // 3. Calcular métricas por orden → una fila por orden (igual que BQ)
+    const rows = orders.map(order => {
+      const items         = (order.line_items || []).filter(i => i.title && !i.title.toLowerCase().includes("tip"));
+      const orderSubtotal = items.reduce((s, i) => s + Number(i.price || 0) * (i.quantity || 1), 0);
+      const totalDiscount = Number(order.total_discounts || 0);
+
+      let total_items = 0;
+      let net_amount  = 0;
+      let earning     = 0;
+
+      for (const item of items) {
+        const commission   = commMap[String(item.product_id || "")] ?? 0;
+        const price        = Number(item.price || 0);
+        const qty          = item.quantity || 1;
+        const lineSubtotal = price * qty;
+        const lineDiscount = orderSubtotal > 0 ? totalDiscount * (lineSubtotal / orderSubtotal) : 0;
+        const lineNet      = lineSubtotal - lineDiscount;
+
+        total_items += qty;
+        net_amount  += lineNet;
+        earning     += lineNet * (commission / 100);
+      }
+
+      const aff = affMap[String(order.specialist_ref)] || {};
+
+      return {
+        specialist_id: order.specialist_ref,
+        first_name:    aff.first_name  || null,
+        last_name:     aff.last_name   || null,
+        email:         aff.email       || null,
+        tags:          aff.status      || null,
+        order_number:  order.order_name?.replace("#", "") || String(order.order_id),
+        created_at:    { value: order.shopify_created_at },
+        total_items,
+        net_amount,
+        earning,
+      };
     });
 
-    const query = `
-      WITH ORDEN_PRODUCTO AS (
-        SELECT
-          COALESCE(o.specialist_ref, o.referrer_id) AS specialist_id,
-          o.order_number,
-          o.created_at,
-          o.line_items_quantity,
-          o.line_items_price,
-          o.discount_allocations_amount,
-          p.variant_id,
-          pc.comission,
-          ROW_NUMBER() OVER (
-            PARTITION BY o.order_number, p.variant_id
-            ORDER BY
-              CASE WHEN pc.updated_at <= o.created_at THEN 0 ELSE 1 END,
-              pc.updated_at DESC
-          ) AS rn
-        FROM \`vitahub-435120.silver.orders\` o
-        LEFT JOIN \`vitahub-435120.silver.product\` p
-          ON o.line_items_sku = p.variant_sku
-         AND o.line_items_product_id = p.id
-        LEFT JOIN \`vitahub-435120.Shopify.product_comission\` pc
-          ON pc.variant_id = p.variant_id
-        WHERE o.customer_email IS NOT NULL
-          AND LOWER(o.line_items_name) NOT LIKE '%tip%'
-          AND COALESCE(o.specialist_ref, o.referrer_id) IS NOT NULL
-          ${from && to ? "AND DATE(o.created_at) BETWEEN @from AND @to" : ""}
-      ),
-      
-      ORDENES_LIMPIAS AS (
-        SELECT
-          specialist_id,
-          order_number,
-          created_at,
-          SUM(line_items_quantity) AS total_items,
-          SUM(
-            (line_items_price * line_items_quantity) -
-            COALESCE(CAST(discount_allocations_amount AS FLOAT64), 0)
-          ) AS net_amount,
-          SUM(
-            (
-              (line_items_price * line_items_quantity) -
-              COALESCE(CAST(discount_allocations_amount AS FLOAT64), 0)
-            ) * COALESCE(comission, 0)
-          ) AS earning
-        FROM ORDEN_PRODUCTO
-        WHERE rn = 1
-        GROUP BY specialist_id, order_number, created_at
-      )
-      
-      SELECT
-        o.specialist_id,
-        sc.first_name,
-        sc.last_name,
-        sc.email,
-        sc.tags,
-        o.order_number,
-        o.created_at,
-        o.total_items,
-        o.net_amount,
-        o.earning
-      FROM ORDENES_LIMPIAS o
-      LEFT JOIN \`vitahub-435120.Shopify.customers\` sc
-        ON sc.id = o.specialist_id
-      ORDER BY o.specialist_id, o.created_at DESC
-    `;
-
-    const options = {
-      query,
-      location: "us-east1",
-      params: from && to ? { from, to } : {},
-    };
-
-    const [rows] = await bigquery.query(options);
+    // Ordenar por specialist_id y fecha desc (igual que BQ)
+    rows.sort((a, b) =>
+      String(a.specialist_id).localeCompare(String(b.specialist_id)) ||
+      (b.created_at?.value || "").localeCompare(a.created_at?.value || "")
+    );
 
     return NextResponse.json({
       success: true,
       data: rows,
-      meta: {
-        count: rows.length,
-        dateRange: { from, to },
-      },
+      meta: { count: rows.length, dateRange: { from, to } },
     });
+
   } catch (error) {
-    console.error("❌ Admin specialists summary error:", error);
-    return NextResponse.json(
-      { success: false, error: error.message },
-      { status: 500 }
-    );
+    console.error("❌ Admin sharecarts error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

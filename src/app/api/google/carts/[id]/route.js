@@ -1,17 +1,16 @@
-// src\app\api\google\carts\[id]\route.js
 import { NextResponse } from 'next/server';
-import { BigQuery } from '@google-cloud/bigquery';
+import { createClient } from '@supabase/supabase-js';
 
-// Next.js 15: params es una Promise que debemos await
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
+
 export async function GET(request, { params }) {
   try {
-    // ¡IMPORTANTE! En Next.js 15, params es una Promise
-    const { id } = await params; // AWAIT aquí
-    
-    console.log("ID recibido (después de await):", id);
-    
-    const customerId = id ? parseInt(id, 10) : null;
+    const { id } = await params;
 
+    const customerId = id ? parseInt(id, 10) : null;
     if (!customerId || isNaN(customerId)) {
       return NextResponse.json(
         { success: false, message: `CustomerId inválido o no numérico: ${id}` },
@@ -19,75 +18,70 @@ export async function GET(request, { params }) {
       );
     }
 
-    // Leer parámetros de la URL (from y to) de query params
     const { searchParams } = new URL(request.url);
-    const from = searchParams.get("from");
-    const to = searchParams.get("to");
+    const from = searchParams.get('from');
+    const to   = searchParams.get('to');
 
-    console.log(`Consultando carritos para customer: ${customerId}, from: ${from}, to: ${to}`);
-
-    const bigquery = new BigQuery({
-      projectId: process.env.GOOGLE_PROJECT_ID,
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
-    });
-
-    let query = `
-      SELECT  
-        EXTRACT(DATE FROM sh.created_at) AS created_at,
-        code,
-        email,
-        note AS client_name,
-        opens_count,
-        items_count,
-        items_value / 100 AS items_value,
-        CASE
-          WHEN order_number IS NOT NULL THEN "Completed"
-          ELSE "Pending"
-        END AS status  
-      FROM vitahub-435120.sharecart.carritos sh
-      LEFT JOIN vitahub-435120.Shopify.customers c ON c.id = sh.customer_id
-      LEFT JOIN vitahub-435120.silver.orders o ON sh.code = o.share_cart
-      WHERE sh.customer_id = @customerId
-      QUALIFY ROW_NUMBER() OVER (
-        PARTITION BY code 
-        ORDER BY EXTRACT(DATE FROM sh.created_at) DESC
-      ) = 1
-    `;
+    // 1. Sharecarts del especialista
+    let cartsQuery = supabase
+      .from('sharecarts')
+      .select('token, name, created_at, items, extra')
+      .eq('owner_id', String(customerId))
+      .order('created_at', { ascending: false });
 
     if (from && to) {
-      query += ` AND DATE(sh.created_at) BETWEEN @from AND @to`;
+      cartsQuery = cartsQuery
+        .gte('created_at', from)
+        .lte('created_at', to + 'T23:59:59');
     }
 
-    const options = {
-      query,
-      location: 'us-east1',
-      params: {
-        customerId,
-        ...(from && to ? { from, to } : {}),
-      },
-    };
+    const { data: carts, error: cartsError } = await cartsQuery;
+    if (cartsError) throw cartsError;
 
-    const [rows] = await bigquery.query(options);
-    console.log(`Encontrados ${rows.length} carritos para customer ${customerId}`);
+    if (!carts?.length) {
+      return NextResponse.json({
+        success: true,
+        data: [],
+        meta: { customerId, count: 0, dateRange: { from, to } },
+      });
+    }
 
-    return NextResponse.json({ 
-      success: true, 
-      data: rows,
-      meta: {
-        customerId,
-        count: rows.length,
-        dateRange: { from, to }
-      }
+    // 2. Detectar cuáles tokens tienen orden → Completed
+    const tokens = carts.map((c) => c.token).filter(Boolean);
+    const { data: ordersWithCart } = await supabase
+      .from('orders')
+      .select('share_cart')
+      .in('share_cart', tokens)
+      .not('share_cart', 'is', null);
+
+    const completedTokens = new Set((ordersWithCart || []).map((o) => o.share_cart));
+
+    // 3. Construir respuesta (compatible con Sheet.jsx)
+    const data = carts.map((cart) => {
+      const bq         = cart.extra?.bq || {};
+      const itemsCount = cart.items?.length > 0 ? cart.items.length : (bq.items_count ?? 0);
+      const itemsValue = bq.items_value ?? 0;
+
+      return {
+        created_at:  { value: cart.created_at },
+        code:        cart.token,
+        client_name: cart.name || null,
+        email:       null,
+        opens_count: bq.opens_count ?? 0,
+        items_count: itemsCount,
+        items_value: itemsValue,
+        status:      completedTokens.has(cart.token) ? 'Completed' : 'Pending',
+      };
     });
+
+    return NextResponse.json({
+      success: true,
+      data,
+      meta: { customerId, count: data.length, dateRange: { from, to } },
+    });
+
   } catch (error) {
-    console.error('Error en BigQuery:', error);
-    return NextResponse.json({ 
-      success: false, 
-      error: error.message,
-      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
-    }, { status: 500 });
+    console.error('Error en carts:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }

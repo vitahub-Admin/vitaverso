@@ -1,170 +1,116 @@
-// app/api/google/contacts/[id]/route.js
 import { NextResponse } from 'next/server';
-import { BigQuery } from '@google-cloud/bigquery';
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
 
 export async function GET(req, { params }) {
   try {
     const { id } = await params;
-    console.log('CustomerId from params (id):', id);
 
     if (!id) {
-      return NextResponse.json(
-        { success: false, message: "No hay id en parámetros" },
-        { status: 400 }
-      );
+      return NextResponse.json({ success: false, message: 'No hay id en parámetros' }, { status: 400 });
     }
 
-    const numericCustomerId = parseInt(id);
-    console.log('Numeric customerId:', numericCustomerId);
+    // 1. Órdenes del especialista con email
+    const { data: orders, error: ordersError } = await supabase
+      .from('orders')
+      .select('order_id, order_name, customer_email, customer_name, customer_phone, share_cart, shopify_created_at, line_items, total_discounts')
+      .eq('specialist_ref', String(id))
+      .not('customer_email', 'is', null)
+      .neq('customer_email', '');
 
-    if (isNaN(numericCustomerId)) {
-      return NextResponse.json(
-        { success: false, message: "id no es un número válido" },
-        { status: 400 }
-      );
+    if (ordersError) throw ordersError;
+    if (!orders?.length) {
+      return NextResponse.json({ success: true, data: [], message: 'Sin contactos encontrados' });
     }
 
-    const bigquery = new BigQuery({
-      projectId: process.env.GOOGLE_PROJECT_ID,
-      credentials: {
-        client_email: process.env.GOOGLE_CLIENT_EMAIL,
-        private_key: process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n'),
-      },
+    // 2. Comisiones por product_id
+    const productIds = [...new Set(
+      orders.flatMap(o => (o.line_items || []).map(i => i.product_id).filter(Boolean))
+    )];
+
+    const { data: commissions } = await supabase
+      .from('product_variant_commissions')
+      .select('product_id, commission_percent')
+      .in('product_id', productIds)
+      .eq('active', true);
+
+    const commMap = {};
+    for (const c of (commissions || [])) {
+      commMap[String(c.product_id)] = Number(c.commission_percent);
+    }
+
+    // 3. Agregar métricas por cliente
+    const clientMap = {};
+
+    for (const order of orders) {
+      const email = order.customer_email;
+      if (!email) continue;
+
+      if (!clientMap[email]) {
+        const nameParts = (order.customer_name || '').trim().split(/\s+/);
+        clientMap[email] = {
+          nombre_cliente:               nameParts[0] || null,
+          apellido_cliente:             nameParts.slice(1).join(' ') || null,
+          email_cliente:                email,
+          telefono_cliente:             order.customer_phone || null,
+          cantidad_ordenes:             0,
+          cantidad_carritos:            new Set(),
+          ganancia_total:               0,
+          fecha_ultima_orden:           null,
+          fecha_ultima_orden_formateada: null,
+        };
+      }
+
+      const client = clientMap[email];
+      client.cantidad_ordenes++;
+
+      if (order.share_cart) client.cantidad_carritos.add(order.share_cart);
+
+      // Ganancia de esta orden
+      const items         = order.line_items || [];
+      const orderSubtotal = items.reduce((s, i) => s + Number(i.price || 0) * (i.quantity || 1), 0);
+      const totalDiscount = Number(order.total_discounts || 0);
+
+      for (const item of items) {
+        if (!item.title || LOWER_includes_tip(item.title)) continue;
+        const commission   = commMap[String(item.product_id || '')] ?? 0;
+        const price        = Number(item.price || 0);
+        const qty          = item.quantity || 1;
+        const lineSubtotal = price * qty;
+        const lineDiscount = orderSubtotal > 0 ? totalDiscount * (lineSubtotal / orderSubtotal) : 0;
+        client.ganancia_total += (lineSubtotal - lineDiscount) * (commission / 100);
+      }
+
+      // Fecha más reciente
+      if (!client.fecha_ultima_orden || order.shopify_created_at > client.fecha_ultima_orden) {
+        client.fecha_ultima_orden = order.shopify_created_at;
+        client.fecha_ultima_orden_formateada = order.shopify_created_at
+          ? order.shopify_created_at.slice(0, 10)
+          : null;
+      }
+    }
+
+    // 4. Serializar y ordenar por última orden desc
+    const data = Object.values(clientMap)
+      .map(c => ({ ...c, cantidad_carritos: c.cantidad_carritos.size }))
+      .sort((a, b) => (b.fecha_ultima_orden || '') .localeCompare(a.fecha_ultima_orden || ''));
+
+    return NextResponse.json({
+      success: true,
+      data,
+      message: `Encontrados ${data.length} contactos`,
     });
 
-    console.log('✅ BigQuery configured, executing query...');
-
-    const query = `
-      WITH ORDEN_PRODUCTO AS (
-        SELECT 
-          o.*,
-          p.variant_id,
-          p.handle,
-          p.duration,
-          p.inventory_quantity
-        FROM \`vitahub-435120.silver.orders\` o
-        LEFT JOIN \`vitahub-435120.silver.product\` p 
-          ON o.line_items_sku = p.variant_sku 
-          AND o.line_items_product_id = p.id
-        WHERE COALESCE(o.specialist_ref, o.referrer_id) = @customerId
-          AND o.customer_email IS NOT NULL
-          AND o.customer_email != ''
-          AND LOWER(o.line_items_name) NOT LIKE '%tip%'
-      ),
-      COMISIONES_FILTRADAS AS (
-        SELECT 
-          op.*,
-          pc.comission,
-          ROW_NUMBER() OVER (
-            PARTITION BY op.order_number, op.variant_id
-            ORDER BY 
-              CASE WHEN pc.updated_at <= op.created_at
-                   THEN 0 ELSE 1 END,
-              pc.updated_at DESC
-          ) as rn
-        FROM ORDEN_PRODUCTO op
-        LEFT JOIN \`vitahub-435120.Shopify.product_comission\` pc 
-          ON pc.variant_id = op.variant_id
-      ),
-      ordenes_con_ganancia AS (
-        SELECT 
-          customer_email,
-          customer_first_name,
-          customer_phone,
-          order_number,
-          share_cart,
-          created_at,
-          -- Calcular ganancia considerando descuento: (precio * cantidad - descuento) * comisión
-          (
-            (line_items_price * line_items_quantity) - 
-            COALESCE(CAST(discount_allocations_amount AS FLOAT64), 0)
-          ) * COALESCE(comission, 0) as ganancia_producto
-        FROM COMISIONES_FILTRADAS
-        WHERE rn = 1  -- ✅ EVITAR DUPLICADOS por comisiones históricas
-      ),
-      metricas_por_cliente AS (
-        SELECT 
-          customer_email,
-          customer_first_name as nombre_cliente,
-          customer_phone as telefono_cliente,
-          COUNT(DISTINCT order_number) as cantidad_ordenes,
-          COUNT(DISTINCT share_cart) as cantidad_carritos,
-          SUM(ganancia_producto) as ganancia_total,
-          MAX(created_at) as fecha_ultima_orden
-        FROM ordenes_con_ganancia
-        GROUP BY 
-          customer_email, 
-          customer_first_name, 
-          customer_phone
-      )
-      SELECT 
-        m.nombre_cliente,
-        c.last_name as apellido_cliente,
-        m.customer_email as email_cliente,
-        m.telefono_cliente,
-        m.cantidad_ordenes,
-        m.cantidad_carritos,
-        m.ganancia_total,
-        m.fecha_ultima_orden,
-        FORMAT_DATE('%Y-%m-%d', DATE(m.fecha_ultima_orden)) as fecha_ultima_orden_formateada
-      FROM metricas_por_cliente m
-      LEFT JOIN \`vitahub-435120.Shopify.customers\` c 
-        ON m.customer_email = c.email
-      ORDER BY m.fecha_ultima_orden DESC
-    `;
-
-    const options = {
-      query,
-      location: 'us-east1',
-      params: { customerId: numericCustomerId },
-    };
-
-    console.log('🔍 Executing BigQuery with params:', options.params);
-    
-    const [rows] = await bigquery.query(options);
-    
-    console.log('✅ BigQuery success, rows returned:', rows.length);
-    if (rows.length > 0) {
-      console.log('Sample row with corrected commission:', {
-        nombre_cliente: rows[0].nombre_cliente,
-        apellido_cliente: rows[0].apellido_cliente,
-        email_cliente: rows[0].email_cliente,
-        cantidad_ordenes: rows[0].cantidad_ordenes,
-        cantidad_carritos: rows[0].cantidad_carritos,
-        ganancia_total: rows[0].ganancia_total
-      });
-    }
-// En Contacts API, después de obtener los rows:
-console.log('💰 CONTACTS - Resumen por orden:');
-const contactsSummary = rows.reduce((acc, row) => {
-  const orderNum = row.order_number;
-  if (!acc[orderNum]) acc[orderNum] = { total: 0, products: [] };
-  acc[orderNum].total += parseFloat(row.ganancia_total || 0);
-  acc[orderNum].products.push({
-    product: row.line_items_name,
-    ganancia: row.ganancia_total
-  });
-  return acc;
-}, {});
-
-Object.entries(contactsSummary).forEach(([order, data]) => {
-  console.log(`Orden ${order}: $${data.total.toFixed(2)}`, data.products);
-});
-    return NextResponse.json({ 
-      success: true, 
-      data: rows,
-      message: `Encontrados ${rows.length} contactos`
-    });
-    
   } catch (error) {
-    console.error('❌ Error en BigQuery:', error);
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: error.message,
-        details: 'Error ejecutando la consulta de contactos'
-      }, 
-      { status: 500 }
-    );
+    console.error('Error en contacts:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
+}
+
+function LOWER_includes_tip(title) {
+  return title.toLowerCase().includes('tip');
 }
