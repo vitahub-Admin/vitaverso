@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPushToAffiliate } from "@/lib/affiliateNotifications";
 import { createCalendarEvent } from "@/lib/bookingCalendar";
+import { Resend } from "resend";
 
 export const runtime = "nodejs";
 
@@ -10,6 +11,167 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 );
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+// ── Email de prescripción ─────────────────────────────────────────────────────
+
+function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date, lineItems }) {
+  const rows = lineItems.map((item, i) => `
+    <tr>
+      <td style="padding-bottom:22px;${i > 0 ? "padding-top:22px;border-top:1px solid #f3f4f6;" : ""}">
+        <table width="100%" cellpadding="0" cellspacing="0" border="0">
+          <tr>
+            <td style="padding-bottom:8px;">
+              <span style="display:inline-block;background:#1b3f7a;color:#ffffff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:10px;">×${item.quantity}</span>
+              <span style="font-size:15px;font-weight:700;color:#1b3f7a;">${item.title}</span>
+            </td>
+          </tr>
+          <tr>
+            <td style="font-size:13px;color:#6b7280;line-height:1.65;">${item.desc}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  `).join("");
+
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>Protocolo de Suplementación</title>
+</head>
+<body style="margin:0;padding:0;background:#F7F9FB;font-family:Arial,Helvetica,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F7F9FB;">
+<tr><td align="center" style="padding:40px 20px;">
+<table cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;">
+
+<tr><td style="background:#1b3f7a;border-radius:16px 16px 0 0;padding:30px 40px 26px;">
+  <p style="margin:0 0 8px;color:#7eb8c9;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;">Vitahub Pro</p>
+  <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:800;line-height:1.2;">Protocolo de Suplementación</h1>
+</td></tr>
+
+<tr><td style="background:#1E8FA8;padding:18px 40px;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td>
+      <p style="margin:0;color:rgba(255,255,255,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Paciente</p>
+      <p style="margin:4px 0 0;color:#ffffff;font-size:15px;font-weight:700;">${patientName}</p>
+    </td>
+    <td align="right">
+      <p style="margin:0;color:rgba(255,255,255,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;text-align:right;">Especialista</p>
+      <p style="margin:4px 0 0;color:#ffffff;font-size:15px;font-weight:700;text-align:right;">${affiliateName}</p>
+    </td>
+  </tr>
+  </table>
+</td></tr>
+
+<tr><td style="background:#ffffff;padding:12px 40px;border-bottom:1px solid #f3f4f6;">
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  <tr>
+    <td style="color:#9ca3af;font-size:12px;">Orden #${orderNumber}</td>
+    <td align="right" style="color:#9ca3af;font-size:12px;">${date}</td>
+  </tr>
+  </table>
+</td></tr>
+
+<tr><td style="background:#ffffff;padding:28px 40px;">
+  <p style="margin:0 0 20px;font-size:10px;font-weight:700;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;">Tu protocolo incluye</p>
+  <table width="100%" cellpadding="0" cellspacing="0" border="0">
+  ${rows}
+  </table>
+</td></tr>
+
+<tr><td style="background:#f9fafb;border-top:1px solid #f3f4f6;border-radius:0 0 16px 16px;padding:24px 40px;">
+  <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.8;text-align:center;">
+    Este protocolo fue diseñado para ti por <strong style="color:#6b7280;">${affiliateName}</strong><br>a través de <strong style="color:#1b3f7a;">Vitahub Pro</strong>.<br>
+    Para dudas o ajustes, contacta directamente a tu especialista.<br><br>
+    <a href="https://vitahub.mx" style="color:#1E8FA8;text-decoration:none;font-weight:600;">vitahub.mx</a>
+  </p>
+</td></tr>
+
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+async function sendProtocolEmail(payload, shareCartToken) {
+  try {
+    const customerEmail = payload.customer?.email || payload.email;
+    if (!customerEmail) return;
+
+    // Datos del sharecart (nombre del paciente + owner)
+    const { data: cartData } = await supabase
+      .from("sharecarts")
+      .select("owner_id, name")
+      .eq("token", shareCartToken)
+      .maybeSingle();
+
+    if (!cartData) return;
+
+    // Nombre del especialista desde affiliates
+    const { data: affiliateData } = await supabase
+      .from("affiliates")
+      .select("display_name, email")
+      .eq("shopify_customer_id", Number(cartData.owner_id))
+      .maybeSingle();
+
+    // Catálogo para cruzar product_id → slug de componente
+    const productIds = (payload.line_items || [])
+      .map(i => Number(i.product_id))
+      .filter(Boolean);
+
+    const [{ data: catalogRows }, { data: compRows }] = await Promise.all([
+      supabase.from("product_catalog").select("product_id, componente").in("product_id", productIds),
+      supabase.from("componentes").select("slug, descripcion"),
+    ]);
+
+    const catalogMap = {};
+    (catalogRows || []).forEach(r => {
+      catalogMap[r.product_id] = (r.componente || "").trim().toLowerCase();
+    });
+
+    const descMap = {};
+    (compRows || []).forEach(r => {
+      if (r.slug) descMap[r.slug.trim().toLowerCase()] = r.descripcion;
+    });
+
+    const FALLBACK = "Suplemento de alta calidad seleccionado especialmente para tu protocolo de salud.";
+
+    const lineItems = (payload.line_items || []).map(item => {
+      const slug = catalogMap[item.product_id] || "";
+      const desc = (slug && descMap[slug]) || FALLBACK;
+      return { title: item.title || "", quantity: item.quantity, desc };
+    });
+
+    const patientName =
+      cartData.name ||
+      [payload.customer?.first_name, payload.customer?.last_name].filter(Boolean).join(" ") ||
+      "Paciente";
+
+    const affiliateName = affiliateData?.display_name || "Tu especialista en Vitahub";
+
+    const date = new Date(payload.created_at).toLocaleDateString("es-MX", {
+      year: "numeric", month: "long", day: "numeric",
+    });
+
+    const html = buildPrescriptionEmail({ affiliateName, patientName, orderNumber: payload.order_number, date, lineItems });
+
+    await resend.emails.send({
+      from: "Vitahub Pro <noreply@pro.vitahub.mx>",
+      to: customerEmail,
+      subject: "Tu protocolo de suplementación — Vitahub Pro",
+      html,
+    });
+
+    console.log(`[webhook] Prescripción enviada → ${customerEmail} (orden #${payload.order_number})`);
+  } catch (err) {
+    console.error("[webhook] sendProtocolEmail error:", err?.message);
+  }
+}
 
 async function handleBookingPayment(payload) {
   const getAttr = (name) =>
@@ -400,6 +562,11 @@ export async function POST(req) {
               if (error) console.error('base_datos_exports update error:', error);
             });
         });
+    }
+
+    // Enviar prescripción por email si la orden proviene de un sharecart
+    if (shareCart) {
+      sendProtocolEmail(payload, shareCart).catch(() => {});
     }
 
     // Determinar especialista efectivo para comisiones

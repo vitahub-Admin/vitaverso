@@ -1,7 +1,13 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
+const SHOPIFY_STORE        = process.env.SHOPIFY_STORE;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
 
 export async function GET(req) {
   const { searchParams } = new URL(req.url);
@@ -26,6 +32,7 @@ export async function GET(req) {
                   title
                   price
                   availableForSale
+                  inventoryQuantity
                   comision: metafield(namespace: "custom", key: "comision_afiliado") {
                     value
                   }
@@ -66,17 +73,33 @@ export async function GET(req) {
   const products = (json.data?.products?.edges || []).map(({ node }) => {
     const variant = node.variants.edges[0]?.node;
     return {
-      id: node.id.replace("gid://shopify/Product/", ""),
-      title: node.title,
+      id:          node.id.replace("gid://shopify/Product/", ""),
+      title:       node.title,
       description: node.descriptionHtml?.replace(/<[^>]+>/g, "").trim().slice(0, 400) || "",
-      tags: node.tags,
-      image: node.images?.edges?.[0]?.node?.src || null,
-      variant_id: variant?.id.replace("gid://shopify/ProductVariant/", "") || null,
-      price: variant?.price || "0",
-      available: variant?.availableForSale || false,
-      comision: variant?.comision?.value || null,
+      tags:        node.tags,
+      image:       node.images?.edges?.[0]?.node?.src || null,
+      variant_id:  variant?.id.replace("gid://shopify/ProductVariant/", "") || null,
+      price:       variant?.price || "0",
+      available:   variant?.availableForSale ?? false,
+      stock:       variant?.inventoryQuantity ?? null,
+      comision:    variant?.comision?.value || null,
     };
   });
+
+  // Cruzar con Supabase para obtener is_professional
+  const productIds = products.map(p => Number(p.id)).filter(Boolean);
+  if (productIds.length) {
+    const { data: catalog } = await supabase
+      .from("product_catalog")
+      .select("product_id, is_professional")
+      .in("product_id", productIds)
+      .eq("is_professional", true);
+
+    const proSet = new Set((catalog || []).map(r => String(r.product_id)));
+    for (const p of products) {
+      p.is_professional = proSet.has(p.id);
+    }
+  }
 
   console.log("[buscador] q:", q, "| productos:", products.length);
 

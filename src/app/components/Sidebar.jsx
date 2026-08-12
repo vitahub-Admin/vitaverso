@@ -9,7 +9,7 @@ import {
   DollarSign, ShoppingBag, ShoppingCart, Store,
   BookOpen, GraduationCap, HelpCircle, Newspaper,
   Contact, UserPlus, Settings, Layers,
-  Calendar, Users, CalendarCheck, Award,
+  Calendar, Users, CalendarCheck, Award, ClipboardList, BarChart2,
 } from "lucide-react";
 
 const BOOKING_WHITELIST = [
@@ -29,6 +29,9 @@ const NAV_ITEMS = [
   { href: "/wallet",              label: "Wallet",               icon: DollarSign   },
   { href: "/ordenes",             label: "Órdenes",              icon: ShoppingBag  },
   { href: "/mis-carritos-merge",  label: "Mis Carritos",         icon: ShoppingCart },
+  { href: "/mis-protocolos",      label: "Protocolos",           icon: ClipboardList, requireProtocols: true },
+   { href: "/armador-carritos",        label: "Armador de Carritos",  icon: ShoppingCart,  requireTag: "vitahuber" },
+  { href: "/ordenes-v2",          label: "Órdenes V2",           icon: BarChart2,    requireTag: "vitahuber" },
   { href: "/contactos",           label: "Mis Contactos",        icon: Contact      },
   { href: "/mi-tienda",           label: "Mi Tienda",            icon: Store        },
   { href: "/booking-dashboard",   label: "Mis Citas",            icon: CalendarCheck, requireBooking: true },
@@ -49,7 +52,8 @@ const NAV_ITEMS = [
   { href: "/admin-resena",        label: "Reseñas tienda",              icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-comunidad",     label: "Reseñas productos",          icon: Layers,      requireTag: "vitahuber" },
   { href: "/calendar",      label: "Calendar",            icon: Calendar,      requireTag: "vitahuber" },
-  { href: "/armador-carritos",        label: "Armador de Carritos",  icon: ShoppingCart, requireTag: "vitahuber" },
+ 
+  { href: "/admin/protocols",         label: "Builder Protocolos",   icon: ClipboardList, requireTag: "vitahuber" },
   { href: "/admin-capacitaciones",    label: "Capacitaciones",       icon: Layers,       requireTag: "vitahuber" },
   { href: "/admin-ordenes",           label: "Órdenes Admin",         icon: ShoppingBag,  requireTag: "vitahuber" },
   { href: "/admin-badges",            label: "Badges Admin",          icon: Award,        requireTag: "vitahuber" },
@@ -62,10 +66,26 @@ export default function Sidebar() {
   const pathname  = usePathname();
   const { customer } = useCustomer();
   const [novedadesPendientes, setNovedadesPendientes] = useState(0);
+  const [hasProtocols, setHasProtocols] = useState(false);
 
   const tagsArray = customer?.tags?.split(",")?.map(t => t.trim().toLowerCase()) || [];
   const isVitahuber = tagsArray.includes("vitahuber");
   const hasBookingAccess = isVitahuber || BOOKING_WHITELIST.includes(String(customer?.id || ""));
+
+  useEffect(() => {
+    if (!customer?.id) return;
+    fetch(`/api/protocols?owner_id=${customer.id}`)
+      .then(r => r.json())
+      .then(data => {
+        const list = data.protocols || data.items || data || [];
+        // Solo contar los protocolos propios del profesional (el endpoint también devuelve públicos)
+        const own = Array.isArray(list)
+          ? list.filter(p => String(p.owner_id) === String(customer.id))
+          : [];
+        setHasProtocols(own.length > 0);
+      })
+      .catch(() => {});
+  }, [customer?.id]);
 
   useEffect(() => {
     async function checkNovedades() {
@@ -93,6 +113,7 @@ export default function Sidebar() {
   const filteredItems = NAV_ITEMS.filter(item => {
     if (item.requireTag === "vitahuber" && !isVitahuber) return false;
     if (item.requireBooking && !hasBookingAccess) return false;
+    if (item.requireProtocols && !hasProtocols) return false;
     return true;
   });
 

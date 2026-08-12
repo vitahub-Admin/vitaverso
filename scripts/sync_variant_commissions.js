@@ -18,32 +18,6 @@ function extractNumericId(gid) {
 }
 
 async function fetchProducts(cursor = null) {
-  const query = `
-    query ($cursor: String) {
-      products(first: 50, after: $cursor) {
-        edges {
-          cursor
-          node {
-            id
-            variants(first: 100) {
-              edges {
-                node {
-                  id
-                  metafield(namespace: "custom", key: "comision_afiliado") {
-                    value
-                  }
-                }
-              }
-            }
-          }
-        }
-        pageInfo {
-          hasNextPage
-        }
-      }
-    }
-  `
-
   const res = await fetch(
     `https://${SHOPIFY_STORE}/admin/api/2025-01/graphql.json`,
     {
@@ -53,75 +27,112 @@ async function fetchProducts(cursor = null) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        query,
+        query: `query ($cursor: String) {
+          products(first: 50, after: $cursor) {
+            edges {
+              cursor
+              node {
+                id
+                title
+                variants(first: 100) {
+                  edges {
+                    node {
+                      id
+                      metafield(namespace: "custom", key: "comision_afiliado") { value }
+                    }
+                  }
+                }
+              }
+            }
+            pageInfo { hasNextPage }
+          }
+        }`,
         variables: { cursor },
       }),
     }
   )
-
   return res.json()
 }
 
 async function main() {
-  console.log("🔹 Iniciando sync de comisiones")
+  console.log('Iniciando sync de comisiones...\n')
+
+  // Cargar comisiones actuales desde Supabase para comparar
+  const { data: existing, error: fetchError } = await supabase
+    .from('product_variant_commissions')
+    .select('variant_id, commission_percent')
+  if (fetchError) throw fetchError
+
+  const currentMap = {}
+  for (const row of existing) {
+    currentMap[String(row.variant_id)] = Number(row.commission_percent)
+  }
 
   let hasNextPage = true
   let cursor = null
   let totalVariants = 0
+  let changed = 0
+  let added = 0
+  const changes = []
 
   while (hasNextPage) {
     const data = await fetchProducts(cursor)
-
     const products = data?.data?.products?.edges || []
 
-    for (const productEdge of products) {
-      const product = productEdge.node
+    for (const { node: product, cursor: c } of products) {
       const productId = extractNumericId(product.id)
 
-      for (const variantEdge of product.variants.edges) {
-        const variant = variantEdge.node
+      for (const { node: variant } of product.variants.edges) {
+        const variantId        = extractNumericId(variant.id)
+        const commissionPercent = Number(variant.metafield?.value ?? 0) || 0
+        const key              = String(variantId)
+        const previous         = currentMap[key]
 
-        const variantId = extractNumericId(variant.id)
+        const isNew     = previous === undefined
+        const isChanged = !isNew && previous !== commissionPercent
 
-        let commissionRaw = variant.metafield?.value
-
-        // Si viene vacío → 0
-      const commissionPercent = Number(commissionRaw ?? 0) || 0
+        if (isNew)     added++
+        if (isChanged) {
+          changed++
+          changes.push(`  variant ${variantId} (producto: ${product.title}): ${previous}% → ${commissionPercent}%`)
+        }
 
         const { error } = await supabase
           .from('product_variant_commissions')
           .upsert({
-            variant_id: variantId,
-            product_id: productId,
+            variant_id:         variantId,
+            product_id:         productId,
             commission_percent: commissionPercent,
-            active: true,
-            source: 'shopify',
-            updated_at: new Date().toISOString()
-          }, {
-            onConflict: 'variant_id'
-          })
+            active:             true,
+            source:             'shopify',
+            updated_at:         new Date().toISOString(),
+          }, { onConflict: 'variant_id' })
 
-        if (error) {
-          console.error(`❌ Error guardando variant ${variantId}`, error)
-        } else {
-          console.log(`✅ Variant ${variantId} → ${commissionPercent}%`)
-        }
+        if (error) console.error(`❌ Error variant ${variantId}:`, error.message)
 
         totalVariants++
       }
 
-      cursor = productEdge.cursor
+      cursor = c
     }
 
-    hasNextPage = data?.data?.products?.pageInfo?.hasNextPage
-
-    // Delay pequeño entre páginas
-    await sleep(400)
+    hasNextPage = data?.data?.products?.pageInfo?.hasNextPage ?? false
+    if (hasNextPage) await sleep(400)
   }
 
-  console.log(`🎯 Sync completo. Variants procesadas: ${totalVariants}`)
+  console.log(`Total variantes procesadas: ${totalVariants}`)
+  console.log(`Nuevas:    ${added}`)
+  console.log(`Cambios:   ${changed}`)
+  console.log(`Sin cambio: ${totalVariants - added - changed}\n`)
+
+  if (changes.length > 0) {
+    console.log('Comisiones modificadas:')
+    changes.forEach(l => console.log(l))
+  } else {
+    console.log('Sin cambios en comisiones.')
+  }
 }
 
 main().catch(err => {
-  console.error("❌ Error en script:", err)
+  console.error('❌ Error:', err)
 })

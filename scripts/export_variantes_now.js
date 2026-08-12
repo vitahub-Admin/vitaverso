@@ -79,6 +79,7 @@ const PRODUCTS_QUERY = `
                 id
                 title
                 sku
+                price
                 barcode
                 skuSeller: metafield(namespace: "custom", key: "sku_seller") {
                   value
@@ -120,13 +121,19 @@ async function main() {
       const ref   = product.marcaLista?.reference
       const marca = ref?.nombre?.value || ref?.handle || ''
 
+      const productId = product.id.replace('gid://shopify/Product/', '')
+
       for (const { node: variant } of product.variants.edges) {
+        const variantId = variant.id.replace('gid://shopify/ProductVariant/', '')
         rows.push({
+          product_id: productId,
+          variant_id: variantId,
           vendor:     product.vendor || '',
           marca,
           producto:   product.title,
           variante:   variant.title === 'Default Title' ? '' : variant.title,
           sku:        variant.sku              || '',
+          precio:     variant.price            || '',
           ean:        variant.barcode          || '',
           sku_seller: variant.skuSeller?.value || '',
         })
@@ -148,7 +155,7 @@ async function main() {
   }
 
   // Generar CSV
-  const headers = ['vendor', 'marca', 'producto', 'variante', 'sku', 'ean', 'sku_seller']
+  const headers = ['product_id', 'variant_id', 'vendor', 'marca', 'producto', 'variante', 'sku', 'precio', 'ean', 'sku_seller']
   const csv = [
     headers.join(','),
     ...rows.map(r => headers.map(h => escapeCsv(r[h])).join(',')),

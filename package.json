@@ -19,6 +19,7 @@
     "ag-grid-community": "^35.0.0",
     "ag-grid-react": "^35.0.0",
     "axios": "^1.13.2",
+    "cheerio": "^1.2.0",
     "dotenv": "^17.2.3",
     "formidable": "^3.5.4",
     "googleapis": "^159.0.0",
