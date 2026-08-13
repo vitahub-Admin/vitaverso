@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   { href: "/ordenes",             label: "Órdenes",              icon: ShoppingBag  },
   { href: "/mis-carritos-merge",  label: "Mis Carritos",         icon: ShoppingCart },
   { href: "/mis-protocolos",      label: "Protocolos",           icon: ClipboardList, requireProtocols: true },
-   { href: "/armador-carritos",        label: "Armador de Carritos",  icon: ShoppingCart,  requireTag: "vitahuber" },
+  { href: "/armador-carritos",        label: "Armador de Carritos",  icon: ShoppingCart},
   { href: "/ordenes-v2",          label: "Órdenes V2",           icon: BarChart2,    requireTag: "vitahuber" },
   { href: "/contactos",           label: "Mis Contactos",        icon: Contact      },
   { href: "/mi-tienda",           label: "Mi Tienda",            icon: Store        },

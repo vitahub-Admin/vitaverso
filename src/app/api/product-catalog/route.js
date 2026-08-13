@@ -112,12 +112,19 @@ export async function GET(req) {
       return NextResponse.json({ ok: true, images })
     }
 
-    // GET /api/product-catalog?variant_ids=123,456  → precios (Supabase) + stock en tiempo real (Shopify)
+    // GET /api/product-catalog?variant_ids=123,456  → precios + stock + comisiones
     if (variantIdsRaw) {
       const ids = variantIdsRaw.split(',').map(Number).filter(Boolean)
 
-      // Precio + stock en tiempo real desde Shopify (un solo batch)
-      const { prices, stock } = await fetchVariantData(ids)
+      // Precio + stock en tiempo real desde Shopify + comisiones desde Supabase (paralelo)
+      const [{ prices, stock }, { data: commData }] = await Promise.all([
+        fetchVariantData(ids),
+        supabase
+          .from('product_variant_commissions')
+          .select('variant_id, commission_percent')
+          .in('variant_id', ids)
+          .eq('active', true),
+      ])
 
       // Si Shopify no devolvió precios (fallo de red), fallback a Supabase
       const missingPrices = ids.filter(id => prices[id] == null)
@@ -131,7 +138,12 @@ export async function GET(req) {
         }
       }
 
-      return NextResponse.json({ ok: true, prices, stock })
+      const commissions = {}
+      for (const r of commData || []) {
+        commissions[r.variant_id] = Number(r.commission_percent)
+      }
+
+      return NextResponse.json({ ok: true, prices, stock, commissions })
     }
 
     if (componente) {
@@ -155,16 +167,31 @@ export async function GET(req) {
         countMap[pid] = (countMap[pid] || 0) + 1
       }
 
-      // Traer imágenes de Shopify (un batch con los product_ids únicos)
+      // Traer imágenes + comisiones en paralelo
       const uniqueProductIds = [...new Set(rows.map(r => r.product_id))]
-      const imageMap = await fetchImages(uniqueProductIds)
+      const variantIds = rows.map(r => r.variant_id)
+
+      const [imageMap, { data: commData }] = await Promise.all([
+        fetchImages(uniqueProductIds),
+        supabase
+          .from('product_variant_commissions')
+          .select('variant_id, commission_percent')
+          .in('variant_id', variantIds)
+          .eq('active', true),
+      ])
+
+      const commissionMap = {}
+      for (const c of commData || []) {
+        commissionMap[c.variant_id] = Number(c.commission_percent)
+      }
 
       const enriched = rows
         .map(r => ({
           ...r,
-          image_url:     imageMap[r.product_id] || null,
-          min_price:     minPriceMap[r.product_id] ?? r.price,
-          variant_count: countMap[r.product_id] || 1,
+          image_url:          imageMap[r.product_id] || null,
+          min_price:          minPriceMap[r.product_id] ?? r.price,
+          variant_count:      countMap[r.product_id] || 1,
+          commission_percent: commissionMap[r.variant_id] ?? null,
         }))
         // Ordenar por precio DESC (más caro arriba)
         .sort((a, b) => (b.price ?? 0) - (a.price ?? 0))

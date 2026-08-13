@@ -17,7 +17,6 @@ function AuthManager({ children }) {
   const pathname = usePathname();
 
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [pendingRedirect, setPendingRedirect] = useState(null);
   const [showBackdoorModal, setShowBackdoorModal] = useState(false);
   const [pendingBackdoorId, setPendingBackdoorId] = useState(null);
   const [backdoorPassword, setBackdoorPassword] = useState("");
@@ -86,7 +85,6 @@ function AuthManager({ children }) {
     }
 
     // 4️⃣ NO AUTENTICADO
-    setPendingRedirect(pathname !== "/" ? pathname : null);
     setShowAuthModal(true);
     setIsLoading(false);
   }, [searchParams]);
@@ -143,7 +141,7 @@ function AuthManager({ children }) {
         Cookies.set("customerId", data.customer.id, { expires: 30 });
         if (data.token) Cookies.set("proJwt", data.token, { expires: 30 });
         setShowAuthModal(false);
-        const redirect = searchParams.get("redirect") || pendingRedirect;
+        const redirect = searchParams.get("redirect");
         router.replace(redirect && redirect.startsWith("/") ? redirect : "/wallet");
       } else {
         setLoginError(data.error || "Email o contraseña incorrectos");

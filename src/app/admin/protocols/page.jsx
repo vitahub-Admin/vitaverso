@@ -111,6 +111,17 @@ function ProductCard({ item, selected, onToggle }) {
               <Check size={12} className="text-white" />
             </div>
           )}
+          {/* Badge comisión — esquina inferior izquierda */}
+          {(() => {
+            const pct = item.commission_percent ?? 0;
+            return (
+              <span className={`absolute bottom-2 left-2 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md ring-2 ring-white/60 leading-none ${
+                pct > 0 ? "bg-emerald-500" : "bg-gray-400"
+              }`}>
+                {pct}%
+              </span>
+            );
+          })()}
           {/* Eye button */}
           <button
             onClick={e => { e.stopPropagation(); setPreview(true); }}

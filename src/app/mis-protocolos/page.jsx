@@ -376,7 +376,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
   );
 }
 
-const GANANCIA_PCT = 0.11;
+// La ganancia se calcula por producto desde product_variant_commissions (ver commissionMap)
 
 // ── Vista de uso del protocolo ────────────────────────────────
 function ProtocolUse({ protocol, customerId, onBack }) {
@@ -385,8 +385,9 @@ function ProtocolUse({ protocol, customerId, onBack }) {
   const [quantities, setQuantities] = useState({});
   const [dosages,   setDosages]   = useState({});  // { variant_id: { amount, unit } }
   const [notes,     setNotes]     = useState({});   // { variant_id: string }
-  const [priceMap,  setPriceMap]  = useState({});
-  const [stockMap,  setStockMap]  = useState({});
+  const [priceMap,      setPriceMap]      = useState({});
+  const [stockMap,      setStockMap]      = useState({});
+  const [commissionMap, setCommissionMap] = useState({});
   const [loadingPrices, setLoadingPrices] = useState(true);
   const [nombre, setNombre]         = useState("");
   const [apellido, setApellido]     = useState("");
@@ -467,8 +468,9 @@ function ProtocolUse({ protocol, customerId, onBack }) {
       .then(r => r.json())
       .then(d => {
         if (d.ok) {
-          setPriceMap(d.prices || {});
-          setStockMap(d.stock  || {});
+          setPriceMap(d.prices      || {});
+          setStockMap(d.stock       || {});
+          setCommissionMap(d.commissions || {});
         }
       })
       .finally(() => setLoadingPrices(false));
@@ -523,7 +525,21 @@ function ProtocolUse({ protocol, customerId, onBack }) {
       .some(vid => priceMap[Number(vid)] != null),
   [selections, priceMap, hiddenVariantIds]);
 
-  const ganancia = subtotal * GANANCIA_PCT;
+  const ganancia = useMemo(() => {
+    const protocolGanancia = Object.entries(selections)
+      .filter(([vid]) => !hiddenVariantIds.has(Number(vid)))
+      .reduce((sum, [vid]) => {
+        const qty = quantities[Number(vid)] || 1;
+        const p   = priceMap[Number(vid)];
+        const pct = commissionMap[Number(vid)] ?? 0;
+        return sum + (p != null ? p * qty * (pct / 100) : 0);
+      }, 0);
+    const extrasGanancia = extraItems.reduce((sum, e) => {
+      const pct = commissionMap[e.variant_id] ?? 0;
+      return sum + (e.price || 0) * e.quantity * (pct / 100);
+    }, 0);
+    return protocolGanancia + extrasGanancia;
+  }, [selections, quantities, priceMap, commissionMap, hiddenVariantIds, extraItems]);
   const fullName = `${nombre} ${apellido}`.trim();
 
   // Checkout
@@ -968,15 +984,17 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                 {fmtMXN(subtotal)}
               </span>
             </div>
-            <div className="flex items-center bg-[#F4FAFB] rounded-lg px-2.5 py-1.5 -mx-0.5">
-              <span className="flex items-center gap-1.5 text-xs font-bold text-[#1E8FA8]">
-                <TrendingUp size={12} />
-                Tu ganancia
-              </span>
-              <span className="ml-auto text-sm font-extrabold text-[#1E8FA8] tabular-nums">
-                {fmtMXN(ganancia)}
-              </span>
-            </div>
+            {ganancia > 0 && (
+              <div className="flex items-center bg-[#F4FAFB] rounded-lg px-2.5 py-1.5 -mx-0.5">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-[#1E8FA8]">
+                  <TrendingUp size={12} />
+                  Tu ganancia
+                </span>
+                <span className="ml-auto text-sm font-extrabold text-[#1E8FA8] tabular-nums">
+                  {fmtMXN(ganancia)}
+                </span>
+              </div>
+            )}
           </div>
         </div>
       )}
