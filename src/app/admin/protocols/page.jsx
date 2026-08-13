@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Trash2, ChevronDown, ChevronUp, Save,
-  Globe, Lock, Package, Search, X, Check, User, Eye,
+  Globe, Lock, Package, Search, X, Check, User, Eye, Shuffle,
 } from "lucide-react";
 
 // ── Precio formateado ─────────────────────────────────────────
@@ -65,6 +65,10 @@ function ProductCard({ item, selected, onToggle }) {
   const priceLabel = showDesde
     ? `desde ${fmt(item.min_price)}`
     : fmt(item.price);
+
+  // stock === null → Shopify no respondió (no bloqueamos)
+  const outOfStock = item.stock !== null && item.stock !== undefined && item.stock <= 0;
+  const lowStock   = !outOfStock && item.stock != null && item.stock <= 5;
 
   return (
     <>
@@ -153,6 +157,16 @@ function ProductCard({ item, selected, onToggle }) {
         {priceLabel && (
           <p className="text-xs font-bold text-gray-700 mt-1">{priceLabel}</p>
         )}
+        {/* Stock pill */}
+        {outOfStock ? (
+          <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full w-fit mt-0.5">
+            Sin stock
+          </span>
+        ) : lowStock ? (
+          <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full w-fit mt-0.5">
+            Últimas {item.stock}
+          </span>
+        ) : null}
       </div>
     </div>
     </>
@@ -387,6 +401,141 @@ function ComponentEditor({ comp, index, onUpdate, onRemove, componentes }) {
   );
 }
 
+// ── Selector libre (búsqueda por nombre de producto) ─────────
+function LibreEditor({ comp, index, onUpdate, onRemove }) {
+  const [search, setSearch]     = useState("");
+  const [results, setResults]   = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [open, setOpen]         = useState(true);
+  const debounceRef             = useRef(null);
+
+  const doSearch = useCallback((q) => {
+    if (!q.trim()) { setResults([]); return; }
+    setLoading(true);
+    fetch(`/api/product-catalog?search=${encodeURIComponent(q)}`)
+      .then(r => r.json())
+      .then(d => setResults(d.items || []))
+      .catch(() => setResults([]))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const handleSearchChange = (e) => {
+    const q = e.target.value;
+    setSearch(q);
+    clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => doSearch(q), 350);
+  };
+
+  const clearSearch = () => { setSearch(""); setResults([]); };
+
+  const toggleItem = (item) => {
+    const exists = comp.items.find(i => i.variant_id === item.variant_id);
+    const next   = exists
+      ? comp.items.filter(i => i.variant_id !== item.variant_id)
+      : [
+          ...comp.items,
+          {
+            variant_id:    item.variant_id,
+            product_id:    item.product_id,
+            title:         item.title,
+            variant_title: item.variant_title,
+            sku:           item.sku,
+          },
+        ];
+    onUpdate({ ...comp, items: next });
+  };
+
+  return (
+    <div className="border border-[#1e8fa8]/40 rounded-xl overflow-hidden bg-white">
+      {/* Header */}
+      <div className="flex items-center gap-3 px-4 py-3 bg-[#1e8fa8]/5 border-b border-[#1e8fa8]/20">
+        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1e8fa8] text-white text-[10px] font-bold uppercase tracking-wide shrink-0">
+          <Shuffle size={10} /> Libre
+        </span>
+        <input
+          value={comp.label || ""}
+          onChange={e => onUpdate({ ...comp, label: e.target.value })}
+          placeholder="Etiqueta (opcional)"
+          className="flex-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-[#1e8fa8] min-w-0"
+        />
+        <button onClick={() => setOpen(o => !o)} className="text-gray-400 hover:text-gray-600">
+          {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+        </button>
+        <button onClick={onRemove} className="text-gray-300 hover:text-red-500 transition-colors">
+          <Trash2 size={16} />
+        </button>
+      </div>
+
+      {open && (
+        <div className="p-4 space-y-3">
+          {/* Chips de seleccionados */}
+          {comp.items.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pb-1">
+              {comp.items.map(i => (
+                <span
+                  key={i.variant_id}
+                  className="flex items-center gap-1 px-2.5 py-1 bg-[#1e8fa8]/10 text-[#1e8fa8] rounded-full text-xs font-medium"
+                >
+                  {i.title}{i.variant_title ? ` · ${i.variant_title}` : ""}
+                  <button onClick={() => toggleItem(i)} className="ml-0.5 hover:text-red-500 transition-colors">
+                    <X size={11} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          )}
+
+          {/* Búsqueda */}
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+            <input
+              value={search}
+              onChange={handleSearchChange}
+              placeholder="Buscar producto por nombre..."
+              className="w-full pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-[#1e8fa8] bg-white"
+            />
+            {search && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
+              >
+                <X size={14} />
+              </button>
+            )}
+          </div>
+
+          {/* Resultados */}
+          {!search && comp.items.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-4">
+              Buscá un producto por nombre para agregarlo al grupo
+            </p>
+          )}
+          {loading && (
+            <p className="text-sm text-gray-400 text-center py-4">Buscando...</p>
+          )}
+          {!loading && search && results.length === 0 && (
+            <p className="text-sm text-gray-400 text-center py-4">
+              Sin resultados para &ldquo;{search}&rdquo;
+            </p>
+          )}
+          {!loading && results.length > 0 && (
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
+              {results.map(p => (
+                <ProductCard
+                  key={p.variant_id}
+                  item={p}
+                  selected={!!comp.items.find(i => i.variant_id === p.variant_id)}
+                  onToggle={toggleItem}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── Picker de afiliado ────────────────────────────────────────
 function AffiliatePicker({ value, onChange }) {
   const [query, setQuery]     = useState(value?.name || "");
@@ -514,14 +663,18 @@ function ProtocolForm({ onSaved, onCancel }) {
   }, []);
 
   const addComp   = () => setComps(c => [...c, { componente: "", label: "", items: [] }]);
+  const addLibre  = () => setComps(c => [...c, { type: "libre", label: "", items: [] }]);
   const updateComp = useCallback((i, val) => setComps(c => c.map((x, idx) => idx === i ? val : x)), []);
   const removeComp = useCallback((i) => setComps(c => c.filter((_, idx) => idx !== i)), []);
 
   const handleSave = async () => {
     setError("");
-    const valid = components.filter(c => c.componente && c.items.length);
-    if (!name.trim())      return setError("El nombre es requerido");
-    if (!valid.length)     return setError("Necesitás al menos un componente con productos seleccionados");
+    // Un componente es válido si: es de tipo "libre" con ítems, O tiene componente+ítems
+    const valid = components.filter(c =>
+      c.items?.length > 0 && (c.type === "libre" || c.componente)
+    );
+    if (!name.trim())        return setError("El nombre es requerido");
+    if (!valid.length)       return setError("Necesitás al menos un componente o selector libre con productos seleccionados");
     if (!isPublic && !owner) return setError("Para protocolo privado, elegí el afiliado dueño");
 
     setSaving(true);
@@ -603,22 +756,41 @@ function ProtocolForm({ onSaved, onCancel }) {
       {/* Componentes */}
       <div className="space-y-3">
         {components.map((comp, i) => (
-          <ComponentEditor
-            key={i}
-            comp={comp}
-            index={i}
-            componentes={componentes}
-            onUpdate={val => updateComp(i, val)}
-            onRemove={() => removeComp(i)}
-          />
+          comp.type === "libre"
+            ? (
+              <LibreEditor
+                key={i}
+                comp={comp}
+                index={i}
+                onUpdate={val => updateComp(i, val)}
+                onRemove={() => removeComp(i)}
+              />
+            ) : (
+              <ComponentEditor
+                key={i}
+                comp={comp}
+                index={i}
+                componentes={componentes}
+                onUpdate={val => updateComp(i, val)}
+                onRemove={() => removeComp(i)}
+              />
+            )
         ))}
 
-        <button
-          onClick={addComp}
-          className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-[#1e3a5f] hover:text-[#1e3a5f] transition-colors"
-        >
-          <Plus size={16} /> Agregar paso / componente
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={addComp}
+            className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-gray-300 rounded-xl text-sm text-gray-500 hover:border-[#1e3a5f] hover:text-[#1e3a5f] transition-colors"
+          >
+            <Plus size={16} /> Paso por componente
+          </button>
+          <button
+            onClick={addLibre}
+            className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1e8fa8]/40 rounded-xl text-sm text-[#1e8fa8]/70 hover:border-[#1e8fa8] hover:text-[#1e8fa8] transition-colors"
+          >
+            <Shuffle size={16} /> Selector libre
+          </button>
+        </div>
       </div>
 
       {error && (

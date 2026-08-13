@@ -71,7 +71,7 @@ function ProductCard({ product, onAdd, onDetail, inCart }) {
 }
 
 // ─── Panel de carrito (reutilizable en sidebar y drawer) ───────────────────────
-function CartPanel({ carrito, cambiarCantidad, quitarDelCarrito, totalCarrito, onFinalizar }) {
+function CartPanel({ carrito, cambiarCantidad, quitarDelCarrito, totalCarrito, gananciaCarrito, onFinalizar }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -112,13 +112,21 @@ function CartPanel({ carrito, cambiarCantidad, quitarDelCarrito, totalCarrito, o
         ))}
       </div>
 
-      {/* Total + Finalizar */}
-      <div className="p-4 border-t border-gray-100 shrink-0 space-y-3">
+      {/* Total + Ganancia + Finalizar */}
+      <div className="p-4 border-t border-gray-100 shrink-0 space-y-2">
         {carrito.length > 0 && (
-          <div className="flex justify-between items-baseline">
-            <span className="text-sm text-gray-500">Total</span>
-            <span className="text-lg font-extrabold text-[#1b3f7a] tabular-nums">${totalCarrito.toFixed(2)} <span className="text-xs font-normal text-gray-400">MXN</span></span>
-          </div>
+          <>
+            <div className="flex justify-between items-baseline">
+              <span className="text-sm text-gray-500">Total</span>
+              <span className="text-lg font-extrabold text-[#1b3f7a] tabular-nums">${totalCarrito.toFixed(2)} <span className="text-xs font-normal text-gray-400">MXN</span></span>
+            </div>
+            {gananciaCarrito > 0 && (
+              <div className="flex justify-between items-baseline bg-emerald-50 rounded-lg px-3 py-2">
+                <span className="text-xs font-semibold text-emerald-700">Tu ganancia</span>
+                <span className="text-sm font-extrabold text-emerald-600 tabular-nums">${gananciaCarrito.toFixed(2)} <span className="text-[10px] font-normal text-emerald-500">MXN</span></span>
+              </div>
+            )}
+          </>
         )}
         <button
           onClick={onFinalizar}
@@ -423,7 +431,11 @@ export default function ArmadorCarritos() {
     ));
   };
 
-  const totalCarrito = carrito.reduce((acc, p) => acc + parseFloat(p.price || 0) * (p.quantity || 1), 0);
+  const totalCarrito    = carrito.reduce((acc, p) => acc + parseFloat(p.price || 0) * (p.quantity || 1), 0);
+  const gananciaCarrito = carrito.reduce((acc, p) => {
+    const pct = parseFloat(p.comision || 0);
+    return acc + parseFloat(p.price || 0) * (p.quantity || 1) * (pct / 100);
+  }, 0);
 
   return (
     <div className="h-screen flex flex-col bg-[#F7F9FB] overflow-hidden">
@@ -511,6 +523,7 @@ export default function ArmadorCarritos() {
             cambiarCantidad={cambiarCantidad}
             quitarDelCarrito={quitarDelCarrito}
             totalCarrito={totalCarrito}
+            gananciaCarrito={gananciaCarrito}
             onFinalizar={() => setShowModal(true)}
           />
         </div>
@@ -553,6 +566,7 @@ export default function ArmadorCarritos() {
                 cambiarCantidad={cambiarCantidad}
                 quitarDelCarrito={quitarDelCarrito}
                 totalCarrito={totalCarrito}
+                gananciaCarrito={gananciaCarrito}
                 onFinalizar={() => { setDrawerOpen(false); setShowModal(true); }}
               />
             </div>

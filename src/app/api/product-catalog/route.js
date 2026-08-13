@@ -78,6 +78,7 @@ export async function GET(req) {
     const variantIdsRaw   = searchParams.get('variant_ids')
     const productIdsRaw   = searchParams.get('product_ids')
     const descriptionId   = searchParams.get('description') // ?description=PRODUCT_ID
+    const searchQuery     = searchParams.get('search')      // ?search=nombre producto
 
     // ?description=123 → trae descriptionHtml de Shopify para preview
     if (descriptionId) {
@@ -103,6 +104,59 @@ export async function GET(req) {
         title:           node?.title           ?? '',
         descriptionHtml: node?.descriptionHtml ?? '',
       })
+    }
+
+    // GET /api/product-catalog?search=nombre  → búsqueda libre por título de producto
+    if (searchQuery) {
+      const { data, error } = await supabase
+        .from('product_catalog')
+        .select('variant_id, product_id, title, variant_title, sku, price, brand, primary_ingredient, primary_amount, primary_unit, nutrients, is_professional, componente')
+        .ilike('title', `%${searchQuery}%`)
+        .limit(60)
+
+      if (error) throw error
+      const rows = data || []
+
+      const uniqueProductIds = [...new Set(rows.map(r => r.product_id))]
+      const variantIds = rows.map(r => r.variant_id)
+
+      // Precios mínimos y conteo de variantes por producto
+      const minPriceMap = {}
+      const countMap    = {}
+      for (const r of rows) {
+        const pid = r.product_id
+        if (r.price !== null && (minPriceMap[pid] === undefined || r.price < minPriceMap[pid])) minPriceMap[pid] = r.price
+        countMap[pid] = (countMap[pid] || 0) + 1
+      }
+
+      const [imageMap, { data: commData }, { stock }] = await Promise.all([
+        fetchImages(uniqueProductIds),
+        variantIds.length
+          ? supabase.from('product_variant_commissions').select('variant_id, commission_percent').in('variant_id', variantIds).eq('active', true)
+          : Promise.resolve({ data: [] }),
+        variantIds.length ? fetchVariantData(variantIds) : Promise.resolve({ prices: {}, stock: {} }),
+      ])
+
+      const commissionMap = {}
+      for (const c of commData || []) commissionMap[c.variant_id] = Number(c.commission_percent)
+
+      const enriched = rows
+        .map(r => ({
+          ...r,
+          image_url:          imageMap[r.product_id] || null,
+          min_price:          minPriceMap[r.product_id] ?? r.price,
+          variant_count:      countMap[r.product_id] || 1,
+          commission_percent: commissionMap[r.variant_id] ?? null,
+          stock:              stock[r.variant_id] ?? null,
+        }))
+        .sort((a, b) => {
+          const aOut = a.stock !== null && a.stock <= 0;
+          const bOut = b.stock !== null && b.stock <= 0;
+          if (aOut !== bOut) return aOut ? 1 : -1;
+          return (b.price ?? 0) - (a.price ?? 0);
+        })
+
+      return NextResponse.json({ ok: true, items: enriched })
     }
 
     // GET /api/product-catalog?product_ids=123,456  → imagen de Shopify por product_id
@@ -167,17 +221,18 @@ export async function GET(req) {
         countMap[pid] = (countMap[pid] || 0) + 1
       }
 
-      // Traer imágenes + comisiones en paralelo
+      // Traer imágenes + comisiones + stock en paralelo
       const uniqueProductIds = [...new Set(rows.map(r => r.product_id))]
       const variantIds = rows.map(r => r.variant_id)
 
-      const [imageMap, { data: commData }] = await Promise.all([
+      const [imageMap, { data: commData }, { stock }] = await Promise.all([
         fetchImages(uniqueProductIds),
         supabase
           .from('product_variant_commissions')
           .select('variant_id, commission_percent')
           .in('variant_id', variantIds)
           .eq('active', true),
+        fetchVariantData(variantIds), // stock en tiempo real desde Shopify
       ])
 
       const commissionMap = {}
@@ -192,9 +247,15 @@ export async function GET(req) {
           min_price:          minPriceMap[r.product_id] ?? r.price,
           variant_count:      countMap[r.product_id] || 1,
           commission_percent: commissionMap[r.variant_id] ?? null,
+          stock:              stock[r.variant_id] ?? null, // null = Shopify no respondió
         }))
-        // Ordenar por precio DESC (más caro arriba)
-        .sort((a, b) => (b.price ?? 0) - (a.price ?? 0))
+        // Agotados al fondo; dentro de cada grupo por precio DESC
+        .sort((a, b) => {
+          const aOut = a.stock !== null && a.stock <= 0;
+          const bOut = b.stock !== null && b.stock <= 0;
+          if (aOut !== bOut) return aOut ? 1 : -1;
+          return (b.price ?? 0) - (a.price ?? 0);
+        })
 
       return NextResponse.json({ ok: true, items: enriched })
     }
