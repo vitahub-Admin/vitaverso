@@ -1,77 +1,204 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useCallback } from "react";
 import { useCustomer } from "@/app/context/CustomerContext";
-import { X } from "lucide-react";
+import { X, ChevronDown, FileText, Package } from "lucide-react";
 
-// ─── Icono carrito ───────────────────────────────────────────────────────────
-function IconCart() {
-  return (
-    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
-        d="M3 3h2l.4 2M7 13h10l4-10H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-    </svg>
+const DOSE_UNITS = ['cápsula', 'tableta', 'softgel', 'gota', 'ml', 'sobre', 'cucharada'];
+
+const fmtMXN = (n) =>
+  new Intl.NumberFormat("es-MX", {
+    style: "currency", currency: "MXN", maximumFractionDigits: 0,
+  }).format(Number(n) || 0);
+
+// ─── Card de producto (un card por producto, variantes via selector) ───────────
+function ProductCard({ product, onAdd, cartVariantIds }) {
+  const inStockVariants = (product.variants || []).filter(
+    v => v.stock === null || v.stock > 0
   );
-}
+  const [selectedVariant, setSelectedVariant] = useState(inStockVariants[0] || product.variants?.[0] || null);
 
-// ─── Card de producto ─────────────────────────────────────────────────────────
-function ProductCard({ product, onAdd, onDetail, inCart }) {
-  const outOfStock = product.available === false;
+  if (!selectedVariant) return null; // no hay variantes
+
+  const inCart       = cartVariantIds.has(selectedVariant.variant_id);
+  const multiVariant = product.variants?.length > 1;
+  const outOfStock   = selectedVariant.stock !== null && selectedVariant.stock <= 0;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col hover:shadow-lg hover:border-[#1b3f7a]/20 transition-all group">
-      {/* Imagen */}
-      <div className="relative cursor-pointer shrink-0" onClick={() => onDetail(product)}>
-        {product.image ? (
-          <img src={product.image} alt={product.title} className="w-full h-36 object-cover group-hover:scale-[1.02] transition-transform duration-300" />
+    <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden flex flex-col hover:shadow-lg hover:border-[#1b3f7a]/20 transition-all">
+      {/* Imagen — object-contain para no recortar */}
+      <div className="relative bg-white p-2 shrink-0">
+        {product.image_url ? (
+          <img
+            src={product.image_url}
+            alt={product.title}
+            className="w-full h-36 object-contain"
+          />
         ) : (
-          <div className="w-full h-36 bg-gray-50 flex items-center justify-center text-gray-200 text-3xl">?</div>
+          <div className="w-full h-36 bg-gray-50 flex items-center justify-center text-gray-200">
+            <Package size={32} />
+          </div>
         )}
         {product.is_professional && (
           <span className="absolute top-2 left-2 bg-[#1e8fa8] text-white text-xs font-normal px-2.5 py-1 rounded-full shadow-md ring-2 ring-white/60 tracking-widest">
             PRO
           </span>
         )}
-        {product.comision && (
+        {product.commission_percent > 0 && (
           <span className="absolute top-2 right-2 bg-[#1b3f7a] text-white text-xs font-semibold px-2 py-1 rounded-full shadow-sm">
-            {product.comision}%
+            {product.commission_percent}%
           </span>
         )}
       </div>
 
       {/* Info */}
       <div className="p-3 flex flex-col flex-1 gap-1.5">
-        <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug cursor-pointer hover:text-[#1b3f7a]" onClick={() => onDetail(product)}>
+        <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">
           {product.title}
         </p>
-        <p className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">${product.price} <span className="text-[10px] font-normal text-gray-400">MXN</span></p>
+        <p className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">
+          {multiVariant
+            ? (product.min_price ? `desde ${fmtMXN(product.min_price)}` : "—")
+            : fmtMXN(selectedVariant.price)}
+        </p>
 
-        {outOfStock ? (
-          <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full w-fit">Sin stock</span>
-        ) : product.stock != null && product.stock <= 5 ? (
-          <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full w-fit">Últimas {product.stock}</span>
-        ) : (
-          <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full w-fit">En stock</span>
+        {/* Selector de variante si hay más de una */}
+        {multiVariant && (
+          <select
+            value={selectedVariant.variant_id}
+            onChange={e => {
+              const v = product.variants.find(v => v.variant_id === Number(e.target.value));
+              setSelectedVariant(v || null);
+            }}
+            className="text-xs border border-gray-200 rounded-lg px-2 py-1.5 outline-none focus:border-[#1b3f7a] bg-white text-gray-700"
+          >
+            {product.variants.map(v => (
+              <option
+                key={v.variant_id}
+                value={v.variant_id}
+                disabled={v.stock !== null && v.stock <= 0}
+              >
+                {v.variant_title || v.variant_id}
+                {v.stock !== null && v.stock <= 0 ? " · sin stock" : ""}
+                {!multiVariant || v.price == null ? "" : ` · ${fmtMXN(v.price)}`}
+              </option>
+            ))}
+          </select>
+        )}
+
+        {!multiVariant && selectedVariant.stock !== null && selectedVariant.stock <= 5 && selectedVariant.stock > 0 && (
+          <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full w-fit">
+            Últimas {selectedVariant.stock}
+          </span>
         )}
 
         <button
-          onClick={() => onAdd(product)}
+          onClick={() => !outOfStock && !inCart && onAdd(product, selectedVariant)}
           disabled={inCart || outOfStock}
-          className={`mt-auto pt-1.5 flex items-center justify-center gap-1.5 py-2 rounded-full text-xs font-semibold transition-all ${
-            inCart ? "bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default"
-            : outOfStock ? "bg-gray-100 text-gray-300 cursor-not-allowed"
-            : "bg-[#1b3f7a] text-white hover:bg-[#162d60] active:scale-95"
+          className={`mt-auto pt-1.5 py-2 rounded-full text-xs font-semibold transition-all ${
+            inCart
+              ? "bg-emerald-50 text-emerald-600 border border-emerald-200 cursor-default"
+              : outOfStock
+                ? "bg-gray-100 text-gray-300 cursor-not-allowed"
+                : "bg-[#1b3f7a] text-white hover:bg-[#162d60] active:scale-95"
           }`}
         >
-          <IconCart />
-          {inCart ? "En carrito" : outOfStock ? "Sin stock" : "Agregar"}
+          {inCart ? "✓ En carrito" : outOfStock ? "Sin stock" : "Agregar"}
         </button>
       </div>
     </div>
   );
 }
 
-// ─── Panel de carrito (reutilizable en sidebar y drawer) ───────────────────────
-function CartPanel({ carrito, cambiarCantidad, quitarDelCarrito, totalCarrito, gananciaCarrito, onFinalizar }) {
+// ─── Item del carrito con dosage + nota ───────────────────────────────────────
+function CartItem({ item, onQty, onRemove, onDosage, onNote }) {
+  const [expanded, setExpanded] = useState(false);
+
+  return (
+    <div className="bg-gray-50 rounded-xl p-2.5 border border-gray-100 space-y-2">
+      <div className="flex items-start gap-2.5">
+        {item.image ? (
+          <img src={item.image} alt={item.title} className="w-11 h-11 object-contain rounded-lg shrink-0 bg-white border border-gray-100 p-0.5" />
+        ) : (
+          <div className="w-11 h-11 rounded-lg shrink-0 bg-gray-100 flex items-center justify-center text-gray-300">
+            <Package size={16} />
+          </div>
+        )}
+        <div className="flex-1 min-w-0">
+          <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{item.title}</p>
+          {item.variant_title && (
+            <p className="text-[10px] text-gray-400 mt-0.5">{item.variant_title}</p>
+          )}
+          <p className="text-xs font-bold text-[#1b3f7a] tabular-nums mt-0.5">
+            {fmtMXN(item.price * item.quantity)}
+          </p>
+        </div>
+        <div className="flex flex-col items-center gap-1 shrink-0">
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => onQty(-1)}
+              className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-500 text-xs flex items-center justify-center hover:bg-gray-100"
+            >−</button>
+            <span className="text-xs font-bold w-4 text-center">{item.quantity}</span>
+            <button
+              onClick={() => onQty(1)}
+              className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-500 text-xs flex items-center justify-center hover:bg-gray-100"
+            >+</button>
+          </div>
+          <button onClick={onRemove} className="text-[10px] text-red-400 hover:text-red-600 transition-colors">
+            quitar
+          </button>
+        </div>
+      </div>
+
+      {/* Toggle indicaciones */}
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="flex items-center gap-1 text-[10px] text-[#1e8fa8] font-semibold hover:underline"
+      >
+        <ChevronDown size={10} className={`transition-transform ${expanded ? "rotate-180" : ""}`} />
+        {expanded ? "Ocultar indicaciones" : "Indicaciones de toma"}
+      </button>
+
+      {expanded && (
+        <div className="space-y-2 pt-1 border-t border-gray-100">
+          {/* Dosis */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-gray-400 uppercase w-10 shrink-0">Dosis</span>
+            <input
+              type="number"
+              min="1" max="20"
+              value={item.dosage?.amount ?? 1}
+              onChange={e => onDosage({ ...(item.dosage || {}), amount: Math.max(1, Number(e.target.value)) })}
+              className="w-9 text-xs font-bold text-center border border-gray-200 rounded-lg py-0.5 bg-white outline-none focus:border-[#1e8fa8]"
+            />
+            <select
+              value={item.dosage?.unit ?? "cápsula"}
+              onChange={e => onDosage({ ...(item.dosage || {}), unit: e.target.value })}
+              className="flex-1 text-xs text-gray-700 border border-gray-200 rounded-lg px-1.5 py-1 bg-white outline-none focus:border-[#1e8fa8]"
+            >
+              {DOSE_UNITS.map(u => <option key={u} value={u}>{u}s</option>)}
+            </select>
+          </div>
+          {/* Cuándo */}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold text-gray-400 uppercase w-10 shrink-0">Cuándo</span>
+            <input
+              type="text"
+              value={item.note ?? ""}
+              onChange={e => onNote(e.target.value)}
+              placeholder="ej. con el desayuno, antes de dormir…"
+              className="flex-1 text-xs border-b border-gray-200 py-0.5 bg-transparent outline-none placeholder:text-gray-300 focus:border-[#1e8fa8]"
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Panel del carrito ────────────────────────────────────────────────────────
+function CartPanel({ carrito, onQty, onRemove, onDosage, onNote,
+                     totalCarrito, gananciaCarrito, onFinalizar }) {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
@@ -90,40 +217,37 @@ function CartPanel({ carrito, cambiarCantidad, quitarDelCarrito, totalCarrito, g
       <div className="flex-1 overflow-y-auto px-3 py-3 space-y-2">
         {carrito.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-32 text-gray-300 gap-2">
-            <IconCart />
+            <Package size={24} />
             <p className="text-xs">El carrito está vacío</p>
           </div>
         ) : carrito.map(p => (
-          <div key={p.id} className="flex items-center gap-2.5 bg-gray-50 rounded-xl p-2.5 border border-gray-100">
-            {p.image && <img src={p.image} alt={p.title} className="w-11 h-11 object-cover rounded-lg shrink-0" />}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{p.title}</p>
-              <p className="text-xs font-bold text-[#1b3f7a] tabular-nums mt-0.5">${(parseFloat(p.price) * p.quantity).toFixed(2)}</p>
-            </div>
-            <div className="flex flex-col items-center gap-1 shrink-0">
-              <div className="flex items-center gap-1">
-                <button onClick={() => cambiarCantidad(p.id, -1)} className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-500 text-xs flex items-center justify-center hover:bg-gray-100">−</button>
-                <span className="text-xs font-bold w-4 text-center">{p.quantity}</span>
-                <button onClick={() => cambiarCantidad(p.id, 1)} className="w-5 h-5 rounded-md bg-white border border-gray-200 text-gray-500 text-xs flex items-center justify-center hover:bg-gray-100">+</button>
-              </div>
-              <button onClick={() => quitarDelCarrito(p.id)} className="text-[10px] text-red-400 hover:text-red-600 transition-colors">quitar</button>
-            </div>
-          </div>
+          <CartItem
+            key={p.variant_id}
+            item={p}
+            onQty={delta => onQty(p.variant_id, delta)}
+            onRemove={() => onRemove(p.variant_id)}
+            onDosage={dosage => onDosage(p.variant_id, dosage)}
+            onNote={note => onNote(p.variant_id, note)}
+          />
         ))}
       </div>
 
-      {/* Total + Ganancia + Finalizar */}
+      {/* Total + Finalizar */}
       <div className="p-4 border-t border-gray-100 shrink-0 space-y-2">
         {carrito.length > 0 && (
           <>
             <div className="flex justify-between items-baseline">
               <span className="text-sm text-gray-500">Total</span>
-              <span className="text-lg font-extrabold text-[#1b3f7a] tabular-nums">${totalCarrito.toFixed(2)} <span className="text-xs font-normal text-gray-400">MXN</span></span>
+              <span className="text-lg font-extrabold text-[#1b3f7a] tabular-nums">
+                {fmtMXN(totalCarrito)}
+              </span>
             </div>
             {gananciaCarrito > 0 && (
               <div className="flex justify-between items-baseline bg-emerald-50 rounded-lg px-3 py-2">
                 <span className="text-xs font-semibold text-emerald-700">Tu ganancia</span>
-                <span className="text-sm font-extrabold text-emerald-600 tabular-nums">${gananciaCarrito.toFixed(2)} <span className="text-[10px] font-normal text-emerald-500">MXN</span></span>
+                <span className="text-sm font-extrabold text-emerald-600 tabular-nums">
+                  {fmtMXN(gananciaCarrito)}
+                </span>
               </div>
             )}
           </>
@@ -140,114 +264,156 @@ function CartPanel({ carrito, cambiarCantidad, quitarDelCarrito, totalCarrito, g
   );
 }
 
-// ─── Panel detalle ────────────────────────────────────────────────────────────
-function DetailPanel({ product, onAdd, inCart }) {
-  if (!product) return (
-    <div className="flex-1 flex items-center justify-center text-gray-300 text-sm text-center px-4">
-      Selecciona un producto para ver los detalles
-    </div>
-  );
+// ─── PDF del carrito ──────────────────────────────────────────────────────────
+async function generarPDF(carrito, nombre, profesional) {
+  const patientName     = nombre?.trim() || "Paciente";
+  const professionalName = profesional || "Especialista Vitahub";
+  const today = new Date().toLocaleDateString("es-MX", {
+    year: "numeric", month: "long", day: "numeric",
+  });
 
-  return (
-    <div className="flex flex-col gap-3 p-4 overflow-y-auto flex-1">
-      {product.image && (
-        <img src={product.image} alt={product.title}
-          className="w-full h-44 object-cover rounded-xl" />
-      )}
-      <div>
-        <p className="font-bold text-gray-800 text-sm leading-snug">{product.title}</p>
-        <div className="flex items-center gap-2 mt-1">
-          <p className="text-[#1e3a5f] font-bold text-base">${product.price} MXN</p>
-          {product.comision && (
-            <span className="bg-green-100 text-green-700 text-xs font-semibold px-2 py-0.5 rounded-full">
-              {product.comision}% comisión
-            </span>
-          )}
+  const PLACEHOLDER_SVG = `
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ECEDD" stroke-width="1.2" stroke-linecap="round">
+      <rect x="3" y="3" width="18" height="18" rx="3"/>
+      <circle cx="8.5" cy="8.5" r="1.5"/>
+      <polyline points="21 15 16 10 5 21"/>
+    </svg>`;
+
+  const rowsHtml = carrito.map(({ title, variant_title, image, price, quantity, dosage, note }, idx) => {
+    const imgHtml = image
+      ? `<img src="${image}" class="rx-img" alt="${title}" />`
+      : `<div class="rx-img rx-img-placeholder">${PLACEHOLDER_SVG}</div>`;
+    const dos = dosage || { amount: 1, unit: "cápsula" };
+    const isEven = idx % 2 === 1;
+
+    return `
+    <div class="rx-item ${isEven ? "rx-item--reverse" : ""}">
+      <div class="rx-img-col">${imgHtml}</div>
+      <div class="rx-info">
+        <div class="rx-product-name">${title}</div>
+        ${variant_title ? `<div class="rx-variant">${variant_title}</div>` : ""}
+        <div class="rx-dose-row">
+          <span class="rx-dose-badge">${dos.amount} ${dos.unit}${dos.amount > 1 ? "s" : ""} · ${quantity} unid.</span>
+          ${note ? `<span class="rx-nota">📋 ${note}</span>` : ""}
+          ${price != null ? `<span class="rx-price">${fmtMXN(price)}</span>` : ""}
         </div>
       </div>
-      {product.tags?.length > 0 && (
-        <div className="flex flex-wrap gap-1">
-          {product.tags.map(t => (
-            <span key={t} className="bg-gray-100 text-gray-500 text-xs px-2 py-0.5 rounded-full">{t}</span>
-          ))}
-        </div>
-      )}
-      {product.description && (
-        <p className="text-xs text-gray-500 leading-relaxed">{product.description}</p>
-      )}
-      <button
-        onClick={() => onAdd(product)}
-        disabled={inCart}
-        className={`flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold transition-colors
-          ${inCart
-            ? "bg-green-50 text-green-600 border border-green-200"
-            : "bg-[#1e3a5f] text-white hover:bg-[#162d4a]"
-          }`}
-      >
-        <IconCart />
-        {inCart ? "Ya está en el carrito" : "Agregar al carrito"}
-      </button>
+    </div>`;
+  }).join("\n");
+
+  const html = `<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<title>Carrito — ${patientName}</title>
+<style>
+  @page { size: A4; margin: 12mm 14mm; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Helvetica Neue', Arial, sans-serif; color: #0D2133; font-size: 14px; line-height: 1.5; background: #EEF3F7; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .rx-page { padding: 20px; display: flex; justify-content: center; min-height: 100vh; }
+  .rx-card { width: 100%; max-width: 680px; background: #fff; border: 1px solid #D0E4EC; border-radius: 16px; overflow: hidden; box-shadow: 0 4px 24px rgba(13,33,51,0.10); }
+  .rx-header { background: #0D2133; color: white; padding: 18px 24px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .rx-logo { font-size: 20px; font-weight: 900; color: #1E8FA8; letter-spacing: -0.5px; }
+  .rx-logo em { color: white; font-style: normal; }
+  .rx-logo small { font-size: 11px; font-weight: 400; color: #7EAEC0; display: block; letter-spacing: 0.12em; text-transform: uppercase; }
+  .rx-professional { text-align: right; }
+  .rx-professional strong { font-size: 14px; color: white; display: block; }
+  .rx-professional small { font-size: 11px; color: #7EAEC0; }
+  .rx-patient { background: #F4FAFB; border-bottom: 1px solid #D0E4EC; padding: 14px 24px; display: flex; justify-content: space-between; align-items: center; }
+  .rx-patient h2 { font-size: 16px; font-weight: 800; color: #0D2133; }
+  .rx-patient p { font-size: 12px; color: #5B7A8C; margin-top: 2px; }
+  .rx-patient-meta { text-align: right; font-size: 11px; color: #8AAAB8; }
+  .rx-section-title { font-size: 10px; font-weight: 800; letter-spacing: 0.16em; text-transform: uppercase; color: #8AAAB8; padding: 14px 24px 8px; border-bottom: 1px solid #EEF3F7; }
+  .rx-items { padding: 12px 24px 24px; display: flex; flex-direction: column; gap: 14px; }
+  .rx-item { display: flex; gap: 16px; align-items: flex-start; padding: 14px; background: #F9FCFD; border: 1px solid #E2EBF0; border-radius: 12px; }
+  .rx-item--reverse { flex-direction: row-reverse; background: #EEF3F7; }
+  .rx-img-col { width: 80px; flex-shrink: 0; }
+  .rx-img { width: 80px; height: 80px; object-fit: contain; border-radius: 8px; border: 1px solid #D0E4EC; background: #fff; }
+  .rx-img-placeholder { width: 80px; height: 80px; border-radius: 8px; border: 1px solid #D0E4EC; background: #F4FAFB; display: flex; align-items: center; justify-content: center; }
+  .rx-info { flex: 1; }
+  .rx-product-name { font-size: 14px; font-weight: 800; color: #0D2133; line-height: 1.3; margin-bottom: 3px; }
+  .rx-variant { font-size: 11px; font-weight: 700; color: #1E8FA8; text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 6px; }
+  .rx-dose-row { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 8px; }
+  .rx-dose-badge { background: #1b3f7a; color: white; font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 20px; }
+  .rx-nota { font-size: 11px; color: #5B7A8C; }
+  .rx-price { margin-left: auto; font-size: 13px; font-weight: 800; color: #1b3f7a; }
+  .rx-footer { background: #F4FAFB; border-top: 1px solid #D0E4EC; padding: 12px 24px; text-align: center; font-size: 10px; color: #8AAAB8; }
+  @media print { body { background: white; } .rx-page { padding: 0; } .rx-card { box-shadow: none; border: none; border-radius: 0; } }
+</style>
+</head>
+<body>
+<div class="rx-page">
+  <div class="rx-card">
+    <div class="rx-header">
+      <div class="rx-logo">
+        <em>Vita</em>hub Pro
+        <small>Recomendación de suplementación</small>
+      </div>
+      <div class="rx-professional">
+        <strong>${professionalName}</strong>
+        <small>${today}</small>
+      </div>
     </div>
-  );
+
+    <div class="rx-patient">
+      <div>
+        <h2>${patientName}</h2>
+        <p>Paciente</p>
+      </div>
+      <div class="rx-patient-meta">
+        ${carrito.length} producto${carrito.length !== 1 ? "s" : ""}
+      </div>
+    </div>
+
+    <div class="rx-section-title">Plan de suplementación</div>
+    <div class="rx-items">
+      ${rowsHtml}
+    </div>
+
+    <div class="rx-footer">
+      Este documento es una recomendación de suplementación por parte del especialista.<br/>
+      Vitahub Pro · pro.vitahub.mx
+    </div>
+  </div>
+</div>
+<script>window.onload = () => { window.print(); }<\/script>
+</body>
+</html>`;
+
+  const win = window.open("", "_blank");
+  if (win) {
+    win.document.write(html);
+    win.document.close();
+  }
 }
 
 // ─── Modal finalizar ──────────────────────────────────────────────────────────
-function FinalizarModal({ carrito, customerId, onClose, onSuccess }) {
-  const [nombre, setNombre] = useState("");
+function FinalizarModal({ carrito, customerId, profesional, onClose }) {
+  const [nombre, setNombre]     = useState("");
   const [telefono, setTelefono] = useState("");
-  const [notas, setNotas] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [cartUrl, setCartUrl] = useState(null);
+  const [loading, setLoading]   = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
-  const [checkoutAttrs, setCheckoutAttrs] = useState(null);
-  const [error, setError] = useState(null);
-
-  const buildPayload = () => {
-    const phone = telefono ? `+521${telefono}` : "";
-    return {
-      owner_id: customerId,
-      name: nombre,
-      phone,
-      items: carrito.map(p => ({ variant_id: p.variant_id, quantity: p.quantity || 1 })),
-      extra: { patient_info: { name: nombre, phone, notes: notas }, origen: "armador-carritos" },
-    };
-  };
-
-  const handleGenerar = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const res  = await fetch("/api/sharecart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload()),
-      });
-      const data = await res.json();
-      if (!data.ok) throw new Error("Error generando el carrito");
-      const finalUrl = customerId ? `${data.url}&sref=${encodeURIComponent(customerId)}` : data.url;
-      setCartUrl(finalUrl);
-      onSuccess?.();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [error, setError]       = useState(null);
+  const [copied, setCopied]     = useState(false);
 
   const handleCheckout = async () => {
     setLoading(true);
     setError(null);
     try {
-      const res  = await fetch("/api/sharecart/checkout", {
-        method: "POST",
+      const res = await fetch("/api/sharecart/checkout", {
+        method:  "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(buildPayload()),
+        body: JSON.stringify({
+          owner_id: customerId,
+          name:     nombre,
+          phone:    telefono ? `+521${telefono}` : "",
+          items:    carrito.map(p => ({ variant_id: p.variant_id, quantity: p.quantity || 1 })),
+          extra:    { patient_info: { name: nombre, phone: telefono }, origen: "armador-carritos" },
+        }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Error generando checkout");
       setCheckoutUrl(data.checkoutUrl);
-      setCheckoutAttrs(data.debug?.attributes || []);
-      onSuccess?.();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -255,121 +421,117 @@ function FinalizarModal({ carrito, customerId, onClose, onSuccess }) {
     }
   };
 
+  const copy = () => {
+    navigator.clipboard.writeText(checkoutUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const hasDosage = carrito.some(p => p.dosage || p.note);
+
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 backdrop-blur-sm">
-      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl">
-        <div className="p-5 border-b border-gray-100">
-          <h2 className="font-bold text-gray-800 text-lg">Datos del Paciente</h2>
-          <p className="text-xs text-gray-400 mt-0.5">{carrito.length} producto{carrito.length !== 1 ? "s" : ""} en el carrito</p>
+      <div className="bg-white rounded-2xl w-full max-w-md shadow-xl overflow-hidden">
+        <div className="p-5 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h2 className="font-bold text-gray-800 text-lg">Datos del Paciente</h2>
+            <p className="text-xs text-gray-400 mt-0.5">
+              {carrito.length} producto{carrito.length !== 1 ? "s" : ""}
+            </p>
+          </div>
+          <button onClick={onClose} className="text-gray-300 hover:text-gray-600 transition-colors">
+            <X size={18} />
+          </button>
         </div>
 
-        <div className="p-5 space-y-4">
+        <div className="p-5 space-y-4 max-h-[70vh] overflow-y-auto">
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Nombre del Paciente</label>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Nombre del Paciente
+            </label>
             <input
               type="text"
               placeholder="Ej: Juan Pérez"
               value={nombre}
               onChange={e => setNombre(e.target.value)}
-              className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/30"
+              className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]/20"
             />
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Teléfono <span className="normal-case text-gray-400 font-normal">(10 dígitos, opcional)</span></label>
+            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">
+              Teléfono <span className="normal-case text-gray-400 font-normal">(10 dígitos, opcional)</span>
+            </label>
             <div className="flex items-center gap-2 mt-1">
-              <span className="text-sm font-bold text-[#1e3a5f] bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">+521</span>
+              <span className="text-sm font-bold text-[#1b3f7a] bg-gray-50 border border-gray-200 rounded-lg px-3 py-2.5">
+                +521
+              </span>
               <input
                 type="tel"
                 placeholder="5512345678"
                 maxLength={10}
                 value={telefono}
                 onChange={e => setTelefono(e.target.value.replace(/\D/g, "").slice(0, 10))}
-                className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/30"
+                className="flex-1 border border-gray-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]/20"
               />
             </div>
           </div>
 
-          <div>
-            <label className="text-xs font-semibold text-gray-500 uppercase tracking-wide">Notas Adicionales</label>
-            <textarea
-              placeholder="Observaciones, recomendaciones, etc..."
-              value={notas}
-              onChange={e => setNotas(e.target.value)}
-              rows={3}
-              className="mt-1 w-full border border-gray-200 rounded-lg px-3 py-2.5 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-[#1e3a5f]/30"
-            />
-          </div>
-
           {error && <p className="text-red-500 text-xs">{error}</p>}
 
-          {cartUrl && (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-4">
-              <p className="text-xs font-semibold text-green-700 mb-1">Enlace sharecart</p>
-              <input readOnly value={cartUrl}
-                className="w-full text-xs bg-white border border-green-200 rounded-lg px-3 py-2 text-green-700" />
-              <button onClick={() => navigator.clipboard.writeText(cartUrl)}
-                className="mt-2 w-full bg-green-600 text-white text-sm py-2 rounded-lg hover:bg-green-700 transition-colors">
-                Copiar link
-              </button>
-            </div>
-          )}
-
-          {checkoutUrl && (
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 space-y-3">
-              <p className="text-xs font-semibold text-blue-700">Checkout directo (Shopify)</p>
-
-              <input readOnly value={checkoutUrl}
-                className="w-full text-xs bg-white border border-blue-200 rounded-lg px-3 py-2 text-blue-700" />
-
+          {checkoutUrl ? (
+            <div className="bg-[#E6F4F8] border border-[#1E8FA8]/30 rounded-xl p-4 space-y-3">
+              <p className="text-xs font-semibold text-[#1b3f7a]">Link de checkout listo</p>
+              <input
+                readOnly
+                value={checkoutUrl}
+                className="w-full text-xs bg-white border border-[#1E8FA8]/30 rounded-lg px-3 py-2 text-[#1b3f7a]"
+              />
               <div className="flex gap-2">
-                <button onClick={() => navigator.clipboard.writeText(checkoutUrl)}
-                  className="flex-1 bg-blue-600 text-white text-sm py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                  Copiar link
+                <button
+                  onClick={copy}
+                  className="flex-1 bg-[#1b3f7a] text-white text-sm py-2.5 rounded-xl font-semibold hover:bg-[#162d60] transition-colors"
+                >
+                  {copied ? "¡Copiado!" : "Copiar link"}
                 </button>
-                <button onClick={() => window.open(checkoutUrl, "_blank")}
-                  className="flex-1 border border-blue-300 text-blue-700 text-sm py-2 rounded-lg hover:bg-blue-50 transition-colors">
+                <button
+                  onClick={() => window.open(checkoutUrl, "_blank")}
+                  className="flex-1 border border-[#1b3f7a]/30 text-[#1b3f7a] text-sm py-2.5 rounded-xl font-semibold hover:bg-[#1b3f7a]/5 transition-colors"
+                >
                   Abrir
                 </button>
               </div>
 
-              {checkoutAttrs?.length > 0 && (
-                <div className="bg-white border border-blue-100 rounded-lg px-3 py-2 space-y-1">
-                  <p className="text-[10px] font-semibold text-blue-500 uppercase tracking-wide mb-1">Atributos confirmados en Shopify</p>
-                  {checkoutAttrs.map(a => (
-                    <div key={a.key} className="flex gap-2 text-xs">
-                      <span className="text-gray-400 w-28 shrink-0">{a.key}</span>
-                      <span className={`font-mono font-medium ${a.value ? "text-green-700" : "text-red-500"}`}>
-                        {a.value || "❌ vacío"}
-                      </span>
-                    </div>
-                  ))}
-                </div>
+              {/* PDF solo si tiene indicaciones */}
+              <button
+                onClick={() => generarPDF(carrito, nombre, profesional)}
+                className="w-full flex items-center justify-center gap-2 border border-[#1E8FA8]/30 text-[#1E8FA8] text-sm py-2.5 rounded-xl font-semibold hover:bg-[#1E8FA8]/5 transition-colors"
+              >
+                <FileText size={15} />
+                Generar PDF del paciente
+              </button>
+            </div>
+          ) : (
+            <div className="space-y-2 pt-1">
+              <button
+                onClick={handleCheckout}
+                disabled={loading}
+                className="w-full bg-[#1b3f7a] text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 hover:bg-[#162d60] transition-colors"
+              >
+                {loading ? "Generando..." : "Generar link de checkout"}
+              </button>
+
+              {hasDosage && (
+                <button
+                  onClick={() => generarPDF(carrito, nombre, profesional)}
+                  className="w-full flex items-center justify-center gap-2 border border-gray-200 text-gray-600 text-sm py-3 rounded-xl font-semibold hover:bg-gray-50 transition-colors"
+                >
+                  <FileText size={15} />
+                  Solo generar PDF (sin checkout)
+                </button>
               )}
             </div>
           )}
-
-          {!cartUrl && !checkoutUrl && (
-            <div className="flex flex-col gap-2">
-              <button onClick={handleGenerar} disabled={loading}
-                className="w-full bg-[#1e3a5f] text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 hover:bg-[#162d4a] transition-colors">
-                {loading ? "Generando..." : "Generar Enlace para Compartir"}
-              </button>
-              <button onClick={handleCheckout} disabled={loading}
-                className="w-full bg-indigo-600 text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 hover:bg-indigo-700 transition-colors">
-                {loading ? "Generando..." : "Checkout Directo (nuevo)"}
-              </button>
-            </div>
-          )}
-        </div>
-
-        <div className="px-5 pb-5">
-          <button
-            onClick={onClose}
-            className="w-full border border-gray-200 text-gray-500 py-2.5 rounded-xl text-sm hover:bg-gray-50 transition-colors"
-          >
-            {cartUrl ? "Cerrar" : "Cancelar"}
-          </button>
         </div>
       </div>
     </div>
@@ -379,16 +541,18 @@ function FinalizarModal({ carrito, customerId, onClose, onSuccess }) {
 // ─── Página principal ─────────────────────────────────────────────────────────
 export default function ArmadorCarritos() {
   const { customer } = useCustomer() || {};
-  const customerId = customer?.id;
+  const customerId  = customer?.id;
+  const profesional = customer
+    ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Especialista Vitahub"
+    : "Especialista Vitahub";
 
-  const [query, setQuery] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [query, setQuery]       = useState("");
+  const [loading, setLoading]   = useState(false);
   const [productos, setProductos] = useState([]);
   const [searched, setSearched] = useState(false);
-  const [error, setError] = useState(null);
+  const [error, setError]       = useState(null);
 
-  const [detalle, setDetalle] = useState(null);
-  const [carrito, setCarrito] = useState([]);
+  const [carrito, setCarrito]   = useState([]);   // [{ variant_id, product_id, title, variant_title, image, price, quantity, dosage, note }]
   const [showModal, setShowModal] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
@@ -400,12 +564,12 @@ export default function ArmadorCarritos() {
     setLoading(true);
     setError(null);
     setSearched(false);
-
     try {
-      const res = await fetch(`/api/buscador?q=${encodeURIComponent(query.trim())}`);
+      const res  = await fetch(`/api/product-catalog?search=${encodeURIComponent(query.trim())}`);
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Error al buscar");
-      setProductos(data.products || []);
+      // Filtrar los que están completamente sin stock
+      setProductos((data.items || []).filter(p => !p.all_out_of_stock));
       setSearched(true);
     } catch (e) {
       setError(e.message);
@@ -414,39 +578,69 @@ export default function ArmadorCarritos() {
     }
   };
 
-  const agregarAlCarrito = (producto) => {
+  // cart variant IDs para detectar si ya está agregado
+  const cartVariantIds = new Set(carrito.map(p => p.variant_id));
+
+  const agregarAlCarrito = useCallback((product, variant) => {
     setCarrito(prev => {
-      if (prev.find(p => p.id === producto.id)) return prev;
-      return [...prev, { ...producto, quantity: 1 }];
+      if (prev.find(p => p.variant_id === variant.variant_id)) return prev;
+      return [
+        ...prev,
+        {
+          variant_id:         variant.variant_id,
+          product_id:         product.product_id,
+          title:              product.title,
+          variant_title:      variant.variant_title || null,
+          image:              product.image_url || null,
+          price:              variant.price ?? product.min_price ?? 0,
+          commission_percent: variant.commission_percent ?? product.commission_percent ?? 0,
+          quantity:           1,
+          dosage:             { amount: 1, unit: "cápsula" },
+          note:               "",
+        },
+      ];
     });
-  };
+  }, []);
 
-  const quitarDelCarrito = (id) => {
-    setCarrito(prev => prev.filter(p => p.id !== id));
-  };
+  const quitarDelCarrito  = useCallback((vid) => setCarrito(prev => prev.filter(p => p.variant_id !== vid)), []);
+  const cambiarCantidad   = useCallback((vid, delta) =>
+    setCarrito(prev => prev.map(p => p.variant_id === vid ? { ...p, quantity: Math.max(1, p.quantity + delta) } : p)), []);
+  const cambiarDosage     = useCallback((vid, dosage) =>
+    setCarrito(prev => prev.map(p => p.variant_id === vid ? { ...p, dosage } : p)), []);
+  const cambiarNote       = useCallback((vid, note) =>
+    setCarrito(prev => prev.map(p => p.variant_id === vid ? { ...p, note } : p)), []);
 
-  const cambiarCantidad = (id, delta) => {
-    setCarrito(prev => prev.map(p =>
-      p.id === id ? { ...p, quantity: Math.max(1, (p.quantity || 1) + delta) } : p
-    ));
-  };
-
-  const totalCarrito    = carrito.reduce((acc, p) => acc + parseFloat(p.price || 0) * (p.quantity || 1), 0);
+  const totalCarrito    = carrito.reduce((acc, p) => acc + (p.price || 0) * p.quantity, 0);
   const gananciaCarrito = carrito.reduce((acc, p) => {
-    const pct = parseFloat(p.comision || 0);
-    return acc + parseFloat(p.price || 0) * (p.quantity || 1) * (pct / 100);
+    const pct = p.commission_percent ?? 0;
+    return acc + (p.price || 0) * p.quantity * (pct / 100);
   }, 0);
+
+  const cartPanel = (
+    <CartPanel
+      carrito={carrito}
+      onQty={cambiarCantidad}
+      onRemove={quitarDelCarrito}
+      onDosage={cambiarDosage}
+      onNote={cambiarNote}
+      totalCarrito={totalCarrito}
+      gananciaCarrito={gananciaCarrito}
+      onFinalizar={() => setShowModal(true)}
+    />
+  );
 
   return (
     <div className="h-screen flex flex-col bg-[#F7F9FB] overflow-hidden">
 
-      {/* ── Header estándar ── */}
+      {/* ── Header ── */}
       <div className="bg-white border-b border-gray-100 px-6 shrink-0">
         <div className="max-w-[1280px] mx-auto py-5">
           <h1 className="text-2xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-0.5">
-            Armador de carritos
+            Armador de Protocolos
           </h1>
-          <p className="text-xs text-gray-400 font-medium">Busca productos y arma el carrito para tu paciente</p>
+          <p className="text-xs text-gray-400 font-medium">
+            Busca productos, agrega indicaciones de toma y genera el link de checkout para tu paciente
+          </p>
         </div>
       </div>
 
@@ -476,7 +670,7 @@ export default function ArmadorCarritos() {
 
           {error && <p className="text-red-500 text-sm">{error}</p>}
 
-          {/* Grid de productos — 2 cols mobile, 3 tablet, 4 desktop */}
+          {/* Grid de productos */}
           <div className="flex-1 overflow-y-auto pb-24 lg:pb-4
             [&::-webkit-scrollbar]:w-1.5
             [&::-webkit-scrollbar-track]:bg-transparent
@@ -491,12 +685,12 @@ export default function ArmadorCarritos() {
             {!loading && searched && productos.length === 0 && (
               <div className="flex flex-col items-center justify-center h-48 text-gray-400 text-sm gap-1">
                 <p className="font-semibold">Sin resultados</p>
-                <p className="text-xs text-gray-300">No se encontraron productos para "{query}"</p>
+                <p className="text-xs text-gray-300">No se encontraron productos con stock para "{query}"</p>
               </div>
             )}
             {!loading && !searched && (
               <div className="flex flex-col items-center justify-center h-48 gap-2 text-gray-300">
-                <IconCart />
+                <Package size={28} />
                 <p className="text-sm">Escribe un término para buscar productos</p>
               </div>
             )}
@@ -504,11 +698,10 @@ export default function ArmadorCarritos() {
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
                 {productos.map(p => (
                   <ProductCard
-                    key={p.id}
+                    key={p.product_id}
                     product={p}
                     onAdd={agregarAlCarrito}
-                    onDetail={setDetalle}
-                    inCart={!!carrito.find(c => c.id === p.id)}
+                    cartVariantIds={cartVariantIds}
                   />
                 ))}
               </div>
@@ -516,26 +709,19 @@ export default function ArmadorCarritos() {
           </div>
         </div>
 
-        {/* ── Sidebar carrito — solo desktop (lg+) ── */}
+        {/* ── Sidebar carrito — solo desktop ── */}
         <div className="hidden lg:flex w-80 shrink-0 border-l border-gray-100 bg-white flex-col">
-          <CartPanel
-            carrito={carrito}
-            cambiarCantidad={cambiarCantidad}
-            quitarDelCarrito={quitarDelCarrito}
-            totalCarrito={totalCarrito}
-            gananciaCarrito={gananciaCarrito}
-            onFinalizar={() => setShowModal(true)}
-          />
+          {cartPanel}
         </div>
       </div>
 
-      {/* ── Botón flotante carrito — mobile ── */}
+      {/* ── Botón flotante — mobile ── */}
       <div className="lg:hidden fixed bottom-5 right-5 z-30">
         <button
           onClick={() => setDrawerOpen(true)}
           className="flex items-center gap-2.5 bg-[#1b3f7a] text-white px-5 py-3 rounded-full shadow-xl font-semibold text-sm active:scale-95 transition-all"
         >
-          <IconCart />
+          <Package size={16} />
           Ver carrito
           {carrito.length > 0 && (
             <span className="bg-white text-[#1b3f7a] text-xs font-extrabold w-5 h-5 rounded-full flex items-center justify-center">
@@ -545,7 +731,7 @@ export default function ArmadorCarritos() {
         </button>
       </div>
 
-      {/* ── Drawer carrito — mobile ── */}
+      {/* ── Drawer — mobile ── */}
       {drawerOpen && (
         <div className="lg:hidden fixed inset-0 z-40 flex justify-end" onClick={() => setDrawerOpen(false)}>
           <div className="absolute inset-0 bg-black/40" />
@@ -553,7 +739,6 @@ export default function ArmadorCarritos() {
             className="relative w-80 max-w-[90vw] bg-white h-full shadow-2xl flex flex-col"
             onClick={e => e.stopPropagation()}
           >
-            {/* Header del drawer */}
             <div className="flex items-center justify-between px-4 py-4 border-b border-gray-100 shrink-0">
               <p className="font-extrabold text-[#1b3f7a] text-sm uppercase tracking-widest">Carrito</p>
               <button onClick={() => setDrawerOpen(false)} className="text-gray-300 hover:text-gray-600 transition-colors">
@@ -561,47 +746,19 @@ export default function ArmadorCarritos() {
               </button>
             </div>
             <div className="flex-1 overflow-hidden">
-              <CartPanel
-                carrito={carrito}
-                cambiarCantidad={cambiarCantidad}
-                quitarDelCarrito={quitarDelCarrito}
-                totalCarrito={totalCarrito}
-                gananciaCarrito={gananciaCarrito}
-                onFinalizar={() => { setDrawerOpen(false); setShowModal(true); }}
-              />
+              {cartPanel}
             </div>
           </div>
         </div>
       )}
 
-      {/* ── Modal flotante detalle de producto ── */}
-      {detalle && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40" onClick={() => setDetalle(null)}>
-          <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl overflow-hidden flex flex-col max-h-[85vh]" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 shrink-0">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wide">Detalle del producto</p>
-              <button onClick={() => setDetalle(null)} className="text-gray-300 hover:text-gray-600 transition-colors">
-                <X size={16} />
-              </button>
-            </div>
-            <div className="overflow-y-auto flex-1">
-              <DetailPanel
-                product={detalle}
-                onAdd={(p) => { agregarAlCarrito(p); setDetalle(null); }}
-                inCart={!!carrito.find(c => c.id === detalle?.id)}
-              />
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal finalizar */}
+      {/* ── Modal finalizar ── */}
       {showModal && (
         <FinalizarModal
           carrito={carrito}
           customerId={customerId}
+          profesional={profesional}
           onClose={() => setShowModal(false)}
-          onSuccess={() => setCarrito([])}
         />
       )}
     </div>

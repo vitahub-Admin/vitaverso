@@ -52,8 +52,50 @@ export async function GET(request, { params }) {
       (ordersWithCart || []).map(o => o.share_cart)
     );
 
+    // 2b. Enriquecer items del nuevo formato (tienen variant_id pero sin title)
+    //     Buscar en product_catalog para obtener título y precio real
+    const allVariantIds = new Set();
+    for (const cart of carts || []) {
+      for (const item of cart.items || []) {
+        const vid = item.variant_id ?? item.id;
+        // Enriquecer cualquier item que tenga variant_id pero no title
+        if (vid && !item.title) {
+          allVariantIds.add(Number(vid));
+        }
+      }
+    }
+
+    const variantMap = {};
+    if (allVariantIds.size > 0) {
+      const { data: catalogRows } = await supabase
+        .from('product_catalog')
+        .select('variant_id, title, variant_title, price')
+        .in('variant_id', [...allVariantIds]);
+
+      for (const row of catalogRows || []) {
+        variantMap[row.variant_id] = row;
+      }
+    }
+
+    function enrichItems(items) {
+      if (!Array.isArray(items)) return items;
+      return items.map(item => {
+        const vid = Number(item.variant_id ?? item.id ?? 0);
+        const catalog = variantMap[vid];
+        if (!catalog) return item;
+        return {
+          ...item,
+          variant_id:    vid,
+          title:         item.title         || catalog.title,
+          variant_title: item.variant_title || catalog.variant_title || null,
+          price:         item.price         ?? catalog.price,
+        };
+      });
+    }
+
     // 3. Armar lista con status calculado
     const mergedCarts = (carts || []).map(cart => {
+      const enriched = enrichItems(cart.items);
       const hasSale = shareCartsWithOrders.has(cart.token);
       return {
         source:          'supabase',
@@ -64,11 +106,11 @@ export async function GET(request, { params }) {
         client_name:     cart.name,
         phone:           cart.phone,
         items_count:     Array.isArray(cart.items) ? cart.items.length : 0,
-        items_value:     calculateItemsValue(cart.items),
+        items_value:     calculateItemsValue(enriched),
         status:          hasSale ? 'Completed' : 'Pending',
         has_sale:        hasSale,
         platform:        'new',
-        items:           cart.items,
+        items:           enriched,
         extra:           cart.extra,
         location:        cart.location,
       };

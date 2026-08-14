@@ -17,7 +17,7 @@ export async function GET(req) {
 
   const gqlQuery = `
     {
-      products(first: 20, query: "title:*${q}* OR tag:${q} status:active") {
+      products(first: 20, query: "status:active (title:*${q}* OR tag:${q})") {
         edges {
           node {
             id

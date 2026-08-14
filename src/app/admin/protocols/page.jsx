@@ -58,75 +58,45 @@ function ProductPreviewModal({ productId, title, onClose }) {
   );
 }
 
-// ── Card de producto ──────────────────────────────────────────
-function ProductCard({ item, selected, onToggle }) {
+// ── Card de producto (agrupado — un card por producto, variantes anidadas) ──
+function ProductCard({ product, selected, onToggle }) {
   const [preview, setPreview] = useState(false);
-  const showDesde  = item.variant_count > 1 && item.min_price !== item.price;
-  const priceLabel = showDesde
-    ? `desde ${fmt(item.min_price)}`
-    : fmt(item.price);
-
-  // stock === null → Shopify no respondió (no bloqueamos)
-  const outOfStock = item.stock !== null && item.stock !== undefined && item.stock <= 0;
-  const lowStock   = !outOfStock && item.stock != null && item.stock <= 5;
+  const multiVariant = product.variants?.length > 1;
+  const pct = product.commission_percent ?? 0;
 
   return (
     <>
       {preview && (
-        <ProductPreviewModal
-          productId={item.product_id}
-          title={item.title}
-          onClose={() => setPreview(false)}
-        />
+        <ProductPreviewModal productId={product.product_id} title={product.title} onClose={() => setPreview(false)} />
       )}
 
       <div
-        onClick={() => onToggle(item)}
+        onClick={() => onToggle(product)}
         role="button"
         tabIndex={0}
-        onKeyDown={e => e.key === 'Enter' && onToggle(item)}
-        className={`relative text-left rounded-xl border overflow-hidden transition-all hover:shadow-md cursor-pointer ${
-          selected
-            ? "border-[#1e3a5f] ring-2 ring-[#1e3a5f]/20 shadow-md"
-            : "border-gray-200 hover:border-gray-300"
+        onKeyDown={e => e.key === 'Enter' && onToggle(product)}
+        className={`relative text-left rounded-xl border overflow-hidden transition-all hover:shadow-md cursor-pointer flex flex-col ${
+          selected ? "border-[#1e3a5f] ring-2 ring-[#1e3a5f]/20 shadow-md" : "border-gray-200 hover:border-gray-300"
         }`}
       >
         {/* Imagen */}
         <div className="aspect-square bg-gray-50 relative overflow-hidden">
-          {item.image_url ? (
-            <img
-              src={item.image_url}
-              alt={item.title}
-              className="w-full h-full object-cover"
-            />
+          {product.image_url ? (
+            <img src={product.image_url} alt={product.title} className="w-full h-full object-cover" />
           ) : (
-            <div className="w-full h-full flex items-center justify-center text-gray-200">
-              <Package size={32} />
-            </div>
+            <div className="w-full h-full flex items-center justify-center text-gray-200"><Package size={32} /></div>
           )}
-          {/* Badge Pro flotante — esquina superior izquierda */}
-          {item.is_professional && (
-            <span className="absolute top-2 left-2 bg-[#1e8fa8] text-white text-sm font-normal px-3 py-1.5 rounded-full shadow-md ring-2 ring-white/60 tracking-widest leading-none">
-              PRO
-            </span>
+          {product.is_professional && (
+            <span className="absolute top-2 left-2 bg-[#1e8fa8] text-white text-sm font-normal px-3 py-1.5 rounded-full shadow-md ring-2 ring-white/60 tracking-widest leading-none">PRO</span>
           )}
           {selected && (
             <div className="absolute top-2 right-2 w-6 h-6 bg-[#1e3a5f] rounded-full flex items-center justify-center shadow-md">
               <Check size={12} className="text-white" />
             </div>
           )}
-          {/* Badge comisión — esquina inferior izquierda */}
-          {(() => {
-            const pct = item.commission_percent ?? 0;
-            return (
-              <span className={`absolute bottom-2 left-2 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md ring-2 ring-white/60 leading-none ${
-                pct > 0 ? "bg-emerald-500" : "bg-gray-400"
-              }`}>
-                {pct}%
-              </span>
-            );
-          })()}
-          {/* Eye button */}
+          <span className={`absolute bottom-2 left-2 text-white text-[11px] font-bold px-2.5 py-1 rounded-full shadow-md ring-2 ring-white/60 leading-none ${pct > 0 ? "bg-emerald-500" : "bg-gray-400"}`}>
+            {pct}%
+          </span>
           <button
             onClick={e => { e.stopPropagation(); setPreview(true); }}
             className="absolute bottom-2 right-2 w-7 h-7 bg-white/90 hover:bg-white rounded-full flex items-center justify-center shadow-sm text-gray-500 hover:text-[#1e3a5f] transition-all"
@@ -136,39 +106,43 @@ function ProductCard({ item, selected, onToggle }) {
           </button>
         </div>
 
-      {/* Info */}
-      <div className="p-2.5">
-        <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">
-          {item.title}
-        </p>
-        {item.variant_title && (
-          <p className="text-[11px] text-gray-400 mt-0.5 truncate">{item.variant_title}</p>
+        {/* Info */}
+        <div className="p-2.5 flex-1">
+          <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{product.title}</p>
+          {product.brand && <p className="text-[11px] text-[#1e8fa8] mt-1 truncate font-medium">{product.brand}</p>}
+          {product.primary_ingredient && (
+            <p className="text-[11px] text-emerald-700 bg-emerald-50 rounded px-1.5 py-0.5 mt-1.5 truncate font-medium">
+              {product.primary_ingredient}{product.primary_amount ? ` ${product.primary_amount}${product.primary_unit ?? ''}` : ''}
+            </p>
+          )}
+          {product.min_price != null && (
+            <p className="text-xs font-bold text-gray-700 mt-1">
+              {multiVariant ? `desde ${fmt(product.min_price)}` : fmt(product.min_price)}
+            </p>
+          )}
+          {product.all_out_of_stock && (
+            <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full mt-0.5 inline-block">Sin stock</span>
+          )}
+        </div>
+
+        {/* Variantes — solo si hay más de una */}
+        {multiVariant && (
+          <div className="px-2.5 pb-2 pt-1.5 flex flex-wrap gap-1 border-t border-gray-100">
+            {product.variants.map(v => (
+              <span
+                key={v.variant_id}
+                className={`text-[10px] px-1.5 py-0.5 rounded-full border ${
+                  v.stock !== null && v.stock <= 0
+                    ? "text-red-400 border-red-100 bg-red-50 line-through"
+                    : "text-gray-500 border-gray-100 bg-gray-50"
+                }`}
+              >
+                {v.variant_title || `v${v.variant_id}`}
+              </span>
+            ))}
+          </div>
         )}
-        {item.brand && (
-          <p className="text-[11px] text-[#1e8fa8] mt-1 truncate font-medium">{item.brand}</p>
-        )}
-        {/* Ingrediente principal */}
-        {item.primary_ingredient && (
-          <p className="text-[11px] text-emerald-700 bg-emerald-50 rounded px-1.5 py-0.5 mt-1.5 truncate font-medium">
-            {item.primary_ingredient}
-            {item.primary_amount && ` ${item.primary_amount}${item.primary_unit ?? ''}`}
-          </p>
-        )}
-        {priceLabel && (
-          <p className="text-xs font-bold text-gray-700 mt-1">{priceLabel}</p>
-        )}
-        {/* Stock pill */}
-        {outOfStock ? (
-          <span className="text-[10px] font-semibold text-red-500 bg-red-50 px-2 py-0.5 rounded-full w-fit mt-0.5">
-            Sin stock
-          </span>
-        ) : lowStock ? (
-          <span className="text-[10px] font-semibold text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full w-fit mt-0.5">
-            Últimas {item.stock}
-          </span>
-        ) : null}
       </div>
-    </div>
     </>
   );
 }
@@ -225,18 +199,17 @@ function ComponentEditor({ comp, index, onUpdate, onRemove, componentes }) {
     onUpdate({ ...comp, componente: "", items: [] });
   };
 
-  const toggleItem = (item) => {
-    const exists = comp.items.find(i => i.variant_id === item.variant_id);
+  const toggleItem = (product) => {
+    const exists = comp.items.find(i => i.product_id === product.product_id);
     const next   = exists
-      ? comp.items.filter(i => i.variant_id !== item.variant_id)
+      ? comp.items.filter(i => i.product_id !== product.product_id)
       : [
           ...comp.items,
           {
-            variant_id:    item.variant_id,
-            product_id:    item.product_id,
-            title:         item.title,
-            variant_title: item.variant_title,
-            sku:           item.sku,
+            product_id: product.product_id,
+            title:      product.title,
+            image_url:  product.image_url || null,
+            variants:   product.variants || [],
           },
         ];
     onUpdate({ ...comp, items: next });
@@ -379,9 +352,9 @@ function ComponentEditor({ comp, index, onUpdate, onRemove, componentes }) {
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
                   {sortedProducts.map(p => (
                     <ProductCard
-                      key={p.variant_id}
-                      item={p}
-                      selected={!!comp.items.find(i => i.variant_id === p.variant_id)}
+                      key={p.product_id}
+                      product={p}
+                      selected={!!comp.items.find(i => i.product_id === p.product_id)}
                       onToggle={toggleItem}
                     />
                   ))}
@@ -428,18 +401,17 @@ function LibreEditor({ comp, index, onUpdate, onRemove }) {
 
   const clearSearch = () => { setSearch(""); setResults([]); };
 
-  const toggleItem = (item) => {
-    const exists = comp.items.find(i => i.variant_id === item.variant_id);
+  const toggleItem = (product) => {
+    const exists = comp.items.find(i => i.product_id === product.product_id);
     const next   = exists
-      ? comp.items.filter(i => i.variant_id !== item.variant_id)
+      ? comp.items.filter(i => i.product_id !== product.product_id)
       : [
           ...comp.items,
           {
-            variant_id:    item.variant_id,
-            product_id:    item.product_id,
-            title:         item.title,
-            variant_title: item.variant_title,
-            sku:           item.sku,
+            product_id: product.product_id,
+            title:      product.title,
+            image_url:  product.image_url || null,
+            variants:   product.variants || [],
           },
         ];
     onUpdate({ ...comp, items: next });
@@ -473,10 +445,11 @@ function LibreEditor({ comp, index, onUpdate, onRemove }) {
             <div className="flex flex-wrap gap-1.5 pb-1">
               {comp.items.map(i => (
                 <span
-                  key={i.variant_id}
+                  key={i.product_id}
                   className="flex items-center gap-1 px-2.5 py-1 bg-[#1e8fa8]/10 text-[#1e8fa8] rounded-full text-xs font-medium"
                 >
-                  {i.title}{i.variant_title ? ` · ${i.variant_title}` : ""}
+                  {i.title}
+                  {i.variants?.length > 1 ? ` · ${i.variants.length} var.` : ""}
                   <button onClick={() => toggleItem(i)} className="ml-0.5 hover:text-red-500 transition-colors">
                     <X size={11} />
                   </button>
@@ -522,9 +495,9 @@ function LibreEditor({ comp, index, onUpdate, onRemove }) {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2.5">
               {results.map(p => (
                 <ProductCard
-                  key={p.variant_id}
-                  item={p}
-                  selected={!!comp.items.find(i => i.variant_id === p.variant_id)}
+                  key={p.product_id}
+                  product={p}
+                  selected={!!comp.items.find(i => i.product_id === p.product_id)}
                   onToggle={toggleItem}
                 />
               ))}

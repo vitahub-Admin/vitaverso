@@ -438,11 +438,26 @@ function CartCard({ cart, copiedToken, onCopy }) {
                   ))}
                 </div>
               ) : (
-                <div className="flex flex-col gap-2">
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {cart.items.map((item, i) => (
-                    <div key={i} className="flex items-center justify-between bg-white border border-gray-100 rounded-xl px-4 py-3 text-xs">
-                      <span className="text-gray-500">Item #{i + 1} — <span className="font-mono">{item.variant_id || "Sin ID"}</span></span>
-                      <span className="font-semibold text-[#1b3f7a]">× {item.quantity || 1}</span>
+                    <div key={i} className="bg-white border border-gray-100 rounded-xl p-3 flex flex-col gap-2">
+                      {item.title ? (
+                        <p className="text-xs font-semibold text-gray-800 line-clamp-2">{item.title}</p>
+                      ) : (
+                        <p className="text-[0.7rem] text-gray-400 font-mono">#{item.variant_id || "Sin ID"}</p>
+                      )}
+                      {item.variant_title && (
+                        <p className="text-[0.7rem] text-gray-400">{item.variant_title}</p>
+                      )}
+                      <div className="flex items-center justify-between mt-auto pt-2 border-t border-gray-50">
+                        <span className="text-[0.67rem] text-gray-400 uppercase tracking-wide">Cant.</span>
+                        <span className="text-xs font-bold text-[#1b3f7a]">{item.quantity || 1}</span>
+                      </div>
+                      {item.price != null && (
+                        <p className="text-[0.67rem] text-gray-400 tabular-nums">
+                          ${(parseFloat(item.price) * (item.quantity || 1)).toFixed(2)} MXN
+                        </p>
+                      )}
                     </div>
                   ))}
                 </div>

@@ -133,14 +133,32 @@ function ProductPreviewModal({ productId, title, onClose }) {
   );
 }
 
+// ── Helper: aplana items de un componente a nivel variante (formato nuevo y antiguo) ──
+// Formato nuevo: { product_id, title, image_url, variants: [{ variant_id, variant_title, ... }] }
+// Formato antiguo: { variant_id, product_id, title, variant_title, ... }
+function flattenCompItems(comp) {
+  return (comp.items || []).flatMap(item =>
+    Array.isArray(item.variants)
+      ? item.variants.map(v => ({
+          variant_id:    v.variant_id,
+          product_id:    item.product_id,
+          title:         item.title,
+          variant_title: v.variant_title || null,
+          sku:           v.sku || null,
+          image_url:     item.image_url || null,
+        }))
+      : [item]
+  );
+}
+
 // ── Campo de prescripción: componente + ítem prescrito + opciones ─
 function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, stockMap, onSelect, onQty,
                              dosage, note, onDosageChange, onNoteChange, onRemove }) {
   const [open, setOpen]       = useState(false);
   const [preview, setPreview] = useState(null); // { product_id, title }
 
-  const items        = comp.items || [];
-  const selectedItem = items.find(i => selection[i.variant_id]);
+  const flatItems    = flattenCompItems(comp);
+  const selectedItem = flatItems.find(i => selection[i.variant_id]);
   const price        = selectedItem ? (priceMap[selectedItem.variant_id] ?? null) : null;
   const qty          = selectedItem ? (quantity[selectedItem.variant_id] || 1) : 1;
 
@@ -273,13 +291,13 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
         )}
 
         {/* ── Toggle para ver / cambiar opciones ── */}
-        {items.length > 1 && (
+        {flatItems.length > 1 && (
           <button
             onClick={() => setOpen(o => !o)}
             className="flex items-center gap-1 mt-2 ml-0.5 text-[11px] font-bold text-[#5B7A8C] hover:text-[#1E8FA8] transition-colors"
           >
             <ChevronDown size={12} className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
-            {open ? "Cerrar opciones" : `Cambiar — ${items.length} opciones`}
+            {open ? "Cerrar opciones" : `Cambiar — ${flatItems.length} opciones`}
           </button>
         )}
 
@@ -296,7 +314,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
         {open && (
           <div className="mt-2 border border-[#D0E4EC] rounded-xl overflow-hidden">
             <div className="divide-y divide-[#EEF3F7]">
-              {items.map(item => {
+              {flatItems.map(item => {
                 const isSel      = !!selection[item.variant_id];
                 const itemPrice  = priceMap[item.variant_id] ?? null;
                 const stock      = stockMap?.[item.variant_id];
@@ -444,20 +462,18 @@ function ProtocolUse({ protocol, customerId, onBack }) {
 
   // Cargar precios + pre-seleccionar primer ítem de cada componente
   useEffect(() => {
+    // Aplanar a nivel variante (compatible formato nuevo y antiguo)
     const allIds = protocol.components
-      .flatMap(c => c.items || [])
+      .flatMap(c => flattenCompItems(c))
       .map(i => i.variant_id)
       .filter(Boolean);
 
-    // Pre-seleccionar primer ítem de cada componente
+    // Pre-seleccionar primera variante de cada componente (provisional, antes de saber stock)
     const initSel = {};
     const initQty = {};
     protocol.components.forEach(comp => {
-      const first = comp.items?.[0];
-      if (first) {
-        initSel[first.variant_id] = true;
-        initQty[first.variant_id] = 1;
-      }
+      const first = flattenCompItems(comp)[0];
+      if (first) { initSel[first.variant_id] = true; initQty[first.variant_id] = 1; }
     });
     setSelections(initSel);
     setQuantities(initQty);
@@ -468,20 +484,46 @@ function ProtocolUse({ protocol, customerId, onBack }) {
       .then(r => r.json())
       .then(d => {
         if (d.ok) {
-          setPriceMap(d.prices      || {});
-          setStockMap(d.stock       || {});
+          const stockData = d.stock || {};
+          setPriceMap(d.prices || {});
+          setStockMap(stockData);
           setCommissionMap(d.commissions || {});
+
+          // Re-evaluar selecciones: si la variante pre-seleccionada está sin stock,
+          // buscar la primera con stock en el mismo componente y cambiarla
+          setSelections(prev => {
+            const next = { ...prev };
+            protocol.components.forEach(comp => {
+              const flat    = flattenCompItems(comp);
+              const selVid  = flat.find(v => next[v.variant_id])?.variant_id;
+              if (!selVid) return;
+              const selStock = stockData[selVid];
+              if (selStock !== null && selStock !== undefined && selStock <= 0) {
+                // Buscar primera con stock
+                const alt = flat.find(v => {
+                  const s = stockData[v.variant_id];
+                  return s === null || s === undefined || s > 0;
+                });
+                if (alt && alt.variant_id !== selVid) {
+                  delete next[selVid];
+                  next[alt.variant_id] = true;
+                }
+              }
+            });
+            return next;
+          });
         }
       })
       .finally(() => setLoadingPrices(false));
   }, [protocol]);
 
-  // Selección: radio por componente
+  // Selección: radio por componente (borra todas las variantes del comp antes de seleccionar)
   const selectItem = useCallback((compIndex, item) => {
     const comp = protocol.components[compIndex];
     setSelections(prev => {
       const next = { ...prev };
-      for (const ci of (comp.items || [])) delete next[ci.variant_id];
+      // Quitar todas las variantes del componente (formato nuevo y antiguo)
+      for (const ci of flattenCompItems(comp)) delete next[ci.variant_id];
       if (prev[item.variant_id]) delete next[item.variant_id];
       else next[item.variant_id] = true;
       return next;
@@ -497,7 +539,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
   const hiddenVariantIds = useMemo(() => {
     const ids = new Set();
     protocol.components.forEach((comp, ci) => {
-      if (hiddenComps.has(ci)) comp.items?.forEach(item => ids.add(item.variant_id));
+      if (hiddenComps.has(ci)) flattenCompItems(comp).forEach(v => ids.add(v.variant_id));
     });
     return ids;
   }, [hiddenComps, protocol.components]);
@@ -597,8 +639,14 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     const initSel = {};
     const initQty = {};
     protocol.components.forEach(comp => {
-      const first = comp.items?.[0];
-      if (first) { initSel[first.variant_id] = true; initQty[first.variant_id] = 1; }
+      // Intentar seleccionar la primera con stock según stockMap actual;
+      // si no se conoce, caer en la primera
+      const flat = flattenCompItems(comp);
+      const pick = flat.find(v => {
+        const s = stockMap[v.variant_id];
+        return s === null || s === undefined || s > 0;
+      }) || flat[0];
+      if (pick) { initSel[pick.variant_id] = true; initQty[pick.variant_id] = 1; }
     });
     setSelections(initSel);
     setQuantities(initQty);
@@ -624,9 +672,9 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     // ── Cargar imágenes y descripciones en paralelo ──────────────
     // (rows se construye después para poder usar descMap)
     const rowsRaw = protocol.components
-      .filter(comp => comp.items?.some(i => selections[i.variant_id]))
+      .filter(comp => flattenCompItems(comp).some(i => selections[i.variant_id]))
       .map(comp => {
-        const item  = comp.items.find(i => selections[i.variant_id]);
+        const item = flattenCompItems(comp).find(i => selections[i.variant_id]);
         return {
           comp,
           item,

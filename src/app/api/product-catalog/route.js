@@ -35,13 +35,13 @@ async function fetchImages(productIds) {
   return map
 }
 
-// Trae price + inventoryQuantity de Shopify en tiempo real para una lista de variant_ids
+// Trae price + inventoryQuantity + product.status de Shopify en tiempo real para una lista de variant_ids
 async function fetchVariantData(variantIds) {
-  if (!variantIds.length) return { prices: {}, stock: {} }
+  if (!variantIds.length) return { prices: {}, stock: {}, productStatus: {} }
   const gids = variantIds.map(id => `gid://shopify/ProductVariant/${id}`)
 
   const aliases = gids.map((gid, i) =>
-    `v${i}: node(id: "${gid}") { ... on ProductVariant { id price inventoryQuantity } }`
+    `v${i}: node(id: "${gid}") { ... on ProductVariant { id price inventoryQuantity product { status } } }`
   ).join('\n')
 
   try {
@@ -51,19 +51,21 @@ async function fetchVariantData(variantIds) {
       body:    JSON.stringify({ query: `{ ${aliases} }` }),
     })
     const json = await res.json()
-    if (!json.data) return { prices: {}, stock: {} }
+    if (!json.data) return { prices: {}, stock: {}, productStatus: {} }
 
-    const prices = {}
-    const stock  = {}
+    const prices        = {}
+    const stock         = {}
+    const productStatus = {}
     variantIds.forEach((vid, i) => {
       const node = json.data[`v${i}`]
       if (!node) return
-      if (node.price           != null) prices[vid] = parseFloat(node.price)
-      if (node.inventoryQuantity != null) stock[vid] = node.inventoryQuantity
+      if (node.price             != null) prices[vid]        = parseFloat(node.price)
+      if (node.inventoryQuantity != null) stock[vid]         = node.inventoryQuantity
+      if (node.product?.status)           productStatus[vid] = node.product.status
     })
-    return { prices, stock }
+    return { prices, stock, productStatus }
   } catch {
-    return { prices: {}, stock: {} } // Si Shopify falla no bloqueamos
+    return { prices: {}, stock: {}, productStatus: {} } // Si Shopify falla no bloqueamos
   }
 }
 
@@ -120,43 +122,64 @@ export async function GET(req) {
       const uniqueProductIds = [...new Set(rows.map(r => r.product_id))]
       const variantIds = rows.map(r => r.variant_id)
 
-      // Precios mínimos y conteo de variantes por producto
-      const minPriceMap = {}
-      const countMap    = {}
-      for (const r of rows) {
-        const pid = r.product_id
-        if (r.price !== null && (minPriceMap[pid] === undefined || r.price < minPriceMap[pid])) minPriceMap[pid] = r.price
-        countMap[pid] = (countMap[pid] || 0) + 1
-      }
-
-      const [imageMap, { data: commData }, { stock }] = await Promise.all([
+      const [imageMap, { data: commData }, { stock, productStatus }] = await Promise.all([
         fetchImages(uniqueProductIds),
         variantIds.length
           ? supabase.from('product_variant_commissions').select('variant_id, commission_percent').in('variant_id', variantIds).eq('active', true)
           : Promise.resolve({ data: [] }),
-        variantIds.length ? fetchVariantData(variantIds) : Promise.resolve({ prices: {}, stock: {} }),
+        variantIds.length ? fetchVariantData(variantIds) : Promise.resolve({ prices: {}, stock: {}, productStatus: {} }),
       ])
 
       const commissionMap = {}
       for (const c of commData || []) commissionMap[c.variant_id] = Number(c.commission_percent)
 
-      const enriched = rows
-        .map(r => ({
-          ...r,
-          image_url:          imageMap[r.product_id] || null,
-          min_price:          minPriceMap[r.product_id] ?? r.price,
-          variant_count:      countMap[r.product_id] || 1,
-          commission_percent: commissionMap[r.variant_id] ?? null,
+      // Agrupar por producto (un card por producto, variantes anidadas)
+      const productMap = new Map()
+      for (const r of rows) {
+        const ps = productStatus[r.variant_id]
+        if (ps && ps !== 'ACTIVE') continue // excluir borradores/archivados
+        if (!productMap.has(r.product_id)) {
+          productMap.set(r.product_id, {
+            product_id:         r.product_id,
+            title:              r.title,
+            image_url:          imageMap[r.product_id] || null,
+            brand:              r.brand || null,
+            primary_ingredient: r.primary_ingredient || null,
+            primary_amount:     r.primary_amount || null,
+            primary_unit:       r.primary_unit || null,
+            is_professional:    r.is_professional || false,
+            componente:         r.componente || null,
+            variants:           [],
+          })
+        }
+        productMap.get(r.product_id).variants.push({
+          variant_id:         r.variant_id,
+          variant_title:      r.variant_title || null,
+          price:              r.price ?? null,
+          sku:                r.sku || null,
           stock:              stock[r.variant_id] ?? null,
-        }))
-        .sort((a, b) => {
-          const aOut = a.stock !== null && a.stock <= 0;
-          const bOut = b.stock !== null && b.stock <= 0;
-          if (aOut !== bOut) return aOut ? 1 : -1;
-          return (b.price ?? 0) - (a.price ?? 0);
+          commission_percent: commissionMap[r.variant_id] ?? 0,
+          nutrients:          r.nutrients || [],
         })
+      }
 
-      return NextResponse.json({ ok: true, items: enriched })
+      const products = [...productMap.values()].map(p => {
+        const prices   = p.variants.map(v => v.price).filter(pr => pr != null && pr > 0)
+        const allOOS   = p.variants.length > 0 && p.variants.every(v => v.stock !== null && v.stock <= 0)
+        const maxComm  = Math.max(0, ...p.variants.map(v => v.commission_percent ?? 0))
+        // Merge nutrients (max por nutriente entre variantes)
+        const nutMap   = new Map()
+        for (const v of p.variants) for (const n of v.nutrients || []) {
+          if (!nutMap.has(n.name) || n.amount > nutMap.get(n.name).amount) nutMap.set(n.name, n)
+        }
+        return { ...p, min_price: prices.length ? Math.min(...prices) : null,
+          all_out_of_stock: allOOS, commission_percent: maxComm, nutrients: [...nutMap.values()] }
+      }).sort((a, b) => {
+        if (a.all_out_of_stock !== b.all_out_of_stock) return a.all_out_of_stock ? 1 : -1
+        return (b.min_price ?? 0) - (a.min_price ?? 0)
+      })
+
+      return NextResponse.json({ ok: true, items: products })
     }
 
     // GET /api/product-catalog?product_ids=123,456  → imagen de Shopify por product_id
@@ -210,54 +233,67 @@ export async function GET(req) {
       if (error) throw error
       const rows = data || []
 
-      // Calcular precio mínimo y cantidad de variantes por producto
-      const minPriceMap = {}
-      const countMap    = {}
-      for (const r of rows) {
-        const pid = r.product_id
-        if (r.price !== null && (minPriceMap[pid] === undefined || r.price < minPriceMap[pid])) {
-          minPriceMap[pid] = r.price
-        }
-        countMap[pid] = (countMap[pid] || 0) + 1
-      }
-
-      // Traer imágenes + comisiones + stock en paralelo
       const uniqueProductIds = [...new Set(rows.map(r => r.product_id))]
       const variantIds = rows.map(r => r.variant_id)
 
-      const [imageMap, { data: commData }, { stock }] = await Promise.all([
+      const [imageMap, { data: commData }, { stock, productStatus }] = await Promise.all([
         fetchImages(uniqueProductIds),
         supabase
           .from('product_variant_commissions')
           .select('variant_id, commission_percent')
           .in('variant_id', variantIds)
           .eq('active', true),
-        fetchVariantData(variantIds), // stock en tiempo real desde Shopify
+        fetchVariantData(variantIds),
       ])
 
       const commissionMap = {}
-      for (const c of commData || []) {
-        commissionMap[c.variant_id] = Number(c.commission_percent)
+      for (const c of commData || []) commissionMap[c.variant_id] = Number(c.commission_percent)
+
+      // Agrupar por producto (un card por producto, variantes anidadas)
+      const productMap = new Map()
+      for (const r of rows) {
+        const ps = productStatus[r.variant_id]
+        if (ps && ps !== 'ACTIVE') continue
+        if (!productMap.has(r.product_id)) {
+          productMap.set(r.product_id, {
+            product_id:         r.product_id,
+            title:              r.title,
+            image_url:          imageMap[r.product_id] || null,
+            brand:              r.brand || null,
+            primary_ingredient: r.primary_ingredient || null,
+            primary_amount:     r.primary_amount || null,
+            primary_unit:       r.primary_unit || null,
+            is_professional:    r.is_professional || false,
+            variants:           [],
+          })
+        }
+        productMap.get(r.product_id).variants.push({
+          variant_id:         r.variant_id,
+          variant_title:      r.variant_title || null,
+          price:              r.price ?? null,
+          sku:                r.sku || null,
+          stock:              stock[r.variant_id] ?? null,
+          commission_percent: commissionMap[r.variant_id] ?? 0,
+          nutrients:          r.nutrients || [],
+        })
       }
 
-      const enriched = rows
-        .map(r => ({
-          ...r,
-          image_url:          imageMap[r.product_id] || null,
-          min_price:          minPriceMap[r.product_id] ?? r.price,
-          variant_count:      countMap[r.product_id] || 1,
-          commission_percent: commissionMap[r.variant_id] ?? null,
-          stock:              stock[r.variant_id] ?? null, // null = Shopify no respondió
-        }))
-        // Agotados al fondo; dentro de cada grupo por precio DESC
-        .sort((a, b) => {
-          const aOut = a.stock !== null && a.stock <= 0;
-          const bOut = b.stock !== null && b.stock <= 0;
-          if (aOut !== bOut) return aOut ? 1 : -1;
-          return (b.price ?? 0) - (a.price ?? 0);
-        })
+      const products = [...productMap.values()].map(p => {
+        const prices  = p.variants.map(v => v.price).filter(pr => pr != null && pr > 0)
+        const allOOS  = p.variants.length > 0 && p.variants.every(v => v.stock !== null && v.stock <= 0)
+        const maxComm = Math.max(0, ...p.variants.map(v => v.commission_percent ?? 0))
+        const nutMap  = new Map()
+        for (const v of p.variants) for (const n of v.nutrients || []) {
+          if (!nutMap.has(n.name) || n.amount > nutMap.get(n.name).amount) nutMap.set(n.name, n)
+        }
+        return { ...p, min_price: prices.length ? Math.min(...prices) : null,
+          all_out_of_stock: allOOS, commission_percent: maxComm, nutrients: [...nutMap.values()] }
+      }).sort((a, b) => {
+        if (a.all_out_of_stock !== b.all_out_of_stock) return a.all_out_of_stock ? 1 : -1
+        return (b.min_price ?? 0) - (a.min_price ?? 0)
+      })
 
-      return NextResponse.json({ ok: true, items: enriched })
+      return NextResponse.json({ ok: true, items: products })
     }
 
     // Lista de componentes únicos (paginado — Supabase cap server-side = 1000 filas)
