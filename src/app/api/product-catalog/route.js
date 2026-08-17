@@ -82,6 +82,31 @@ export async function GET(req) {
     const descriptionId   = searchParams.get('description') // ?description=PRODUCT_ID
     const searchQuery     = searchParams.get('search')      // ?search=nombre producto
 
+    // ?titles_for=123,456 → títulos desde product_catalog local, sin llamar a Shopify
+    // Usado para restaurar extras en historial de protocolos
+    const titlesFor = searchParams.get('titles_for')
+    if (titlesFor) {
+      const ids = titlesFor.split(',').map(Number).filter(Boolean)
+      if (!ids.length) return NextResponse.json({ ok: true, variants: {} })
+
+      const { data, error } = await supabase
+        .from('product_catalog')
+        .select('variant_id, title, variant_title, price')
+        .in('variant_id', ids)
+
+      if (error) throw error
+
+      const variants = {}
+      for (const row of data || []) {
+        variants[row.variant_id] = {
+          title:         row.title,
+          variant_title: row.variant_title || null,
+          price:         row.price ?? 0,
+        }
+      }
+      return NextResponse.json({ ok: true, variants })
+    }
+
     // ?description=123 → trae descriptionHtml de Shopify para preview
     if (descriptionId) {
       const gid = `gid://shopify/Product/${descriptionId}`

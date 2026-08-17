@@ -5,7 +5,7 @@ import { useCustomer } from "../context/CustomerContext.jsx";
 import {
   ArrowLeft, ChevronDown, Minus, Plus, CheckCircle2, X,
   ClipboardList, User, Phone, ExternalLink, Copy,
-  ShoppingCart, TrendingUp, FileText, Eye, Search, EyeOff, PackagePlus,
+  ShoppingCart, TrendingUp, FileText, Eye, Search, EyeOff, PackagePlus, RotateCcw,
 } from "lucide-react";
 
 // Descripción fallback si no hay match en la tabla componentes
@@ -394,6 +394,103 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
   );
 }
 
+// ── Historial de compartidos por protocolo ────────────────────
+function ProtocolHistory({ protocolId, onRestore }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/sharecart?protocol_id=${protocolId}`)
+      .then(r => r.json())
+      .then(d => { if (d.ok) setHistory(d.carts || []); })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [protocolId]);
+
+  // Ocultar sección si no hay historial y ya terminó de cargar
+  if (!loading && history.length === 0) return null;
+
+  const fmtDate = (d) => new Date(d).toLocaleDateString('es-MX', {
+    day: '2-digit', month: 'short', year: 'numeric',
+  });
+
+  return (
+    <div className="px-4 pt-4 pb-2 lg:px-6 border-t border-[#D0E4EC] bg-[#F7F9FB]">
+      <div className="max-w-5xl mx-auto">
+
+        {/* Encabezado de sección */}
+        <div className="flex items-center gap-2 mb-3">
+          <RotateCcw size={12} className="text-[#5B7A8C]" />
+          <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">
+            Configuraciones anteriores
+          </p>
+          {!loading && (
+            <span className="text-[10px] font-bold bg-[#1E8FA8]/15 text-[#1E8FA8] px-2 py-0.5 rounded-full tabular-nums">
+              {history.length}
+            </span>
+          )}
+        </div>
+
+        {/* Spinner */}
+        {loading && (
+          <div className="flex items-center gap-2 py-3">
+            <div className="w-4 h-4 border-2 border-[#1E8FA8] border-t-transparent rounded-full animate-spin shrink-0" />
+            <span className="text-xs text-[#7EAEC0]">Cargando historial…</span>
+          </div>
+        )}
+
+        {/* Cards horizontales con scroll */}
+        {!loading && history.length > 0 && (
+          <div className="flex gap-3 overflow-x-auto pb-3
+            [&::-webkit-scrollbar]:h-1
+            [&::-webkit-scrollbar-track]:bg-transparent
+            [&::-webkit-scrollbar-thumb]:bg-[#D0E4EC]
+            [&::-webkit-scrollbar-thumb]:rounded-full">
+            {history.map(cart => {
+              const itemCount = cart.items?.length || 0;
+              const rawPhone  = (cart.phone || '').replace(/^\+521?/, '').replace(/\D/g, '');
+              return (
+                <div key={cart.token}
+                  className="shrink-0 w-52 bg-white border border-[#D0E4EC] rounded-2xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md hover:border-[#1E8FA8]/40 transition-all">
+
+                  {/* Info principal */}
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-[#0D2133] truncate leading-snug">
+                      {cart.name || 'Sin nombre'}
+                    </p>
+                    <p className="text-[11px] text-[#7EAEC0] mt-0.5">
+                      {fmtDate(cart.created_at)}
+                    </p>
+                    {rawPhone && (
+                      <p className="text-[11px] text-[#5B7A8C] mt-0.5 tabular-nums">
+                        {rawPhone}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Chip productos */}
+                  <span className="self-start text-[10px] font-bold bg-[#E6F4F8] text-[#1E8FA8] px-2.5 py-1 rounded-full">
+                    {itemCount} producto{itemCount !== 1 ? 's' : ''}
+                  </span>
+
+                  {/* Botón restaurar */}
+                  <button
+                    onClick={() => onRestore(cart)}
+                    className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#0D2133] bg-[#EEF3F7] hover:bg-[#1E8FA8] hover:text-white px-3 py-2 rounded-xl transition-colors"
+                  >
+                    <RotateCcw size={11} />
+                    Restaurar
+                  </button>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // La ganancia se calcula por producto desde product_variant_commissions (ver commissionMap)
 
 // ── Vista de uso del protocolo ────────────────────────────────
@@ -657,6 +754,64 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     setTelefono("");
     setError("");
   };
+
+  // ── Restaurar configuración desde historial ───────────────────
+  const restoreFromHistory = useCallback(async (cart) => {
+    // Variant IDs que pertenecen al protocolo actual
+    const protocolVidSet = new Set(
+      protocol.components.flatMap(c => flattenCompItems(c)).map(i => i.variant_id)
+    );
+
+    const savedItems = cart.items || [];
+    const protocolItems = savedItems.filter(i => protocolVidSet.has(i.variant_id));
+    const extraSaved    = savedItems.filter(i => !protocolVidSet.has(i.variant_id));
+
+    // Restaurar selecciones y cantidades del protocolo
+    const newSel = {};
+    const newQty = {};
+    for (const it of protocolItems) {
+      newSel[it.variant_id] = true;
+      newQty[it.variant_id] = it.quantity || 1;
+    }
+    setSelections(newSel);
+    setQuantities(newQty);
+    setDosages({});
+    setNotes({});
+    setHiddenComps(new Set());
+
+    // Restaurar datos del paciente
+    const parts = (cart.name || '').split(' ');
+    setNombre(parts[0] || '');
+    setApellido(parts.slice(1).join(' ') || '');
+    const rawPhone = (cart.phone || '').replace(/^\+521/, '').replace(/^\+52/, '').replace(/\D/g, '');
+    setTelefono(rawPhone);
+
+    // Restaurar extras: necesitan título desde product_catalog
+    if (extraSaved.length) {
+      try {
+        const ids = extraSaved.map(i => i.variant_id).join(',');
+        const res  = await fetch(`/api/product-catalog?titles_for=${ids}`);
+        const data = await res.json();
+        const vmap = data.ok ? (data.variants || {}) : {};
+        setExtraItems(extraSaved.map(i => ({
+          variant_id: i.variant_id,
+          title:      vmap[i.variant_id]?.title      || `Variante ${i.variant_id}`,
+          price:      vmap[i.variant_id]?.price      ?? 0,
+          quantity:   i.quantity || 1,
+          dosage:     { amount: 1, unit: 'cápsula' },
+          note:       '',
+        })));
+      } catch {
+        // Si falla, restaurar sin extras
+        setExtraItems([]);
+      }
+    } else {
+      setExtraItems([]);
+    }
+
+    setResult(null);
+    setError('');
+  }, [protocol]);
 
   // ── Generador de PDF de prescripción ─────────────────────────
   const generatePDF = async () => {
@@ -1364,6 +1519,12 @@ function ProtocolUse({ protocol, customerId, onBack }) {
           </div>
         </div>
       </div>
+
+      {/* Historial de configuraciones anteriores del protocolo */}
+      <ProtocolHistory
+        protocolId={protocol.id}
+        onRestore={restoreFromHistory}
+      />
 
       {/* Footer mobile: solo botón de checkout cuando no hay result */}
       {!result && (

@@ -141,11 +141,27 @@ export async function GET(req) {
     // 2️⃣ GET solo carritos del usuario (customerId presente)
     // ============================================================
     if (customerId) {
-      const { data, error } = await supabase
-        .from("sharecarts")
-        .select("*")
-        .eq("owner_id", customerId)
-        .order("updated_at", { ascending: false });
+      const protocolId = searchParams.get("protocol_id");
+
+      let query;
+      if (protocolId) {
+        // Historial de un protocolo específico: solo campos necesarios, limitado
+        query = supabase
+          .from("sharecarts")
+          .select("id, token, name, phone, items, created_at, extra")
+          .eq("owner_id", customerId)
+          .filter("extra->>protocol_id", "eq", String(protocolId))
+          .order("created_at", { ascending: false })
+          .limit(20);
+      } else {
+        query = supabase
+          .from("sharecarts")
+          .select("*")
+          .eq("owner_id", customerId)
+          .order("updated_at", { ascending: false });
+      }
+
+      const { data, error } = await query;
 
       if (error) {
         console.error(error);
