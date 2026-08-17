@@ -110,7 +110,7 @@ export async function POST(req) {
     // 6. Formatear respuesta para N8N
     const data = pendingCartsFiltered.map(c => ({
       phone:      c.phone,
-      name:       c.name ?? '',
+      name:       c.name || 'Cliente',
       specialist: affiliateMap[c.owner_id] ?? '',
       url_params: `${c.token}&sref=${c.owner_id}`,
       created_at: c.created_at,

@@ -564,10 +564,10 @@ export async function POST(req) {
         });
     }
 
-    // Enviar prescripción por email si la orden proviene de un sharecart
-    if (shareCart) {
-      sendProtocolEmail(payload, shareCart).catch(() => {});
-    }
+    // Enviar prescripción por email — DESACTIVADO
+    // if (shareCart) {
+    //   sendProtocolEmail(payload, shareCart).catch(() => {});
+    // }
 
     // Determinar especialista efectivo para comisiones
     const effectiveSpecialist =
