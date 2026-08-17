@@ -21,7 +21,7 @@ export default function SoportePage() {
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>Preguntas frecuentes</h2>
       <ul>
         <li><strong>¿Cómo recupero mi contraseña?</strong> — Contactanos por email indicando tu dirección registrada y te ayudamos a restablecer el acceso.</li>
-        <li><strong>¿Cómo veo mis comisiones?</strong> — Ingresá a la app y dirigite a la sección Wallet.</li>
+        <li><strong>¿Cómo veo mis comisiones?</strong> — Entra a la app y ve a la sección Wallet.</li>
         <li><strong>¿Cuándo se acreditan mis puntos?</strong> — Los canjes en crédito de tienda se acreditan al instante. Los canjes en efectivo pueden demorar entre 3 y 5 días hábiles.</li>
         <li><strong>¿Cómo actualizo mis datos?</strong> — Desde la sección Perfil dentro de la app podés editar tu información.</li>
       </ul>

@@ -150,7 +150,7 @@ export default function AdminComunidadPage() {
       <div className="w-full bg-[#1b3f7a] rounded-lg p-4">
         <h1 className="text-3xl text-white font-lato">Comentarios de productos</h1>
         <p className="text-blue-200 text-sm mt-1">
-          Revisá y publicá los comentarios de los especialistas sobre sus productos
+          Revisa y publica los comentarios de los especialistas sobre sus productos
         </p>
       </div>
 

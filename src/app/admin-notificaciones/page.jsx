@@ -40,11 +40,11 @@ export default function AdminNotificacionesPage() {
 
   async function handleSend() {
     if (!title.trim() || !body.trim()) {
-      setFeedback({ ok: false, msg: "Completá el título y el mensaje." });
+      setFeedback({ ok: false, msg: "Completa el título y el mensaje." });
       return;
     }
     if (mode === "single" && !selected) {
-      setFeedback({ ok: false, msg: "Seleccioná un afiliado." });
+      setFeedback({ ok: false, msg: "Selecciona un profesional." });
       return;
     }
 
@@ -68,7 +68,7 @@ export default function AdminNotificacionesPage() {
           ok: true,
           msg: mode === "single"
             ? `Notificación enviada a ${selected.nombre} ${selected.apellido}.`
-            : "Notificación enviada a todos los afiliados.",
+            : "Notificación enviada a todos los profesionales.",
         });
         setTitle("");
         setBody("");
@@ -94,7 +94,7 @@ export default function AdminNotificacionesPage() {
               Notificaciones
             </h1>
             <p className="text-sm text-gray-400 mt-0.5">
-              Enviá mensajes push a tus afiliados
+              Envía mensajes push a tus profesionales
             </p>
           </div>
         </div>
@@ -115,7 +115,7 @@ export default function AdminNotificacionesPage() {
               }`}
             >
               <Users size={16} />
-              Todos los afiliados
+              Todos los profesionales
             </button>
             <button
               onClick={() => setMode("single")}
@@ -126,7 +126,7 @@ export default function AdminNotificacionesPage() {
               }`}
             >
               <User size={16} />
-              Afiliado específico
+              Profesional específico
             </button>
           </div>
 
@@ -244,7 +244,7 @@ export default function AdminNotificacionesPage() {
                 <Send size={16} />
                 {mode === "single" && selected
                   ? `Enviar a ${selected.first_name}`
-                  : "Enviar a todos los afiliados"}
+                  : "Enviar a todos los profesionales"}
               </>
             )}
           </button>

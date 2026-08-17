@@ -259,7 +259,7 @@ export default function ComunidadPage() {
             Así se ve un comentario que convierte
           </p>
           <p className="text-xs text-gray-400 mb-4 leading-relaxed">
-            Breve y específico es suficiente — 2 o 3 oraciones desde tu experiencia real valen más que un párrafo genérico. Usá esto como referencia.
+            Breve y específico es suficiente — 2 o 3 oraciones desde tu experiencia real valen más que un párrafo genérico. Usa esto como referencia.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 items-start">
             <div className="w-full sm:w-auto sm:flex-1">

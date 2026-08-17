@@ -186,7 +186,7 @@ function CartItem({ item, onQty, onRemove, onDosage, onNote }) {
               type="text"
               value={item.note ?? ""}
               onChange={e => onNote(e.target.value)}
-              placeholder="ej. con el desayuno, antes de dormir…"
+              placeholder="ej. 2 cápsulas con el desayuno, durante 3 meses…"
               className="flex-1 text-xs border-b border-gray-200 py-0.5 bg-transparent outline-none placeholder:text-gray-300 focus:border-[#1e8fa8]"
             />
           </div>
@@ -636,10 +636,10 @@ export default function ArmadorCarritos() {
       <div className="bg-white border-b border-gray-100 px-6 shrink-0">
         <div className="max-w-[1280px] mx-auto py-5">
           <h1 className="text-2xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-0.5">
-            Armador de Protocolos
+            Protocolos Clínicos
           </h1>
           <p className="text-xs text-gray-400 font-medium">
-            Busca productos, agrega indicaciones de toma y genera el link de checkout para tu paciente
+            Arma una prescripción personalizada, agrega indicaciones de toma y genera el link para tu paciente
           </p>
         </div>
       </div>

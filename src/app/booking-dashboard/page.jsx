@@ -619,8 +619,8 @@ export default function BookingDashboard() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">Accedé a tu dashboard</h2>
-          <p className="text-sm text-gray-500 mb-6">Ingresá con tu cuenta de afiliado Vitahub.</p>
+          <h2 className="text-lg font-bold text-gray-900 mb-1">Accede a tu dashboard</h2>
+          <p className="text-sm text-gray-500 mb-6">Ingresa con tu cuenta de profesional Vitahub.</p>
           <form onSubmit={handleBookingLogin} className="flex flex-col gap-3">
             <input
               type="email" required placeholder="Email"
@@ -651,7 +651,7 @@ export default function BookingDashboard() {
       {showSetup && (
         <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <h2 className="font-semibold text-gray-900 text-lg mb-1">Activá tu página de booking</h2>
+            <h2 className="font-semibold text-gray-900 text-lg mb-1">Activa tu página de booking</h2>
             <p className="text-gray-500 text-sm mb-4">
               Tu nombre, especialidad y foto se cargan automáticamente desde tu perfil de Vitahub.
             </p>
@@ -680,7 +680,7 @@ export default function BookingDashboard() {
           <div className="max-w-2xl mx-auto flex items-center gap-3">
             <span className="text-xl flex-shrink-0">📅</span>
             <div className="flex-1 min-w-0">
-              <p className="text-amber-800 font-semibold text-sm">Conectá Google Calendar para activar la experiencia completa</p>
+              <p className="text-amber-800 font-semibold text-sm">Conecta Google Calendar para activar la experiencia completa</p>
               <p className="text-amber-700 text-xs mt-0.5">
                 Sin Calendar: tus clientes <strong>no reciben invitación</strong> ni link de Meet en el email de confirmación.
                 Con Calendar: todo queda agendado automáticamente con videollamada incluida.
@@ -937,7 +937,7 @@ export default function BookingDashboard() {
               ) : (
                 <>
                   <p className="text-gray-500 text-xs mb-3">
-                    Conectá tu Google Calendar para que tus eventos bloqueen slots automáticamente.
+                    Conecta tu Google Calendar para que tus eventos bloqueen slots automáticamente.
                   </p>
                   <a href="/api/booking/calendar/connect"
                     className="inline-block bg-white border border-gray-200 text-gray-700 text-sm rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors shadow-sm">

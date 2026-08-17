@@ -365,7 +365,7 @@ function ComponentEditor({ comp, index, onUpdate, onRemove, componentes }) {
 
           {!comp.componente && (
             <p className="text-sm text-gray-400 text-center py-4">
-              Elegí un componente para ver sus productos
+              Elige un componente para ver sus productos
             </p>
           )}
         </div>
@@ -480,7 +480,7 @@ function LibreEditor({ comp, index, onUpdate, onRemove }) {
           {/* Resultados */}
           {!search && comp.items.length === 0 && (
             <p className="text-sm text-gray-400 text-center py-4">
-              Buscá un producto por nombre para agregarlo al grupo
+              Busca un producto por nombre para agregarlo al grupo
             </p>
           )}
           {loading && (
@@ -647,8 +647,8 @@ function ProtocolForm({ onSaved, onCancel }) {
       c.items?.length > 0 && (c.type === "libre" || c.componente)
     );
     if (!name.trim())        return setError("El nombre es requerido");
-    if (!valid.length)       return setError("Necesitás al menos un componente o selector libre con productos seleccionados");
-    if (!isPublic && !owner) return setError("Para protocolo privado, elegí el afiliado dueño");
+    if (!valid.length)       return setError("Necesitas al menos un componente o selector libre con productos seleccionados");
+    if (!isPublic && !owner) return setError("Para protocolo privado, elige el profesional dueño");
 
     setSaving(true);
     try {
@@ -710,8 +710,8 @@ function ProtocolForm({ onSaved, onCancel }) {
             </button>
             <span className="flex items-center gap-1.5 text-sm text-gray-700">
               {isPublic
-                ? <><Globe size={14} className="text-green-500" /> Visible para todos los afiliados</>
-                : <><Lock size={14} className="text-gray-400" /> Privado (solo el afiliado asignado)</>
+                ? <><Globe size={14} className="text-green-500" /> Visible para todos los profesionales</>
+                : <><Lock size={14} className="text-gray-400" /> Privado (solo el profesional asignado)</>
               }
             </span>
           </label>
@@ -719,7 +719,7 @@ function ProtocolForm({ onSaved, onCancel }) {
           {/* Picker de afiliado (solo si es privado) */}
           {!isPublic && (
             <div className="pl-12">
-              <p className="text-xs text-gray-500 mb-1.5 font-medium">Afiliado dueño del protocolo</p>
+              <p className="text-xs text-gray-500 mb-1.5 font-medium">Profesional dueño del protocolo</p>
               <AffiliatePicker value={owner} onChange={setOwner} />
             </div>
           )}

@@ -9,7 +9,7 @@ import {
   DollarSign, ShoppingBag, ShoppingCart, Store,
   BookOpen, GraduationCap, HelpCircle, Newspaper,
   Contact, UserPlus, Settings, Layers,
-  Calendar, Users, CalendarCheck, Award, ClipboardList, BarChart2,
+  Calendar, Users, CalendarCheck, Award, ClipboardList, BarChart2, Stethoscope,
 } from "lucide-react";
 
 const BOOKING_WHITELIST = [
@@ -30,7 +30,7 @@ const NAV_ITEMS = [
   { href: "/ordenes",             label: "Órdenes",              icon: ShoppingBag  },
   { href: "/mis-carritos-merge",  label: "Mis Carritos",         icon: ShoppingCart },
   { href: "/mis-protocolos",      label: "Protocolos",           icon: ClipboardList, requireProtocols: true },
-  { href: "/armador-carritos",        label: "Armador de Protocolos", icon: ClipboardList },
+  { href: "/armador-carritos",        label: "Protocolos Clínicos",   icon: Stethoscope  },
   { href: "/ordenes-v2",          label: "Órdenes V2",           icon: BarChart2,    requireTag: "vitahuber" },
   { href: "/contactos",           label: "Mis Contactos",        icon: Contact      },
   { href: "/mi-tienda",           label: "Mi Tienda",            icon: Store        },
@@ -46,7 +46,7 @@ const NAV_ITEMS = [
   { href: "/vitahuber",           label: "Vitahuber",            icon: Settings,    requireTag: "vitahuber" },
   { href: "/admin",               label: "Admin",                icon: ShoppingCart, requireTag: "vitahuber" },
   { href: "/admin-sharecarts",    label: "Sharecarts General",   icon: Layers,      requireTag: "vitahuber" },
-  { href: "/admin-datos-afiliados", label: "Afiliados Data",     icon: Layers,      requireTag: "vitahuber" },
+  { href: "/admin-datos-afiliados", label: "Profesionales Data", icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-datos-analytics", label: "Analytics",          icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-pagos",         label: "Pagos",                icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-resena",        label: "Reseñas tienda",              icon: Layers,      requireTag: "vitahuber" },
@@ -60,7 +60,7 @@ const NAV_ITEMS = [
   { href: "/admin-notificaciones",          label: "Notificaciones Admin",        icon: Users,        requireTag: "vitahuber" },    
 ];
 
-const WHATSAPP = `https://wa.me/5215548592403?text=${encodeURIComponent("Estoy en el programa de afiliados y tengo una duda")}`;
+const WHATSAPP = `https://wa.me/5215548592403?text=${encodeURIComponent("Soy profesional Vitahub y tengo una duda")}`;
 
 export default function Sidebar() {
   const pathname  = usePathname();

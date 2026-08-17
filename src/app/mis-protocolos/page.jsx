@@ -277,7 +277,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                   type="text"
                   value={note ?? ''}
                   onChange={e => onNoteChange(e.target.value)}
-                  placeholder="ej. con el desayuno, antes de dormir…"
+                  placeholder="ej. 2 cápsulas con el desayuno, durante 3 meses…"
                   className="flex-1 text-xs text-[#0D2133] border-b border-[#C2DFE8] py-0.5 bg-transparent outline-none placeholder:text-[#B0C8D4] focus:border-[#1E8FA8]"
                 />
               </div>
@@ -1432,7 +1432,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                               type="text"
                               value={e.note ?? ''}
                               onChange={ev => setExtraNote(e.variant_id, ev.target.value)}
-                              placeholder="ej. con el desayuno…"
+                              placeholder="ej. 2 cápsulas con el desayuno, durante 3 meses…"
                               className="flex-1 text-xs text-[#0D2133] border-b border-[#C2DFE8] py-0.5 bg-transparent outline-none placeholder:text-[#B0C8D4] focus:border-[#1E8FA8]"
                             />
                           </div>
