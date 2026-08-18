@@ -136,17 +136,20 @@ function ProductPreviewModal({ productId, title, onClose }) {
 // ── Helper: aplana items de un componente a nivel variante (formato nuevo y antiguo) ──
 // Formato nuevo: { product_id, title, image_url, variants: [{ variant_id, variant_title, ... }] }
 // Formato antiguo: { variant_id, product_id, title, variant_title, ... }
+// Nota: algunas variants más antiguas usan 'id' en lugar de 'variant_id' — se normaliza aquí.
 function flattenCompItems(comp) {
   return (comp.items || []).flatMap(item =>
     Array.isArray(item.variants)
-      ? item.variants.map(v => ({
-          variant_id:    v.variant_id,
-          product_id:    item.product_id,
-          title:         item.title,
-          variant_title: v.variant_title || null,
-          sku:           v.sku || null,
-          image_url:     item.image_url || null,
-        }))
+      ? item.variants
+          .map(v => ({
+            variant_id:    v.variant_id ?? v.id,   // ← soporta ambas keys
+            product_id:    item.product_id,
+            title:         item.title,
+            variant_title: v.variant_title || null,
+            sku:           v.sku || null,
+            image_url:     item.image_url || null,
+          }))
+          .filter(i => i.variant_id != null)       // ← descarta variants sin ID válido
       : [item]
   );
 }
@@ -164,6 +167,8 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
 
   const choose = (item) => {
     if (stockMap?.[item.variant_id] === 0) return;
+    // Si ya está seleccionado, solo cerramos — no togglear (evita deselección accidental en mobile)
+    if (selection[item.variant_id]) { setOpen(false); return; }
     onSelect(compIndex, item);
     setOpen(false);
   };
@@ -891,9 +896,9 @@ function ProtocolUse({ protocol, customerId, onBack }) {
         <div class="rx-info">
           <div class="rx-comp-label">${label}</div>
           <div class="rx-product-name">${item.title}</div>
-          ${item.variant_title ? `<div class="rx-variant">${item.variant_title}</div>` : ''}
+          <div class="rx-variant">${[item.variant_title, `${qty} unid.`].filter(Boolean).join(' · ')}</div>
           <div class="rx-dose-row">
-            <span class="rx-dose-badge">${dos.amount} ${dos.unit}${dos.amount > 1 ? 's' : ''} · ${qty} unid.</span>
+            <span class="rx-dose-badge">${dos.amount} ${dos.unit}${dos.amount > 1 ? 's' : ''}</span>
             ${nota ? `<span class="rx-nota">📋 ${nota}</span>` : ''}
             ${price != null ? `<span class="rx-price">${fmtMXN(price)}</span>` : ''}
           </div>
@@ -1328,7 +1333,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
 
               {protocol.components.map((comp, ci) => {
                 if (hiddenComps.has(ci)) return null;
-                const selVid = comp.items?.find(i => selections[i.variant_id])?.variant_id;
+                const selVid = flattenCompItems(comp).find(i => selections[i.variant_id])?.variant_id;
                 return (
                   <PrescriptionField
                     key={ci}

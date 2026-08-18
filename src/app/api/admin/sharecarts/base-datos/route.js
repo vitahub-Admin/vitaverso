@@ -45,7 +45,7 @@ export async function GET(req) {
     }
 
     const result = all.map(c => ({
-      name:  c.name || 'Cliente',
+      name:  c.name?.trim() || 'Cliente',
       phone: c.phone,
     }));
 
