@@ -408,7 +408,7 @@ function FinalizarModal({ carrito, customerId, profesional, onClose }) {
           name:     nombre,
           phone:    telefono ? `+521${telefono}` : "",
           items:    carrito.map(p => ({ variant_id: p.variant_id, quantity: p.quantity || 1 })),
-          extra:    { patient_info: { name: nombre, phone: telefono }, origen: "armador-carritos" },
+          extra:    { patient_info: { name: nombre, phone: telefono }, origen: "protocolo" },
         }),
       });
       const data = await res.json();

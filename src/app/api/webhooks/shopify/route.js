@@ -103,14 +103,17 @@ async function sendProtocolEmail(payload, shareCartToken) {
     const customerEmail = payload.customer?.email || payload.email;
     if (!customerEmail) return;
 
-    // Datos del sharecart (nombre del paciente + owner)
+    // Datos del sharecart (nombre del paciente + owner + origen)
     const { data: cartData } = await supabase
       .from("sharecarts")
-      .select("owner_id, name")
+      .select("owner_id, name, extra")
       .eq("token", shareCartToken)
       .maybeSingle();
 
     if (!cartData) return;
+
+    // Solo enviar para prescripciones generadas desde Protocolos Clínicos
+    if (cartData.extra?.origen !== 'protocolo') return;
 
     // Nombre del especialista desde affiliates
     const { data: affiliateData } = await supabase
@@ -564,10 +567,21 @@ export async function POST(req) {
         });
     }
 
-    // Enviar prescripción por email — DESACTIVADO
-    // if (shareCart) {
-    //   sendProtocolEmail(payload, shareCart).catch(() => {});
-    // }
+    // Enviar prescripción por email (idempotencia atómica)
+    // UPDATE solo aplica cuando protocol_email_sent_at IS NULL → solo el primer handler que llega lo reclama.
+    // Si Shopify reintenta el webhook (o llegan dos simultáneos), el segundo UPDATE no devuelve fila → skip.
+    if (shareCart) {
+      supabase
+        .from('orders')
+        .update({ protocol_email_sent_at: new Date().toISOString() })
+        .eq('order_id', orderId)
+        .is('protocol_email_sent_at', null)
+        .select('order_id')
+        .maybeSingle()
+        .then(({ data: claimed }) => {
+          if (claimed) sendProtocolEmail(payload, shareCart).catch(() => {});
+        });
+    }
 
     // Determinar especialista efectivo para comisiones
     const effectiveSpecialist =

@@ -25,10 +25,33 @@ export async function GET(req) {
     }
     // Sin owner_id = vista admin → devuelve todos sin filtro
 
-    const { data, error } = await query
+    const { data: protocols, error } = await query
     if (error) throw error
 
-    return NextResponse.json({ ok: true, protocols: data || [] })
+    // Vista admin (sin owner_id) → enriquecer con nombre del profesional
+    let enriched = protocols || []
+    if (!ownerId && enriched.length > 0) {
+      const ownerIds = [...new Set(enriched.map(p => p.owner_id).filter(Boolean))]
+      if (ownerIds.length > 0) {
+        const { data: affiliates } = await supabase
+          .from('affiliates')
+          .select('shopify_customer_id, first_name, last_name')
+          .in('shopify_customer_id', ownerIds)
+
+        const nameMap = Object.fromEntries(
+          (affiliates || []).map(a => [
+            String(a.shopify_customer_id),
+            `${a.first_name || ''} ${a.last_name || ''}`.trim() || null,
+          ])
+        )
+        enriched = enriched.map(p => ({
+          ...p,
+          owner_name: p.owner_id ? (nameMap[String(p.owner_id)] || null) : null,
+        }))
+      }
+    }
+
+    return NextResponse.json({ ok: true, protocols: enriched })
   } catch (err) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
   }

@@ -22,7 +22,7 @@ export async function POST(req) {
         items,
         name:     name     || null,
         phone:    phone    || null,
-        extra:    { ...( extra || {}), origen: "armador-checkout" },
+        extra:    { origen: "armador-checkout", ...(extra || {}) },
         location: {},
         owner_id,
       });

@@ -6,7 +6,7 @@ import Cookies from "js-cookie";
 import {
   User, ShoppingCart, Phone, Package,
   ChevronDown, ExternalLink, Calendar, Clock,
-  CheckCircle, DollarSign, Eye, AlertCircle, Copy,
+  CheckCircle, DollarSign, Eye, AlertCircle, Copy, Stethoscope,
 } from "lucide-react";
 import Banner from "../components/Banner";
 
@@ -81,6 +81,8 @@ const transformCart = (cart) => {
     updated_at:          updatedAt,
     updated_at_formatted: fmtDate(updatedAt) || "-",
     extra:        cart.extra || {},
+    origen:       cart.extra?.origen       || null,
+    protocol_name: cart.extra?.protocol_name || null,
   };
 };
 
@@ -312,6 +314,12 @@ function CartCard({ cart, copiedToken, onCopy }) {
             <span className={`text-[0.65rem] font-semibold px-2 py-0.5 rounded-full border ${tp.cls}`}>
               {tp.label}
             </span>
+            {(cart.origen === "protocolo" || cart.origen === "armador-carritos" || cart.origen === "armador-checkout") && (
+              <span className="inline-flex items-center gap-1 text-[0.65rem] font-semibold px-2 py-0.5 rounded-full border bg-blue-50 text-blue-700 border-blue-200">
+                <Stethoscope size={10} />
+                Protocolo Clínico
+              </span>
+            )}
           </div>
 
           {/* Fila 2: meta */}
@@ -391,6 +399,9 @@ function CartCard({ cart, copiedToken, onCopy }) {
               <p className="text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400">Detalles</p>
               <MetaRow label="Tipo"       value={cart.type === "new" ? "Nuevo sistema" : "Sistema histórico"} />
               <MetaRow label="Estado"     value={STATUS[cart.status].label} />
+              {(cart.origen === "protocolo" || cart.origen === "armador-carritos" || cart.origen === "armador-checkout") && (
+                <MetaRow label="Origen" value={cart.protocol_name ? `Protocolo: ${cart.protocol_name}` : "Protocolo Clínico"} />
+              )}
               {cart.order_number && <MetaRow label="Orden #" value={String(cart.order_number)} mono />}
               <MetaRow label="Creado"     value={cart.created_at_formatted} />
               <MetaRow label="Actualizado" value={cart.updated_at_formatted} />

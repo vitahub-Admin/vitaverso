@@ -43,9 +43,9 @@ const NAV_ITEMS = [
   { href: "/mis-medallas",         label: "Mis Medallas",         icon: Award        ,    requireTag: "vitahuber"},
   { href: "/mis-datos",           label: "Mis Datos",            icon: Settings     },
   // ── Vitahuber only ──
-  { href: "/vitahuber",           label: "Vitahuber",            icon: Settings,    requireTag: "vitahuber" },
+  { href: "/vitahuber",           label: "Sharecarts General",   icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin",               label: "Admin",                icon: ShoppingCart, requireTag: "vitahuber" },
-  { href: "/admin-sharecarts",    label: "Sharecarts General",   icon: Layers,      requireTag: "vitahuber" },
+  { href: "/admin-sharecarts",    label: "Ganancia por Referido", icon: DollarSign,  requireTag: "vitahuber" },
   { href: "/admin-datos-afiliados", label: "Profesionales Data", icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-datos-analytics", label: "Analytics",          icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-pagos",         label: "Pagos",                icon: Layers,      requireTag: "vitahuber" },

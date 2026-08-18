@@ -870,6 +870,12 @@ export default function ProtocolsAdminPage() {
                         <h3 className="font-bold text-[#1e3a5f] text-sm leading-snug line-clamp-2">
                           {p.name}
                         </h3>
+                        {p.owner_name && (
+                          <p className="text-[10px] text-[#1e8fa8] font-medium mt-0.5 flex items-center gap-1">
+                            <User size={9} />
+                            {p.owner_name}
+                          </p>
+                        )}
                         {p.description && (
                           <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">{p.description}</p>
                         )}
