@@ -704,6 +704,22 @@ function ProtocolUse({ protocol, customerId, onBack }) {
         quantity:   e.quantity,
       })),
     ];
+    // Construir mapa de dosis/notas por variant_id para persistirlo en el sharecart
+    const dosisMap = {};
+    Object.entries(selections)
+      .filter(([vid]) => !hiddenVariantIds.has(Number(vid)))
+      .forEach(([vid]) => {
+        const v = Number(vid);
+        const dos = dosages[v];
+        const nota = notes[v];
+        if (dos || nota) {
+          dosisMap[vid] = {
+            ...(dos  ? { dosis_amount: dos.amount, dosis_unit: dos.unit } : {}),
+            ...(nota ? { nota } : {}),
+          };
+        }
+      });
+
     try {
       const res  = await fetch("/api/sharecart/checkout", {
         method:  "POST",
@@ -717,6 +733,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
             origen:        "protocolo",
             protocol_id:   protocol.id,
             protocol_name: protocol.name,
+            dosis_map:     Object.keys(dosisMap).length ? dosisMap : undefined,
           },
         }),
       });

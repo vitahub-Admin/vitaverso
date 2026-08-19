@@ -16,24 +16,39 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ── Email de prescripción ─────────────────────────────────────────────────────
 
-function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date, lineItems }) {
-  const rows = lineItems.map((item, i) => `
+// lineItems: { title, quantity, desc, dosis_amount?, dosis_unit?, nota? }
+function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date, lineItems, shareCartToken }) {
+  const pdfUrl = `https://pro.vitahub.mx/api/protocolo-pdf?token=${shareCartToken}`;
+  const rows = lineItems.map((item, i) => {
+    const dosisBadge = item.dosis_amount
+      ? `<span style="display:inline-block;background:#1e8fa8;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:8px;">
+           ${item.dosis_amount} ${item.dosis_unit || 'cápsula'}${item.dosis_amount > 1 ? 's' : ''} · ${item.quantity} unid.
+         </span>`
+      : `<span style="display:inline-block;background:#1b3f7a;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:10px;">×${item.quantity}</span>`;
+
+    const notaRow = item.nota
+      ? `<tr><td style="font-size:12px;color:#9ca3af;font-style:italic;padding-top:4px;">📝 ${item.nota}</td></tr>`
+      : '';
+
+    return `
     <tr>
       <td style="padding-bottom:22px;${i > 0 ? "padding-top:22px;border-top:1px solid #f3f4f6;" : ""}">
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
             <td style="padding-bottom:8px;">
-              <span style="display:inline-block;background:#1b3f7a;color:#ffffff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:10px;">×${item.quantity}</span>
+              ${dosisBadge}
               <span style="font-size:15px;font-weight:700;color:#1b3f7a;">${item.title}</span>
             </td>
           </tr>
           <tr>
             <td style="font-size:13px;color:#6b7280;line-height:1.65;">${item.desc}</td>
           </tr>
+          ${notaRow}
         </table>
       </td>
     </tr>
-  `).join("");
+  `;
+  }).join("");
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -83,6 +98,13 @@ function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date,
   </table>
 </td></tr>
 
+<tr><td style="background:#f0f7ff;border-top:1px solid #dbeafe;padding:24px 40px;text-align:center;">
+  <p style="margin:0 0 16px;font-size:13px;color:#4b5563;">Guarda tu protocolo para consultarlo cuando quieras</p>
+  <a href="${pdfUrl}" style="display:inline-block;background:#1b3f7a;color:#ffffff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;">
+    📄 Descargar mi Protocolo en PDF
+  </a>
+</td></tr>
+
 <tr><td style="background:#f9fafb;border-top:1px solid #f3f4f6;border-radius:0 0 16px 16px;padding:24px 40px;">
   <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.8;text-align:center;">
     Este protocolo fue diseñado para ti por <strong style="color:#6b7280;">${affiliateName}</strong><br>a través de <strong style="color:#1b3f7a;">Vitahub Pro</strong>.<br>
@@ -114,6 +136,9 @@ async function sendProtocolEmail(payload, shareCartToken) {
 
     // Solo enviar para prescripciones generadas desde Protocolos Clínicos
     if (cartData.extra?.origen !== 'protocolo') return;
+
+    // Mapa de dosis por variant_id (guardado al generar el sharecart desde mis-protocolos)
+    const dosisMap = cartData.extra?.dosis_map || {};
 
     // Nombre del especialista desde affiliates
     const { data: affiliateData } = await supabase
@@ -147,7 +172,16 @@ async function sendProtocolEmail(payload, shareCartToken) {
     const lineItems = (payload.line_items || []).map(item => {
       const slug = catalogMap[item.product_id] || "";
       const desc = (slug && descMap[slug]) || FALLBACK;
-      return { title: item.title || "", quantity: item.quantity, desc };
+      // Buscar dosis por variant_id del item (la clave en dosisMap es string)
+      const dosis = dosisMap[String(item.variant_id)] || {};
+      return {
+        title:        item.title || "",
+        quantity:     item.quantity,
+        desc,
+        dosis_amount: dosis.dosis_amount || null,
+        dosis_unit:   dosis.dosis_unit   || null,
+        nota:         dosis.nota         || null,
+      };
     });
 
     const patientName =
@@ -161,7 +195,14 @@ async function sendProtocolEmail(payload, shareCartToken) {
       year: "numeric", month: "long", day: "numeric",
     });
 
-    const html = buildPrescriptionEmail({ affiliateName, patientName, orderNumber: payload.order_number, date, lineItems });
+    const html = buildPrescriptionEmail({
+      affiliateName,
+      patientName,
+      orderNumber: payload.order_number,
+      date,
+      lineItems,
+      shareCartToken,
+    });
 
     await resend.emails.send({
       from: "Vitahub Pro <noreply@pro.vitahub.mx>",
@@ -440,7 +481,7 @@ export async function POST(req) {
         correctedRef = referidoValue;
         status = "corrected";
 
-      // Paso 4: Share cart
+      // Paso 4: Share cart (note_attribute directo)
       } else if (shareCart) {
         const { data: cartData } = await supabase
           .from("sharecarts")
@@ -452,6 +493,64 @@ export async function POST(req) {
           correctedRef = String(cartData.owner_id);
           status = "corrected";
           if (!referidoValue) setReferido(cartData.owner_id);
+        }
+      }
+
+      // Paso 4b: landing_site contiene ?shared-cart-id=TOKEN (note_attributes vacío por cambio de tema)
+      if (!correctedRef && payload.landing_site) {
+        try {
+          const ls = new URL(payload.landing_site, "https://vitahub.mx");
+          const tokenFromUrl = ls.searchParams.get("shared-cart-id") ||
+                               ls.searchParams.get("ml-shared-cart-id");
+          if (tokenFromUrl) {
+            const { data: cartData } = await supabase
+              .from("sharecarts")
+              .select("owner_id")
+              .eq("token", tokenFromUrl)
+              .maybeSingle();
+            if (cartData?.owner_id) {
+              correctedRef = String(cartData.owner_id);
+              status = "corrected";
+              if (!referidoValue) setReferido(cartData.owner_id);
+              console.log(`[webhook] shareCart recuperado desde landing_site: ${tokenFromUrl}`);
+            }
+          }
+        } catch (_) { /* URL inválida, ignorar */ }
+      }
+
+      // Paso 4c: Match por productos — busca sharecarts con exactamente los mismos variant_ids
+      if (!correctedRef) {
+        const orderVariantIds = (payload.line_items || [])
+          .map(i => Number(i.variant_id))
+          .filter(Boolean)
+          .sort((a, b) => a - b);
+
+        if (orderVariantIds.length > 0) {
+          // Traer sharecarts recientes (últimos 60 días) con items
+          const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+          const { data: recentCarts } = await supabase
+            .from("sharecarts")
+            .select("token, owner_id, items, extra")
+            .gte("created_at", since)
+            .not("owner_id", "is", null);
+
+          const matched = (recentCarts || []).find(cart => {
+            const cartVariants = (cart.items || [])
+              .map(i => Number(i.variant_id ?? i.id))
+              .filter(Boolean)
+              .sort((a, b) => a - b);
+            return (
+              cartVariants.length === orderVariantIds.length &&
+              cartVariants.every((v, i) => v === orderVariantIds[i])
+            );
+          });
+
+          if (matched?.owner_id) {
+            correctedRef = String(matched.owner_id);
+            status = "corrected";
+            if (!referidoValue) setReferido(matched.owner_id);
+            console.log(`[webhook] shareCart recuperado por match de productos: ${matched.token}`);
+          }
         }
       }
 

@@ -13,6 +13,7 @@
     "@anthropic-ai/sdk": "^0.80.0",
     "@google-cloud/bigquery": "^8.1.1",
     "@microsoft/clarity": "^1.0.0",
+    "@react-pdf/renderer": "^4.6.1",
     "@supabase/ssr": "^0.9.0",
     "@supabase/supabase-js": "^2.89.0",
     "@tanstack/react-table": "^8.21.3",
