@@ -849,9 +849,9 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     // ── Cargar imágenes y descripciones en paralelo ──────────────
     // (rows se construye después para poder usar descMap)
     const rowsRaw = protocol.components
-      .filter(comp => flattenCompItems(comp).some(i => selections[i.variant_id]))
+      .filter(comp => flattenCompItems(comp).some(i => selections[i.variant_id] && !hiddenVariantIds.has(i.variant_id)))
       .map(comp => {
-        const item = flattenCompItems(comp).find(i => selections[i.variant_id]);
+        const item = flattenCompItems(comp).find(i => selections[i.variant_id] && !hiddenVariantIds.has(i.variant_id));
         return {
           comp,
           item,
