@@ -143,36 +143,39 @@ async function main() {
   const ownerProducts = {}; // owner_id → Map<sku, { sku, variant_id, title, cartCount }>
   const notifiedSkus  = new Set(); // SKUs que al menos un especialista tiene en sus carts
 
+  // Una sola query: todos los sharecarts de los últimos 90 días
+  const { data: allCarts, error: errCarts } = await supabase
+    .from("sharecarts")
+    .select("owner_id, items")
+    .gte("created_at", cutoff)
+    .not("owner_id", "is", null);
+
+  if (errCarts) throw new Error(`sharecarts: ${errCarts.message}`);
+  console.log(`   ${allCarts?.length || 0} sharecarts leídos`);
+
+  // Índice: variant_id (string) → Map<owner_id, count>
+  const variantOwnerCount = {};
+  for (const cart of (allCarts || [])) {
+    const items = Array.isArray(cart.items) ? cart.items : [];
+    const oid   = String(cart.owner_id);
+    for (const item of items) {
+      const vid = item.variant_id != null ? String(item.variant_id) : null;
+      if (!vid) continue;
+      if (!variantOwnerCount[vid]) variantOwnerCount[vid] = {};
+      variantOwnerCount[vid][oid] = (variantOwnerCount[vid][oid] || 0) + 1;
+    }
+  }
+
+  // Cruzar con los SKUs pendientes
   for (const item of pendingWithVariant) {
-    // Buscar carts donde items @> [{ variant_id: N }]
-    const { data: carts, error: errCarts } = await supabase
-      .from("sharecarts")
-      .select("owner_id, name")
-      .contains("items", [{ variant_id: item.variant_id }])
-      .gte("created_at", cutoff)
-      .not("owner_id", "is", null);
-
-    if (errCarts) {
-      console.warn(`   ⚠️  Error buscando carts para variant ${item.variant_id}: ${errCarts.message}`);
-      continue;
-    }
-
-    if (!carts || carts.length === 0) continue;
-
-    // Contar cuántos carts distintos de cada owner tienen este producto
-    const ownerCount = {};
-    for (const cart of carts) {
-      const oid = String(cart.owner_id);
-      ownerCount[oid] = (ownerCount[oid] || 0) + 1;
-    }
-
+    const ownerCount = variantOwnerCount[String(item.variant_id)] || {};
     for (const [oid, count] of Object.entries(ownerCount)) {
       if (!ownerProducts[oid]) ownerProducts[oid] = {};
       ownerProducts[oid][item.sku] = {
-        sku:       item.sku,
+        sku:        item.sku,
         variant_id: item.variant_id,
-        title:     null, // se llena abajo
-        cartCount: count,
+        title:      null,
+        cartCount:  count,
       };
       notifiedSkus.add(item.sku);
     }
@@ -221,7 +224,7 @@ async function main() {
 
   const { data: affiliates, error: errAffiliates } = await supabase
     .from("affiliates")
-    .select("shopify_customer_id, display_name, first_name, last_name, email")
+    .select("shopify_customer_id, first_name, last_name, email")
     .in("shopify_customer_id", numericOwnerIds);
 
   if (errAffiliates) throw new Error(`affiliates: ${errAffiliates.message}`);
@@ -229,7 +232,7 @@ async function main() {
   const affiliateMap = {};
   for (const a of (affiliates || [])) {
     affiliateMap[String(a.shopify_customer_id)] = {
-      name: a.display_name || `${a.first_name || ""} ${a.last_name || ""}`.trim() || "Especialista",
+      name: `${a.first_name || ""} ${a.last_name || ""}`.trim() || "Especialista",
       email: a.email,
     };
   }
@@ -269,7 +272,7 @@ async function main() {
 
     try {
       const { error: errResend } = await resend.emails.send({
-        from: "Vitahub Pro <noreply@vitahub.mx>",
+        from: "Vitahub Pro <noreply@pro.vitahub.mx>",
         to:   affiliate.email,
         subject,
         html,

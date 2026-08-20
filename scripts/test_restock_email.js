@@ -42,11 +42,11 @@ const resend   = new Resend(process.env.RESEND_API_KEY);
 const GQL_URL   = `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/graphql.json`;
 const GQL_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
-// ── Shopify: imágenes por product_id ─────────────────────────────────────────
-async function fetchImages(productIds) {
+// ── Shopify: imagen + handle por product_id ───────────────────────────────────
+async function fetchProductData(productIds) {
   if (!productIds.length) return {};
   const aliases = productIds.map((pid, i) =>
-    `p${i}: node(id: "gid://shopify/Product/${pid}") { ... on Product { id featuredImage { url } } }`
+    `p${i}: node(id: "gid://shopify/Product/${pid}") { ... on Product { id handle featuredImage { url } } }`
   ).join("\n");
 
   const res  = await fetch(GQL_URL, {
@@ -57,10 +57,14 @@ async function fetchImages(productIds) {
   const json = await res.json();
   if (!json.data) return {};
 
+  // { product_id: { image_url, handle } }
   const map = {};
   productIds.forEach((pid, i) => {
     const node = json.data[`p${i}`];
-    if (node?.featuredImage?.url) map[pid] = node.featuredImage.url;
+    if (node) map[pid] = {
+      image_url: node.featuredImage?.url || null,
+      handle:    node.handle || null,
+    };
   });
   return map;
 }
@@ -68,28 +72,34 @@ async function fetchImages(productIds) {
 // ── Email HTML ────────────────────────────────────────────────────────────────
 function buildRestockEmail({ specialistName, products }) {
   const productRows = products.map(p => {
-    const precio      = Number(p.price || 0);
-    const comPct      = Number(p.commission_percent || 0);
-    const comAmount   = (precio * comPct / 100).toFixed(2);
-    const precioFmt   = precio.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
-    const comFmt      = Number(comAmount).toLocaleString("es-MX", { style: "currency", currency: "MXN" });
-    const imgHtml     = p.image_url
+    const precio    = Number(p.price || 0);
+    const comPct    = Number(p.commission_percent || 0);
+    const comAmount = (precio * comPct / 100).toFixed(2);
+    const precioFmt = precio.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+    const comFmt    = Number(comAmount).toLocaleString("es-MX", { style: "currency", currency: "MXN" });
+    const productUrl = p.handle ? `https://vitahub.mx/products/${p.handle}` : null;
+
+    const imgHtml = p.image_url
       ? `<img src="${p.image_url}" width="80" height="80" alt="${p.title}"
               style="border-radius:10px;object-fit:cover;display:block;">`
       : `<div style="width:80px;height:80px;background:#f3f4f6;border-radius:10px;"></div>`;
+
+    const imgCell = productUrl
+      ? `<a href="${productUrl}" style="display:block;">${imgHtml}</a>`
+      : imgHtml;
+
+    const titleHtml = productUrl
+      ? `<a href="${productUrl}" style="font-size:15px;font-weight:700;color:#1b3f7a;text-decoration:none;line-height:1.3;">${p.title}</a>`
+      : `<span style="font-size:15px;font-weight:700;color:#1b3f7a;line-height:1.3;">${p.title}</span>`;
 
     return `
     <tr>
       <td style="padding:16px 0;border-bottom:1px solid #f0f0f0;">
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <!-- Imagen -->
-            <td width="88" valign="top" style="padding-right:16px;">
-              ${imgHtml}
-            </td>
-            <!-- Info -->
+            <td width="88" valign="top" style="padding-right:16px;">${imgCell}</td>
             <td valign="middle">
-              <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#1b3f7a;line-height:1.3;">${p.title}</p>
+              <p style="margin:0 0 4px;">${titleHtml}</p>
               ${p.brand ? `<p style="margin:0 0 8px;font-size:12px;color:#9ca3af;">${p.brand}</p>` : ""}
               <table cellpadding="0" cellspacing="0" border="0">
                 <tr>
@@ -136,9 +146,8 @@ function buildRestockEmail({ specialistName, products }) {
       Hola <strong>${specialistName}</strong>,
     </p>
     <p style="margin:0;font-size:14px;color:#6b7280;line-height:1.7;">
-      Estos productos que acostumbras recomendar a tus pacientes
-      <strong style="color:#1b3f7a;">volvieron a tener stock</strong> en la tienda.
-      Tus clientes ya pueden ordenarlos con tu enlace.
+      Los siguientes productos volvieron a estar disponibles en la tienda.
+      Ya puedes volver a incluirlos en tus prescripciones para tus pacientes.
     </p>
   </td></tr>
 
@@ -151,12 +160,15 @@ function buildRestockEmail({ specialistName, products }) {
 
   <!-- CTA -->
   <tr><td style="background:#f0f7ff;border-top:2px solid #dbeafe;padding:24px 36px;text-align:center;border-radius:0 0 16px 16px;">
-    <p style="margin:0 0 16px;font-size:13px;color:#4b5563;">
-      Comparte tu protocolo con los pacientes que esperaban estos productos
+    <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#1b3f7a;">
+      ¿Ya probaste nuestro armador de prescripciones?
+    </p>
+    <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">
+      Arma el protocolo ideal para cada paciente y compártelo en segundos
     </p>
     <a href="https://pro.vitahub.mx/mis-protocolos"
        style="display:inline-block;background:#1b3f7a;color:#ffffff;font-size:14px;font-weight:700;padding:13px 32px;border-radius:8px;text-decoration:none;">
-      Ver mis protocolos →
+      Ir al armador de prescripciones →
     </a>
     <p style="margin:16px 0 0;font-size:11px;color:#9ca3af;">
       <a href="https://pro.vitahub.mx" style="color:#1E8FA8;text-decoration:none;">pro.vitahub.mx</a>
@@ -179,16 +191,14 @@ async function main() {
   // 1. Datos del especialista
   const { data: affiliate, error: errAff } = await supabase
     .from("affiliates")
-    .select("shopify_customer_id, display_name, first_name, last_name, email")
+    .select("shopify_customer_id, first_name, last_name, email")
     .eq("shopify_customer_id", SPECIALIST_ID)
     .maybeSingle();
 
   if (errAff) throw new Error(`affiliates: ${errAff.message}`);
   if (!affiliate) throw new Error(`No se encontró el especialista con ID ${SPECIALIST_ID}`);
 
-  const name  = affiliate.display_name
-    || `${affiliate.first_name || ""} ${affiliate.last_name || ""}`.trim()
-    || "Especialista";
+  const name  = `${affiliate.first_name || ""} ${affiliate.last_name || ""}`.trim() || "Especialista";
   const email = affiliate.email;
 
   console.log(`\n👤 Especialista: ${name} <${email}>`);
@@ -206,10 +216,10 @@ async function main() {
 
   const productIds = [...new Set(catalogRows.map(r => r.product_id))];
 
-  // 3. Imágenes desde Shopify
-  console.log("🖼️  Obteniendo imágenes de Shopify...");
-  const imageMap = await fetchImages(productIds);
-  console.log(`   ${Object.keys(imageMap).length} imágenes obtenidas`);
+  // 3. Imágenes + handles desde Shopify
+  console.log("🖼️  Obteniendo imágenes y handles de Shopify...");
+  const shopifyData = await fetchProductData(productIds);
+  console.log(`   ${Object.keys(shopifyData).length} productos con datos de Shopify`);
 
   // 4. Comisiones desde product_variant_commissions
   const { data: commRows } = await supabase
@@ -227,7 +237,8 @@ async function main() {
     brand:              r.brand || null,
     price:              r.price,
     commission_percent: commMap[r.variant_id] ?? null,
-    image_url:          imageMap[r.product_id] || null,
+    image_url:          shopifyData[r.product_id]?.image_url || null,
+    handle:             shopifyData[r.product_id]?.handle    || null,
   }));
 
   // Log de lo que se va a enviar
@@ -236,7 +247,7 @@ async function main() {
     const com = p.commission_percent != null
       ? `${p.commission_percent}% = $${(p.price * p.commission_percent / 100).toFixed(2)}`
       : "(sin comisión en tabla)";
-    console.log(`   • ${p.title} — $${p.price} — comisión: ${com}${p.image_url ? " 🖼️" : " (sin imagen)"}`);
+    console.log(`   • ${p.title} — $${p.price} — comisión: ${com}${p.image_url ? " 🖼️" : " (sin imagen)"}${p.handle ? ` 🔗 /products/${p.handle}` : ""}`);
   });
 
   // 6. Enviar
@@ -244,7 +255,7 @@ async function main() {
   const html = buildRestockEmail({ specialistName: name, products });
 
   const { error: errResend } = await resend.emails.send({
-    from:    "Vitahub Pro <noreply@vitahub.mx>",
+    from:    "Vitahub Pro <noreply@pro.vitahub.mx>",
     to:      email,
     subject: `🎉 ${products.length === 1 ? `"${products[0].title}" volvió` : `${products.length} productos volvieron`} al stock`,
     html,
