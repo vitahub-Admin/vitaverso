@@ -546,6 +546,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
       if (prev.find(e => e.variant_id === product.variant_id)) return prev;
       return [...prev, {
         variant_id: product.variant_id,
+        product_id: product.product_id || null,
         title:      product.title,
         price:      parseFloat(product.price) || 0,
         quantity:   1,
@@ -817,6 +818,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
         const vmap = data.ok ? (data.variants || {}) : {};
         setExtraItems(extraSaved.map(i => ({
           variant_id: i.variant_id,
+          product_id: vmap[i.variant_id]?.product_id || null,
           title:      vmap[i.variant_id]?.title      || `Variante ${i.variant_id}`,
           price:      vmap[i.variant_id]?.price      ?? 0,
           quantity:   i.quantity || 1,
@@ -851,20 +853,38 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     const rowsRaw = protocol.components
       .filter(comp => flattenCompItems(comp).some(i => selections[i.variant_id] && !hiddenVariantIds.has(i.variant_id)))
       .map(comp => {
-        const item = flattenCompItems(comp).find(i => selections[i.variant_id] && !hiddenVariantIds.has(i.variant_id));
+        const item   = flattenCompItems(comp).find(i => selections[i.variant_id] && !hiddenVariantIds.has(i.variant_id));
+        const dosRaw = dosages[item.variant_id] || {};
         return {
           comp,
           item,
           price: priceMap[item.variant_id],
           qty:   quantities[item.variant_id] || 1,
-          dos:   dosages[item.variant_id]  || { amount: 1, unit: 'cápsula' },
-          nota:  notes[item.variant_id]    || '',
+          dos:   { amount: dosRaw.amount || 1, unit: dosRaw.unit || 'cápsula' },
+          nota:  notes[item.variant_id] || '',
           label: comp.label || comp.componente,
         };
       });
 
+    // Filas de productos extra (fuera del protocolo)
+    const extraRowsRaw = extraItems.map(e => {
+      const dos = e.dosage || {};
+      return {
+        comp:    null,
+        item:    { variant_id: e.variant_id, product_id: e.product_id || null, title: e.title, variant_title: null },
+        price:   e.price,
+        qty:     e.quantity,
+        dos:     { amount: dos.amount || 1, unit: dos.unit || 'cápsula' },
+        nota:    e.note || '',
+        label:   'PRODUCTO ADICIONAL',
+        isExtra: true,
+      };
+    });
+
+    const allRowsRaw = [...rowsRaw, ...extraRowsRaw];
+
     // Fetch imágenes y descripciones en paralelo
-    const productIds = [...new Set(rowsRaw.map(r => r.item.product_id).filter(Boolean))];
+    const productIds = [...new Set(allRowsRaw.map(r => r.item.product_id).filter(Boolean))];
     const [imageMap, descMap] = await Promise.all([
       // Imágenes Shopify
       productIds.length
@@ -887,9 +907,11 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     ]);
 
     // Armar rows completos ya con descMap disponible
-    const rows = rowsRaw.map(r => ({
+    const rows = allRowsRaw.map(r => ({
       ...r,
-      desc: descMap[(r.comp.componente || r.comp.label || '').trim().toLowerCase()] || DESC_FALLBACK,
+      desc: r.isExtra
+        ? DESC_FALLBACK
+        : (descMap[(r.comp?.componente || r.comp?.label || '').trim().toLowerCase()] || DESC_FALLBACK),
     }));
 
     // ── HTML de cada ítem con layout alternado ────────────────

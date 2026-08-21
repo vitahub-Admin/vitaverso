@@ -91,7 +91,7 @@ export async function GET(req) {
 
       const { data, error } = await supabase
         .from('product_catalog')
-        .select('variant_id, title, variant_title, price')
+        .select('variant_id, product_id, title, variant_title, price')
         .in('variant_id', ids)
 
       if (error) throw error
@@ -102,6 +102,7 @@ export async function GET(req) {
           title:         row.title,
           variant_title: row.variant_title || null,
           price:         row.price ?? 0,
+          product_id:    row.product_id    || null,
         }
       }
       return NextResponse.json({ ok: true, variants })
