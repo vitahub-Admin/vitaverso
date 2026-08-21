@@ -866,18 +866,29 @@ function ProtocolUse({ protocol, customerId, onBack }) {
         };
       });
 
-    // Filas de productos extra (fuera del protocolo)
+    // Componente + product_id de los extras (para desc lookup e imagen)
+    let extraCatalog = {};
+    if (extraItems.length) {
+      const vids = extraItems.map(e => e.variant_id).join(',');
+      extraCatalog = await fetch(`/api/product-catalog?titles_for=${vids}`)
+        .then(r => r.json())
+        .then(d => d.ok ? d.variants || {} : {})
+        .catch(() => ({}));
+    }
+
+    // Filas de productos extra — se tratan igual que los del protocolo
     const extraRowsRaw = extraItems.map(e => {
-      const dos = e.dosage || {};
+      const dos       = e.dosage || {};
+      const catInfo   = extraCatalog[e.variant_id] || {};
+      const componente = catInfo.componente || null;
       return {
-        comp:    null,
-        item:    { variant_id: e.variant_id, product_id: e.product_id || null, title: e.title, variant_title: null },
-        price:   e.price,
-        qty:     e.quantity,
-        dos:     { amount: dos.amount || 1, unit: dos.unit || 'cápsula' },
-        nota:    e.note || '',
-        label:   'PRODUCTO ADICIONAL',
-        isExtra: true,
+        comp:  { componente, label: componente },   // igual que comp del protocolo
+        item:  { variant_id: e.variant_id, product_id: e.product_id || catInfo.product_id || null, title: e.title, variant_title: null },
+        price: e.price,
+        qty:   e.quantity,
+        dos:   { amount: dos.amount || 1, unit: dos.unit || 'cápsula' },
+        nota:  e.note || '',
+        label: componente || e.title,
       };
     });
 
@@ -909,9 +920,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     // Armar rows completos ya con descMap disponible
     const rows = allRowsRaw.map(r => ({
       ...r,
-      desc: r.isExtra
-        ? DESC_FALLBACK
-        : (descMap[(r.comp?.componente || r.comp?.label || '').trim().toLowerCase()] || DESC_FALLBACK),
+      desc: descMap[(r.comp?.componente || r.comp?.label || '').trim().toLowerCase()] || DESC_FALLBACK,
     }));
 
     // ── HTML de cada ítem con layout alternado ────────────────
