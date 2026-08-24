@@ -16,6 +16,7 @@ const FIELD_MAP = {
   direccion: 'address',
   ciudad: 'city',
   estado: 'state',
+  cedula: 'cedula_profesional',
 };
 
 export async function GET(req) {
@@ -25,7 +26,7 @@ export async function GET(req) {
 
     const { data, error } = await supabase
       .from('affiliates')
-      .select('first_name, last_name, email, phone, social_media, clabe_interbancaria, city, state, address, shopify_collection_id, profession, status, email_verified')
+      .select('first_name, last_name, email, phone, social_media, clabe_interbancaria, city, state, address, shopify_collection_id, profession, status, email_verified, cedula_profesional')
       .eq('shopify_customer_id', customerIdNum)
       .single();
 
@@ -49,6 +50,7 @@ export async function GET(req) {
         estado: data.state || '',
         shopify_collection_id: data.shopify_collection_id || null,
         profesion: data.profession || '',
+        cedula: data.cedula_profesional || '',
         status: data.status || '',
         email_verified: !!data.email_verified,
       },
@@ -64,6 +66,7 @@ export async function GET(req) {
         ciudad: data.city || '',
         estado: data.state || '',
         profesion: data.profession || '',
+        cedula: data.cedula_profesional || '',
         status: data.status || '',
         email_verified: !!data.email_verified,
       },

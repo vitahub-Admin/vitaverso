@@ -1,9 +1,51 @@
 "use client";
-import { useState, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useCustomer } from "@/app/context/CustomerContext";
-import { X, ChevronDown, FileText, Package } from "lucide-react";
+import { X, ChevronDown, FileText, Package, Search } from "lucide-react";
 
 const DOSE_UNITS = ['cápsula', 'tableta', 'softgel', 'gota', 'ml', 'sobre', 'cucharada'];
+
+// ── Modal preview de descripción de producto ──────────────────────────────────
+function ProductPreviewModal({ productId, title, onClose }) {
+  const [html, setHtml]       = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(`/api/product-catalog?description=${productId}`)
+      .then(r => r.json())
+      .then(d => setHtml(d.descriptionHtml || "<p>Sin descripción disponible.</p>"))
+      .finally(() => setLoading(false));
+  }, [productId]);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
+      onClick={onClose}
+    >
+      <div
+        className="bg-white rounded-2xl w-full max-w-2xl max-h-[85vh] flex flex-col shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+          <h3 className="text-sm font-bold text-gray-900 line-clamp-1 flex-1">{title}</h3>
+          <button onClick={onClose} className="text-gray-300 hover:text-gray-600 ml-3 shrink-0 transition-colors">
+            <X size={18} />
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-5 py-4">
+          {loading ? (
+            <p className="text-sm text-gray-400 text-center py-10">Cargando descripción...</p>
+          ) : (
+            <div
+              className="prose prose-sm max-w-none text-gray-700 [&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-gray-200 [&_td]:px-2 [&_td]:py-1.5 [&_th]:border [&_th]:border-gray-200 [&_th]:px-2 [&_th]:py-1.5 [&_th]:bg-gray-50 [&_th]:font-semibold"
+              dangerouslySetInnerHTML={{ __html: html }}
+            />
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 const fmtMXN = (n) =>
   new Intl.NumberFormat("es-MX", {
@@ -11,7 +53,7 @@ const fmtMXN = (n) =>
   }).format(Number(n) || 0);
 
 // ─── Card de producto (un card por producto, variantes via selector) ───────────
-function ProductCard({ product, onAdd, cartVariantIds }) {
+function ProductCard({ product, onAdd, cartVariantIds, onPreview }) {
   const inStockVariants = (product.variants || []).filter(
     v => v.stock === null || v.stock > 0
   );
@@ -47,6 +89,15 @@ function ProductCard({ product, onAdd, cartVariantIds }) {
           <span className="absolute top-2 right-2 bg-[#1b3f7a] text-white text-xs font-semibold px-2 py-1 rounded-full shadow-sm">
             {product.commission_percent}%
           </span>
+        )}
+        {product.product_id && onPreview && (
+          <button
+            onClick={e => { e.stopPropagation(); onPreview(product); }}
+            title="Ver descripción del producto"
+            className="absolute bottom-2 right-2 p-1.5 bg-white/90 rounded-lg text-gray-400 hover:text-[#1b3f7a] hover:bg-white shadow-sm transition-colors"
+          >
+            <Search size={13} />
+          </button>
         )}
       </div>
 
@@ -555,6 +606,7 @@ export default function ArmadorCarritos() {
   const [carrito, setCarrito]   = useState([]);   // [{ variant_id, product_id, title, variant_title, image, price, quantity, dosage, note }]
   const [showModal, setShowModal] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [preview, setPreview]   = useState(null); // { product_id, title }
 
   const inputRef = useRef(null);
 
@@ -702,6 +754,7 @@ export default function ArmadorCarritos() {
                     product={p}
                     onAdd={agregarAlCarrito}
                     cartVariantIds={cartVariantIds}
+                    onPreview={p => setPreview({ product_id: p.product_id, title: p.title })}
                   />
                 ))}
               </div>
@@ -759,6 +812,15 @@ export default function ArmadorCarritos() {
           customerId={customerId}
           profesional={profesional}
           onClose={() => setShowModal(false)}
+        />
+      )}
+
+      {/* ── Modal descripción de producto ── */}
+      {preview && (
+        <ProductPreviewModal
+          productId={preview.product_id}
+          title={preview.title}
+          onClose={() => setPreview(null)}
         />
       )}
     </div>

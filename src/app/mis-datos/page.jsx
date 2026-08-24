@@ -6,12 +6,13 @@ import axios from "axios";
 import Banner from "../components/Banner";
 import { RefreshCw, Info, CreditCard } from "lucide-react";
 
-const CAMPOS_PUBLICOS = ["nombre","apellido","email","red_social","clabe","telefono","ciudad","estado","direccion"];
+const CAMPOS_PUBLICOS = ["nombre","apellido","email","cedula","red_social","clabe","telefono","ciudad","estado","direccion"];
 
 const LABEL = {
   nombre:     "Nombre",
   apellido:   "Apellido",
   email:      "Email",
+  cedula:     "Cédula Profesional",
   red_social: "Red social",
   clabe:      "CLABE",
   telefono:   "Teléfono",
@@ -21,8 +22,9 @@ const LABEL = {
 };
 
 const HINTS = {
-  email: "El email no se puede modificar.",
-  clabe: "18 dígitos numéricos. Ej: 012180000118359719",
+  email:  "El email no se puede modificar.",
+  clabe:  "18 dígitos numéricos. Ej: 012180000118359719",
+  cedula: "Número de cédula profesional emitida por la SEP.",
 };
 
 export default function PerfilAfiliado() {

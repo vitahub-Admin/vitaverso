@@ -5,7 +5,7 @@ import { useCustomer } from "../context/CustomerContext.jsx";
 import {
   ArrowLeft, ChevronDown, Minus, Plus, CheckCircle2, X,
   ClipboardList, User, Phone, ExternalLink, Copy,
-  ShoppingCart, TrendingUp, FileText, Eye, Search, EyeOff, PackagePlus, RotateCcw,
+  ShoppingCart, TrendingUp, FileText, Eye, Search, EyeOff, PackagePlus, RotateCcw, Mail,
 } from "lucide-react";
 
 // Descripción fallback si no hay match en la tabla componentes
@@ -385,7 +385,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                         title="Ver descripción del producto"
                         className="shrink-0 mt-0.5 p-1 rounded-lg text-[#B0C8D4] hover:text-[#1E8FA8] hover:bg-[#E6F4F8] transition-colors"
                       >
-                        <Eye size={14} />
+                        <Search size={14} />
                       </button>
                     )}
                   </div>
@@ -707,6 +707,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     ];
     // Construir mapa de dosis/notas por variant_id para persistirlo en el sharecart
     const dosisMap = {};
+    // Productos del protocolo
     Object.entries(selections)
       .filter(([vid]) => !hiddenVariantIds.has(Number(vid)))
       .forEach(([vid]) => {
@@ -720,6 +721,18 @@ function ProtocolUse({ protocol, customerId, onBack }) {
           };
         }
       });
+    // Productos extra (guardan su dosis directamente en el objeto, no en dosages/notes)
+    extraItems.forEach(e => {
+      const vid  = String(e.variant_id);
+      const dos  = e.dosage || {};
+      const nota = e.note  || "";
+      if (dos.amount || dos.unit || nota) {
+        dosisMap[vid] = {
+          ...(dos.amount || dos.unit ? { dosis_amount: dos.amount, dosis_unit: dos.unit } : {}),
+          ...(nota ? { nota } : {}),
+        };
+      }
+    });
 
     try {
       const res  = await fetch("/api/sharecart/checkout", {
@@ -1303,13 +1316,12 @@ function ProtocolUse({ protocol, customerId, onBack }) {
               }
             </button>
             {selectedCount > 0 && (
-              <button
-                onClick={generatePDF}
-                className="w-full bg-[#EEF3F7] text-[#2D4A5C] py-2.5 rounded-xl font-bold text-sm hover:bg-[#E0ECF3] transition-colors flex items-center justify-center gap-2"
-              >
-                <FileText size={14} />
-                Vista previa receta PDF
-              </button>
+              <div className="flex items-start gap-2.5 bg-[#EEF8F3] border border-[#C3E8D5] rounded-xl px-3.5 py-3">
+                <Mail size={14} className="text-[#2D8C5C] mt-0.5 shrink-0" />
+                <p className="text-[11.5px] text-[#2D6B4A] leading-relaxed">
+                  Se le enviará la prescripción a tu paciente cuando efectúen la compra.
+                </p>
+              </div>
             )}
           </div>
         )}
