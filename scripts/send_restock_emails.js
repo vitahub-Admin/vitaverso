@@ -115,14 +115,27 @@ async function main() {
 
   // ── 1. Pendientes de notificación ─────────────────────────────────────────
   console.log("\n📊 Leyendo SKUs pendientes...");
-  const { data: pending, error: errPending } = await supabase
-    .from("product_stock_state")
-    .select("sku, variant_id, came_back_at, stock_quantity")
-    .not("came_back_at", "is", null)
-    .or("notified_at.is.null,notified_at.lt.came_back_at")
-    .gt("stock_quantity", 0); // asegurarse que sigue en stock
+  // PostgREST no soporta comparación columna-vs-columna en .or() → dos queries
+  const [{ data: neverNotified, error: err1 }, { data: staleNotified, error: err2 }] = await Promise.all([
+    supabase.from("product_stock_state")
+      .select("sku, variant_id, came_back_at, stock_quantity, notified_at")
+      .not("came_back_at", "is", null)
+      .is("notified_at", null)
+      .gt("stock_quantity", 0),
+    supabase.from("product_stock_state")
+      .select("sku, variant_id, came_back_at, stock_quantity, notified_at")
+      .not("came_back_at", "is", null)
+      .not("notified_at", "is", null)
+      .gt("stock_quantity", 0),
+  ]);
 
-  if (errPending) throw new Error(`product_stock_state: ${errPending.message}`);
+  if (err1) throw new Error(`product_stock_state (null): ${err1.message}`);
+  if (err2) throw new Error(`product_stock_state (stale): ${err2.message}`);
+
+  const pending = [
+    ...(neverNotified || []),
+    ...(staleNotified || []).filter(p => p.notified_at < p.came_back_at),
+  ];
 
   if (!pending || pending.length === 0) {
     console.log("   ✅ Sin pendientes — nada que enviar");

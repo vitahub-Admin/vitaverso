@@ -60,8 +60,12 @@ async function main() {
     byEmail[a.email]   = a
   }
 
-  // Filtrar los que tienen referral_id
-  const withRef = all.filter(a => a.referral_id && a.referral_id.trim())
+  // Filtrar los que tienen referral_id real (excluir null, vacío y "N/A")
+  const INVALID_REFS = new Set(['n/a', 'na', 'null', 'none', '-', ''])
+  const withRef = all.filter(a => {
+    const r = (a.referral_id || '').trim().toLowerCase()
+    return r && !INVALID_REFS.has(r)
+  })
   console.log(`  ${withRef.length} afiliados con referral_id`)
 
   if (!withRef.length) {

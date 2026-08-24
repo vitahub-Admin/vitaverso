@@ -125,14 +125,27 @@ export async function POST(req) {
 
   try {
     // 1. SKUs pendientes de notificación
-    const { data: pending } = await supabase
-      .from("product_stock_state")
-      .select("sku, variant_id, stock_quantity")
-      .not("came_back_at", "is", null)
-      .or("notified_at.is.null,notified_at.lt.came_back_at")
-      .gt("stock_quantity", 0);
+    // Nota: PostgREST no soporta comparación columna-vs-columna en .or(),
+    // así que hacemos dos queries y combinamos en JS.
+    const [{ data: neverNotified }, { data: staleNotified }] = await Promise.all([
+      supabase.from("product_stock_state")
+        .select("sku, variant_id, stock_quantity, came_back_at, notified_at")
+        .not("came_back_at", "is", null)
+        .is("notified_at", null)
+        .gt("stock_quantity", 0),
+      supabase.from("product_stock_state")
+        .select("sku, variant_id, stock_quantity, came_back_at, notified_at")
+        .not("came_back_at", "is", null)
+        .not("notified_at", "is", null)
+        .gt("stock_quantity", 0),
+    ]);
 
-    if (!pending?.length) return NextResponse.json({ success: true, sent: 0, message: "Sin pendientes" });
+    const pending = [
+      ...(neverNotified || []),
+      ...(staleNotified || []).filter(p => p.notified_at < p.came_back_at),
+    ];
+
+    if (!pending.length) return NextResponse.json({ success: true, sent: 0, message: "Sin pendientes" });
 
     const pendingWithVariant = pending.filter(p => p.variant_id);
 

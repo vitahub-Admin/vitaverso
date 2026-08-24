@@ -152,12 +152,19 @@ export async function POST(req) {
       else saved += Math.min(BATCH, upserts.length - i);
     }
 
-    // 7. Pendientes de notificación
-    const { count: pending } = await supabase
-      .from("product_stock_state")
-      .select("sku", { count: "exact", head: true })
-      .not("came_back_at", "is", null)
-      .or("notified_at.is.null,notified_at.lt.came_back_at");
+    // 7. Pendientes de notificación (dos queries para evitar comparación columna-vs-columna)
+    const [{ count: pendingNull }, { data: pendingStaleRows }] = await Promise.all([
+      supabase.from("product_stock_state")
+        .select("sku", { count: "exact", head: true })
+        .not("came_back_at", "is", null)
+        .is("notified_at", null),
+      supabase.from("product_stock_state")
+        .select("sku, came_back_at, notified_at")
+        .not("came_back_at", "is", null)
+        .not("notified_at", "is", null),
+    ]);
+    const pendingStale = (pendingStaleRows || []).filter(p => p.notified_at < p.came_back_at).length;
+    const pending = (pendingNull ?? 0) + pendingStale;
 
     return NextResponse.json({
       success: true,
