@@ -1,3 +1,5 @@
+export const dynamic = "force-dynamic";
+
 import { createClient } from "@supabase/supabase-js";
 import SharecartsClient from "./components/SharecartsClient";
 
