@@ -439,6 +439,7 @@ export async function POST(req) {
     // ── Resolución de specialist_ref (6 pasos) ──────────────────
     let correctedRef = null;
     let status = "ok";
+    let isRecompra = false; // true cuando el cliente vuelve solo (sin sref) por metafield referido
 
     if (!specialistRef || specialistRef === "0000") {
       const customerId = customer.id;
@@ -476,10 +477,11 @@ export async function POST(req) {
         status = "corrected";
         if (!referidoValue) setReferido(customerId);
 
-      // Paso 3: Customer tiene metafield referido
+      // Paso 3: Customer tiene metafield referido → recompra (cliente vuelve sin sref)
       } else if (referidoValue) {
         correctedRef = referidoValue;
         status = "corrected";
+        isRecompra = true;
 
       // Paso 4: Share cart (note_attribute directo)
       } else if (shareCart) {
@@ -779,11 +781,22 @@ export async function POST(req) {
 
     if (txError) throw txError;
 
+    const customerFirstName = [customer.first_name, customer.last_name]
+      .filter(Boolean).join(' ') || 'tu contacto';
+
+    const pushTitle = isRecompra
+      ? '¡Nueva ganancia por recompra! 🔄'
+      : '¡Vendiste! 🛒';
+
+    const pushBody = isRecompra
+      ? `Ganaste $${totalCommission.toFixed(2)} MXN porque ${customerFirstName} hizo una recompra de suplementos.`
+      : `Ganaste $${totalCommission.toFixed(2)} MXN por la orden #${orderNumber}.`;
+
     sendPushToAffiliate(
       specialistId,
-      '¡Nueva comisión! 💰',
-      `Ganaste $${totalCommission.toFixed(2)} MXN por la orden #${orderNumber}.`,
-      { type: 'new_commission', orderId, orderNumber, amount: totalCommission }
+      pushTitle,
+      pushBody,
+      { type: isRecompra ? 'recompra_commission' : 'new_commission', orderId, orderNumber, amount: totalCommission }
     ).catch(() => {});
 
     await supabase.rpc("increment_affiliate_orders", {
