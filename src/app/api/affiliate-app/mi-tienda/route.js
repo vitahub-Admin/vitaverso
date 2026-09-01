@@ -59,10 +59,12 @@ export async function GET(req) {
       ok: true,
       customerId: customerIdNum,
       collection: {
-        title: col.title,
-        handle: col.handle,
-        imageUrl: col.image?.src || null,
+        title:        "Favoritos",               // label fijo — la colección son los favoritos del especialista
+        shopifyTitle: col.title,                 // título original de Shopify (por si se necesita)
+        handle:       col.handle,
+        imageUrl:     col.image?.src || null,
         presentacion: col.presentacion?.value || '',
+        sectionLabel: "Favoritos del especialista",
       },
     });
   } catch (err) {

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Banner from "../components/Banner";
+import { useCustomer } from "../context/CustomerContext";
 import axios from "axios";
 import {
   Banknote, ShoppingBag, TrendingUp, ArrowUpRight,
@@ -13,7 +14,19 @@ function fmt(n) {
   return Number(n).toLocaleString("es-MX", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
+function getGreeting(firstName) {
+  const hour = new Date().getHours();
+  const saludo =
+    hour >= 6 && hour < 12 ? "Buenos días" :
+    hour >= 12 && hour < 20 ? "Buenas tardes" :
+    "Buenas noches";
+  return firstName ? `${saludo}, ${firstName}` : saludo;
+}
+
 export default function WalletPage() {
+  const { customer } = useCustomer() || {};
+  const firstName = customer?.first_name || "";
+
   const [wallet, setWallet]                   = useState(null);
   const [transactions, setTransactions]       = useState([]);
   const [loading, setLoading]                 = useState(true);
@@ -26,6 +39,7 @@ export default function WalletPage() {
   const [clabe, setClabe]                     = useState(null);
   const [creditCodes, setCreditCodes]         = useState([]);
   const [showAppModal, setShowAppModal]       = useState(false);
+  const [bonusRate,   setBonusRate]           = useState(0.05);
 
   useEffect(() => {
     async function fetchWallet() {
@@ -53,9 +67,18 @@ export default function WalletPage() {
         if (d.ok) setCreditCodes(d.codes || []);
       } catch {}
     };
+    const getBonusRate = async () => {
+      try {
+        const r = await fetch("/api/admin/settings");
+        const d = await r.json();
+        const row = Array.isArray(d) && d.find(s => s.key === "store_credit_bonus_rate");
+        if (row?.value != null) setBonusRate(Number(row.value));
+      } catch {}
+    };
     fetchWallet();
     getClabe();
     getCreditCodes();
+    getBonusRate();
   }, []);
 
   const handleExchange = async () => {
@@ -110,8 +133,8 @@ export default function WalletPage() {
 
   function notify(msg, type = "info") { setMessage(msg); setMessageType(type); }
 
-  const storeCreditValue = exchangeType === "store_credit" && withdrawAmount ? Number(withdrawAmount) * 1.05 : 0;
-  const bonus            = exchangeType === "store_credit" && withdrawAmount ? Number(withdrawAmount) * 0.05 : 0;
+  const storeCreditValue = exchangeType === "store_credit" && withdrawAmount ? Number(withdrawAmount) * (1 + bonusRate) : 0;
+  const bonus            = exchangeType === "store_credit" && withdrawAmount ? Number(withdrawAmount) * bonusRate : 0;
 
   if (loading) return (
     <div className="min-h-screen flex flex-col items-center justify-center gap-3 bg-white">
@@ -138,15 +161,31 @@ export default function WalletPage() {
     <div className="min-h-screen bg-white text-gray-900">
 
 
+      {/* ── Saludo Fullscript-style ── */}
+      <div className="w-full bg-white border-b border-gray-100 px-6">
+        <div className="max-w-[960px] mx-auto py-6">
+          <p className="text-xs font-semibold text-[#1e8fa8] uppercase tracking-widest mb-1">
+            Vitahub Pro
+          </p>
+          <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
+            {getGreeting(firstName)}!
+          </h1>
+          <p className="text-sm text-gray-400 font-medium">
+            Aquí tienes un resumen de tus ganancias y actividad reciente.
+          </p>
+        </div>
+      </div>
+
+      {/* ── Banner (solo en home) ── */}
       <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=mSYOgM052PM" />
 
-      {/* ── Título full-width ── */}
+      {/* ── Sección Wallet ── */}
       <div className="w-full border-b border-gray-100 px-6">
-        <div className="max-w-[960px] mx-auto py-6">
-          <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
+        <div className="max-w-[960px] mx-auto py-4">
+          <h2 className="text-xl font-bold text-[#1b3f7a] tracking-tight">
             Mi Wallet
-          </h1>
-          <p className="text-sm text-gray-400 font-medium">Administra tus ganancias y créditos</p>
+          </h2>
+          <p className="text-xs text-gray-400 font-medium mt-0.5">Administra tus ganancias y créditos</p>
         </div>
       </div>
 
@@ -258,7 +297,7 @@ export default function WalletPage() {
                       <strong className="text-xs font-700 text-gray-900">Crédito en tienda</strong>
                     </div>
                     <span className="text-[0.68rem] text-emerald-600 font-semibold flex items-center gap-1">
-                      <Sparkles size={9} /> +5% bonificación
+                      <Sparkles size={9} /> +{(bonusRate * 100).toFixed(0)}% bonificación
                     </span>
                   </div>
                 </button>
@@ -306,7 +345,7 @@ export default function WalletPage() {
                         <span>Monto solicitado</span><span>${fmt(withdrawAmount)}</span>
                       </div>
                       <div className="flex justify-between text-xs text-emerald-600 font-semibold">
-                        <span>✦ Bonificación (+5%)</span><span>+${fmt(bonus)}</span>
+                        <span>✦ Bonificación (+{(bonusRate * 100).toFixed(0)}%)</span><span>+${fmt(bonus)}</span>
                       </div>
                       <div className="h-px bg-blue-100 my-0.5" />
                       <div className="flex justify-between text-sm font-semibold text-gray-800">
@@ -408,7 +447,7 @@ export default function WalletPage() {
               {[
                 { icon: ShieldCheck, title: "Validación de solicitudes", text: "Toda solicitud es revisada por el equipo admin antes de procesarse." },
                 { icon: Banknote,    title: "Retiro mínimo $200 MXN",    text: "El monto mínimo para retirar dinero en efectivo es de $200 MXN." },
-                { icon: BadgePercent,title: "+5% en crédito de tienda",  text: "Al elegir crédito en tienda recibes un 5% extra sobre el monto en cupón." },
+                { icon: BadgePercent,title: `+${(bonusRate*100).toFixed(0)}% en crédito de tienda`, text: `Al elegir crédito en tienda recibes un ${(bonusRate*100).toFixed(0)}% extra sobre el monto en cupón.` },
                 { icon: Timer,       title: "Retiros: 3 a 5 días hábiles", text: "Los retiros en efectivo se procesan en ese plazo. El crédito en tienda se acredita al instante." },
               ].map(({ icon: Icon, title, text }) => (
                 <div key={title} className="flex items-start gap-3">

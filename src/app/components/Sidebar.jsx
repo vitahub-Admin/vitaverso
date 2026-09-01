@@ -4,33 +4,31 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useCustomer } from "../context/CustomerContext.jsx";
+import { useSidebar } from "../context/SidebarContext.jsx";
 
 import {
   DollarSign, ShoppingBag, ShoppingCart, Store,
   BookOpen, GraduationCap, HelpCircle, Newspaper,
   Contact, UserPlus, Settings, Layers,
   Calendar, Users, CalendarCheck, Award, ClipboardList, BarChart2, Stethoscope,
+  PanelLeftClose, PanelLeftOpen,
 } from "lucide-react";
 
 const BOOKING_WHITELIST = [
-  "9166283571521",
-  "8394066952513",
-  "8819754762561","9730042724673",
-  "9375138775361","9351299400001",
-  "10324449034561","9784013783361"
-,
-"8988042592577", "9001558376769", "9191677854017",
-"9191936622913", "9192315781441", "9300956315969",
-"9330069766465", "9362135286081", "9416818229569",
-"9530796900673", "9565525934401", "9705885303105",
-"9772222447937", "9844729905473","9851360870721"
+  "9166283571521","8394066952513","8819754762561","9730042724673",
+  "9375138775361","9351299400001","10324449034561","9784013783361",
+  "8988042592577","9001558376769","9191677854017","9191936622913",
+  "9192315781441","9300956315969","9330069766465","9362135286081",
+  "9416818229569","9530796900673","9565525934401","9705885303105",
+  "9772222447937","9844729905473","9851360870721",
 ];
+
 const NAV_ITEMS = [
   { href: "/wallet",              label: "Wallet",               icon: DollarSign   },
   { href: "/ordenes",             label: "Órdenes",              icon: ShoppingBag  },
-  { href: "/mis-carritos-merge",  label: "Mis Carritos",         icon: ShoppingCart },
+  { href: "/mis-carritos-merge",  label: "Analytics",            icon: BarChart2,   requireTag: "vitahuber" },
   { href: "/mis-protocolos",      label: "Protocolos",           icon: ClipboardList, requireProtocols: true },
-  { href: "/armador-carritos",        label: "Protocolos Clínicos",   icon: Stethoscope  },
+  { href: "/armador-carritos",    label: "Protocolos Clínicos",  icon: Stethoscope, requireTag: "vitahuber" },
   { href: "/ordenes-v2",          label: "Órdenes V2",           icon: BarChart2,    requireTag: "vitahuber" },
   { href: "/contactos",           label: "Mis Contactos",        icon: Contact      },
   { href: "/mi-tienda",           label: "Mi Tienda",            icon: Store        },
@@ -40,24 +38,23 @@ const NAV_ITEMS = [
   { href: "/academia-vitahub",    label: "Academia Vitahub",     icon: GraduationCap },
   { href: "/notificaciones",      label: "Novedades",            icon: Newspaper    },
   { href: "/referral",            label: "Invita y gana",        icon: UserPlus     },
-  { href: "/mis-medallas",         label: "Mis Medallas",         icon: Award        ,    requireTag: "vitahuber"},
+  { href: "/mis-medallas",        label: "Mis Medallas",         icon: Award,        requireTag: "vitahuber" },
   { href: "/mis-datos",           label: "Mis Datos",            icon: Settings     },
   // ── Vitahuber only ──
   { href: "/vitahuber",           label: "Sharecarts General",   icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin",               label: "Admin",                icon: ShoppingCart, requireTag: "vitahuber" },
-  { href: "/admin-sharecarts",    label: "Ganancia por Referido", icon: DollarSign,  requireTag: "vitahuber" },
+  { href: "/admin-sharecarts",    label: "Ganancia Referido",    icon: DollarSign,  requireTag: "vitahuber" },
   { href: "/admin-datos-afiliados", label: "Profesionales Data", icon: Layers,      requireTag: "vitahuber" },
-  { href: "/admin-datos-analytics", label: "Analytics",          icon: Layers,      requireTag: "vitahuber" },
+  { href: "/admin-datos-analytics", label: "Analytics",         icon: Layers,      requireTag: "vitahuber" },
   { href: "/admin-pagos",         label: "Pagos",                icon: Layers,      requireTag: "vitahuber" },
-  { href: "/admin-resena",        label: "Reseñas tienda",              icon: Layers,      requireTag: "vitahuber" },
-  { href: "/admin-comunidad",     label: "Reseñas productos",          icon: Layers,      requireTag: "vitahuber" },
-  { href: "/calendar",      label: "Calendar",            icon: Calendar,      requireTag: "vitahuber" },
- 
-  { href: "/admin/protocols",         label: "Builder Protocolos",   icon: ClipboardList, requireTag: "vitahuber" },
-  { href: "/admin-capacitaciones",    label: "Capacitaciones",       icon: Layers,       requireTag: "vitahuber" },
-  { href: "/admin-ordenes",           label: "Órdenes Admin",         icon: ShoppingBag,  requireTag: "vitahuber" },
-  { href: "/admin-badges",            label: "Badges Admin",          icon: Award,        requireTag: "vitahuber" },
-  { href: "/admin-notificaciones",          label: "Notificaciones Admin",        icon: Users,        requireTag: "vitahuber" },    
+  { href: "/admin-resena",        label: "Reseñas tienda",       icon: Layers,      requireTag: "vitahuber" },
+  { href: "/admin-comunidad",     label: "Reseñas productos",    icon: Layers,      requireTag: "vitahuber" },
+  { href: "/calendar",            label: "Calendar",             icon: Calendar,    requireTag: "vitahuber" },
+  { href: "/admin/protocols",     label: "Builder Protocolos",   icon: ClipboardList, requireTag: "vitahuber" },
+  { href: "/admin-capacitaciones",label: "Capacitaciones",       icon: Layers,      requireTag: "vitahuber" },
+  { href: "/admin-ordenes",       label: "Órdenes Admin",        icon: ShoppingBag,  requireTag: "vitahuber" },
+  { href: "/admin-badges",        label: "Badges Admin",         icon: Award,        requireTag: "vitahuber" },
+  { href: "/admin-notificaciones",label: "Notificaciones Admin",  icon: Users,       requireTag: "vitahuber" },
 ];
 
 const WHATSAPP = `https://wa.me/5215548592403?text=${encodeURIComponent("Soy profesional Vitahub y tengo una duda")}`;
@@ -65,6 +62,7 @@ const WHATSAPP = `https://wa.me/5215548592403?text=${encodeURIComponent("Soy pro
 export default function Sidebar() {
   const pathname  = usePathname();
   const { customer } = useCustomer();
+  const { collapsed, toggle } = useSidebar();
   const [novedadesPendientes, setNovedadesPendientes] = useState(0);
   const [hasProtocols, setHasProtocols] = useState(false);
 
@@ -78,7 +76,6 @@ export default function Sidebar() {
       .then(r => r.json())
       .then(data => {
         const list = data.protocols || data.items || data || [];
-        // Solo contar los protocolos propios del profesional (el endpoint también devuelve públicos)
         const own = Array.isArray(list)
           ? list.filter(p => String(p.owner_id) === String(customer.id))
           : [];
@@ -93,19 +90,15 @@ export default function Sidebar() {
         const res  = await fetch("/api/sheet/news");
         const data = await res.json();
         if (!data.noticias) return;
-
         const ultimoId   = data.noticias[data.noticias.length - 1]?.id || 0;
         const lastSeenId = parseInt(localStorage.getItem("lastSeenId") || "0", 10);
-
         if (pathname === "/notificaciones") {
           localStorage.setItem("lastSeenId", ultimoId);
           setNovedadesPendientes(0);
         } else {
           setNovedadesPendientes(data.noticias.filter(n => n.id > lastSeenId).length);
         }
-      } catch (err) {
-        console.error("Error revisando novedades:", err);
-      }
+      } catch {}
     }
     checkNovedades();
   }, [pathname]);
@@ -117,18 +110,19 @@ export default function Sidebar() {
     return true;
   });
 
-  // Separar items normales de los admin (vitahuber)
   const publicItems = filteredItems.filter(item => !item.requireTag);
   const adminItems  = filteredItems.filter(item => item.requireTag === "vitahuber");
 
+  const w = collapsed ? "w-14" : "w-14 sm:w-52";
+
   return (
-    <aside className="
-      bg-white border-r border-gray-100 flex flex-col justify-between
-      w-14 sm:w-52 h-full transition-all duration-200
-    ">
+    <aside className={`
+      bg-white border-r border-gray-100 flex flex-col justify-between h-full
+      ${w} transition-all duration-200
+    `}>
 
       {/* ── Nav principal ── */}
-      <div className="flex-1 overflow-y-auto py-3 px-2 flex flex-col gap-0.5
+      <div className="flex-1 overflow-y-auto py-2 px-2 flex flex-col gap-0.5
         [&::-webkit-scrollbar]:w-1
         [&::-webkit-scrollbar-track]:bg-transparent
         [&::-webkit-scrollbar-thumb]:bg-gray-200
@@ -142,8 +136,10 @@ export default function Sidebar() {
             <Link
               key={href}
               href={href}
+              title={collapsed ? label : undefined}
               className={`
-                relative flex items-center justify-center sm:justify-start gap-3
+                relative flex items-center gap-3
+                ${collapsed ? "justify-center" : "justify-start sm:justify-start"}
                 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-all
                 ${isActive
                   ? "bg-[#1b3f7a] text-white shadow-sm"
@@ -152,11 +148,11 @@ export default function Sidebar() {
               `}
             >
               <Icon size={17} className="shrink-0" />
-              <span className="hidden sm:inline truncate">{label}</span>
+              {!collapsed && <span className="hidden sm:inline truncate">{label}</span>}
 
               {isNovedades && novedadesPendientes > 0 && (
                 <span className="
-                  absolute top-1.5 right-1.5 sm:static sm:ml-auto
+                  absolute top-1.5 right-1.5
                   min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold
                   rounded-full flex items-center justify-center px-1
                 ">
@@ -170,14 +166,16 @@ export default function Sidebar() {
         {/* ── Sección Admin ── */}
         {adminItems.length > 0 && (
           <>
-            <div className="my-2 px-2.5 hidden sm:flex items-center gap-2">
-              <div className="flex-1 h-px bg-gray-100" />
-              <span className="text-[0.6rem] font-semibold tracking-widest uppercase text-gray-300">
-                Admin
-              </span>
-              <div className="flex-1 h-px bg-gray-100" />
-            </div>
-            <div className="sm:hidden my-1 mx-2 h-px bg-gray-100" />
+            {!collapsed && (
+              <div className="my-2 px-2.5 hidden sm:flex items-center gap-2">
+                <div className="flex-1 h-px bg-gray-100" />
+                <span className="text-[0.6rem] font-semibold tracking-widest uppercase text-gray-300">
+                  Admin
+                </span>
+                <div className="flex-1 h-px bg-gray-100" />
+              </div>
+            )}
+            <div className="my-1 mx-2 h-px bg-gray-100 sm:hidden" />
 
             {adminItems.map(({ href, label, icon: Icon }) => {
               const isActive = pathname.startsWith(href);
@@ -185,8 +183,10 @@ export default function Sidebar() {
                 <Link
                   key={href}
                   href={href}
+                  title={collapsed ? label : undefined}
                   className={`
-                    flex items-center justify-center sm:justify-start gap-3
+                    flex items-center gap-3
+                    ${collapsed ? "justify-center" : "justify-start sm:justify-start"}
                     px-2.5 py-2 rounded-xl text-sm font-medium transition-all
                     ${isActive
                       ? "bg-[#1b3f7a] text-white shadow-sm"
@@ -195,7 +195,7 @@ export default function Sidebar() {
                   `}
                 >
                   <Icon size={15} className="shrink-0" />
-                  <span className="hidden sm:inline truncate text-xs">{label}</span>
+                  {!collapsed && <span className="hidden sm:inline truncate text-xs">{label}</span>}
                 </Link>
               );
             })}
@@ -203,20 +203,39 @@ export default function Sidebar() {
         )}
       </div>
 
-      {/* ── Botón Ayuda ── */}
-      <div className="p-2 border-t border-gray-100 shrink-0">
+      {/* ── Footer: toggle + ayuda ── */}
+      <div className="p-2 border-t border-gray-100 shrink-0 flex flex-col gap-1.5">
+        {/* Toggle collapse — solo desktop */}
+        <button
+          onClick={toggle}
+          title={collapsed ? "Expandir menú" : "Colapsar menú"}
+          className="
+            hidden sm:flex items-center justify-center gap-2
+            px-2.5 py-2 rounded-xl text-gray-400 hover:bg-gray-50 hover:text-[#1b3f7a]
+            transition-all text-xs font-medium
+          "
+        >
+          {collapsed
+            ? <PanelLeftOpen size={16} />
+            : <><PanelLeftClose size={16} /><span className="hidden sm:inline">Colapsar</span></>
+          }
+        </button>
+
+        {/* Ayuda */}
         <Link
           href={WHATSAPP}
           target="_blank"
           rel="noopener noreferrer"
-          className="
-            flex items-center justify-center sm:justify-start gap-3
-            px-2.5 py-2.5 rounded-xl bg-emerald-500 text-white text-sm font-semibold
+          title="Ayuda"
+          className={`
+            flex items-center gap-3 px-2.5 py-2.5 rounded-xl
+            bg-emerald-500 text-white text-sm font-semibold
             hover:bg-emerald-600 transition
-          "
+            ${collapsed ? "justify-center" : "justify-center sm:justify-start"}
+          `}
         >
           <HelpCircle size={17} className="shrink-0" />
-          <span className="hidden sm:inline">Ayuda</span>
+          {!collapsed && <span className="hidden sm:inline">Ayuda</span>}
         </Link>
       </div>
 
