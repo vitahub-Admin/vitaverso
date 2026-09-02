@@ -2,6 +2,7 @@
 // Genera reporte mensual o anual TikTok + Shopify → Google Sheets
 // Uso: node scripts/reporte_ventas.js 2026-05          (mensual → tab "2026-05")
 //      node scripts/reporte_ventas.js 2026             (anual   → tab "2026-general", comisiones históricas)
+//      node scripts/reporte_ventas.js 2026-05 separado (mensual + archivos por vendor en Drive)
 
 import 'dotenv/config'
 import { google } from 'googleapis'
@@ -15,6 +16,15 @@ const SHOPIFY_STORE = process.env.SHOPIFY_STORE
 const SHOPIFY_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN
 
 const SHEET_ID = '16qtU3hbpOynNt90htLrvQujMW3TAG8sWG-Z_uPN6Hno'
+
+// Modo "separado": archivos por vendor en Drive
+const DRIVE_FOLDER_ID = '1cny_6buu3YoDxDEoF7V5r8-sc1HT0_cY'   // carpeta "Facturacion"
+const TEMPLATE_ID     = '1GSVCrUG51cXPWYCOBnxShA2eKF57MUpz_NkUh73Ty2I' // "Comodin - Facturación"
+const TEMPLATE_TAB    = 'Comodin'  // tab de datos en la plantilla (se renombra al vendor)
+const VENDOR_COLS     = 19         // columnas A–S: incluye SKU, comision afiliado y fuente (sin specialist_ref)
+const VENDOR_EXTRA_HEADERS = ['SKU', 'comision afiliado', 'fuente'] // encabezados Q1:S1 en archivos de vendor
+const MESES = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO',
+               'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -41,7 +51,10 @@ function getAuth() {
       client_email: process.env.GOOGLE_CLIENT_EMAIL,
       private_key: process.env.GOOGLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
     },
-    scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+    scopes: [
+      'https://www.googleapis.com/auth/spreadsheets',
+      'https://www.googleapis.com/auth/drive',
+    ],
   })
 }
 
@@ -82,6 +95,163 @@ async function writeToSheet(tabName, rows) {
   })
 
   console.log(`  ✅ ${rows.length} filas escritas en tab '${tabName}'`)
+}
+
+// ── Modo separado: archivos por vendor en Drive ───────────────
+
+function escapeDriveQuery(s) { return s.replace(/\\/g, '\\\\').replace(/'/g, "\\'") }
+
+async function findOrCreateFolder(drive, parentId, name) {
+  const res = await drive.files.list({
+    q: `'${parentId}' in parents and name = '${escapeDriveQuery(name)}' and mimeType = 'application/vnd.google-apps.folder' and trashed = false`,
+    fields: 'files(id, name)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  })
+  if (res.data.files.length) return { id: res.data.files[0].id, created: false }
+
+  const created = await drive.files.create({
+    requestBody: { name, mimeType: 'application/vnd.google-apps.folder', parents: [parentId] },
+    fields: 'id',
+    supportsAllDrives: true,
+  })
+  return { id: created.data.id, created: true }
+}
+
+async function findFileInFolder(drive, folderId, name) {
+  const res = await drive.files.list({
+    q: `'${folderId}' in parents and name = '${escapeDriveQuery(name)}' and trashed = false`,
+    fields: 'files(id, name)',
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
+  })
+  return res.data.files[0]?.id || null
+}
+
+// Escribe las filas del vendor en su archivo (cols A–P, formulas en L y P)
+// Reintenta cuando la API de Google devuelve "Quota exceeded" (límite por minuto)
+async function conReintento(fn, intentos = 4) {
+  for (let i = 1; ; i++) {
+    try {
+      return await fn()
+    } catch (e) {
+      const esQuota = e.code === 429 || /quota exceeded/i.test(e.message || '')
+      if (!esQuota || i >= intentos) throw e
+      console.log(`  ⏳ Cuota de API alcanzada — esperando 65s (intento ${i}/${intentos - 1})...`)
+      await sleep(65000)
+    }
+  }
+}
+
+async function writeVendorData(sheetsApi, spreadsheetId, tabName, rows) {
+  await conReintento(() => sheetsApi.spreadsheets.values.clear({
+    spreadsheetId,
+    range: `'${tabName}'!A2:S10000`,
+  }))
+
+  const values = rows.map((row, idx) => {
+    const r = idx + 2
+    const r2 = row.slice(0, VENDOR_COLS)
+    r2[11] = `=I${r}*J${r}*(1-K${r}/100)` // Venta menos comisión
+    r2[15] = `=L${r}-N${r}-O${r}`          // Neto a liquidar
+    return r2
+  })
+
+  // Encabezados Q-S + datos en una sola escritura (cuota: 60 writes/min)
+  await conReintento(() => sheetsApi.spreadsheets.values.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      valueInputOption: 'USER_ENTERED',
+      data: [
+        { range: `'${tabName}'!Q1`, values: [VENDOR_EXTRA_HEADERS] },
+        { range: `'${tabName}'!A2`, values },
+      ],
+    },
+  }))
+}
+
+async function runSeparado(rows, year, month) {
+  const auth      = getAuth()
+  const drive     = google.drive({ version: 'v3', auth })
+  const sheetsApi = google.sheets({ version: 'v4', auth })
+
+  const mesLabel  = `${MESES[month - 1]} ${year}`
+
+  console.log(`\n=== Modo separado: archivos por vendor (${mesLabel}) ===`)
+
+  // 1. Agrupar filas por vendor (col F, índice 5) — sin distinguir mayúsculas
+  //    ("Vitaminate" y "VITAMINATE" son el mismo vendor; gana la grafía más frecuente)
+  const grupos = new Map() // clave upper → { grafias: Map, rows: [] }
+  for (const row of rows) {
+    const raw = (row[5] || '').toString().trim() || 'SIN VENDOR'
+    const key = raw.toUpperCase()
+    if (!grupos.has(key)) grupos.set(key, { grafias: new Map(), rows: [] })
+    const g = grupos.get(key)
+    g.grafias.set(raw, (g.grafias.get(raw) || 0) + 1)
+    g.rows.push(row)
+  }
+  const porVendor = new Map()
+  for (const g of grupos.values()) {
+    const nombre = [...g.grafias.entries()].sort((a, b) => b[1] - a[1])[0][0]
+    porVendor.set(nombre, g.rows)
+  }
+  console.log(`  ${porVendor.size} vendors (incluye SIN VENDOR si aplica)`)
+
+  // 2. Carpeta del mes
+  const { id: folderId, created } = await findOrCreateFolder(drive, DRIVE_FOLDER_ID, mesLabel)
+  console.log(`  Carpeta "${mesLabel}" ${created ? 'creada' : 'reutilizada'}\n`)
+
+  // 3. Un archivo por vendor
+  const resumen = []
+  for (const [vendor, vendorRows] of [...porVendor.entries()].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const fileName = `${vendor} - Facturacion ${mesLabel}`
+
+    let fileId  = await findFileInFolder(drive, folderId, fileName)
+    let accion  = 'actualizado'
+
+    if (!fileId) {
+      const copy = await drive.files.copy({
+        fileId: TEMPLATE_ID,
+        requestBody: { name: fileName, parents: [folderId] },
+        fields: 'id',
+        supportsAllDrives: true,
+      })
+      fileId = copy.data.id
+      accion = 'creado'
+    }
+
+    // Tab de datos: el del vendor si ya existe, si no renombrar "Comodin"
+    const meta = await conReintento(() => sheetsApi.spreadsheets.get({
+      spreadsheetId: fileId,
+      fields: 'sheets(properties(title,sheetId))',
+    }))
+    let tab = meta.data.sheets.find(s => s.properties.title.toUpperCase() === vendor.toUpperCase())
+    if (!tab) {
+      const comodin = meta.data.sheets.find(s => s.properties.title === TEMPLATE_TAB)
+      if (!comodin) throw new Error(`"${fileName}" no tiene tab "${vendor}" ni "${TEMPLATE_TAB}"`)
+      await conReintento(() => sheetsApi.spreadsheets.batchUpdate({
+        spreadsheetId: fileId,
+        requestBody: {
+          requests: [{
+            updateSheetProperties: {
+              properties: { sheetId: comodin.properties.sheetId, title: vendor },
+              fields: 'title',
+            },
+          }],
+        },
+      }))
+      tab = { properties: { title: vendor } }
+    }
+
+    await writeVendorData(sheetsApi, fileId, tab.properties.title, vendorRows)
+    resumen.push([vendor, vendorRows.length, accion])
+    console.log(`  ✅ ${fileName} — ${vendorRows.length} filas (${accion})`)
+    await sleep(1000)
+  }
+
+  console.log(`\n=== Separado listo — ${resumen.length} archivos en https://drive.google.com/drive/folders/${folderId} ===`)
+  const sinVendor = porVendor.get('SIN VENDOR')
+  if (sinVendor) console.log(`  ⚠️  ${sinVendor.length} filas SIN VENDOR — revisar caso por caso`)
 }
 
 // ── BaseLinker ─────────────────────────────────────────────────
@@ -670,6 +840,10 @@ async function main() {
 
   console.log(`Escribiendo en Sheets tab '${arg}'...`)
   await writeToSheet(arg, rows)
+
+  if (process.argv[3] === 'separado') {
+    await runSeparado(rows, year, month)
+  }
 
   console.log(`=== Listo ===`)
 }

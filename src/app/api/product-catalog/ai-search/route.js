@@ -90,10 +90,19 @@ export async function POST(req) {
 
     // 2. Buscar en Supabase por cada ingrediente (componente o título)
     //    Construimos condiciones OR para cada ingrediente (es + en)
-    const terminos = ingredientes.flatMap(i => [i.nombre, i.en].filter(Boolean));
+    // Sanitizar términos: extraer palabras simples (sin paréntesis, comas, etc.)
+    // "Probióticos (Lactobacillus, Bifidobacterium)" → ["Probióticos", "Lactobacillus", "Bifidobacterium"]
+    const sanitizeTerms = (str) =>
+      str.replace(/[()[\]{}]/g, " ")   // quitar paréntesis
+         .split(/[,/|]/)               // separar por coma, slash, pipe
+         .map(s => s.trim())
+         .filter(s => s.length > 2);  // descartar muy cortos
 
-    // Supabase no tiene OR dinámico en el SDK, usamos rpc o filter manual
-    // Buscamos en componente y en titulo
+    const terminos = [...new Set(
+      ingredientes.flatMap(i => [i.nombre, i.en].filter(Boolean).flatMap(sanitizeTerms))
+    )];
+
+    // Construir OR para Supabase — cada término como condición separada
     const orConditions = terminos
       .map(t => `componente.ilike.%${t}%,title.ilike.%${t}%`)
       .join(",");
@@ -131,9 +140,11 @@ export async function POST(req) {
       const item = {
         product_id:       id,
         title:            row.title,
-        vendor:           row.brand,
+        brand:            row.brand,
+        is_professional:  !!row.is_professional,
         image_url:        null,
         min_price:        row.price ?? null,
+        commission_percent: 0,
         all_out_of_stock: false,
         variants:         [],
         ai_match:         match ? { nombre: match.nombre, razon: match.razon } : null,
@@ -166,6 +177,7 @@ export async function POST(req) {
             nodes(ids: $ids) {
               ... on Product {
                 id
+                vendor
                 featuredImage { url }
                 variants(first: 15) {
                   edges { node {
@@ -192,6 +204,7 @@ export async function POST(req) {
           const prices = variants.map(v => v.price).filter(Boolean);
           shopifyMap[pid] = {
             image_url: node.featuredImage?.url ?? null,
+            brand:     node.vendor || null,
             variants,
             min_price: prices.length ? Math.min(...prices) : null,
           };
@@ -202,17 +215,39 @@ export async function POST(req) {
     }
 
     // Fusionar datos de Shopify con los items rankeados
-    const items = ranked.map(item => {
+    const enriched = ranked.map(item => {
       const sh = shopifyMap[item.product_id];
       return {
         ...item,
         image_url:        sh?.image_url  ?? null,
+        brand:            sh?.brand      ?? item.brand,
         min_price:        sh?.min_price  ?? item.min_price,
         variants:         sh?.variants   ?? [],
         all_out_of_stock: sh?.variants?.length
           ? sh.variants.every(v => v.stock !== null && v.stock <= 0)
           : false,
       };
+    });
+
+    // Comisiones desde product_variant_commissions (igual que la ruta normal)
+    const allVariantIds = enriched.flatMap(p => p.variants.map(v => v.variant_id));
+    let commissionMap = {};
+    if (allVariantIds.length) {
+      try {
+        const { data: commData } = await supabase
+          .from("product_variant_commissions")
+          .select("variant_id, commission_percent")
+          .in("variant_id", allVariantIds)
+          .eq("active", true);
+        for (const c of commData || []) commissionMap[c.variant_id] = Number(c.commission_percent);
+      } catch {}
+    }
+
+    const items = enriched.map(item => {
+      const maxComm = item.variants.length
+        ? Math.max(0, ...item.variants.map(v => commissionMap[v.variant_id] ?? 0))
+        : 0;
+      return { ...item, commission_percent: maxComm };
     });
 
     return NextResponse.json({

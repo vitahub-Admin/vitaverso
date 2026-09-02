@@ -343,7 +343,7 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
 }
 
 // ── DraftItem — card editable dentro del borrador ────────────────────────────
-function DraftItem({ item, idx, onRemove, onUpdateDosage }) {
+function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
   const dos   = item.dosage || {};
   const smart = detectUnit(item.title, item.variant_title || "");
 
@@ -353,6 +353,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage }) {
   const [momentos, setMomentos] = useState(dos.momentos ?? (dos.momento ? [dos.momento] : []));
   const [acomp,    setAcomp]    = useState(dos.acompanamiento ?? "");
   const [nota,     setNota]     = useState(dos.nota ?? "");
+  const [qty,      setQty]      = useState(item.quantity ?? 1);
 
   // useRef garantiza que save() siempre lee los valores más recientes sin closure stale
   const latest = useRef({});
@@ -390,10 +391,22 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage }) {
             {acomp && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{acomp}</span>}
           </div>
           {nota && <p className="text-[10px] text-[#5B7A8C] mt-1.5 italic">📋 {nota}</p>}
-          <div className="flex items-center gap-3 mt-2">
-            <p className="text-sm font-extrabold text-[#0D2133] tabular-nums">{fmtMXN(item.price)}</p>
+          <div className="flex items-center gap-3 mt-2 flex-wrap">
+            <p className="text-sm font-extrabold text-[#0D2133] tabular-nums">
+              {fmtMXN(item.price * qty)}
+              {qty > 1 && <span className="text-[10px] font-normal text-[#5B7A8C] ml-1">({qty} × {fmtMXN(item.price)})</span>}
+            </p>
+            {/* Selector de cantidad de frascos */}
+            <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
+              <button onClick={() => { const n = Math.max(1, qty - 1); setQty(n); onUpdateQuantity(item.variant_id, n); }}
+                className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold transition-colors text-base">−</button>
+              <span className="w-6 text-center text-xs font-extrabold text-[#0D2133] tabular-nums select-none">{qty}</span>
+              <button onClick={() => { const n = qty + 1; setQty(n); onUpdateQuantity(item.variant_id, n); }}
+                className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold transition-colors text-base">+</button>
+            </div>
+            <span className="text-[10px] text-[#B0C8D4]">{qty === 1 ? "frasco" : "frascos"}</span>
             <button onClick={() => setOpen(o => !o)}
-              className="flex items-center gap-1 text-[10px] font-bold text-[#1E8FA8] hover:text-[#0D2133] transition-colors">
+              className="flex items-center gap-1 text-[10px] font-bold text-[#1E8FA8] hover:text-[#0D2133] transition-colors ml-auto">
               <Pencil size={10} /> {open ? "Cerrar" : "Editar dosis"}
             </button>
           </div>
@@ -461,7 +474,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage }) {
 }
 
 // ── Draft View ────────────────────────────────────────────────────────────────
-function DraftView({ carrito, patientData, onPatientChange, customerId, profesional, onBack, onRemoveItem, onClear, onUpdateDosage }) {
+function DraftView({ carrito, patientData, onPatientChange, customerId, profesional, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity }) {
   const [loading, setLoading]         = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [error, setError]             = useState(null);
@@ -509,7 +522,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
             </div>
           ) : carrito.map((item, idx) => (
             <DraftItem key={item.variant_id} item={item} idx={idx}
-              onRemove={onRemoveItem} onUpdateDosage={onUpdateDosage} />
+              onRemove={onRemoveItem} onUpdateDosage={onUpdateDosage} onUpdateQuantity={onUpdateQuantity} />
           ))}
         </div>
 
@@ -675,7 +688,7 @@ function SmartSuggestions({ componente, excludeId, onProductClick, isFavorite, o
 }
 
 // ── Product Detail View ───────────────────────────────────────────────────────
-function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartItem, isFavorite, onFavorite }) {
+function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartItem, isFavorite, onFavorite, onProductClick }) {
   const inCart = !!cartItem;
   const inStockVariants = (product.variants || []).filter(v => v.stock === null || v.stock > 0);
   const [selectedVariant, setSelectedVariant] = useState(
@@ -691,6 +704,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
   );
   const [acomp,    setAcomp]    = useState(cartItem?.dosage?.acompanamiento ?? "");
   const [nota,     setNota]     = useState(cartItem?.dosage?.nota ?? "");
+  const [quantity, setQuantity] = useState(cartItem?.quantity ?? 1);
   const [descHtml,      setDescHtml]      = useState("");
   const [descLoading,   setDescLoading]   = useState(false);
   const [descTableOpen, setDescTableOpen] = useState(false);
@@ -734,7 +748,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
   const handleAdd = () => {
     if (!selectedVariant || outOfStock) return;
     const dosage = { amount, unit, momentos, acompanamiento: acomp, nota };
-    inCart ? onUpdate(cartItem.variant_id, selectedVariant, dosage) : onAdd(product, selectedVariant, dosage);
+    inCart ? onUpdate(cartItem.variant_id, selectedVariant, dosage, quantity) : onAdd(product, selectedVariant, dosage, quantity);
   };
 
   return (
@@ -1051,11 +1065,29 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             );
           })()}
 
+          {/* Cantidad de frascos */}
+          {!outOfStock && (
+            <div className="flex items-center gap-3">
+              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Cantidad</span>
+              <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
+                <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold text-lg transition-colors">−</button>
+                <span className="w-10 text-center text-sm font-extrabold text-[#0D2133] tabular-nums select-none">{quantity}</span>
+                <button onClick={() => setQuantity(q => q + 1)}
+                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold text-lg transition-colors">+</button>
+              </div>
+              <span className="text-xs text-[#5B7A8C]">{quantity === 1 ? "frasco" : "frascos"}</span>
+              {quantity > 1 && price && (
+                <span className="text-xs font-extrabold text-[#1E8FA8] tabular-nums ml-auto">Total: {fmtMXN(price * quantity)}</span>
+              )}
+            </div>
+          )}
+
           {outOfStock
             ? <div className="w-full bg-[#F7F9FB] text-[#B0C8D4] text-sm font-semibold py-3.5 rounded-xl text-center border border-[#D0E4EC]">Sin stock disponible</div>
             : <button onClick={handleAdd}
                 className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${inCart ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#0D2133] text-white hover:bg-[#162d60]"}`}>
-                {inCart ? "✓ Actualizar en protocolo" : "Agregar al protocolo"}
+                {inCart ? "✓ Actualizar en protocolo" : `Agregar al protocolo${quantity > 1 ? ` (×${quantity})` : ""}`}
               </button>
           }
           {selectedVariant?.sku && <p className="text-[10px] text-[#B0C8D4]">SKU: {selectedVariant.sku}</p>}
@@ -1064,7 +1096,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
 
       {product.componente && (
         <SmartSuggestions componente={product.componente} excludeId={product.product_id}
-          onProductClick={() => {}} isFavorite={isFavorite} onFavorite={onFavorite} />
+          onProductClick={onProductClick} isFavorite={isFavorite} onFavorite={onFavorite} />
       )}
     </div>
   );
@@ -1153,6 +1185,8 @@ export default function ArmadorCarritos() {
     setLoading(true); setError(null); setActiveTabKey(null); setAiResult(null);
     try {
       if (aiMode) {
+        // En modo IA los productos no tienen commission_percent → limpiar filtro
+        setFilterMinComm(0);
         // Búsqueda IA — Claude interpreta y busca en Supabase
         const res  = await fetch("/api/product-catalog/ai-search", {
           method:  "POST",
@@ -1212,22 +1246,22 @@ export default function ArmadorCarritos() {
     setError(null); setActiveTabKey(null); setDetailProduct(null);
   };
 
-  const agregarAlProtocolo = useCallback((product, variant, dosage) => {
+  const agregarAlProtocolo = useCallback((product, variant, dosage, quantity = 1) => {
     setCarrito(prev => {
       if (prev.find(p => p.variant_id === variant.variant_id)) return prev;
       return [...prev, {
         variant_id: variant.variant_id, product_id: product.product_id,
         title: product.title, variant_title: variant.variant_title || null,
         image: product.image_url || null,
-        price: variant.price ?? product.min_price ?? 0, quantity: 1,
+        price: variant.price ?? product.min_price ?? 0, quantity,
         dosage: dosage || { amount: 1, unit: detectUnit(product.title, variant.variant_title || ""), momentos: [], acompanamiento: "", nota: "" },
       }];
     });
   }, []);
 
-  const actualizarEnProtocolo = useCallback((oldVid, newVariant, dosage) => {
+  const actualizarEnProtocolo = useCallback((oldVid, newVariant, dosage, quantity) => {
     setCarrito(prev => prev.map(p => p.variant_id === oldVid
-      ? { ...p, variant_id: newVariant.variant_id, variant_title: newVariant.variant_title || null, price: newVariant.price ?? p.price, dosage }
+      ? { ...p, variant_id: newVariant.variant_id, variant_title: newVariant.variant_title || null, price: newVariant.price ?? p.price, dosage, ...(quantity != null ? { quantity } : {}) }
       : p
     ));
   }, []);
@@ -1243,6 +1277,9 @@ export default function ArmadorCarritos() {
   const limpiarProtocolo    = useCallback(() => setCarrito([]), []);
   const actualizarDosage    = useCallback((vid, dosage) => {
     setCarrito(prev => prev.map(p => p.variant_id === vid ? { ...p, dosage } : p));
+  }, []);
+  const actualizarCantidad  = useCallback((vid, qty) => {
+    setCarrito(prev => prev.map(p => p.variant_id === vid ? { ...p, quantity: Math.max(1, qty) } : p));
   }, []);
 
   // Filtrar sin stock del grid
@@ -1439,7 +1476,7 @@ export default function ArmadorCarritos() {
             carrito={carrito} patientData={patientData} onPatientChange={setPatientData}
             customerId={customerId} profesional={profesional}
             onBack={handleHome} onRemoveItem={quitarDelProtocolo} onClear={limpiarProtocolo}
-            onUpdateDosage={actualizarDosage}
+            onUpdateDosage={actualizarDosage} onUpdateQuantity={actualizarCantidad}
           />
         )}
 
@@ -1484,6 +1521,7 @@ export default function ArmadorCarritos() {
             cartItem={carrito.find(c => detailProduct.variants?.some(v => v.variant_id === c.variant_id)) || null}
             isFavorite={isFavorite}
             onFavorite={toggleFavorite}
+            onProductClick={handleProductClick}
           />
         )}
 
