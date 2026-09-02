@@ -943,9 +943,12 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                 {(() => {
                   const nutrients = product.nutrients || [];
                   if (!nutrients.length) return null;
-                  const meta = variantMeta[String(selectedVariant?.variant_id)];
-                  const servingSize = meta?.dosis ?? 1;
+                  const meta      = variantMeta[String(selectedVariant?.variant_id)];
+                  const hasMeta   = meta?.tipo_dosis && meta?.dosis != null;
                   const timesPerDay = momentos.length || 1;
+                  // Con metafields: amount = dosis (porciones), cada dosis = 1 serving
+                  // Sin metafields: amount = unidades, dividir entre serving_size del catálogo
+                  const servingSize = hasMeta ? 1 : (Number(product.serving_size) || meta?.dosis || 1);
                   const mult = (amount / servingSize) * timesPerDay;
                   return (
                     <div className="bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg px-3.5 py-3">
@@ -990,23 +993,41 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             return (
               <>
                 {/* Card A — Tabla nutricional */}
-                {(descLoading || tableHtml) && (
-                  <div className="border border-[#D0E4EC] rounded-xl overflow-hidden">
-                    <button onClick={() => setDescTableOpen(o => !o)}
-                      className="w-full flex items-center justify-between px-4 py-3.5 text-left bg-white hover:bg-[#F7F9FB] transition-colors">
-                      <span className="text-sm font-bold text-[#0D2133]">Tabla de información nutricional</span>
-                      <ChevronDown size={15} className={`text-[#5B7A8C] transition-transform ${descTableOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    {descTableOpen && (
-                      <div className="px-4 pb-4 pt-2 border-t border-[#EEF3F7] bg-white overflow-x-auto">
-                        {descLoading
-                          ? <p className="text-xs text-[#B0C8D4] text-center py-4">Cargando…</p>
-                          : <div className="[&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2.5 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:bg-[#F0F5F8] [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#5B7A8C] [&_td]:text-[#0D2133]"
-                              dangerouslySetInnerHTML={{ __html: tableHtml }} />}
-                      </div>
-                    )}
-                  </div>
-                )}
+                {(descLoading || tableHtml) && (() => {
+                  const meta = variantMeta[String(selectedVariant?.variant_id)];
+                  const porcionStr = meta?.dosis != null && meta?.tipo_dosis
+                    ? `${meta.dosis} ${meta.tipo_dosis}`
+                    : null;
+                  const dosisStr = meta?.total_dosis != null
+                    ? `${meta.total_dosis} dosis por frasco`
+                    : null;
+                  const porcionLabel = [porcionStr, dosisStr].filter(Boolean).join(" · ");
+
+                  return (
+                    <div className="border border-[#D0E4EC] rounded-xl overflow-hidden">
+                      <button onClick={() => setDescTableOpen(o => !o)}
+                        className="w-full flex items-center justify-between px-4 py-3.5 text-left bg-white hover:bg-[#F7F9FB] transition-colors">
+                        <div>
+                          <span className="text-sm font-bold text-[#0D2133]">Tabla de información nutricional</span>
+                          {porcionLabel && (
+                            <p className="text-[11px] text-[#8AAAB8] mt-0.5">
+                              Porción del fabricante: <span className="font-semibold text-[#5B7A8C]">{porcionLabel}</span>
+                            </p>
+                          )}
+                        </div>
+                        <ChevronDown size={15} className={`text-[#5B7A8C] transition-transform shrink-0 ${descTableOpen ? "rotate-180" : ""}`} />
+                      </button>
+                      {descTableOpen && (
+                        <div className="px-4 pb-4 pt-2 border-t border-[#EEF3F7] bg-white overflow-x-auto">
+                          {descLoading
+                            ? <p className="text-xs text-[#B0C8D4] text-center py-4">Cargando…</p>
+                            : <div className="[&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2.5 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:bg-[#F0F5F8] [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#5B7A8C] [&_td]:text-[#0D2133]"
+                                dangerouslySetInnerHTML={{ __html: tableHtml }} />}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
 
                 {/* Card B — Descripción de texto */}
                 {(descLoading || textHtml) && (
@@ -1066,10 +1087,12 @@ export default function ArmadorCarritos() {
   const [collLabel, setCollLabel]       = useState("");
 
   // Datos
-  const [query, setQuery]       = useState("");
-  const [productos, setProductos] = useState([]);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState(null);
+  const [query, setQuery]           = useState("");
+  const [aiMode, setAiMode]         = useState(false);
+  const [aiResult, setAiResult]     = useState(null); // { resumen, ingredientes }
+  const [productos, setProductos]   = useState([]);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState(null);
   const [detailProduct, setDetailProduct] = useState(null);
   const [collectionImages, setCollectionImages] = useState({});
 
@@ -1127,13 +1150,28 @@ export default function ArmadorCarritos() {
   const handleSearch = async (e) => {
     e?.preventDefault();
     if (!query.trim()) return;
-    setLoading(true); setError(null); setActiveTabKey(null);
+    setLoading(true); setError(null); setActiveTabKey(null); setAiResult(null);
     try {
-      const res  = await fetch(`/api/product-catalog?search=${encodeURIComponent(query.trim())}`);
-      const data = await res.json();
-      if (!data.ok) throw new Error(data.error || "Error al buscar");
-      setProductos(data.items || []);
-      setCollLabel(`"${query.trim()}"`);
+      if (aiMode) {
+        // Búsqueda IA — Claude interpreta y busca en Supabase
+        const res  = await fetch("/api/product-catalog/ai-search", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ query: query.trim() }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Error en búsqueda IA");
+        setProductos(data.items || []);
+        setAiResult({ resumen: data.resumen, ingredientes: data.ingredientes });
+        setCollLabel(`🔬 "${query.trim()}"`);
+      } else {
+        // Búsqueda normal — Shopify
+        const res  = await fetch(`/api/product-catalog?search=${encodeURIComponent(query.trim())}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Error al buscar");
+        setProductos(data.items || []);
+        setCollLabel(`"${query.trim()}"`);
+      }
       setView("collection");
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
@@ -1265,19 +1303,50 @@ export default function ArmadorCarritos() {
             />
           </div>
           {/* Fila 2: búsqueda */}
-          <div className="px-5 sm:px-6 pb-3">
+          <div className="px-5 sm:px-6 pb-3 space-y-2">
+            {/* Switch modo */}
+            <div className="flex items-center gap-1 bg-[#F0F5F8] rounded-lg p-0.5 w-fit">
+              <button type="button" onClick={() => setAiMode(false)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${!aiMode ? "bg-white text-[#0D2133] shadow-sm" : "text-[#8AAAB8] hover:text-[#5B7A8C]"}`}>
+                Normal
+              </button>
+              <button type="button" onClick={() => setAiMode(true)}
+                className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold transition-all ${aiMode ? "bg-[#0D2133] text-white shadow-sm" : "text-[#8AAAB8] hover:text-[#5B7A8C]"}`}>
+                <span>🔬</span> IA
+              </button>
+            </div>
+
             <form onSubmit={handleSearch} className="flex gap-2">
               <div className="relative flex-1">
                 <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#B0C8D4]" />
-                <input type="text" placeholder="Buscar por producto, componente o marca…"
+                <input type="text"
+                  placeholder={aiMode
+                    ? "Describe el objetivo o síntoma del paciente…"
+                    : "Buscar por producto, componente o marca…"}
                   value={query} onChange={e => setQuery(e.target.value)}
                   className="w-full bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg pl-10 pr-4 py-2 text-sm text-[#0D2133] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8] focus:bg-white transition-colors" />
               </div>
               <button type="submit" disabled={loading || !query.trim()}
-                className="bg-[#0D2133] text-white px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-30 hover:bg-[#162d60] transition-colors shrink-0">
-                Buscar
+                className={`px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-30 transition-colors shrink-0 ${aiMode ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#0D2133] text-white hover:bg-[#162d60]"}`}>
+                {aiMode ? "Analizar" : "Buscar"}
               </button>
             </form>
+
+            {/* Banner resultado IA */}
+            {aiResult && (
+              <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3.5 py-2.5">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mb-1">Análisis clínico</p>
+                <p className="text-xs text-[#0D2133] leading-snug mb-2">{aiResult.resumen}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {aiResult.ingredientes.map(i => (
+                    <span key={i.nombre} className="inline-flex items-center gap-1 bg-white border border-[#C2DFE8] rounded-full px-2.5 py-0.5 text-[11px] text-[#0D2133]">
+                      <span className="font-semibold">{i.nombre}</span>
+                      <span className="text-[#8AAAB8]">— {i.razon}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           {/* Fila 3: tabs */}
           <div className="flex border-t border-[#EEF3F7] overflow-x-auto [&::-webkit-scrollbar]:hidden">

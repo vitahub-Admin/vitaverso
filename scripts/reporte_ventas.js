@@ -374,17 +374,19 @@ function transformTikTok(orders, skuData, targetYear, targetMonth) {
 
 // ── Transform Shopify ─────────────────────────────────────────
 
-function transformShopify(orders, skuData, targetYear, targetMonth) {
+function transformShopify(orders, skuData, targetYear, targetMonth, skuToVariant, history) {
   const rows = []
 
   for (const order of orders) {
     const orderName = order.name || ''
     const targetKey = `${targetYear}-${String(targetMonth).padStart(2, '0')}`
     if (order.created_at.slice(0, 7) !== targetKey) continue
-    const fecha = fmtISO(order.created_at)
+    const orderDate = order.created_at
+    const fecha = fmtISO(orderDate)
 
     const specialistRef = (order.note_attributes || []).find(a => a.name === 'specialist_ref')?.value || ''
-    const tipoVenta = specialistRef && specialistRef !== '0000' ? 'Afiliado' : 'marketplace'
+    const esAfiliado    = !!(specialistRef && specialistRef !== '0000')
+    const tipoVenta     = esAfiliado ? 'Afiliado' : 'marketplace'
 
     const lineItems = (order.line_items || []).filter(i => i.sku && !i.gift_card)
     if (!lineItems.length) continue
@@ -398,17 +400,26 @@ function transformShopify(orders, skuData, targetYear, targetMonth) {
       const vendor = item.vendor || ''
       const info   = skuData[sku] || {}
 
-      const comision      = 20
+      const histComm     = getHistComm(sku, orderDate, skuToVariant, history)
+      const comisionAfil = esAfiliado ? (histComm !== null ? histComm : Number(info.comision_afiliado || 0)) : 0
+      const sinHistorial = esAfiliado && histComm === null && comisionAfil > 0
+      const comision     = 20 + comisionAfil
+
       const ventaMenosCom = Math.round(precio * qty * (1 - comision / 100) * 100) / 100
       const [guia, extra] = guiaExtra[idx] || [0, 0]
       const neto          = Math.round((ventaMenosCom - guia - extra) * 100) / 100
+
+      // Col R: comision afiliado; asterisco si se usó valor actual por falta de historial
+      const comisionAfilLabel = esAfiliado
+        ? (sinHistorial ? `${comisionAfil}*` : `${comisionAfil}`)
+        : ''
 
       rows.push([
         orderName, tipoCarrito, tipoVenta, tamano,
         item.name || item.title || '', vendor, info.marca || '', info.sku_seller || '',
         precio, qty, comision, ventaMenosCom,
         fecha, guia, extra, neto,
-        sku, info.comision_afiliado || '', 'shopify', '',
+        sku, comisionAfilLabel, 'shopify', esAfiliado ? specialistRef : '',
       ])
     })
   }
@@ -643,9 +654,17 @@ async function main() {
   const skuData = await shopifySkuLookup(allSkus)
   console.log(`  ${Object.keys(skuData).length} SKUs enriquecidos`)
 
+  console.log('Cargando mapa SKU → variante desde Supabase...')
+  const skuToVariant = await loadSkuToVariantMap(allSkus)
+  console.log(`  ${Object.keys(skuToVariant).length} SKUs mapeados`)
+
+  console.log('Cargando historial de comisiones...')
+  const history = await loadCommissionHistory()
+  console.log(`  ${history.length} registros históricos`)
+
   console.log('Transformando...')
   const tiktokRows  = transformTikTok(tiktokOrders, skuData, year, month)
-  const shopifyRows = transformShopify(shopifyOrders, skuData, year, month)
+  const shopifyRows = transformShopify(shopifyOrders, skuData, year, month, skuToVariant, history)
   const rows = [...tiktokRows, ...shopifyRows].sort((a, b) => parseDMY(a[12]) - parseDMY(b[12]))
   console.log(`  TikTok: ${tiktokRows.length} | Shopify: ${shopifyRows.length} | Total: ${rows.length}`)
 

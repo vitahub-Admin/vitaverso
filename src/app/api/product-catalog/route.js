@@ -442,7 +442,7 @@ export async function GET(req) {
             body: JSON.stringify({
               query: `
                 query($q: String!) {
-                  search(query: $q, types: PRODUCT, first: 60) {
+                  search(query: $q, types: PRODUCT, first: 100) {
                     edges {
                       node {
                         ... on Product {
@@ -502,7 +502,7 @@ export async function GET(req) {
             body: JSON.stringify({
               query: `
                 query($q: String!) {
-                  products(first: 60, query: $q, sortKey: RELEVANCE) {
+                  products(first: 100, query: $q, sortKey: RELEVANCE) {
                     edges {
                       node {
                         id title vendor status
