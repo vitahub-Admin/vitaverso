@@ -421,22 +421,42 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
       {/* Panel de edición inline */}
       {open && (
         <div className="border-t border-[#EEF3F7] bg-[#F7F9FB] px-4 py-4 space-y-4">
-          {/* Dosis */}
+          {/* Dosis — meta-aware (igual que ProductDetail) */}
           <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">Dosis por toma</p>
-            <div className="flex gap-2 items-center">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">
+              {meta?.tipo_dosis ? "Número de dosis" : "Dosis por toma"}
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center bg-white border border-[#D0E4EC] rounded-lg shrink-0">
-                <button onClick={() => handleField(setAmount, "amount", Math.max(0.5, amount - 0.5))}
+                <button onClick={() => handleField(setAmount, "amount", Math.max(meta?.tipo_dosis ? 1 : 0.5, amount - (meta?.tipo_dosis ? 1 : 0.5)))}
                   className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] transition-colors font-bold text-lg">−</button>
                 <span className="w-10 text-center text-sm font-extrabold text-[#0D2133] tabular-nums select-none">{amount}</span>
-                <button onClick={() => handleField(setAmount, "amount", amount + 0.5)}
+                <button onClick={() => handleField(setAmount, "amount", amount + (meta?.tipo_dosis ? 1 : 0.5))}
                   className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] transition-colors font-bold text-lg">+</button>
               </div>
-              <select value={unit} onChange={e => handleField(setUnit, "unit", e.target.value)}
-                className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm text-[#0D2133] focus:outline-none focus:border-[#1E8FA8] bg-white">
-                {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-              </select>
+              {meta?.tipo_dosis && meta?.dosis != null ? (
+                /* Con metafields: badge fijo + resultado calculado */
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-3 py-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg text-sm font-semibold text-[#1E8FA8]">dosis</span>
+                  <span className="text-[#B0C8D4] text-sm">=</span>
+                  <span className="text-sm font-extrabold text-[#0D2133] tabular-nums">
+                    {amount * meta.dosis} <span className="font-semibold text-[#5B7A8C]">{meta.tipo_dosis}</span>
+                  </span>
+                </div>
+              ) : (
+                /* Sin metafields: dropdown clásico */
+                <select value={unit} onChange={e => handleField(setUnit, "unit", e.target.value)}
+                  className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm text-[#0D2133] focus:outline-none focus:border-[#1E8FA8] bg-white">
+                  {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              )}
             </div>
+            {meta?.tipo_dosis && meta?.dosis != null && (
+              <p className="text-[11px] text-[#8AAAB8] mt-1.5">
+                Porción del fabricante: <span className="font-semibold">{meta.dosis} {meta.tipo_dosis}</span>
+                {meta.total_dosis && <span className="text-[#B0C8D4]"> · {meta.total_dosis} dosis por frasco</span>}
+              </p>
+            )}
           </div>
           {/* Momentos — multi-select */}
           <div>
@@ -761,6 +781,15 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
   const [instrOpen,     setInstrOpen]     = useState(true);
   const [images,      setImages]      = useState([]);
   const [mainImg,     setMainImg]     = useState(product.image_url || null);
+  const [zoomOpen,    setZoomOpen]    = useState(false);
+
+  // Cerrar zoom con ESC
+  useEffect(() => {
+    if (!zoomOpen) return;
+    const onKey = (e) => { if (e.key === "Escape") setZoomOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomOpen]);
   const [variantMeta, setVariantMeta] = useState({}); // { variant_id: { tipo_dosis, dosis, total_unidades, total_dosis } }
 
   // Cargar descripción + imágenes + metafields de variante
@@ -819,9 +848,19 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Imagen principal + galería */}
         <div className="flex flex-col gap-3">
-          <div className="bg-[#F7F9FB] border border-[#D0E4EC] rounded-2xl overflow-hidden flex items-center justify-center" style={{ aspectRatio: "1/1" }}>
+          <div
+            onClick={() => mainImg && setZoomOpen(true)}
+            className={`group relative bg-[#F7F9FB] border border-[#D0E4EC] rounded-2xl overflow-hidden flex items-center justify-center ${mainImg ? "cursor-zoom-in" : ""}`}
+            style={{ aspectRatio: "1/1" }}
+          >
             {mainImg
-              ? <img src={mainImg} alt={product.title} className="w-full h-full object-contain p-6" />
+              ? <>
+                  <img src={mainImg} alt={product.title} className="w-full h-full object-contain p-6 transition-transform duration-300 group-hover:scale-[1.03]" />
+                  {/* Ícono zoom */}
+                  <div className="absolute bottom-3 right-3 w-7 h-7 bg-white/80 backdrop-blur-sm border border-[#D0E4EC] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                    <Search size={13} className="text-[#5B7A8C]" />
+                  </div>
+                </>
               : <div className="text-[#B0C8D4]"><Package size={64} /></div>}
           </div>
           {/* Miniaturas */}
@@ -836,6 +875,36 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             </div>
           )}
         </div>
+
+        {/* ── Lightbox zoom ───────────────────────────────────────────────────── */}
+        {zoomOpen && mainImg && (
+          <div
+            onClick={() => setZoomOpen(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            <button
+              onClick={() => setZoomOpen(false)}
+              className="absolute top-4 right-4 w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+            <img
+              src={mainImg}
+              alt={product.title}
+              onClick={e => e.stopPropagation()}
+              className="max-h-[90vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
+            />
+            {/* Navegación entre imágenes en el lightbox */}
+            {images.length > 1 && (
+              <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
+                {images.map((img, i) => (
+                  <button key={i} onClick={e => { e.stopPropagation(); setMainImg(img); }}
+                    className={`w-2 h-2 rounded-full transition-all ${mainImg === img ? "bg-white scale-125" : "bg-white/40 hover:bg-white/70"}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Info */}
         <div className="flex flex-col gap-5">

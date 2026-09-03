@@ -1,0 +1,58 @@
+SKU,EAN,ABC,Nombre,Marca,Proveedor,Estado,Stock_Real,Stock_Futuro,Dias_Inv,Compra_Sug,R_Shop,R_Meli,R_TikTok,R_Final
+VHMX02528,657628668718,C,Probiótico + Prebiótico Vaginal de Briah | Mezcla Probiótica 6 cepas 2.5 UFC | 60 cápsulas para 30 días,Briah,OLSEGO GROUP,SIN_DATOS,137,137,0,0,0.0111,0.0068,0.0068,0
+VHMX00333,878941004179,C,Citrato de Magnesio + Calcio + Potasio Max-Hydrate Endurance de Trace Minerals | Rehidrata tras ejercicio intenso | 10 tabletas,Trace Minerals,Superlabs,CUBIERTO,52,52,0,0,0,0,0.0333,0.0333
+VHMX00073,733739001061,C,5-HTP 100 mg de Now Foods | Apoya la regulación del sueño | 60 y 120 cápsulas vegetales,NOW Foods,OLSEGO GROUP,SIN_DATOS,14,14,0,0,0,0,0,0
+VHMX00404,87614110967,C,"Hongo Melena de León 500 mg de Swanson | Promueve la función cognitiva, la concentración y la memoria | 60 cápsulas vegetales",Swanson,Superlabs,SIN_DATOS,12,12,0,0,0,0,0,0
+VHMX02628,8437025981441,C,Sticks de sabores de IVB | Para personalizar el sabor de tus complementos en polvo | 10 sobres,IVB,OLSEGO GROUP,SIN_DATOS,10,10,0,0,0,0,0,0
+VHMX02633,8437025981144,C,VitalNatal Man de IVB | Bienestar reproductivo del hombre | 60 Cápsulas,IVB,OLSEGO GROUP,SIN_DATOS,10,10,0,0,0,0,0,0
+VHMX02631,8437027176524,C,Vegan Omega 3+ | IVB Wellness Lab | DHA y EPA de Microalgas | 60 Cápsulas,IVB,OLSEGO GROUP,SIN_DATOS,9,9,0,0,0.0083,0,0,0
+VHMX02562,7503045489043,C,"Biotina 500 mg Superlabs | Acompaña el bienestar de piel, cabello y uñas | 100 cápsulas",Superlabs Nutrition,Superlabs,SIN_DATOS,7,7,0,0,0,0,0,0
+VHMX02509,657628668664,C,Shilajit estandarizado 500 mg de Briah | Vigor y Energía diaria para hombre| 60 cápsulas,Briah,OLSEGO GROUP,SIN_DATOS,7,7,0,0,0.0167,0,0.0136,0
+VHMX02611,8437025981335,C,Creatine Essential de IVB | Creatina Ultrafiltrada Creavitalis® | 60 Servicios,IVB,OLSEGO GROUP,SIN_DATOS,7,7,0,0,0.0111,0,0,0
+VHMX02634,8437025981137,C,Multivitamínico Prenatal VitalNatal Woman | Apoya necesidades prenatales | 60 cápsulas,IVB,OLSEGO GROUP,SIN_DATOS,7,7,0,0,0,0,0,0
+VHMX00169,733739017437,C,"Aceite de Hígado de Bacalao 1,000 mg de Now Foods | Apoya la función cardiovascular | 90 cápsulas blandas",NOW Foods,OLSEGO GROUP,SIN_DATOS,7,7,0,0,0.0067,0,0.0067,0
+VHMX00200,733739047380,C,Extracto de Cardo Mariano Doble Fuerza 300 mg de NOW Foods con Alcachofa y Diente de León | Apoya procesos naturales de detoxificación | 50 Cápsulas Vegetarianas,NOW Foods,OLSEGO GROUP,CUBIERTO,9,9,90,0,0.0076,0,0.1,0.1
+VHMX01810,8437025981052,C,ZeroDol Palmitoiletanolamida 500 mg | IVB Wellness Lab | Bienestar articular y muscular | 60 Cápsulas,IVB,OLSEGO GROUP,CUBIERTO,19,19,114,0,0.0333,0.0667,0,0.1667
+VHMX00170,733739017901,C,"Aceite de ajo 1500 mg Garlic Oil de NOW Foods | Favorece la función cardiovascular, contribuye al bienestar inmunológico | 100 Cápsulas Blandas",NOW Foods,OLSEGO GROUP,CUBIERTO,10,10,150,0,0.0111,0,0.0083,0.0667
+VHMX02106,657628668572,C,Magnesio Neuro  L- Treonato de Magnesio de Briah | Función cognitiva | 60 cápsulas blandas,Briah,OLSEGO GROUP,CUBIERTO,11,11,165,0,0.0056,0.0203,0.0667,0.0667
+VHMX00207,733739047373,C,"Extracto de Cardo Mariano 150 mg, Silimarina (120 mg), con Cúrcuma de NOW Foods  | Apoyo a la Función Hepática | 120 Cápsulas Vegetarianas",NOW Foods,OLSEGO GROUP,CUBIERTO,12,12,192,0,0.0625,0,0,0.0625
+VHMX00185,733739033475,C,"Ácido Caprílico 600 mg de NOW Foods - Triglicéridos de Cadena Media (MCT) 1,000 mg de Aceite MCT | Favorece la absorción de nutrientes al optimizar el proceso digestivo  | 100 Cápsulas Blandas",NOW Foods,OLSEGO GROUP,CUBIERTO,13,13,195,0,0.0333,0,0,0.0667
+VHMX02521,657628668657,C,Duo Maca negra peruana de briah | Energía diaria masculina,Briah,OLSEGO GROUP,CUBIERTO,7,7,210,0,0,0.0113,0,0.0333
+VHMX02590,605069027014,C,"Menocare Himalaya | Favorece el equilibrio femenino diario, acompaña cambios hormonales naturales | 120 cápsulas vegetales",Himalaya,OLSEGO GROUP,CUBIERTO,7,7,210,0,0,0.0333,0,0.0333
+VHMX02632,8437025981038,C,Vita C 500 de IVB | Protección Celular y al Daño Oxidativo | 60 Cápsulas,IVB,OLSEGO GROUP,CUBIERTO,8,8,240,0,0.0111,0.0333,0,0.0333
+VHMX02618,8437025981489,C,LactaNatal de IVB | Multivitamínico y mineral Apoyo a la Lactancia Materna | 60 Cápsulas,IVB,OLSEGO GROUP,CUBIERTO,9,9,270,0,0.0333,0,0,0.0333
+VHMX02620,8437025981083,C,"Metabolic-Max de IVB | Berbevis®, Gimnema, Cardo mariano, Piperina y Cromo| 60 Cápsulas",IVB,OLSEGO GROUP,CUBIERTO,10,10,300,0,0.0333,0,0,0.0333
+VHMX02625,8437025981465,C,Sticks de sabores de IVB | Para personalizar el sabor de tus complementos en polvo | 10 sobres,IVB,OLSEGO GROUP,CUBIERTO,8,8,480,0,0.0167,0,0,0.0167
+VHMX00432,87614110547,B,Vitamina C 1000 mg con Rosa Mosqueta Swanson  | Apoya el sistema inmunológico y ayuda en la absorción de hierro | 90 cápsulas vegetales,Swanson,Superlabs,CUBIERTO,9,9,108,0,0.05,0,0.0111,0.0833
+VHMX01288,733739006851,B,"Vitamina C-1000 con Rosa Mosqueta y Bioflavonoides, 1000 mg, de NOW Foods | Protección Antioxidante para el Sistema Inmunológico | 100 Tabletas Vegetales",NOW Foods,OLSEGO GROUP,CUBIERTO,12,12,120,0,0,0,0.0667,0.1
+VHMX02512,657628668671,B,Magnesio Súper Complex | 4 tipos de Magnesio + Vitamina b6 | 60 Cápsulas,Briah,OLSEGO GROUP,CUBIERTO,8,8,120,0,0.0333,0.0222,0.0222,0.0667
+VHMX00236,737870223429,B,Melatonina líquida 3mg sabor citrus - vainilla de Life Extension  | Contribuye a promover un sueño y descanso reparador | 59ml,Life Extension,OLSEGO GROUP,CUBIERTO,10,10,150,0,0.0333,0,0.0187,0.0667
+VHMX01815,868095000332,B,NMN Puro 250 mg | Genex | Apoyo Premium a la Longevidad y Energía Celular | 60 Cápsulas Vegetales,GeneX Formulas,OLSEGO GROUP,CUBIERTO,8,8,160,0,0.0333,0.0067,0,0.05
+VHMX01811,8437025981021,B,"Vitamina D3 + K2  | IVB Wellness Lab | Soporte Óseo, Absorción de Calcio y Apoyo Cardiovascular | 60 Cápsulas",IVB,OLSEGO GROUP,CUBIERTO,20,20,200,0,0.0278,0.0667,0,0.1
+VHMX02510,657628668657,B,Maca negra peruana | Energía y vitalidad masculina | 60 Cápsulas,Briah,OLSEGO GROUP,CUBIERTO,15,15,225,0,0,0,0.0667,0.0667
+VHMX02617,8437025981496,B,GestaNatal de IVB | Multivitamínico y mineral Prenatal Completo| 60 Cápsulas,IVB,OLSEGO GROUP,CUBIERTO,8,8,240,0,0.0333,0,0,0.0333
+VHMX02630,8437025981205,B,"Stress OFF de IVB | Reishi, eleuterococo y schisandra | 60 Cápsulas",IVB,OLSEGO GROUP,CUBIERTO,8,8,240,0,0.0333,0,0,0.0333
+VHMX02619,8437025981090,B,"Memory-ON de IVB | Cognizin®,  SAMe,	 Bacomind®, Extracto seco de de Bacopa Monnieri , Zinc, Cobre | 60 Cápsulas",IVB,OLSEGO GROUP,CUBIERTO,9,9,270,0,0.0067,0.0333,0,0.0333
+VHMX00056,733739004710,B,"Biotina 5,000 mcg de NOW Foods | Apoyo energético y fortalecimiento del cabello, piel y uñas | 60 cápsulas vegetales",NOW Foods,OLSEGO GROUP,CUBIERTO,9,9,270,0,0,0,0,0.0333
+VHMX00160,733739001481,B,L-Teanina Doble Fuerza 200 mg de NOW Foods con Inositol | Ayuda a mantener la función cognitiva | 120 Cápsulas Vegetales,NOW Foods,OLSEGO GROUP,CUBIERTO,9,9,270,0,0.0083,0,0,0.0333
+VHMX02588,605069200073,B,Pasta Dental Natural con Neem y Granada | Libre de Fluor | 150 g,Himalaya,OLSEGO GROUP,CUBIERTO,9,9,270,0,0.02,0.04,0,0.0333
+VHMX02524,8437025981403,B,Omega 3 rico en DHA de IVB | Omega 3 con certificación IFOS | 30 cápsulas,IVB,OLSEGO GROUP,CUBIERTO,13,13,780,0,0.0167,0,0,0.0167
+VHMX02104,657628668619,B,Aceite de Orégano 200 mg 97% Corvacol | Soporte del Sistema Inmunológico | 60 Cápsulas,Briah,OLSEGO GROUP,CUBIERTO,76,76,912,0,0.0333,0,0.0167,0.0833
+VHMX00031,733739016508,A,Omega 3 Molecularmente Destilado 1000 mg de Now Foods | Apoya la salud cardiovascular | 100 Cápsulas,NOW Foods,OLSEGO GROUP,ATENCION,12,12,26,1,0.0714,0,0.2143,0.4643
+VHMX00016,733739003768,A,Vitamina D3 10.000 UI de NOW Foods | Apoyo del Sistema Inmunitario y Ósea | 30 y 120 cápsulas blandas,NOW Foods,OLSEGO GROUP,ATENCION,6,6,28,0,0.0303,0,0.0625,0.2178
+VHMX00204,733739015204,A,"Gluconato de Zinc 50 mg de NOW Foods | Soporte Inmunológico, Funciones Enzimáticas | 100 y 250 Tabletas",NOW Foods,OLSEGO GROUP,CUBIERTO,7,7,37,0,0.0313,0,0.0625,0.1875
+VHMX00251,737870234838,A,NAD+ 300 mg con Resveratrol de Life Extension | Regenerador celular - Contribuye a aumentar y potenciar la energía y la longevidad celular | 30 cápsulas vegetales,Life Extension,OLSEGO GROUP,CUBIERTO,8,8,48,0,0.0667,0,0.0667,0.1667
+VHMX00057,733739012890,A,Glicinato de Magnesio 200mg de NOW Foods | Soporte para el Sistema Nervioso | 180 Tabletas,NOW Foods,OLSEGO GROUP,CUBIERTO,17,17,56,0,0.0833,0,0.0149,0.3056
+VHMX00008,733739003720,A,"Vitamina D-3 5000 UI Alta Potencia, Soporte Inmunológico, Fortalece Dientes y Huesos, Mejora la Salud Muscular, No GMO | 30 y 120 Cápsulas",NOW Foods,OLSEGO GROUP,CUBIERTO,15,20,58,0,0.0714,0,0.1818,0.3442
+VHMX00034,733739016614,A,"Ultra Omega-3, Concentrado de Aceite de Pescado con 500 mg de EPA y 250 mg de DHA de NOW Foods | Apoyo Cardiovascular y Función Cerebral | 90 Cápsulas Blandas Entéricas",NOW Foods,OLSEGO GROUP,CUBIERTO,17,21,65,0,0.0556,0,0.2105,0.3216
+VHMX00025,733739029379,A,"Probiótico-10, 25 Mil Millones, 10 Cepas Probióticas de NOW Foods | 30 y 50 Cápsulas Vegetales",NOW Foods,OLSEGO GROUP,CUBIERTO,14,14,75,0,0.0625,0,0,0.1875
+VHMX00019,733739003584,A,Vitamina D3 5000 UI de NOW Foods | Apoyo para la función Ósea y Sistema Inmunitario | 120 gomitas masticables vegetarianas,NOW Foods,OLSEGO GROUP,CUBIERTO,14,14,84,0,0.0333,0,0.0667,0.1667
+VHMX00024,733739012975,A,Citrato de Magnesio 400 mg de NOW Foods | Apoyo al Sistema Nervioso y Energía | 90 Y 120 cápsulas vegetarianas,NOW Foods,OLSEGO GROUP,CUBIERTO,9,9,97,0,0.0455,0,0.0101,0.0931
+VHMX00138,733739029607,A,Super Enzimas de NOW Foods | Bienestar general | 90 Tabletas Vegetales,NOW Foods,OLSEGO GROUP,CUBIERTO,15,15,113,0,0.0092,0,0,0.1333
+VHMX00249,737870181392,A,Zinc Caps de alta potencia 50mg de Life Extensión | Apoyo Cardiovascular y del Sistema Inmune | 90 cápsulas vegetarianas,Life Extension,OLSEGO GROUP,CUBIERTO,12,12,120,0,0.0333,0.0111,0,0.1
+VHMX00015,733739003874,A,Vitamina D3 10.000 UI de NOW Foods | Apoyo del Sistema Inmunitario y Ósea | 30 y 120 cápsulas blandas,NOW Foods,OLSEGO GROUP,CUBIERTO,13,13,130,0,0.0303,0,0.0667,0.1
+VHMX02644,8437025981281,A,"ArtiCare de IVB | Glucosamina, MSM, AprèsFlex®, boro y manganeso |  90 Cápsulas",IVB,OLSEGO GROUP,CUBIERTO,7,7,140,0,0.0333,0.0167,0,0.05
+VHMX01806,8437025981007,A,TyroEnergy | IVB Wellness Lab | Apoyo para la Energía y la Función Tiroidea | 60 Cápsulas,IVB,OLSEGO GROUP,CUBIERTO,12,12,180,0,0.0081,0,0,0.0667
+VHMX00040,733739016836,A,Super Omega 360 mg EPA + 240 mg DHA por cápsula de NOW Foods | Apoyo Cardiovascular | 240 Cápsulas blandas,NOW Foods,OLSEGO GROUP,CUBIERTO,17,17,255,0,0.0333,0,0.0056,0.0667
+VHMX02530,8437025981076,A,"Verbena de limón, Hibisco estandarizados, Extracto seco de azafrán | Satisens de IVB | Control del apetito | 60 Cápsulas",IVB,OLSEGO GROUP,CUBIERTO,8,8,480,0,0.0167,0.0104,0,0.0167
+VHMX01814,8437025981175,A,Vegan Omega 3+ | IVB Wellness Lab | DHA y EPA de Microalgas | 60 Cápsulas,IVB,OLSEGO GROUP,CUBIERTO,9,9,540,0,0.0206,0.0064,0,0.0167
