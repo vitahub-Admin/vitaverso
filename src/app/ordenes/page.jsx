@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from "react";
 import Cookies from "js-cookie";
 import OrdersTable from "./components/Sheet";
-import Banner from "../components/Banner";
 import Chart1 from "./components/Chart1";
 import Chart2 from "./components/Chart2";
 import { TrendingUp, ShoppingCart, Package, SlidersHorizontal } from "lucide-react";
@@ -72,8 +71,6 @@ export default function OrdenesPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-
-      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=LL-jZPoVZXg" />
 
       {/* ── Título ── */}
       <div className="w-full border-b border-gray-100 px-6">

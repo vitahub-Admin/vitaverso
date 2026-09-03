@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import Banner from "../components/Banner.jsx";
 import { ChevronLeft, ChevronRight, X, ExternalLink, Calendar as CalIcon, Clock } from "lucide-react";
 
 const MONTHS_ES = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
@@ -65,7 +64,6 @@ export default function CapacitacionesPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <Banner />
 
       <div className="w-full border-b border-gray-100 px-6">
         <div className="max-w-[900px] mx-auto py-6">

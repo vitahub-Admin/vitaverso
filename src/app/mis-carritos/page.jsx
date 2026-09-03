@@ -3,7 +3,6 @@
 import { useEffect, useState, useMemo } from "react";
 import Cookies from "js-cookie";
 import Sheet from "./components/Sheet";
-import Banner from "../components/Banner";
 import { ShoppingCart, Package, TrendingUp, SlidersHorizontal } from "lucide-react";
 
 function fmt(n) {
@@ -66,8 +65,6 @@ export default function CarritosPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-
-      <Banner />
 
       {/* ── Título ── */}
       <div className="w-full border-b border-gray-100 px-6">

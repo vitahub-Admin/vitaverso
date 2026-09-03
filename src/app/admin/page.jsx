@@ -1,7 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
 import { Trash2, ArrowUp, ArrowDown, Plus, Eye, EyeOff, Link2 } from "lucide-react";
-import Banner from "../components/Banner";
 
 export default function Admin() {
   const [url, setUrl] = useState("");
@@ -223,8 +222,6 @@ const saveNewsOrder = async () => {
 
   return (
     <div className="flex flex-col items-center gap-6 p-4">
-
-      <Banner />
 
       {/* Header */}
       <div className="w-full bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">

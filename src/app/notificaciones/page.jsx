@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Banner from "../components/Banner";
 import { Newspaper, Calendar } from "lucide-react";
 
 export default function NoticiasPage() {
@@ -32,7 +31,6 @@ export default function NoticiasPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=gbS7ix6Wr9E" />
 
       {/* ── Título ── */}
       <div className="w-full border-b border-gray-100 px-6">

@@ -2,7 +2,6 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Cookies from "js-cookie";
-import Banner from "../components/Banner";
 import ContactsSheet from "./components/Contactsheet";
 
 export default function ContactsPage() {
@@ -74,7 +73,6 @@ export default function ContactsPage() {
   if (loading) {
     return (
       <div className="flex flex-col items-center gap-6 p-4">
-        <Banner/>
         <div className="w-full bg-white shadow-md rounded-lg p-8 text-center">
           <p className="text-gray-500">Cargando contactos...</p>
         </div>
@@ -85,9 +83,8 @@ export default function ContactsPage() {
   return (
   
         <div className="flex flex-col items-center gap-6 p-4">
-          <Banner/>
 
-      
+
       <div className="w-full bg-[#1b3f7a] rounded-lg p-4 mb-6">
         <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
           Mis Contactos

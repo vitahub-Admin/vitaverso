@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Banner from "../components/Banner";
 import { useCustomer } from "../context/CustomerContext";
 import axios from "axios";
 import {
@@ -175,9 +174,6 @@ export default function WalletPage() {
           </p>
         </div>
       </div>
-
-      {/* ── Banner (solo en home) ── */}
-      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=mSYOgM052PM" />
 
       {/* ── Sección Wallet ── */}
       <div className="w-full border-b border-gray-100 px-6">

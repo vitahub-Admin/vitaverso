@@ -5,7 +5,6 @@
 
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
-import Banner from "../components/Banner";
 import { Link, Copy, Check, Users, Gift, TrendingUp, AlertCircle } from "lucide-react";
 
 export default function CompartirReferralPage() {
@@ -51,8 +50,6 @@ export default function CompartirReferralPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=-qgYe5UelcE" />
-
       {/* ── Título ── */}
       <div className="w-full border-b border-gray-100 px-6">
         <div className="max-w-[960px] mx-auto py-6">

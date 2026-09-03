@@ -8,7 +8,6 @@ import {
   Instagram, Share2, Star, Package, Pencil, Link,
   FileText, Tag, QrCode,
 } from "lucide-react";
-import Banner from "../components/Banner";
 import { QRPrintableModal } from "../components/QRPrintable";
 
 // ── ReviewModal (sin cambios de lógica) ────────────────────
@@ -282,7 +281,6 @@ export default function MiTiendaPage() {
   // ── RENDER ─────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=iL0j9PLsTjw" />
 
       {/* ── Título ── */}
       <div className="w-full border-b border-gray-100 px-6">

@@ -188,6 +188,29 @@ export async function GET(req) {
       return NextResponse.json({ ok: true, collections })
     }
 
+    // ── ?collectionsMetaHandles=handle1,handle2,... ──────────────────────────
+    // Igual que collectionsMeta pero usando handles (para FEATURED cards)
+    const collectionsMetaHandles = searchParams.get('collectionsMetaHandles')
+    if (collectionsMetaHandles) {
+      const handles = collectionsMetaHandles.split(',').map(s => s.trim()).filter(Boolean)
+      if (!handles.length) return NextResponse.json({ ok: true, collections: {} })
+      const aliases = handles.map((h, i) =>
+        `c${i}: collectionByHandle(handle: "${h}") { id title image { url } }`
+      ).join('\n')
+      const res  = await fetch(GQL_URL, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': GQL_TOKEN },
+        body:    JSON.stringify({ query: `{ ${aliases} }` }),
+      })
+      const json = await res.json()
+      const collections = {}
+      handles.forEach((handle, i) => {
+        const node = json.data?.[`c${i}`]
+        if (node) collections[handle] = { title: node.title, imageUrl: node.image?.url || null }
+      })
+      return NextResponse.json({ ok: true, collections })
+    }
+
     // ── ?titles_for ──────────────────────────────────────────────────────────
     if (titlesFor) {
       const ids = titlesFor.split(',').map(Number).filter(Boolean)

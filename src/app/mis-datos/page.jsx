@@ -3,7 +3,6 @@
 import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import axios from "axios";
-import Banner from "../components/Banner";
 import { RefreshCw, Info, CreditCard } from "lucide-react";
 
 const CAMPOS_PUBLICOS = ["nombre","apellido","email","cedula","red_social","clabe","telefono","ciudad","estado","direccion"];
@@ -116,7 +115,6 @@ export default function PerfilAfiliado() {
   // ── Error sin datos ──
   if (!data && message?.type === "error") return (
     <div className="min-h-screen bg-white">
-      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=xh8LTPTXEWE" />
       <div className="max-w-[960px] mx-auto px-6 py-7">
         <div className="bg-red-50 border border-red-200 rounded-2xl p-6 flex flex-col gap-3">
           <p className="text-red-600 text-sm">{message.text}</p>
@@ -141,7 +139,6 @@ export default function PerfilAfiliado() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=xh8LTPTXEWE" />
 
       {/* ── Título ── */}
       <div className="w-full border-b border-gray-100 px-6">

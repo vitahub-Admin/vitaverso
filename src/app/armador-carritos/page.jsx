@@ -1,10 +1,12 @@
 "use client";
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { useCustomer } from "@/app/context/CustomerContext";
 import {
   X, ChevronDown, FileText, Package, Search,
   ArrowLeft, ShoppingBag, Trash2, ChevronRight,
-  Plus, Minus, Heart, Pencil,
+  Plus, Minus, Heart, Pencil, MessageCircle,
+  Sun, FlaskConical, Zap, Droplets,
 } from "lucide-react";
 
 const DOSE_UNITS = ["cápsula", "tableta", "softgel", "gota", "ml", "mg", "g", "sobre", "cucharada", "probiótico", "unidad"];
@@ -107,26 +109,22 @@ function detectUnit(title = "", variantTitle = "") {
 }
 
 const FEATURED = [
-  // IDs verificados directo desde la Admin API de Shopify (7798ab-86.myshopify.com)
-  { id: "494019871041", label: "Probióticos",          desc: "Flora intestinal, defensas y equilibrio digestivo", emoji: "🦠", from: "from-emerald-600", to: "to-emerald-800" },
-  { id: "656468902209", label: "Marcas Profesionales", desc: "Formulaciones de grado clínico certificadas",      emoji: "⭐", from: "from-[#0D2133]",   to: "to-[#1b3f7a]"  },
-  { id: "493895352641", label: "Vitamina C",            desc: "Antioxidantes, inmunidad y síntesis de colágeno",  emoji: "🍊", from: "from-orange-500",  to: "to-amber-600"  },
-  { id: "495007727937", label: "Magnesio",              desc: "Función muscular, sueño y sistema nervioso",       emoji: "💊", from: "from-[#1E8FA8]",   to: "to-blue-700"   },
+  { handle: "vitamina-d-en-mexico", label: "Vitamina D3", desc: "Regulación del calcio, inmunidad y salud ósea",          icon: Sun,          from: "from-amber-400",   to: "to-orange-500"  },
+  { handle: "enzimas-digestivas",   label: "Enzimas",      desc: "Digestión eficiente y absorción óptima de nutrientes",   icon: FlaskConical, from: "from-emerald-500", to: "to-teal-700"    },
+  { handle: "magnesio",             label: "Magnesio",     desc: "Función muscular, sueño y sistema nervioso",             icon: Zap,          from: "from-[#1E8FA8]",   to: "to-blue-700"    },
+  { handle: "omega-3-en-mexico",    label: "Omega 3",      desc: "Salud cardiovascular, cerebro y control inflamatorio",   icon: Droplets,     from: "from-blue-500",    to: "to-indigo-600"  },
 ];
 
 const NAV_TABS = [
   ...FEATURED,
-  // Handles verificados — todos existen en el store
-  { handle: "nad-suplemento",          label: "NAD+"           },
-  { handle: "omega-3-en-mexico",       label: "Omega 3"        },
-  { handle: "proteinas",               label: "Proteínas"      },
-  { handle: "vitaminas",               label: "Vitaminas"      },
-  { handle: "inositol-en-mexico",      label: "Inositol"       },
-  { handle: "enzimas-digestivas",      label: "Digestivos"     },
-  { handle: "vitamina-d3",             label: "Vitamina D3"    },
-  { handle: "berberina-en-mexico",     label: "Berberina"      },
+  // Handles adicionales — sin duplicar los que ya están en FEATURED
+  { handle: "nad-suplemento",              label: "NAD+"           },
+  { handle: "proteinas",                   label: "Proteínas"      },
+  { handle: "vitaminas",                   label: "Vitaminas"      },
+  { handle: "inositol-en-mexico",          label: "Inositol"       },
+  { handle: "berberina-en-mexico",         label: "Berberina"      },
   { handle: "melena-de-leon-o-lions-mane", label: "Melena de León" },
-  { handle: "mas-vendidos",            label: "Más Vendidos"   },
+  { handle: "mas-vendidos",               label: "Más Vendidos"   },
 ];
 
 const fmtMXN = (n) =>
@@ -361,8 +359,9 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
 
   const save = useCallback((overrides = {}) => {
     const { amount, unit, momentos, acomp, nota } = { ...latest.current, ...overrides };
-    onUpdateDosage(item.variant_id, { amount, unit, momentos, acompanamiento: acomp, nota });
-  }, [item.variant_id, onUpdateDosage]); // solo re-crea si cambia el item o el callback
+    // meta se preserva del dosage original — no se edita en el borrador
+    onUpdateDosage(item.variant_id, { amount, unit, momentos, acompanamiento: acomp, nota, meta: item.dosage?.meta ?? null });
+  }, [item.variant_id, onUpdateDosage, item.dosage?.meta]); // eslint-disable-line
 
   const handleField = (setter, key, val) => { setter(val); save({ [key]: val }); };
 
@@ -373,7 +372,12 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
     save({ momentos: next });   // persiste en carrito
   };
 
-  const dTx = amount ? `${amount} ${unit}${amount > 1 ? "s" : ""}` : null;
+  const meta = item.dosage?.meta;
+  const dTx = amount
+    ? (meta?.tipo_dosis && meta?.dosis != null
+        ? `${amount * meta.dosis} ${meta.tipo_dosis}`
+        : `${amount} ${unit}${amount > 1 ? "s" : ""}`)
+    : null;
   return (
     <div className="bg-white border border-[#D0E4EC] rounded-xl overflow-hidden">
       {/* Fila principal */}
@@ -477,11 +481,17 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
 function DraftView({ carrito, patientData, onPatientChange, customerId, profesional, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity }) {
   const [loading, setLoading]         = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
+  const [whatsappUrl, setWhatsappUrl] = useState(null);
   const [error, setError]             = useState(null);
   const [copied, setCopied]           = useState(false);
   const total = carrito.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 1), 0);
 
   const handleCheckout = async () => {
+    // Teléfono requerido para enviar por WhatsApp
+    if (!patientData.telefono || patientData.telefono.replace(/\D/g, "").length < 10) {
+      setError("Ingresa el teléfono del paciente (10 dígitos) para enviar por WhatsApp");
+      return;
+    }
     setLoading(true); setError(null);
     try {
       const res  = await fetch("/api/sharecart/checkout", {
@@ -490,12 +500,36 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
           owner_id: customerId, name: patientData.nombre,
           phone: patientData.telefono ? `+521${patientData.telefono}` : "",
           items: carrito.map(p => ({ variant_id: p.variant_id, quantity: p.quantity || 1 })),
-          extra: { patient_info: patientData, origen: "protocolo" },
+          extra: {
+            patient_info: patientData,
+            origen: "protocolo",
+            dosis_map: Object.fromEntries(
+              carrito.map(p => {
+                const d = p.dosage || {};
+                return [String(p.variant_id), {
+                  instruccion:    buildInstruccion(d.amount, d.unit, d.momentos || [], d.acompanamiento || "", d.meta || null),
+                  dosis_amount:   d.amount   ?? null,
+                  dosis_unit:     d.unit     ?? null,
+                  momentos:       d.momentos ?? [],
+                  acompanamiento: d.acompanamiento ?? null,
+                  nota:           d.nota     ?? null,
+                }];
+              })
+            ),
+          },
         }),
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Error generando checkout");
-      setCheckoutUrl(data.checkoutUrl);
+      const url = data.checkoutUrl;
+      setCheckoutUrl(url);
+      // Componer y abrir WhatsApp automáticamente
+      const nombre  = patientData.nombre?.trim() || "";
+      const saludo  = nombre ? `¡Hola ${nombre}!` : "¡Hola!";
+      const mensaje = `${saludo} 🌿 Te comparto tu protocolo de suplementación personalizado:\n\n${url}\n\nCualquier duda, con gusto te ayudo.`;
+      const wa = `https://wa.me/521${patientData.telefono}?text=${encodeURIComponent(mensaje)}`;
+      setWhatsappUrl(wa);
+      window.open(wa, "_blank");
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
   const copy = () => { navigator.clipboard.writeText(checkoutUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); };
@@ -542,13 +576,14 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
               </div>
               <div>
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5 block">
-                  Teléfono
+                  Teléfono <span className="normal-case font-normal text-[#1E8FA8]">para WhatsApp</span>
                 </label>
                 <div className="flex gap-2">
                   <span className="text-xs font-bold text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-2.5 py-2.5 shrink-0">+521</span>
                   <input type="tel" placeholder="5512345678" maxLength={10}
                     value={patientData.telefono} onChange={e => onPatientChange({ ...patientData, telefono: e.target.value.replace(/\D/g, "").slice(0, 10) })}
-                    className="flex-1 border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#1E8FA8]" />
+                    className={`flex-1 border rounded-lg px-3 py-2.5 text-sm focus:outline-none transition-colors
+                      ${patientData.telefono.length === 10 ? "border-[#1E8FA8] bg-[#F4FAFB]" : "border-[#D0E4EC] focus:border-[#1E8FA8]"}`} />
                 </div>
               </div>
             </div>
@@ -564,23 +599,34 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
           {error && <p className="text-red-500 text-xs">{error}</p>}
           {checkoutUrl ? (
             <div className="bg-[#E6F4F8] border border-[#C2DFE8] rounded-xl p-4 space-y-3">
-              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8]">Link de checkout listo</p>
-              <input readOnly value={checkoutUrl} className="w-full text-xs bg-white border border-[#C2DFE8] rounded-lg px-3 py-2" />
-              <div className="flex gap-2">
-                <button onClick={copy} className="flex-1 bg-[#0D2133] text-white text-sm py-2.5 rounded-lg font-semibold hover:bg-[#162d60] transition-colors">{copied ? "¡Copiado!" : "Copiar link"}</button>
-                <button onClick={() => window.open(checkoutUrl, "_blank")} className="flex-1 border border-[#C2DFE8] text-[#0D2133] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#E6F4F8] transition-colors">Abrir</button>
-              </div>
-              <button onClick={() => generarPDF(carrito, patientData.nombre, profesional)}
-                className="w-full flex items-center justify-center gap-2 border border-[#C2DFE8] text-[#1E8FA8] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#E6F4F8] transition-colors">
-                <FileText size={15} /> Generar PDF
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8]">Protocolo listo para enviar</p>
+              {/* Acción principal: WhatsApp */}
+              <button onClick={() => window.open(whatsappUrl, "_blank")}
+                className="w-full bg-[#25D366] text-white text-sm py-2.5 rounded-lg font-semibold hover:bg-[#1ebe5b] transition-colors flex items-center justify-center gap-2">
+                <MessageCircle size={15} /> Abrir WhatsApp
               </button>
+              {/* Acciones secundarias */}
+              <div className="flex gap-2">
+                <button onClick={copy} className="flex-1 border border-[#C2DFE8] text-[#0D2133] text-sm py-2 rounded-lg font-semibold hover:bg-white transition-colors">
+                  {copied ? "¡Copiado!" : "Copiar link"}
+                </button>
+                <button onClick={() => generarPDF(carrito, patientData.nombre, profesional)}
+                  className="flex-1 flex items-center justify-center gap-1.5 border border-[#C2DFE8] text-[#1E8FA8] text-sm py-2 rounded-lg font-semibold hover:bg-white transition-colors">
+                  <FileText size={13} /> PDF
+                </button>
+              </div>
             </div>
           ) : (
             <div className="space-y-2">
               <button onClick={handleCheckout} disabled={loading || carrito.length === 0}
-                className="w-full bg-[#0D2133] text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 hover:bg-[#162d60] transition-colors">
-                {loading ? "Generando…" : "Generar link de checkout"}
+                className="w-full bg-[#0D2133] text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 hover:bg-[#162d60] transition-colors flex items-center justify-center gap-2">
+                <MessageCircle size={15} /> {loading ? "Generando…" : "Enviar por WhatsApp"}
               </button>
+              {!patientData.telefono && (
+                <p className="text-[11px] text-[#B0C8D4] text-center leading-tight">
+                  Ingresa el teléfono del paciente para enviar
+                </p>
+              )}
               <button onClick={() => generarPDF(carrito, patientData.nombre, profesional)}
                 className="w-full flex items-center justify-center gap-2 border border-[#D0E4EC] text-[#5B7A8C] text-sm py-3 rounded-xl font-semibold hover:bg-[#F7F9FB] transition-colors">
                 <FileText size={15} /> Solo PDF
@@ -602,7 +648,10 @@ function CollectionCard({ item, onClick, loading, imageUrl }) {
         {imageUrl
           ? <img src={imageUrl} alt={item.label} className="absolute inset-0 w-full h-full object-cover" />
           : <div className={`absolute inset-0 bg-gradient-to-br ${item.from} ${item.to} flex items-center justify-center`}>
-              <span className="text-4xl sm:text-5xl drop-shadow">{item.emoji}</span>
+              {item.icon
+                ? <item.icon size={44} className="text-white/90 drop-shadow" strokeWidth={1.5} />
+                : <span className="text-4xl sm:text-5xl drop-shadow">{item.emoji}</span>
+              }
             </div>}
       </div>
       <div className="flex-1 bg-[#F7F9FB] group-hover:bg-[#EEF3F7] transition-colors flex flex-col justify-center px-4 py-3">
@@ -640,7 +689,7 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
       {/* Info — click abre detalle */}
       <div onClick={() => onClick(product)} className="px-3 pt-2.5 pb-2 flex flex-col flex-1 gap-1 cursor-pointer">
         <p className="text-xs font-bold text-[#0D2133] leading-snug line-clamp-2">{product.title}</p>
-        {product.brand && <p className="text-[10px] text-[#5B7A8C]">{product.brand}</p>}
+        {/* brand/vendor oculto — vendor de Shopify no refleja la marca real; pendiente mapeo correcto */}
         {product.commission_percent > 0 && (
           <p className="text-[10px] font-extrabold text-[#1E8FA8]">+{product.commission_percent}% comisión</p>
         )}
@@ -747,15 +796,16 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
 
   const handleAdd = () => {
     if (!selectedVariant || outOfStock) return;
-    const dosage = { amount, unit, momentos, acompanamiento: acomp, nota };
+    const meta = variantMeta[String(selectedVariant.variant_id)] || null;
+    const dosage = { amount, unit, momentos, acompanamiento: acomp, nota, meta };
     inCart ? onUpdate(cartItem.variant_id, selectedVariant, dosage, quantity) : onAdd(product, selectedVariant, dosage, quantity);
   };
 
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6">
       <div className="flex items-center justify-between mb-6">
-        <button onClick={onBack} className="flex items-center gap-1.5 text-[#5B7A8C] hover:text-[#0D2133] text-sm font-semibold transition-colors">
-          <ArrowLeft size={14} /> {backLabel || "Volver"}
+        <button onClick={onBack} className="flex items-center gap-2 text-[#5B7A8C] hover:text-[#0D2133] text-sm font-semibold transition-colors group">
+          <ArrowLeft size={20} className="transition-transform group-hover:-translate-x-0.5" /> {backLabel || "Volver"}
         </button>
         <button
           onClick={() => onFavorite(product)}
@@ -795,8 +845,8 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             {inCart && <span className="bg-emerald-50 text-emerald-600 text-xs font-extrabold px-2.5 py-1 rounded">✓ En protocolo</span>}
           </div>
           <div>
-            <h1 className="text-xl sm:text-2xl font-extrabold text-[#0D2133] leading-snug">{product.title}</h1>
-            {product.brand && <p className="text-sm text-[#1E8FA8] font-semibold mt-1">{product.brand}</p>}
+            <h1 className="text-base sm:text-xl font-medium text-[#0D2133] leading-snug">{product.title}</h1>
+            {/* brand oculto — pendiente mapeo vendor→marca real */}
           </div>
           {product.variants?.length > 1 && (
             <div>
@@ -1102,10 +1152,12 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
   );
 }
 
-// ── Página principal ──────────────────────────────────────────────────────────
-export default function ArmadorCarritos() {
+// ── Página principal (inner — necesita Suspense por useSearchParams) ──────────
+function ArmadorCarritosInner() {
   const { customer } = useCustomer() || {};
   const customerId   = customer?.id;
+  const searchParams = useSearchParams();
+  const fromCartToken = searchParams?.get("fromCart") || null;
   const profesional  = customer
     ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Especialista Vitahub"
     : "Especialista Vitahub";
@@ -1134,6 +1186,9 @@ export default function ArmadorCarritos() {
 
   // ── Persistencia localStorage ────────────────────────────────────────────────
   useEffect(() => {
+    // Si venimos de un carrito compartido, no cargamos el localStorage
+    // para no pisarlos (el efecto de fromCartToken los carga después)
+    if (fromCartToken) return;
     try {
       const saved = localStorage.getItem("vh_protocolo_carrito");
       if (saved) {
@@ -1151,7 +1206,24 @@ export default function ArmadorCarritos() {
       const savedPat = localStorage.getItem("vh_protocolo_paciente");
       if (savedPat) setPatientData(JSON.parse(savedPat));
     } catch {}
-  }, []);
+  }, [fromCartToken]);
+
+  // ── Cargar desde token de sharecart (Regenerar protocolo) ────────────────────
+  useEffect(() => {
+    if (!fromCartToken) return;
+    (async () => {
+      try {
+        const res  = await fetch(`/api/sharecart/restore?token=${fromCartToken}`);
+        const data = await res.json();
+        if (!data.ok) { console.warn("[fromCart] restore error:", data.error); return; }
+        setCarrito(data.items || []);
+        if (data.patientData) setPatientData(data.patientData);
+        setView("draft");
+      } catch (e) {
+        console.error("[fromCart]", e);
+      }
+    })();
+  }, [fromCartToken]);
   useEffect(() => {
     try { localStorage.setItem("vh_protocolo_carrito", JSON.stringify(carrito)); } catch {}
   }, [carrito]);
@@ -1162,20 +1234,13 @@ export default function ArmadorCarritos() {
   const cartVariantIds  = new Set(carrito.map(p => p.variant_id));
   const totalProtocolo  = carrito.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 1), 0);
 
-  // Batch imágenes de colecciones al montar
+  // Imágenes de colecciones deshabilitadas — las fotos de Shopify no son adecuadas,
+  // las cards muestran el gradiente + ícono Lucide como fallback intencional.
+  // TODO: cuando se tengan imágenes editoriales apropiadas, re-habilitar con
+  //   fetch(`/api/product-catalog?collectionsMetaHandles=${handles}`)
   useEffect(() => {
-    const ids = FEATURED.map(f => f.id).filter(Boolean).join(",");
-    if (!ids) return;
-    fetch(`/api/product-catalog?collectionsMeta=${ids}`)
-      .then(r => r.json())
-      .then(d => {
-        if (d.ok && d.collections) {
-          const imgs = {};
-          Object.entries(d.collections).forEach(([id, col]) => { if (col.imageUrl) imgs[id] = col.imageUrl; });
-          setCollectionImages(imgs);
-        }
-      })
-      .catch(() => {});
+    // no-op — imágenes de colecciones deshabilitadas (fotos de Shopify no adecuadas)
+    // TODO: re-habilitar con ?collectionsMetaHandles cuando haya imágenes editoriales
   }, []);
 
   // Handlers
@@ -1445,8 +1510,8 @@ export default function ArmadorCarritos() {
               <h2 className="text-sm font-bold text-[#0D2133] mb-4">Colecciones destacadas</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {FEATURED.map(fc => (
-                  <CollectionCard key={fc.id} item={fc} onClick={handleCollection}
-                    loading={loading} imageUrl={collectionImages[fc.id] || null} />
+                  <CollectionCard key={fc.handle || fc.id} item={fc} onClick={handleCollection}
+                    loading={loading} imageUrl={collectionImages[fc.handle || fc.id] || null} />
                 ))}
               </div>
             </section>
@@ -1641,5 +1706,14 @@ export default function ArmadorCarritos() {
         )}
       </div>
     </div>
+  );
+}
+
+// ── Wrapper con Suspense (requerido por useSearchParams en App Router) ─────────
+export default function ArmadorCarritos() {
+  return (
+    <Suspense>
+      <ArmadorCarritosInner />
+    </Suspense>
   );
 }

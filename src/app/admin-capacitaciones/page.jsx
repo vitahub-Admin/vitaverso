@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import Banner from "../components/Banner.jsx";
 import {
   Trash2, Plus, ChevronLeft, ChevronRight,
   Calendar as CalIcon, Loader2, Pencil, X,
@@ -178,7 +177,6 @@ export default function AdminCapacitacionesPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <Banner />
 
       <div className="w-full border-b border-gray-100 px-6">
         <div className="max-w-[1100px] mx-auto py-6">

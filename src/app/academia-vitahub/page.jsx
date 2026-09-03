@@ -2,7 +2,6 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import Banner from "../components/Banner";
 import {
   PlayCircle, Clock, Calendar as CalIcon,
   CheckCircle2, ExternalLink, Hourglass,
@@ -227,7 +226,6 @@ export default function AcademiaVitahubPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <Banner youtubeVideoUrl="https://www.youtube.com/watch?v=Xnnq8yGFoOs" />
 
       <div className="w-full border-b border-gray-100 px-6">
         <div className="max-w-[960px] mx-auto py-6">

@@ -2,7 +2,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import Banner from "../components/Banner";
 
 export default function UnauthorizedPage() {
   const [currentUrl, setCurrentUrl] = useState("");
@@ -26,8 +25,6 @@ export default function UnauthorizedPage() {
 
   return (
     <div className="flex flex-col items-center gap-6 p-4 min-h-screen bg-gray-50">
-      <Banner />
-
       <div className="w-full bg-[#1b3f7a] rounded-lg p-4 mb-6">
         <h1 className="text-3xl md:text-4xl text-white font-lato text-center">
           Acceso Requerido

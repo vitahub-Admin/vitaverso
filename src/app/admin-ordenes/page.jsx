@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { Loader2, ExternalLink, TrendingUp, TrendingDown, Minus, AlertTriangle } from "lucide-react";
-import Banner from "../components/Banner.jsx";
 
 const MONTH_LABELS = {
   "01": "Ene", "02": "Feb", "03": "Mar", "04": "Abr",
@@ -65,7 +64,6 @@ export default function AdminOrdenesPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <Banner />
 
       <div className="w-full border-b border-gray-100 px-6">
         <div className="max-w-[1100px] mx-auto py-6">

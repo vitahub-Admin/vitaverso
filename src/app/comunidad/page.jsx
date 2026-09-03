@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import Image from "next/image";
 import { TrendingUp, Package, Check, Loader2 } from "lucide-react";
-import Banner from "../components/Banner.jsx";
 
 const EXAMPLE_COMMENT = "Lo recomiendo para personas con alta demanda mental o fatiga constante. Al ser enzimáticamente activo, el cuerpo lo aprovecha de forma directa — eso marca una diferencia real versus un complejo B genérico.";
 
@@ -226,7 +225,6 @@ export default function ComunidadPage() {
 
   return (
     <div className="min-h-screen bg-white text-gray-900">
-      <Banner />
       <div className="w-full border-b border-gray-100 px-6">
         <div className="max-w-[960px] mx-auto py-6">
           <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">

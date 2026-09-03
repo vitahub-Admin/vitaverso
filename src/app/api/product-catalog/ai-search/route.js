@@ -118,40 +118,55 @@ export async function POST(req) {
     if (dbError) throw new Error(dbError.message);
 
     // 3. Deduplicar por product_id (hay una fila por variante)
-    //    Ranking: pro + match en primary_ingredient > pro + componente > el resto
-    const seen = new Set();
-    const tier1 = []; // pro + primary_ingredient match
-    const tier2 = []; // pro + componente/title match
-    const tier3 = []; // no pro
+    //    Ranking:
+    //      tier1 → pro + primary_ingredient match
+    //      tier2 → pro + componente/title match
+    //      tier3 → no pro
+    //    Dentro de cada tier se ordena por el índice (rank) del ingrediente
+    //    en la lista de Claude (posición 0 = máxima relevancia clínica).
+    const seen  = new Set();
+    const tier1 = [];
+    const tier2 = [];
+    const tier3 = [];
 
     for (const row of rows ?? []) {
       const id = String(row.product_id);
       if (seen.has(id)) continue;
       seen.add(id);
 
-      const match = ingredientes.find(i =>
-        [i.nombre, i.en].some(t => t &&
-          row.primary_ingredient?.toLowerCase().includes(t.toLowerCase()) ||
-          row.componente?.toLowerCase().includes(t.toLowerCase()) ||
-          row.title?.toLowerCase().includes(t.toLowerCase())
-        )
-      );
+      // Encontrar el ingrediente de Claude que mejor coincide,
+      // guardando su posición en la lista (rank)
+      let matchRank = Infinity;
+      let match     = null;
+      ingredientes.forEach((i, idx) => {
+        if (match) return; // ya encontramos el primero (más relevante)
+        const terms = [i.nombre, i.en].filter(Boolean).map(t => t.toLowerCase());
+        const fields = [
+          row.primary_ingredient ?? "",
+          row.componente         ?? "",
+          row.title              ?? "",
+        ].map(f => f.toLowerCase());
+        if (terms.some(t => fields.some(f => f.includes(t)))) {
+          match     = i;
+          matchRank = idx;
+        }
+      });
 
       const item = {
-        product_id:       id,
-        title:            row.title,
-        brand:            row.brand,
-        is_professional:  !!row.is_professional,
-        image_url:        null,
-        min_price:        row.price ?? null,
+        product_id:         id,
+        title:              row.title,
+        brand:              row.brand,
+        is_professional:    !!row.is_professional,
+        image_url:          null,
+        min_price:          row.price ?? null,
         commission_percent: 0,
-        all_out_of_stock: false,
-        variants:         [],
-        ai_match:         match ? { nombre: match.nombre, razon: match.razon } : null,
+        all_out_of_stock:   false,
+        variants:           [],
+        ai_match:           match ? { nombre: match.nombre, razon: match.razon, rank: matchRank } : null,
       };
 
       const isPro = row.is_professional;
-      const inPrimary = match && [match.nombre, match.en].some(t => t &&
+      const inPrimary = match && [match.nombre, match.en].filter(Boolean).some(t =>
         row.primary_ingredient?.toLowerCase().includes(t.toLowerCase())
       );
 
@@ -160,7 +175,13 @@ export async function POST(req) {
       else                    tier3.push(item);
     }
 
-    const ranked = [...tier1, ...tier2, ...tier3];
+    // Ordenar dentro de cada tier por el rank del ingrediente de Claude
+    const byRank = (a, b) => (a.ai_match?.rank ?? 99) - (b.ai_match?.rank ?? 99);
+    const ranked = [
+      ...tier1.sort(byRank),
+      ...tier2.sort(byRank),
+      ...tier3.sort(byRank),
+    ];
 
     // 4. Enriquecer con imagen + variantes desde Shopify (batch por IDs)
     //    Shopify nodes() acepta hasta 250 GIDs en una query

@@ -20,10 +20,10 @@ const resend = new Resend(process.env.RESEND_API_KEY);
 function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date, lineItems, shareCartToken }) {
   const pdfUrl = `https://pro.vitahub.mx/api/protocolo-pdf?token=${shareCartToken}`;
   const rows = lineItems.map((item, i) => {
-    const dosisBadge = item.dosis_amount
-      ? `<span style="display:inline-block;background:#1e8fa8;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:8px;">
-           ${item.dosis_amount} ${item.dosis_unit || 'cápsula'}${item.dosis_amount > 1 ? 's' : ''} · ${item.quantity} unid.
-         </span>`
+    const dosisText = item.instruccion
+      || (item.dosis_amount ? `${item.dosis_amount} ${item.dosis_unit || 'dosis'}` : null);
+    const dosisBadge = dosisText
+      ? `<span style="display:inline-block;background:#1e8fa8;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:8px;">${dosisText}${item.quantity > 1 ? ` · ${item.quantity} frascos` : ''}</span>`
       : `<span style="display:inline-block;background:#1b3f7a;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:10px;">×${item.quantity}</span>`;
 
     const notaRow = item.nota
@@ -178,8 +178,11 @@ async function sendProtocolEmail(payload, shareCartToken) {
         title:        item.title || "",
         quantity:     item.quantity,
         desc,
+        instruccion:  dosis.instruccion  || null,
         dosis_amount: dosis.dosis_amount || null,
         dosis_unit:   dosis.dosis_unit   || null,
+        momentos:     dosis.momentos     || [],
+        acompanamiento: dosis.acompanamiento || null,
         nota:         dosis.nota         || null,
       };
     });
@@ -409,6 +412,7 @@ export async function POST(req) {
       return NextResponse.json({ message: "Not paid" }, { status: 200 });
     }
 
+
     // Si es una orden de booking, la procesamos aparte y terminamos
     const isBooking = await handleBookingPayment(payload);
     if (isBooking) {
@@ -534,7 +538,8 @@ export async function POST(req) {
             .from("sharecarts")
             .select("token, owner_id, items, extra")
             .gte("created_at", since)
-            .not("owner_id", "is", null);
+            .not("owner_id", "is", null)
+            .limit(2000); // Supabase corta a 1000 por default → explicitamos más
 
           const matched = (recentCarts || []).find(cart => {
             const cartVariants = (cart.items || [])
@@ -697,16 +702,18 @@ export async function POST(req) {
 
     const specialistId = Number(effectiveSpecialist);
 
-    // Idempotencia
-    const { data: existingTx } = await supabase
+    // Idempotencia — busca tanto en string como en número por si hubo
+    // discrepancia de tipo en inserciones anteriores (migración o cambio de schema).
+    const { data: existingTxRows } = await supabase
       .from("point_transactions")
       .select("id")
-      .eq("reference_id", String(orderId))
+      .in("reference_id", [String(orderId), String(Number(orderId))])
       .eq("reference_type", "shopify_order")
       .eq("category", "earning")
-      .maybeSingle();
+      .limit(1);
 
-    if (existingTx) {
+    if (existingTxRows?.length > 0) {
+      console.log(`[webhook] Orden #${orderNumber} (${orderId}) ya procesada — skip.`);
       return NextResponse.json({ message: "Already processed" }, { status: 200 });
     }
 

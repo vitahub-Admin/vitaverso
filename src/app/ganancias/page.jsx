@@ -4,7 +4,6 @@ import { useEffect, useState, useMemo } from "react";
 import Cookies from "js-cookie";
 import Chart1 from "./components/Chart1";
 import Chart2 from "./components/Chart2";
-import Banner from "../components/Banner"
 import PointsDashboard from "./components/pointsDashboard";
 
 export default function OrdenesPage() {
@@ -92,7 +91,6 @@ export default function OrdenesPage() {
   return (
     <div className="flex flex-col items-center gap-6 p-4">
 
-<Banner youtubeVideoUrl="https://www.youtube.com/watch?v=mSYOgM052PM" />
     {/* Header de sección con filtros */}
 <div className="w-full  bg-[#1b3f7a] rounded-lg p-4 flex flex-col md:flex-row md:justify-between gap-4 mb-6">
   {/* Título */}
