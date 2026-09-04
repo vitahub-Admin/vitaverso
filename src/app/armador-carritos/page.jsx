@@ -108,6 +108,12 @@ function detectUnit(title = "", variantTitle = "") {
   return "cápsula";
 }
 
+// Retorna el tier de descuento activo ({qty, pct}) para una cantidad dada
+function getBundleTier(rules, qty) {
+  if (!rules?.length || qty < 2) return null;
+  return [...rules].sort((a, b) => b.qty - a.qty).find(r => qty >= r.qty) || null;
+}
+
 const FEATURED = [
   { handle: "vitamina-d-en-mexico", label: "Vitamina D3", desc: "Regulación del calcio, inmunidad y salud ósea",          icon: Sun,          from: "from-amber-400",   to: "to-orange-500"  },
   { handle: "enzimas-digestivas",   label: "Enzimas",      desc: "Digestión eficiente y absorción óptima de nutrientes",   icon: FlaskConical, from: "from-emerald-500", to: "to-teal-700"    },
@@ -372,7 +378,9 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
     save({ momentos: next });   // persiste en carrito
   };
 
-  const meta = item.dosage?.meta;
+  const meta        = item.dosage?.meta;
+  const bundlePlan  = item.bundlePlan || null;
+  const activeTier  = getBundleTier(bundlePlan?.rules, qty);
   const dTx = amount
     ? (meta?.tipo_dosis && meta?.dosis != null
         ? `${amount * meta.dosis} ${meta.tipo_dosis}`
@@ -395,24 +403,43 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
             {acomp && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{acomp}</span>}
           </div>
           {nota && <p className="text-[10px] text-[#5B7A8C] mt-1.5 italic">📋 {nota}</p>}
-          <div className="flex items-center gap-3 mt-2 flex-wrap">
-            <p className="text-sm font-extrabold text-[#0D2133] tabular-nums">
-              {fmtMXN(item.price * qty)}
-              {qty > 1 && <span className="text-[10px] font-normal text-[#5B7A8C] ml-1">({qty} × {fmtMXN(item.price)})</span>}
-            </p>
-            {/* Selector de cantidad de frascos */}
-            <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
-              <button onClick={() => { const n = Math.max(1, qty - 1); setQty(n); onUpdateQuantity(item.variant_id, n); }}
-                className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold transition-colors text-base">−</button>
-              <span className="w-6 text-center text-xs font-extrabold text-[#0D2133] tabular-nums select-none">{qty}</span>
-              <button onClick={() => { const n = qty + 1; setQty(n); onUpdateQuantity(item.variant_id, n); }}
-                className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold transition-colors text-base">+</button>
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Precio */}
+              <p className="text-sm font-extrabold tabular-nums flex items-baseline gap-1.5">
+                {activeTier ? (
+                  <>
+                    <span className="text-[#B0C8D4] line-through text-xs font-normal">{fmtMXN(item.price * qty)}</span>
+                    <span className="text-emerald-600">{fmtMXN(item.price * qty * (1 - activeTier.pct / 100))}</span>
+                    <span className="text-[10px] font-bold text-emerald-600">−{activeTier.pct}%</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[#0D2133]">{fmtMXN(item.price * qty)}</span>
+                    {qty > 1 && <span className="text-[10px] font-normal text-[#5B7A8C]">({qty} × {fmtMXN(item.price)})</span>}
+                  </>
+                )}
+              </p>
+              {/* Selector de cantidad de frascos */}
+              <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
+                <button onClick={() => { const n = Math.max(1, qty - 1); setQty(n); onUpdateQuantity(item.variant_id, n); }}
+                  className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold transition-colors text-base">−</button>
+                <span className="w-6 text-center text-xs font-extrabold text-[#0D2133] tabular-nums select-none">{qty}</span>
+                <button onClick={() => { const n = qty + 1; setQty(n); onUpdateQuantity(item.variant_id, n); }}
+                  className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold transition-colors text-base">+</button>
+              </div>
+              <span className="text-[10px] text-[#B0C8D4]">{qty === 1 ? "frasco" : "frascos"}</span>
+              <button onClick={() => setOpen(o => !o)}
+                className="flex items-center gap-1 text-[10px] font-bold text-[#1E8FA8] hover:text-[#0D2133] transition-colors ml-auto">
+                <Pencil size={10} /> {open ? "Cerrar" : "Editar dosis"}
+              </button>
             </div>
-            <span className="text-[10px] text-[#B0C8D4]">{qty === 1 ? "frasco" : "frascos"}</span>
-            <button onClick={() => setOpen(o => !o)}
-              className="flex items-center gap-1 text-[10px] font-bold text-[#1E8FA8] hover:text-[#0D2133] transition-colors ml-auto">
-              <Pencil size={10} /> {open ? "Cerrar" : "Editar dosis"}
-            </button>
+            {/* Hint bundle */}
+            {bundlePlan?.rules?.length > 0 && (
+              <p className="text-[10px] text-[#8AAAB8]">
+                {bundlePlan.rules.map(r => `${r.qty}u = −${r.pct}%`).join(" · ")}
+              </p>
+            )}
           </div>
         </div>
         <button onClick={() => onRemove(item.variant_id)} className="text-[#B0C8D4] hover:text-red-400 transition-colors shrink-0 mt-0.5"><X size={14} /></button>
@@ -757,7 +784,7 @@ function SmartSuggestions({ componente, excludeId, onProductClick, isFavorite, o
 }
 
 // ── Product Detail View ───────────────────────────────────────────────────────
-function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartItem, isFavorite, onFavorite, onProductClick }) {
+function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartItem, isFavorite, onFavorite, onProductClick, onBreadcrumb }) {
   const inCart = !!cartItem;
   const inStockVariants = (product.variants || []).filter(v => v.stock === null || v.stock > 0);
   const [selectedVariant, setSelectedVariant] = useState(
@@ -791,8 +818,9 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
     return () => window.removeEventListener("keydown", onKey);
   }, [zoomOpen]);
   const [variantMeta, setVariantMeta] = useState({}); // { variant_id: { tipo_dosis, dosis, total_unidades, total_dosis } }
+  const [bundlePlan,  setBundlePlan]  = useState(null); // { label, rules: [{qty, pct}] } | null
 
-  // Cargar descripción + imágenes + metafields de variante
+  // Cargar descripción + imágenes + metafields de variante + bundle plan
   useEffect(() => {
     setDescLoading(true);
     fetch(`/api/product-catalog?description=${product.product_id}`)
@@ -801,6 +829,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
         setDescHtml(d.descriptionHtml || "<p>Sin descripción disponible.</p>");
         if (d.images?.length > 1) { setImages(d.images); setMainImg(d.images[0]); }
         if (d.variantMeta) setVariantMeta(d.variantMeta);
+        if (d.bundlePlan)  setBundlePlan(d.bundlePlan);
       })
       .catch(() => {})
       .finally(() => setDescLoading(false));
@@ -827,7 +856,8 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
     if (!selectedVariant || outOfStock) return;
     const meta = variantMeta[String(selectedVariant.variant_id)] || null;
     const dosage = { amount, unit, momentos, acompanamiento: acomp, nota, meta };
-    inCart ? onUpdate(cartItem.variant_id, selectedVariant, dosage, quantity) : onAdd(product, selectedVariant, dosage, quantity);
+    inCart ? onUpdate(cartItem.variant_id, selectedVariant, dosage, quantity, bundlePlan)
+           : onAdd(product, selectedVariant, dosage, quantity, bundlePlan);
   };
 
   return (
@@ -844,6 +874,45 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
           {isFavorite(product.product_id) ? "Quitar de favoritos" : "Agregar a favoritos"}
         </button>
       </div>
+
+      {/* Breadcrumb de categorías — solo si el producto tiene niveles */}
+      {onBreadcrumb && (product.level_1 || product.level_2 || product.level_3) && (
+        <nav className="flex items-center gap-1 flex-wrap mb-4 -mt-2">
+          <button onClick={() => onBreadcrumb(null, null, null)}
+            className="text-[11px] text-[#8AAAB8] hover:text-[#0D2133] transition-colors font-medium">
+            Inicio
+          </button>
+          {product.level_1 && (
+            <>
+              <span className="text-[#C2DFE8] text-[11px]">›</span>
+              <button onClick={() => onBreadcrumb('l1', product.level_1, product)}
+                className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">
+                {product.level_1}
+              </button>
+            </>
+          )}
+          {product.level_2 && (
+            <>
+              <span className="text-[#C2DFE8] text-[11px]">›</span>
+              <button onClick={() => onBreadcrumb('l2', product.level_2, product)}
+                className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">
+                {product.level_2}
+              </button>
+            </>
+          )}
+          {product.level_3 && (
+            <>
+              <span className="text-[#C2DFE8] text-[11px]">›</span>
+              <button onClick={() => onBreadcrumb('l3', product.level_3, product)}
+                className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">
+                {product.level_3}
+              </button>
+            </>
+          )}
+          <span className="text-[#C2DFE8] text-[11px]">›</span>
+          <span className="text-[11px] text-[#5B7A8C] font-semibold truncate max-w-[180px]">{product.title}</span>
+        </nav>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
         {/* Imagen principal + galería */}
@@ -1185,22 +1254,45 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
           })()}
 
           {/* Cantidad de frascos */}
-          {!outOfStock && (
-            <div className="flex items-center gap-3">
-              <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Cantidad</span>
-              <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
-                <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold text-lg transition-colors">−</button>
-                <span className="w-10 text-center text-sm font-extrabold text-[#0D2133] tabular-nums select-none">{quantity}</span>
-                <button onClick={() => setQuantity(q => q + 1)}
-                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold text-lg transition-colors">+</button>
+          {!outOfStock && (() => {
+            const activeTier = getBundleTier(bundlePlan?.rules, quantity);
+            const totalBase   = price * quantity;
+            const totalDsc    = activeTier ? totalBase * (1 - activeTier.pct / 100) : totalBase;
+            return (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Cantidad</span>
+                  <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
+                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                      className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold text-lg transition-colors">−</button>
+                    <span className="w-10 text-center text-sm font-extrabold text-[#0D2133] tabular-nums select-none">{quantity}</span>
+                    <button onClick={() => setQuantity(q => q + 1)}
+                      className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold text-lg transition-colors">+</button>
+                  </div>
+                  <span className="text-xs text-[#5B7A8C]">{quantity === 1 ? "frasco" : "frascos"}</span>
+                  {quantity > 1 && price && (
+                    <span className="ml-auto flex items-baseline gap-1.5 tabular-nums">
+                      {activeTier && (
+                        <span className="text-[11px] text-[#B0C8D4] line-through">{fmtMXN(totalBase)}</span>
+                      )}
+                      <span className={`text-xs font-extrabold ${activeTier ? "text-emerald-600" : "text-[#1E8FA8]"}`}>
+                        Total: {fmtMXN(totalDsc)}
+                      </span>
+                      {activeTier && (
+                        <span className="text-[10px] font-bold text-emerald-600">−{activeTier.pct}%</span>
+                      )}
+                    </span>
+                  )}
+                </div>
+                {/* Hint de bundle — solo si hay reglas */}
+                {bundlePlan?.rules?.length > 0 && (
+                  <p className="text-[11px] text-[#8AAAB8] pl-px">
+                    {bundlePlan.rules.map(r => `Comprando ${r.qty} = −${r.pct}% dto`).join(" · ")}
+                  </p>
+                )}
               </div>
-              <span className="text-xs text-[#5B7A8C]">{quantity === 1 ? "frasco" : "frascos"}</span>
-              {quantity > 1 && price && (
-                <span className="text-xs font-extrabold text-[#1E8FA8] tabular-nums ml-auto">Total: {fmtMXN(price * quantity)}</span>
-              )}
-            </div>
-          )}
+            );
+          })()}
 
           {outOfStock
             ? <div className="w-full bg-[#F7F9FB] text-[#B0C8D4] text-sm font-semibold py-3.5 rounded-xl text-center border border-[#D0E4EC]">Sin stock disponible</div>
@@ -1238,6 +1330,7 @@ function ArmadorCarritosInner() {
   const [prevView, setPrevView]         = useState(null);
   const [activeTabKey, setActiveTabKey] = useState(null);
   const [collLabel, setCollLabel]       = useState("");
+  const [levelCtx, setLevelCtx]         = useState(null); // { trail:[{label,field,value}], field, value }
 
   // Datos
   const [query, setQuery]           = useState("");
@@ -1346,7 +1439,7 @@ function ArmadorCarritosInner() {
 
   const handleCollection = async (tab) => {
     const key = tab.id || tab.handle;
-    setLoading(true); setError(null); setActiveTabKey(key);
+    setLoading(true); setError(null); setActiveTabKey(key); setLevelCtx(null);
     try {
       const param = tab.id ? `collectionId=${tab.id}` : `collection=${tab.handle}`;
       const res   = await fetch(`/api/product-catalog?${param}`);
@@ -1377,10 +1470,47 @@ function ArmadorCarritosInner() {
 
   const handleHome = () => {
     setView("home"); setProductos([]); setQuery("");
-    setError(null); setActiveTabKey(null); setDetailProduct(null);
+    setError(null); setActiveTabKey(null); setDetailProduct(null); setLevelCtx(null);
   };
 
-  const agregarAlProtocolo = useCallback((product, variant, dosage, quantity = 1) => {
+  // ── Navegación por árbol de categorías (breadcrumb) ─────────────────────────
+  const handleBreadcrumb = useCallback(async (field, value, product) => {
+    if (!field) { handleHome(); return; }
+
+    // Construir el trail hasta el nivel clickeado
+    const trail = [];
+    if (product?.level_1) trail.push({ label: product.level_1, field: 'l1', value: product.level_1 });
+    if (product?.level_2 && (field === 'l2' || field === 'l3'))
+      trail.push({ label: product.level_2, field: 'l2', value: product.level_2 });
+    if (product?.level_3 && field === 'l3')
+      trail.push({ label: product.level_3, field: 'l3', value: product.level_3 });
+
+    setLevelCtx({ trail, field, value });
+    setError(null); setProductos([]); setDetailProduct(null);
+    setActiveTabKey(null); setView("collection"); setPrevView(null);
+    setLoading(true);
+    try {
+      // Filtrar por todos los niveles hasta el clickeado (AND)
+      const params = new URLSearchParams();
+      if (product?.level_1 && (field === 'l1' || field === 'l2' || field === 'l3'))
+        params.set('l1', product.level_1);
+      if (product?.level_2 && (field === 'l2' || field === 'l3'))
+        params.set('l2', product.level_2);
+      if (product?.level_3 && field === 'l3')
+        params.set('l3', product.level_3);
+      // Sobreescribir el nivel clickeado con su valor
+      params.set(field, value);
+
+      const res  = await fetch(`/api/product-catalog?${params}`);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Error cargando categoría");
+      setProductos(data.items || []);
+      setCollLabel(value);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, [handleHome]); // eslint-disable-line
+
+  const agregarAlProtocolo = useCallback((product, variant, dosage, quantity = 1, bundlePlan = null) => {
     setCarrito(prev => {
       if (prev.find(p => p.variant_id === variant.variant_id)) return prev;
       return [...prev, {
@@ -1388,14 +1518,17 @@ function ArmadorCarritosInner() {
         title: product.title, variant_title: variant.variant_title || null,
         image: product.image_url || null,
         price: variant.price ?? product.min_price ?? 0, quantity,
+        bundlePlan,
         dosage: dosage || { amount: 1, unit: detectUnit(product.title, variant.variant_title || ""), momentos: [], acompanamiento: "", nota: "" },
       }];
     });
   }, []);
 
-  const actualizarEnProtocolo = useCallback((oldVid, newVariant, dosage, quantity) => {
+  const actualizarEnProtocolo = useCallback((oldVid, newVariant, dosage, quantity, bundlePlan) => {
     setCarrito(prev => prev.map(p => p.variant_id === oldVid
-      ? { ...p, variant_id: newVariant.variant_id, variant_title: newVariant.variant_title || null, price: newVariant.price ?? p.price, dosage, ...(quantity != null ? { quantity } : {}) }
+      ? { ...p, variant_id: newVariant.variant_id, variant_title: newVariant.variant_title || null, price: newVariant.price ?? p.price, dosage,
+          ...(quantity != null ? { quantity } : {}),
+          ...(bundlePlan !== undefined ? { bundlePlan } : {}) }
       : p
     ));
   }, []);
@@ -1656,6 +1789,7 @@ function ArmadorCarritosInner() {
             isFavorite={isFavorite}
             onFavorite={toggleFavorite}
             onProductClick={handleProductClick}
+            onBreadcrumb={handleBreadcrumb}
           />
         )}
 
@@ -1740,6 +1874,23 @@ function ArmadorCarritosInner() {
                 </>
               )}
             </div>
+
+            {/* Breadcrumb trail de nivel — visible cuando venimos de clic en categoría */}
+            {levelCtx?.trail?.length > 0 && (
+              <nav className="flex items-center gap-1 flex-wrap mb-3 -mt-1">
+                <button onClick={handleHome} className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">Inicio</button>
+                {levelCtx.trail.map((step, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    <span className="text-[#C2DFE8] text-[11px]">›</span>
+                    {i < levelCtx.trail.length - 1
+                      ? <button onClick={() => handleBreadcrumb(step.field, step.value, { level_1: levelCtx.trail[0]?.value, level_2: levelCtx.trail[1]?.value, level_3: levelCtx.trail[2]?.value })}
+                          className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">{step.label}</button>
+                      : <span className="text-[11px] text-[#0D2133] font-semibold">{step.label}</span>
+                    }
+                  </span>
+                ))}
+              </nav>
+            )}
 
             {/* Conteo */}
             <p className="text-xs text-[#5B7A8C] font-medium mb-4">

@@ -92,6 +92,9 @@ function groupProducts({ rows, imageMap, commissionMap, stock, productStatus }) 
         primary_unit:       r.primary_unit || null,
         is_professional:    r.is_professional || false,
         componente:         r.componente || null,
+        level_1:            r.level_1 || null,
+        level_2:            r.level_2 || null,
+        level_3:            r.level_3 || null,
         variants:           [],
       })
     }
@@ -149,7 +152,7 @@ async function resolveProducts(rows) {
   return groupProducts({ rows, imageMap, commissionMap, stock, productStatus })
 }
 
-const CATALOG_SELECT = 'variant_id, product_id, title, variant_title, sku, price, brand, primary_ingredient, primary_amount, primary_unit, nutrients, is_professional, componente'
+const CATALOG_SELECT = 'variant_id, product_id, title, variant_title, sku, price, brand, primary_ingredient, primary_amount, primary_unit, nutrients, is_professional, componente, level_1, level_2, level_3'
 
 // ── Handler principal ─────────────────────────────────────────────────────────
 
@@ -165,6 +168,9 @@ export async function GET(req) {
     const collectionId     = searchParams.get('collectionId')  // ID numérico de Shopify (más confiable)
     const collectionsMeta  = searchParams.get('collectionsMeta') // IDs separados por coma → batch title+image
     const titlesFor        = searchParams.get('titles_for')
+    const l1               = searchParams.get('l1')   // filtro level_1
+    const l2               = searchParams.get('l2')   // filtro level_2
+    const l3               = searchParams.get('l3')   // filtro level_3
 
     // ── ?collectionsMeta=id1,id2,... ────────────────────────────────────────
     // Batch: title + image de varias colecciones en una sola query GraphQL
@@ -248,6 +254,7 @@ export async function GET(req) {
               ... on Product {
                 title
                 descriptionHtml
+                bundle: metafield(namespace: "custom", key: "bundle") { value }
                 images(first: 15) { edges { node { url } } }
                 variants(first: 20) {
                   edges {
@@ -281,12 +288,27 @@ export async function GET(req) {
         }
       }
 
+      // Buscar plan de bundle en Supabase si el producto tiene metafield custom.bundle
+      const bundleName = node?.bundle?.value || null
+      let bundlePlan = null
+      if (bundleName) {
+        try {
+          const { data } = await supabase
+            .from('bundle_plans')
+            .select('label, rules')
+            .eq('shopify_name', bundleName)
+            .maybeSingle()
+          if (data) bundlePlan = { label: data.label, rules: data.rules }
+        } catch (_) {}
+      }
+
       return NextResponse.json({
         ok:              true,
         title:           node?.title           ?? '',
         descriptionHtml: node?.descriptionHtml ?? '',
         images,
         variantMeta,  // { variant_id: { tipo_dosis, dosis, total_unidades, total_dosis } }
+        bundlePlan,   // { label, rules: [{qty, pct}] } | null
       })
     }
 
@@ -598,7 +620,7 @@ export async function GET(req) {
       const [{ data: catalogData }, { data: commData }] = await Promise.all([
         allProductIds.length
           ? supabase.from('product_catalog')
-              .select('product_id, brand, componente, is_professional, primary_ingredient, primary_amount, primary_unit')
+              .select('product_id, brand, componente, is_professional, primary_ingredient, primary_amount, primary_unit, level_1, level_2, level_3')
               .in('product_id', allProductIds)
           : Promise.resolve({ data: [] }),
         allVariantIds.length
@@ -635,6 +657,9 @@ export async function GET(req) {
           primary_ingredient: enrich.primary_ingredient || null,
           primary_amount:     enrich.primary_amount || null,
           primary_unit:       enrich.primary_unit || null,
+          level_1:            enrich.level_1 || null,
+          level_2:            enrich.level_2 || null,
+          level_3:            enrich.level_3 || null,
           nutrients:          [],
           variants,
           min_price:          prices.length ? Math.min(...prices) : null,
@@ -688,6 +713,20 @@ export async function GET(req) {
       }
 
       return NextResponse.json({ ok: true, prices, stock, commissions })
+    }
+
+    // ── ?l1, ?l2, ?l3 — árbol de categorías (level_1/2/3 en Supabase) ─────────
+    if (l1 || l2 || l3) {
+      let q = supabase.from('product_catalog').select(CATALOG_SELECT)
+      if (l1) q = q.eq('level_1', l1)
+      if (l2) q = q.eq('level_2', l2)
+      if (l3) q = q.eq('level_3', l3)
+      const { data, error } = await q
+      if (error) throw error
+      const items = await resolveProducts(data || [])
+      // Label para el título de la vista: el nivel más específico
+      const label = l3 || l2 || l1
+      return NextResponse.json({ ok: true, items, collectionTitle: label })
     }
 
     // ── ?componente ──────────────────────────────────────────────────────────
