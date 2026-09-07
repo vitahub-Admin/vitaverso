@@ -143,7 +143,7 @@ async function sendProtocolEmail(payload, shareCartToken) {
     // Nombre del especialista desde affiliates
     const { data: affiliateData } = await supabase
       .from("affiliates")
-      .select("display_name, email")
+      .select("first_name, last_name, email")
       .eq("shopify_customer_id", Number(cartData.owner_id))
       .maybeSingle();
 
@@ -192,7 +192,9 @@ async function sendProtocolEmail(payload, shareCartToken) {
       [payload.customer?.first_name, payload.customer?.last_name].filter(Boolean).join(" ") ||
       "Paciente";
 
-    const affiliateName = affiliateData?.display_name || "Tu especialista en Vitahub";
+    const affiliateName =
+      [affiliateData?.first_name, affiliateData?.last_name].filter(Boolean).join(" ") ||
+      "Tu especialista en Vitahub";
 
     const date = new Date(payload.created_at).toLocaleDateString("es-MX", {
       year: "numeric", month: "long", day: "numeric",

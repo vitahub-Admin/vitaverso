@@ -540,15 +540,18 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
       return;
     }
     setLoading(true); setError(null);
+    // Formato canónico de paciente — el mismo que usan los sharecarts de Shopify:
+    // claves name/phone, teléfono siempre con prefijo +521
+    const patientName  = patientData.nombre?.trim() || "";
+    const patientPhone = patientData.telefono ? `+521${patientData.telefono}` : "";
     try {
       const res  = await fetch("/api/sharecart/checkout", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          owner_id: customerId, name: patientData.nombre,
-          phone: patientData.telefono ? `+521${patientData.telefono}` : "",
+          owner_id: customerId, name: patientName, phone: patientPhone,
           items: carrito.map(p => ({ variant_id: p.variant_id, quantity: p.quantity || 1 })),
           extra: {
-            patient_info: patientData,
+            patient_info: { name: patientName, phone: patientPhone },
             origen: "protocolo",
             dosis_map: Object.fromEntries(
               carrito.map(p => {
@@ -571,8 +574,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
       const url = data.checkoutUrl;
       setCheckoutUrl(url);
       // Componer y abrir WhatsApp automáticamente
-      const nombre  = patientData.nombre?.trim() || "";
-      const saludo  = nombre ? `¡Hola ${nombre}!` : "¡Hola!";
+      const saludo  = patientName ? `¡Hola ${patientName}!` : "¡Hola!";
       const mensaje = `${saludo} 🌿 Te comparto tu protocolo de suplementación personalizado:\n\n${url}\n\nCualquier duda, con gusto te ayudo.`;
       const wa = `https://wa.me/521${patientData.telefono}?text=${encodeURIComponent(mensaje)}`;
       setWhatsappUrl(wa);

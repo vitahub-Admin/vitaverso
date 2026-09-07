@@ -135,14 +135,16 @@ export async function GET(req) {
     });
 
     // 4. Extraer datos del paciente (quitar prefijo +521 si viene en el phone)
-    const rawPhone = cart.phone || patInfo.telefono || "";
+    //    patient_info usa name/phone; los sharecarts viejos del armador guardaban
+    //    nombre/telefono, así que leemos ambas claves por retrocompatibilidad.
+    const rawPhone = cart.phone || patInfo.phone || patInfo.telefono || "";
     const phone = rawPhone.replace(/^\+521/, "").replace(/\D/g, "").slice(0, 10);
 
     return NextResponse.json({
       ok: true,
       items: enrichedItems,
       patientData: {
-        nombre:   patInfo.nombre || cart.name || "",
+        nombre:   patInfo.name || patInfo.nombre || cart.name || "",
         telefono: phone,
       },
     });
