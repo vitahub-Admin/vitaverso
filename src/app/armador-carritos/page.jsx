@@ -719,6 +719,57 @@ function CollectionCard({ item, onClick, loading, imageUrl }) {
   );
 }
 
+// ── Solicitud de reposición ───────────────────────────────────────────────────
+// Los productos sin stock se listan igual, al final. Desde acá el especialista
+// le avisa al equipo que hay demanda; el endpoint resuelve quién lo pide por
+// sesión, así que no hace falta pedirle ningún dato.
+function RestockButton({ product, variant = null, size = "sm" }) {
+  const [state, setState] = useState("idle"); // idle | sending | done | error
+
+  const solicitar = async (e) => {
+    e.stopPropagation();
+    if (state !== "idle" && state !== "error") return;
+    setState("sending");
+    try {
+      const res = await fetch("/api/restock-request", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          product_id:    product.product_id,
+          product_title: product.title,
+          variant_id:    variant?.variant_id ?? null,
+          sku:           variant?.sku ?? null,
+        }),
+      });
+      const data = await res.json();
+      setState(data.ok ? "done" : "error");
+    } catch {
+      setState("error");
+    }
+  };
+
+  const base = size === "lg"
+    ? "w-full py-3.5 rounded-xl text-sm font-bold"
+    : "w-full text-[11px] font-bold py-1.5 rounded-lg";
+
+  if (state === "done") {
+    return (
+      <div className={`${base} border border-emerald-200 bg-emerald-50 text-emerald-600 text-center`}>
+        ✓ Reposición solicitada
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={solicitar} disabled={state === "sending"}
+      className={`${base} border text-center transition-all ${state === "error"
+        ? "border-red-200 bg-red-50 text-red-500 hover:bg-red-100"
+        : "border-[#D0E4EC] bg-white text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#0D2133] disabled:opacity-60"}`}>
+      {state === "sending" ? "Enviando…" : state === "error" ? "Reintentar" : "Solicitar reposición"}
+    </button>
+  );
+}
+
 // ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQuickAdd }) {
   const outOfStock = product.all_out_of_stock;
@@ -757,9 +808,7 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
       {onQuickAdd && (
         <div className="px-3 pb-3 pt-1.5">
           {outOfStock ? (
-            <div className="w-full text-[11px] font-bold py-1.5 rounded-lg border border-[#D0E4EC] bg-[#F7F9FB] text-[#B0C8D4] text-center">
-              Sin stock
-            </div>
+            <RestockButton product={product} />
           ) : (
             <button
               onClick={(e) => { e.stopPropagation(); onQuickAdd(product); }}
@@ -1310,7 +1359,10 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
           })()}
 
           {outOfStock
-            ? <div className="w-full bg-[#F7F9FB] text-[#B0C8D4] text-sm font-semibold py-3.5 rounded-xl text-center border border-[#D0E4EC]">Sin stock disponible</div>
+            ? <div className="space-y-2">
+                <div className="w-full bg-[#F7F9FB] text-[#B0C8D4] text-sm font-semibold py-3.5 rounded-xl text-center border border-[#D0E4EC]">Sin stock disponible</div>
+                <RestockButton product={product} variant={selectedVariant} size="lg" />
+              </div>
             : <button onClick={handleAdd}
                 className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${inCart ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#0D2133] text-white hover:bg-[#162d60]"}`}>
                 {inCart ? "✓ Actualizar en protocolo" : `Agregar al protocolo${quantity > 1 ? ` (×${quantity})` : ""}`}
