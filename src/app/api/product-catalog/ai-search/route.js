@@ -8,13 +8,15 @@
  *  1. Claude interpreta la query (síntoma, objetivo, descripción libre)
  *     y devuelve lista de ingredientes/componentes relevantes
  *  2. Se busca en Supabase product_catalog por esos ingredientes
- *  3. Se ordena: productos profesionales primero, luego por comisión
+ *  3. Se ordena en tiers (pro + primary_ingredient / pro / resto) y dentro de
+ *     cada tier los favoritos del profesional van primero
  *  4. Se enriquece con stock/precio desde la colección del afiliado (si hay cookie)
  */
 
 import { NextResponse } from "next/server";
 import Anthropic        from "@anthropic-ai/sdk";
 import { createClient } from "@supabase/supabase-js";
+import { resolveCustomerId } from "@/lib/customerAppAuth";
 
 const GQL_URL   = `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/graphql.json`;
 const GQL_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
@@ -64,6 +66,23 @@ export async function POST(req) {
     if (!query?.trim()) {
       return NextResponse.json({ ok: false, error: "Query vacía" }, { status: 400 });
     }
+
+    // Favoritos del profesional — se piden en paralelo con Claude porque solo
+    // afectan el orden final. Sin sesión el Set queda vacío y el ranking se
+    // comporta igual que antes.
+    const favoritesPromise = (async () => {
+      try {
+        const customerId = await resolveCustomerId(req);
+        if (!customerId) return new Set();
+        const { data } = await supabase
+          .from("vh_pro_favoritos")
+          .select("product_id")
+          .eq("customer_id", customerId);
+        return new Set((data || []).map(r => String(r.product_id)));
+      } catch {
+        return new Set();
+      }
+    })();
 
     // 1. Claude interpreta la query
     const msg = await anthropic.messages.create({
@@ -124,6 +143,8 @@ export async function POST(req) {
     //      tier3 → no pro
     //    Dentro de cada tier se ordena por el índice (rank) del ingrediente
     //    en la lista de Claude (posición 0 = máxima relevancia clínica).
+    const favoriteIds = await favoritesPromise;
+
     const seen  = new Set();
     const tier1 = [];
     const tier2 = [];
@@ -157,6 +178,7 @@ export async function POST(req) {
         title:              row.title,
         brand:              row.brand,
         is_professional:    !!row.is_professional,
+        is_favorite:        favoriteIds.has(id),
         image_url:          null,
         min_price:          row.price ?? null,
         commission_percent: 0,
@@ -175,12 +197,18 @@ export async function POST(req) {
       else                    tier3.push(item);
     }
 
-    // Ordenar dentro de cada tier por el rank del ingrediente de Claude
-    const byRank = (a, b) => (a.ai_match?.rank ?? 99) - (b.ai_match?.rank ?? 99);
+    // Ordenar dentro de cada tier: primero los favoritos del profesional,
+    // después por el rank del ingrediente de Claude. Los favoritos suben dentro
+    // de su tier pero nunca saltan a uno superior — los requisitos clínicos de
+    // cada nivel se mantienen intactos.
+    const byFavThenRank = (a, b) => {
+      if (a.is_favorite !== b.is_favorite) return a.is_favorite ? -1 : 1;
+      return (a.ai_match?.rank ?? 99) - (b.ai_match?.rank ?? 99);
+    };
     const ranked = [
-      ...tier1.sort(byRank),
-      ...tier2.sort(byRank),
-      ...tier3.sort(byRank),
+      ...tier1.sort(byFavThenRank),
+      ...tier2.sort(byFavThenRank),
+      ...tier3.sort(byFavThenRank),
     ];
 
     // 4. Enriquecer con imagen + variantes desde Shopify (batch por IDs)

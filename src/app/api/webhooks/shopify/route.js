@@ -526,16 +526,26 @@ export async function POST(req) {
         } catch (_) { /* URL inválida, ignorar */ }
       }
 
-      // Paso 4c: Match por productos — busca sharecarts con exactamente los mismos variant_ids
+      // Paso 4c: Match por productos — busca sharecarts con exactamente los mismos variant_ids.
+      //
+      // Es el paso más frágil de la cadena porque infiere el origen sin token, así que
+      // se aplica solo cuando la huella identifica de verdad:
+      //   · 2+ productos — la huella de un carrito de un solo producto colisiona con
+      //     cualquier orden de ese producto suelto (atribuía ventas a carritos de prueba)
+      //   · un único especialista entre los carritos que matchean — si son varios, la
+      //     combinación no distingue a nadie y se prefiere no atribuir
+      //   · ventana corta: un carrito viejo no debería capturar ventas de meses después
+      const MATCH_MIN_PRODUCTS = 2;
+      const MATCH_WINDOW_DAYS  = 14;
+
       if (!correctedRef) {
         const orderVariantIds = (payload.line_items || [])
           .map(i => Number(i.variant_id))
           .filter(Boolean)
           .sort((a, b) => a - b);
 
-        if (orderVariantIds.length > 0) {
-          // Traer sharecarts recientes (últimos 60 días) con items
-          const since = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString();
+        if (orderVariantIds.length >= MATCH_MIN_PRODUCTS) {
+          const since = new Date(Date.now() - MATCH_WINDOW_DAYS * 24 * 60 * 60 * 1000).toISOString();
           const { data: recentCarts } = await supabase
             .from("sharecarts")
             .select("token, owner_id, items, extra")
@@ -543,7 +553,7 @@ export async function POST(req) {
             .not("owner_id", "is", null)
             .limit(2000); // Supabase corta a 1000 por default → explicitamos más
 
-          const matched = (recentCarts || []).find(cart => {
+          const matches = (recentCarts || []).filter(cart => {
             const cartVariants = (cart.items || [])
               .map(i => Number(i.variant_id ?? i.id))
               .filter(Boolean)
@@ -554,11 +564,15 @@ export async function POST(req) {
             );
           });
 
-          if (matched?.owner_id) {
-            correctedRef = String(matched.owner_id);
+          const owners = new Set(matches.map(c => String(c.owner_id)));
+
+          if (owners.size === 1) {
+            correctedRef = String(matches[0].owner_id);
             status = "corrected";
-            if (!referidoValue) setReferido(matched.owner_id);
-            console.log(`[webhook] shareCart recuperado por match de productos: ${matched.token}`);
+            if (!referidoValue) setReferido(matches[0].owner_id);
+            console.log(`[webhook] shareCart recuperado por match de productos: ${matches[0].token}`);
+          } else if (owners.size > 1) {
+            console.log(`[webhook] match de productos ambiguo: ${matches.length} carritos de ${owners.size} especialistas → sin atribuir`);
           }
         }
       }

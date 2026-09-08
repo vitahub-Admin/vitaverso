@@ -15,12 +15,17 @@ const ACOMP      = ["Con agua", "Con comida", "En ayunas"];
 
 // ── Helpers de posología ─────────────────────────────────────────────────────
 
-/** Pluraliza la unidad de dosis para el texto de instrucción */
+/** Normaliza la unidad de dosis para el texto de instrucción.
+ *  Puede venir de detectUnit (minúscula singular) o de un metafield de Shopify,
+ *  que las escribe capitalizadas y a veces ya en plural ("Cápsulas"), así que
+ *  hay que poder singularizar además de pluralizar. */
 function pluralUnit(u = "", n = 1) {
-  if (n === 1) return u;
-  if (["ml", "mg", "g"].includes(u.toLowerCase())) return u;
-  if (u.endsWith("s") || u.endsWith("S")) return u; // ya plural (viene de metafield)
-  return u + "s";
+  const unit = u.trim().toLowerCase();
+  if (!unit) return "";
+  if (["ml", "mg", "g"].includes(unit)) return unit; // invariables
+  const isPlural = unit.endsWith("s");
+  if (n === 1) return isPlural ? unit.replace(/s$/, "") : unit;
+  return isPlural ? unit : unit + "s";
 }
 
 /**
@@ -67,7 +72,7 @@ function buildInstruccion(amount, unit, momentos = [], acomp = "", meta = null) 
   if (amount) {
     if (meta?.tipo_dosis && meta?.dosis != null) {
       const total = amount * meta.dosis;
-      doseStr = `${total} ${meta.tipo_dosis}`;
+      doseStr = `${total} ${pluralUnit(meta.tipo_dosis, total)}`;
     } else if (unit) {
       doseStr = `${amount} ${pluralUnit(unit, amount)}`;
     }
@@ -247,7 +252,7 @@ async function generarPDF(carrito, nombre, profesional) {
   const rowsHtml = carrito.map(({ title, variant_title, image, price, quantity, dosage }, idx) => {
     const imgHtml = image ? `<img src="${image}" class="rx-img" alt="${title}"/>` : `<div class="rx-img rx-img-ph">${PH}</div>`;
     const dos        = dosage || { amount: 1, unit: "cápsula" };
-    const dTx        = `${dos.amount} ${dos.unit}${dos.amount > 1 ? "s" : ""}`;
+    const dTx        = `${dos.amount} ${pluralUnit(dos.unit, dos.amount)}`;
     const momentoTxt = Array.isArray(dos.momentos) && dos.momentos.length ? dos.momentos.join(" · ") : (dos.momento || "");
     const notaTxt    = [momentoTxt, dos.acompanamiento, dos.nota].filter(Boolean).join(" · ");
     return `<div class="rx-item ${idx % 2 ? "rx-r" : ""}"><div class="rx-ic">${imgHtml}</div><div class="rx-info"><div class="rx-name">${title}</div>${variant_title ? `<div class="rx-variant">${variant_title}</div>` : ""}<div class="rx-dose-row"><span class="rx-badge">${dTx} · ${quantity} unid.</span>${notaTxt ? `<span class="rx-nota">📋 ${notaTxt}</span>` : ""}${price != null ? `<span class="rx-price">${fmtMXN(price)}</span>` : ""}</div></div></div>`;
@@ -307,7 +312,7 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
           <div className="max-h-48 overflow-y-auto divide-y divide-[#EEF3F7]">
             {carrito.map((item) => {
               const dos = item.dosage || {};
-              const dTx        = dos.amount ? `${dos.amount} ${dos.unit}${dos.amount > 1 ? "s" : ""}` : null;
+              const dTx        = dos.amount ? `${dos.amount} ${pluralUnit(dos.unit, dos.amount)}` : null;
               const momentoTxt = Array.isArray(dos.momentos) && dos.momentos.length ? dos.momentos.join(", ") : (dos.momento || "");
               return (
                 <div key={item.variant_id} className="flex items-start gap-2.5 px-4 py-2.5">
@@ -383,8 +388,8 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
   const activeTier  = getBundleTier(bundlePlan?.rules, qty);
   const dTx = amount
     ? (meta?.tipo_dosis && meta?.dosis != null
-        ? `${amount * meta.dosis} ${meta.tipo_dosis}`
-        : `${amount} ${unit}${amount > 1 ? "s" : ""}`)
+        ? `${amount * meta.dosis} ${pluralUnit(meta.tipo_dosis, amount * meta.dosis)}`
+        : `${amount} ${pluralUnit(unit, amount)}`)
     : null;
   return (
     <div className="bg-white border border-[#D0E4EC] rounded-xl overflow-hidden">
@@ -716,16 +721,18 @@ function CollectionCard({ item, onClick, loading, imageUrl }) {
 
 // ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQuickAdd }) {
+  const outOfStock = product.all_out_of_stock;
   return (
     <div className="bg-white rounded-xl border border-[#D0E4EC] overflow-hidden flex flex-col hover:shadow-md hover:border-[#1E8FA8]/40 transition-all group">
       {/* Imagen — click abre detalle */}
       <div onClick={() => onClick(product)} className="cursor-pointer">
         <div className="relative bg-[#F7F9FB] p-3 flex items-center justify-center" style={{ height: "148px" }}>
           {product.image_url
-            ? <img src={product.image_url} alt={product.title} className="h-full w-full object-contain" />
+            ? <img src={product.image_url} alt={product.title} className={`h-full w-full object-contain ${outOfStock ? "opacity-40" : ""}`} />
             : <div className="flex items-center justify-center w-full h-full text-[#B0C8D4]"><Package size={32} /></div>}
           <div className="absolute top-2 left-2 flex flex-col gap-1">
             {product.is_professional && <span className="bg-[#0D2133] text-white text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">PRO</span>}
+            {outOfStock && <span className="bg-red-50 text-red-500 border border-red-200 text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">Sin stock</span>}
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); onFavorite(product); }}
@@ -746,14 +753,20 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
           {product.min_price ? (product.variants?.length > 1 ? `desde ${fmtMXN(product.min_price)}` : fmtMXN(product.min_price)) : "—"}
         </p>
       </div>
-      {/* Botón agregar rápido */}
+      {/* Acción — agregar al protocolo, o estado sin stock */}
       {onQuickAdd && (
         <div className="px-3 pb-3 pt-1.5">
-          <button
-            onClick={(e) => { e.stopPropagation(); onQuickAdd(product); }}
-            className={`w-full text-[11px] font-bold py-1.5 rounded-lg border transition-all ${inProtocol ? "bg-[#E6F4F8] text-[#1E8FA8] border-[#C2DFE8] hover:bg-[#C2DFE8]" : "bg-[#F7F9FB] text-[#0D2133] border-[#D0E4EC] hover:bg-[#0D2133] hover:text-white hover:border-[#0D2133]"}`}>
-            {inProtocol ? "✓ En protocolo" : "+ Agregar"}
-          </button>
+          {outOfStock ? (
+            <div className="w-full text-[11px] font-bold py-1.5 rounded-lg border border-[#D0E4EC] bg-[#F7F9FB] text-[#B0C8D4] text-center">
+              Sin stock
+            </div>
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); onQuickAdd(product); }}
+              className={`w-full text-[11px] font-bold py-1.5 rounded-lg border transition-all ${inProtocol ? "bg-[#E6F4F8] text-[#1E8FA8] border-[#C2DFE8] hover:bg-[#C2DFE8]" : "bg-[#F7F9FB] text-[#0D2133] border-[#D0E4EC] hover:bg-[#0D2133] hover:text-white hover:border-[#0D2133]"}`}>
+              {inProtocol ? "✓ En protocolo" : "+ Agregar"}
+            </button>
+          )}
         </div>
       )}
     </div>
@@ -1551,8 +1564,9 @@ function ArmadorCarritosInner() {
     setCarrito(prev => prev.map(p => p.variant_id === vid ? { ...p, quantity: Math.max(1, qty) } : p));
   }, []);
 
-  // Filtrar sin stock del grid
-  const visibleProductos = productos.filter(p => !p.all_out_of_stock);
+  // Los sin stock se muestran igual — el API ya los ordena al final del listado —
+  // para que el especialista pueda verlos y solicitar reposición.
+  const visibleProductos = productos;
 
   // ── Filtros ──────────────────────────────────────────────────────────────────
   const [filterBrand,    setFilterBrand]    = useState("");
