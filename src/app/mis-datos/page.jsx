@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import axios from "axios";
 import { RefreshCw, Info, CreditCard } from "lucide-react";
+import PageHeader from "../components/PageHeader";
 
 const CAMPOS_PUBLICOS = ["nombre","apellido","email","cedula","red_social","clabe","telefono","ciudad","estado","direccion"];
 
@@ -141,27 +142,19 @@ export default function PerfilAfiliado() {
     <div className="min-h-screen bg-white text-gray-900">
 
       {/* ── Título ── */}
-      <div className="w-full border-b border-gray-100 px-6">
-        <div className="max-w-[960px] mx-auto py-6 flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
-              Mis datos de Afiliado
-            </h1>
-            <p className="text-sm text-gray-400 font-medium">Mantené tu información actualizada</p>
-          </div>
-          <button onClick={cargarPerfil}
-            className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition">
-            <RefreshCw size={13} />
-            Actualizar
-          </button>
-        </div>
-      </div>
+      <PageHeader title="Mis datos de Afiliado" subtitle="Mantén tu información actualizada">
+        <button onClick={cargarPerfil}
+          className="flex items-center gap-2 px-3 py-2 border border-gray-200 rounded-xl text-sm text-gray-500 hover:bg-gray-50 transition shrink-0">
+          <RefreshCw size={13} />
+          Actualizar
+        </button>
+      </PageHeader>
 
       <div className="max-w-[960px] mx-auto px-6 py-7">
         <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-5">
 
           {/* ── Formulario ── */}
-          <div className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 flex flex-col gap-5">
+          <div data-tour="datos-form" className="bg-white border border-gray-100 rounded-2xl shadow-sm p-6 flex flex-col gap-5">
 
             {/* Mensaje */}
             {message && (
@@ -173,7 +166,7 @@ export default function PerfilAfiliado() {
             {/* Campos */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {Object.entries(dataFiltrada).map(([key, value]) => (
-                <div key={key} className="flex flex-col gap-1">
+                <div key={key} data-tour={key === "clabe" ? "datos-clabe" : undefined} className="flex flex-col gap-1">
                   <label className="text-[0.67rem] font-semibold tracking-widest uppercase text-gray-400">
                     {LABEL[key] || key.replace(/_/g, " ")}
                   </label>

@@ -6,13 +6,14 @@ import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import { useCustomer } from "../context/CustomerContext.jsx";
 import { useSidebar } from "../context/SidebarContext.jsx";
+import { useTour } from "../context/TourContext.jsx";
 
 import {
   Home, Contact, BarChart2,
   ClipboardList, Stethoscope, Store, History, CalendarCheck,
   Users, GraduationCap, Newspaper, UserPlus, Award,
   DollarSign, ShoppingBag, ShoppingCart, BookOpen,
-  HelpCircle, Layers, Calendar, Settings,
+  HelpCircle, Layers, Calendar, Settings, Compass,
   PanelLeftClose, PanelLeftOpen, User, LogOut,
 } from "lucide-react";
 
@@ -38,6 +39,7 @@ const NAV_GROUPS = [
   [
     { href: "/mis-protocolos",          label: "Protocolos",              icon: ClipboardList, requireProtocols: true },
     { href: "/armador-carritos",        label: "Protocolos Clínicos",     icon: Stethoscope   },
+    { href: "/protocolos-compartidos",  label: "Protocolos Compartidos",  icon: History        },
     { href: "/mi-tienda",               label: "Mi Tienda",               icon: Store          },
     // Historial Protocolos quitado del nav — solo accesible desde analytics/home
     { href: "/booking-dashboard",       label: "Mis Citas",               icon: CalendarCheck, requireBooking: true },
@@ -68,7 +70,8 @@ const ADMIN_ITEMS = [
   { href: "/admin/protocols",          label: "Builder Protocolos",    icon: ClipboardList},
   { href: "/admin-capacitaciones",     label: "Capacitaciones",        icon: Layers      },
   { href: "/admin-ordenes",            label: "Órdenes Admin",         icon: ShoppingBag },
-  { href: "/mis-medallas",              label: "Mis Medallas",          icon: Award       },
+  // /mis-medallas oculto — el sistema de badges todavía no está listo para
+  // producción. Badges Admin sigue visible para poder seguir trabajándolo.
   { href: "/admin-badges",             label: "Badges Admin",          icon: Award       },
   { href: "/admin-notificaciones",     label: "Notificaciones Admin",  icon: Users       },
 ];
@@ -80,6 +83,7 @@ export default function Sidebar() {
   const router    = useRouter();
   const { customer } = useCustomer();
   const { collapsed, toggle } = useSidebar();
+  const tour = useTour();
 
   const handleLogout = () => {
     Cookies.remove("customerId");
@@ -194,6 +198,23 @@ export default function Sidebar() {
         [&::-webkit-scrollbar-thumb]:bg-gray-200
         [&::-webkit-scrollbar-thumb]:rounded-full
       ">
+        {/* ── Recorrido guiado ── */}
+        {tour && (
+          <button
+            onClick={tour.start}
+            title={collapsed ? "Descubre Vitahub PRO" : undefined}
+            className={`
+              flex items-center gap-3 mb-1
+              ${collapsed ? "justify-center" : "justify-start"}
+              px-2.5 py-2.5 rounded-xl text-sm font-semibold transition-all
+              bg-[#E6F4F8] text-[#1E8FA8] hover:bg-[#C2DFE8]
+            `}
+          >
+            <Compass size={17} className="shrink-0" />
+            {!collapsed && <span className="hidden sm:inline truncate">Descubre Vitahub PRO</span>}
+          </button>
+        )}
+
         {NAV_GROUPS.map((group, gi) => (
           <div key={gi}>
             {/* Divisor entre grupos (no antes del primero) */}

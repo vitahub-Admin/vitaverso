@@ -9,6 +9,7 @@ import {
   FileText, Tag, QrCode,
 } from "lucide-react";
 import { QRPrintableModal } from "../components/QRPrintable";
+import PageHeader from "../components/PageHeader";
 
 // ── ReviewModal (sin cambios de lógica) ────────────────────
 function ReviewModal({ show, onClose, comment, onCommentChange, onSubmit, loading }) {
@@ -282,13 +283,8 @@ export default function MiTiendaPage() {
   return (
     <div className="min-h-screen bg-white text-gray-900">
 
-      {/* ── Título ── */}
-      <div className="w-full border-b border-gray-100 px-6">
-        <div className="max-w-[960px] mx-auto py-6">
-          <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">Mi Tienda</h1>
-          <p className="text-sm text-gray-400 font-medium">Gestioná tu espacio en VitaHub</p>
-        </div>
-      </div>
+      <PageHeader title="Mi Tienda" subtitle="Gestiona tu espacio en VitaHub"
+        dataTour="tienda-header" />
 
       <div className="max-w-[960px] mx-auto px-6 py-7 flex flex-col gap-6">
 
@@ -296,7 +292,7 @@ export default function MiTiendaPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
 
           {/* ── Card imagen ── */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
+          <div data-tour="tienda-imagen" className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm flex flex-col gap-4">
             <SectionLabel>Imagen de portada</SectionLabel>
 
             {/* Preview */}
@@ -416,7 +412,7 @@ export default function MiTiendaPage() {
                   />
                 </div>
 
-                <div>
+                <div data-tour="tienda-descripcion">
                   <label className="flex items-center gap-1.5 text-xs text-gray-400 mb-1.5">
                     <FileText size={11} /> Descripción / bio
                   </label>

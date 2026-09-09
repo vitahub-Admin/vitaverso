@@ -9,6 +9,7 @@ import Cookies from "js-cookie";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { CustomerProvider } from "./context/CustomerContext.jsx";
 import { SidebarProvider } from "./context/SidebarContext.jsx";
+import { TourProvider } from "./context/TourContext.jsx";
 
 const PUBLIC_ROUTES = ["/", "/privacidad", "/soporte", "/terminos"];
 
@@ -288,15 +289,17 @@ function PublicOrAuthShell({ children }) {
     <AuthManager>
       <CustomerProvider>
         <SidebarProvider>
-          <div className="flex flex-col h-screen">
-            <Header />
-            <div className="flex flex-1 overflow-hidden">
-              <Sidebar />
-              <main className="flex-1 bg-white overflow-y-auto">
-                {children}
-              </main>
+          <TourProvider>
+            <div className="flex flex-col h-screen">
+              <Header />
+              <div className="flex flex-1 overflow-hidden">
+                <Sidebar />
+                <main className="flex-1 bg-white overflow-y-auto">
+                  {children}
+                </main>
+              </div>
             </div>
-          </div>
+          </TourProvider>
         </SidebarProvider>
       </CustomerProvider>
     </AuthManager>

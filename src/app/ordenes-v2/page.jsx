@@ -24,7 +24,7 @@ import {
 // ─── Constantes de diseño ──────────────────────────────────────────────────
 const C = {
   bg: "#F7F9FB",
-  header: "#0D2133",
+  header: "#1b3f7a",
   accent: "#1E8FA8",
   textSec: "#5B7A8C",
   border: "#D0E4EC",

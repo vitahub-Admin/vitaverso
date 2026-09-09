@@ -192,7 +192,7 @@ export default function WalletPage() {
         <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-5 items-start">
 
           {/* Balance */}
-          <div className="relative bg-white border border-gray-100 rounded-2xl p-7 shadow-sm overflow-hidden">
+          <div data-tour="wallet-saldo" className="relative bg-white border border-gray-100 rounded-2xl p-7 shadow-sm overflow-hidden">
             {/* círculo decorativo */}
             <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full bg-blue-50 opacity-60 pointer-events-none" />
 
@@ -405,7 +405,7 @@ export default function WalletPage() {
         <div className="grid grid-cols-1 md:grid-cols-[1fr_280px] gap-5 items-start">
 
           {/* Historial */}
-          <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+          <div data-tour="wallet-historial" className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-sm font-bold text-gray-900 mb-4">
               Historial de movimientos
             </h2>
@@ -433,6 +433,8 @@ export default function WalletPage() {
             </div>
           </div>
 
+          <div className="flex flex-col gap-5">
+
           {/* Guías */}
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-sm font-bold text-gray-900 mb-4">
@@ -458,6 +460,33 @@ export default function WalletPage() {
               ))}
 
             </div>
+          </div>
+
+          {/* App — el aviso de que los retiros pasan a la app tiene que estar
+              siempre visible, no solo dentro del modal de retiro */}
+          <div data-tour="wallet-app" className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
+            <h2 className="text-sm font-bold text-gray-900 mb-2">
+              Descarga la app
+            </h2>
+            <p className="text-[0.72rem] text-[#1b3f7a] leading-relaxed mb-4">
+              <span className="font-bold uppercase tracking-wider">Próximamente</span>{" "}
+              los retiros de dinero y las notificaciones van a funcionar
+              únicamente desde la app.
+            </p>
+            <div className="flex flex-col gap-2">
+              <a href="https://play.google.com/store/apps/details?id=mx.vitahub.afiliados&syclid=d9188r1e4rqs73btcu40"
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition">
+                <Smartphone size={14} /> Android
+              </a>
+              <a href="https://apps.apple.com/us/app/vitahub-pro/id6779682915"
+                target="_blank" rel="noopener noreferrer"
+                className="flex items-center justify-center gap-2 py-2.5 rounded-xl border border-gray-200 text-xs font-semibold text-gray-700 hover:bg-gray-50 transition">
+                <Smartphone size={14} /> iOS
+              </a>
+            </div>
+          </div>
+
           </div>
         </div>
 

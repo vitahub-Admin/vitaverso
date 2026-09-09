@@ -1,9 +1,10 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { useCustomer } from "../context/CustomerContext";
-import { ShoppingCart, RotateCcw, Wallet, Bell, ChevronRight, TrendingUp, ArrowUpRight } from "lucide-react";
+import { ShoppingCart, RotateCcw, Wallet, Bell, ChevronRight, TrendingUp, ArrowUpRight, Smartphone } from "lucide-react";
 import Link from "next/link";
 import Cookies from "js-cookie";
+import RutaProgreso from "../components/RutaProgreso";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function saludo() {
@@ -56,7 +57,7 @@ function WeekChart({ sharecarts }) {
       <div className="flex items-center justify-between">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Última semana</p>
-          <p className="text-lg font-extrabold text-[#0D2133] mt-0.5">Protocolos compartidos</p>
+          <p className="text-lg font-extrabold text-[#1b3f7a] mt-0.5">Protocolos compartidos</p>
         </div>
         <Link href="/mis-carritos-merge" className="text-xs text-[#1E8FA8] font-semibold hover:underline flex items-center gap-1">
           Ver todo <ChevronRight size={12} />
@@ -67,7 +68,7 @@ function WeekChart({ sharecarts }) {
       <div className="flex gap-4">
         <div className="flex-1 bg-[#F7F9FB] rounded-xl px-3 py-2.5">
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Enviados</p>
-          <p className="text-2xl font-extrabold text-[#0D2133] tabular-nums mt-0.5">{totalSent}</p>
+          <p className="text-2xl font-extrabold text-[#1b3f7a] tabular-nums mt-0.5">{totalSent}</p>
         </div>
         <div className="flex-1 bg-[#F7F9FB] rounded-xl px-3 py-2.5">
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Convertidos</p>
@@ -75,7 +76,7 @@ function WeekChart({ sharecarts }) {
         </div>
         <div className="flex-1 bg-[#F7F9FB] rounded-xl px-3 py-2.5">
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Tasa</p>
-          <p className="text-2xl font-extrabold text-[#0D2133] tabular-nums mt-0.5">{convRate}%</p>
+          <p className="text-2xl font-extrabold text-[#1b3f7a] tabular-nums mt-0.5">{convRate}%</p>
         </div>
       </div>
 
@@ -113,7 +114,7 @@ function NotifFeed({ notificaciones }) {
     <div className="bg-white border border-[#D0E4EC] rounded-2xl flex flex-col overflow-hidden">
       <div className="px-5 py-4 border-b border-[#EEF3F7]">
         <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Actividad</p>
-        <p className="text-lg font-extrabold text-[#0D2133] mt-0.5">Notificaciones</p>
+        <p className="text-lg font-extrabold text-[#1b3f7a] mt-0.5">Notificaciones</p>
       </div>
       <div className="flex-1 overflow-y-auto divide-y divide-[#F0F5F8] max-h-72
         [&::-webkit-scrollbar]:w-1 [&::-webkit-scrollbar-thumb]:bg-[#D0E4EC] [&::-webkit-scrollbar-thumb]:rounded-full">
@@ -130,7 +131,7 @@ function NotifFeed({ notificaciones }) {
                 <Icon size={14} className={color} />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-[#0D2133] leading-snug">{n.title}</p>
+                <p className="text-xs font-bold text-[#1b3f7a] leading-snug">{n.title}</p>
                 <p className="text-[11px] text-[#5B7A8C] mt-0.5 leading-snug">{n.body}</p>
               </div>
               <span className="text-[10px] text-[#B0C8D4] shrink-0 mt-0.5">{fmtRelative(n.created_at)}</span>
@@ -150,7 +151,7 @@ function NovedadesPanel({ noticias, lastSeenId }) {
       <div className="px-5 py-4 border-b border-[#EEF3F7] flex items-center justify-between">
         <div>
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Comunidad</p>
-          <p className="text-lg font-extrabold text-[#0D2133] mt-0.5">Novedades</p>
+          <p className="text-lg font-extrabold text-[#1b3f7a] mt-0.5">Novedades</p>
         </div>
         <Link href="/notificaciones" className="text-xs text-[#1E8FA8] font-semibold hover:underline flex items-center gap-1">
           Ver todas <ChevronRight size={12} />
@@ -168,7 +169,7 @@ function NovedadesPanel({ noticias, lastSeenId }) {
                   : <span className="w-2 h-2 rounded-full bg-[#D0E4EC] inline-block" />}
               </div>
               <div className="flex-1 min-w-0">
-                <p className={`text-sm leading-snug ${isNew ? "font-bold text-[#0D2133]" : "font-medium text-[#5B7A8C]"}`}>
+                <p className={`text-sm leading-snug ${isNew ? "font-bold text-[#1b3f7a]" : "font-medium text-[#5B7A8C]"}`}>
                   {n.titulo || n.title || "Novedad"}
                 </p>
                 {n.fecha && <p className="text-[10px] text-[#B0C8D4] mt-0.5">{n.fecha}</p>}
@@ -257,17 +258,22 @@ export default function HomePage() {
         {/* Saludo */}
         <div>
           <p className="text-xs text-[#5B7A8C] capitalize">{fecha}</p>
-          <h1 className="text-2xl font-extrabold text-[#0D2133] mt-0.5">
+          <h1 className="text-2xl font-extrabold text-[#1b3f7a] mt-0.5">
             {saludo()}, {nombre} 👋
           </h1>
         </div>
 
+        {/* Ruta de primeros pasos — se oculta sola al completarse */}
+        <RutaProgreso />
+
         {/* Accesos rápidos */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1fr_auto]">
 
-          {/* Wallet card */}
-          <Link href="/wallet"
-            className="group bg-[#0D2133] text-white rounded-2xl p-4 flex flex-col gap-3 hover:bg-[#162d60] transition-colors col-span-2 sm:col-span-1">
+          {/* Wallet card + descarga de la app */}
+          <div className="col-span-2 sm:col-span-1 flex flex-col gap-2">
+
+          <Link href="/wallet" data-tour="wallet-card"
+            className="group bg-[#1b3f7a] text-white rounded-2xl p-4 flex flex-col gap-3 hover:bg-[#162d60] transition-colors">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
@@ -297,6 +303,27 @@ export default function HomePage() {
             )}
           </Link>
 
+          {/* Descarga de la app — el aviso conviene verlo antes de necesitarlo,
+              no recién cuando alguien va a retirar */}
+          <p className="text-[10px] text-[#1b3f7a] leading-snug px-0.5">
+            <span className="font-extrabold uppercase tracking-wider text-[#1E8FA8]">Próximamente</span>
+            {" "}los retiros y las notificaciones van a funcionar solo desde la app.
+          </p>
+          <div className="flex items-center gap-2">
+            <a href="https://play.google.com/store/apps/details?id=mx.vitahub.afiliados&syclid=d9188r1e4rqs73btcu40"
+              target="_blank" rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#D0E4EC] bg-white text-[11px] font-bold text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#1b3f7a] transition-all">
+              <Smartphone size={13} /> Android
+            </a>
+            <a href="https://apps.apple.com/us/app/vitahub-pro/id6779682915"
+              target="_blank" rel="noopener noreferrer"
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#D0E4EC] bg-white text-[11px] font-bold text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#1b3f7a] transition-all">
+              <Smartphone size={13} /> iOS
+            </a>
+          </div>
+
+          </div>
+
           {/* Acceso rápido al armador */}
           <Link href="/armador-carritos"
             className="group bg-white border border-[#D0E4EC] rounded-2xl p-4 flex flex-col justify-between gap-2 hover:border-[#1E8FA8]/40 hover:shadow-sm transition-all sm:min-w-[168px]">
@@ -304,7 +331,7 @@ export default function HomePage() {
               <ShoppingCart size={16} className="text-[#1E8FA8]" />
             </div>
             <div>
-              <p className="text-sm font-bold text-[#0D2133] leading-snug">Armar protocolo</p>
+              <p className="text-sm font-bold text-[#1b3f7a] leading-snug">Armar protocolo</p>
               <p className="text-[11px] text-[#5B7A8C] mt-0.5">Crear y enviar</p>
             </div>
             <ChevronRight size={14} className="text-[#B0C8D4] group-hover:text-[#1E8FA8] group-hover:translate-x-0.5 transition-all" />

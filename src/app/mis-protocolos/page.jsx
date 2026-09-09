@@ -32,7 +32,7 @@ function ProtocolList({ protocols, onSelect }) {
         <div className="w-16 h-16 rounded-2xl bg-[#E6F4F8] flex items-center justify-center mb-4">
           <ClipboardList size={28} className="text-[#1E8FA8]" />
         </div>
-        <p className="text-[#0D2133] font-semibold text-base mb-1">Sin protocolos disponibles</p>
+        <p className="text-[#1b3f7a] font-semibold text-base mb-1">Sin protocolos disponibles</p>
         <p className="text-[#5B7A8C] text-sm max-w-xs">
           Los protocolos aparecerán aquí cuando el equipo los publique.
         </p>
@@ -113,8 +113,8 @@ function ProductPreviewModal({ productId, title, onClose }) {
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between px-5 py-4 border-b border-[#EEF3F7]">
-          <h3 className="text-sm font-bold text-[#0D2133] line-clamp-1 flex-1">{title}</h3>
-          <button onClick={onClose} className="text-[#8AAAB8] hover:text-[#0D2133] ml-3 shrink-0">
+          <h3 className="text-sm font-bold text-[#1b3f7a] line-clamp-1 flex-1">{title}</h3>
+          <button onClick={onClose} className="text-[#8AAAB8] hover:text-[#1b3f7a] ml-3 shrink-0">
             <X size={18} />
           </button>
         </div>
@@ -206,7 +206,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
             <div className="flex items-start gap-3">
               {/* Nombre completo + variante */}
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-[#0D2133] leading-snug">
+                <p className="text-sm font-bold text-[#1b3f7a] leading-snug">
                   {selectedItem.title}
                 </p>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
@@ -216,7 +216,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                     </span>
                   )}
                   {price != null && (
-                    <span className="text-sm font-extrabold text-[#0D2133] tabular-nums">
+                    <span className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">
                       {fmtMXN(price)}
                     </span>
                   )}
@@ -234,7 +234,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                 >
                   <Minus size={11} className="text-[#1E8FA8]" />
                 </button>
-                <span className="text-sm font-extrabold text-[#0D2133] w-6 text-center tabular-nums">
+                <span className="text-sm font-extrabold text-[#1b3f7a] w-6 text-center tabular-nums">
                   {qty}
                 </span>
                 <button
@@ -260,12 +260,12 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                   type="number" min="1" max="20"
                   value={dosage?.amount ?? 1}
                   onChange={e => onDosageChange({ ...(dosage || {}), amount: Math.max(1, Number(e.target.value)) })}
-                  className="w-11 text-sm font-bold text-center border border-[#C2DFE8] rounded-lg py-0.5 bg-white outline-none focus:border-[#1E8FA8] text-[#0D2133]"
+                  className="w-11 text-sm font-bold text-center border border-[#C2DFE8] rounded-lg py-0.5 bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]"
                 />
                 <select
                   value={dosage?.unit ?? 'cápsula'}
                   onChange={e => onDosageChange({ ...(dosage || {}), unit: e.target.value })}
-                  className="flex-1 text-xs font-semibold text-[#0D2133] border border-[#C2DFE8] rounded-lg px-2 py-1 bg-white outline-none focus:border-[#1E8FA8] cursor-pointer"
+                  className="flex-1 text-xs font-semibold text-[#1b3f7a] border border-[#C2DFE8] rounded-lg px-2 py-1 bg-white outline-none focus:border-[#1E8FA8] cursor-pointer"
                 >
                   {DOSE_UNITS.map(u => (
                     <option key={u} value={u}>{u}s</option>
@@ -283,7 +283,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                   value={note ?? ''}
                   onChange={e => onNoteChange(e.target.value)}
                   placeholder="ej. 2 cápsulas con el desayuno, durante 3 meses…"
-                  className="flex-1 text-xs text-[#0D2133] border-b border-[#C2DFE8] py-0.5 bg-transparent outline-none placeholder:text-[#B0C8D4] focus:border-[#1E8FA8]"
+                  className="flex-1 text-xs text-[#1b3f7a] border-b border-[#C2DFE8] py-0.5 bg-transparent outline-none placeholder:text-[#B0C8D4] focus:border-[#1E8FA8]"
                 />
               </div>
             </div>
@@ -348,7 +348,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm leading-snug ${isSel ? "font-bold text-[#0D2133]" : "font-medium text-[#2D4A5C]"}`}>
+                      <p className={`text-sm leading-snug ${isSel ? "font-bold text-[#1b3f7a]" : "font-medium text-[#2D4A5C]"}`}>
                         {item.title}
                       </p>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
@@ -460,7 +460,7 @@ function ProtocolHistory({ protocolId, onRestore }) {
 
                   {/* Info principal */}
                   <div className="flex-1">
-                    <p className="text-sm font-bold text-[#0D2133] truncate leading-snug">
+                    <p className="text-sm font-bold text-[#1b3f7a] truncate leading-snug">
                       {cart.name || 'Sin nombre'}
                     </p>
                     <p className="text-[11px] text-[#7EAEC0] mt-0.5">
@@ -481,7 +481,7 @@ function ProtocolHistory({ protocolId, onRestore }) {
                   {/* Botón restaurar */}
                   <button
                     onClick={() => onRestore(cart)}
-                    className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#0D2133] bg-[#EEF3F7] hover:bg-[#1E8FA8] hover:text-white px-3 py-2 rounded-xl transition-colors"
+                    className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#1b3f7a] bg-[#EEF3F7] hover:bg-[#1E8FA8] hover:text-white px-3 py-2 rounded-xl transition-colors"
                   >
                     <RotateCcw size={11} />
                     Restaurar
@@ -979,7 +979,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
 
   body {
     font-family: 'Helvetica Neue', Arial, sans-serif;
-    color: #0D2133;
+    color: #1b3f7a;
     font-size: 14px;
     line-height: 1.5;
     background: #EEF3F7;
@@ -1003,7 +1003,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
 
   /* ── Header de la card ── */
   .rx-header {
-    background: #0D2133;
+    background: #1b3f7a;
     color: white;
     padding: 18px 24px;
     display: flex;
@@ -1026,7 +1026,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     justify-content: space-between;
     align-items: center;
   }
-  .rx-patient h2 { font-size: 16px; font-weight: 800; color: #0D2133; }
+  .rx-patient h2 { font-size: 16px; font-weight: 800; color: #1b3f7a; }
   .rx-patient p  { font-size: 12px; color: #5B7A8C; margin-top: 2px; }
   .rx-patient-meta { text-align: right; font-size: 11px; color: #8AAAB8; }
 
@@ -1091,7 +1091,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
   .rx-product-name {
     font-size: 14px;
     font-weight: 700;
-    color: #0D2133;
+    color: #1b3f7a;
     line-height: 1.3;
     margin-bottom: 3px;
   }
@@ -1112,7 +1112,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     flex-wrap: wrap;
   }
   .rx-dose-badge {
-    background: #0D2133;
+    background: #1b3f7a;
     color: white;
     font-size: 11px;
     font-weight: 800;
@@ -1198,7 +1198,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     setTimeout(() => w.print(), 800);
   };
 
-  const inputCls = "flex-1 text-sm text-[#0D2133] outline-none placeholder:text-[#C8D8E0] bg-transparent";
+  const inputCls = "flex-1 text-sm text-[#1b3f7a] outline-none placeholder:text-[#C8D8E0] bg-transparent";
 
   // Panel derecho (paciente + economía + checkout)
   const rightPanel = (
@@ -1242,14 +1242,14 @@ function ProtocolUse({ protocol, customerId, onBack }) {
               <span className="text-[#5B7A8C]">
                 {selectedCount + extraItems.length} producto{selectedCount + extraItems.length !== 1 ? "s" : ""}
               </span>
-              <span className="ml-auto font-bold text-[#0D2133] tabular-nums">{fmtMXN(subtotal)}</span>
+              <span className="ml-auto font-bold text-[#1b3f7a] tabular-nums">{fmtMXN(subtotal)}</span>
             </div>
           </div>
 
           <div className="border-t border-[#EEF3F7] pt-2.5 space-y-1.5">
             <div className="flex items-baseline">
-              <span className="text-sm font-bold text-[#0D2133]">Total al cliente</span>
-              <span className="ml-auto text-lg font-extrabold text-[#0D2133] tabular-nums">
+              <span className="text-sm font-bold text-[#1b3f7a]">Total al cliente</span>
+              <span className="ml-auto text-lg font-extrabold text-[#1b3f7a] tabular-nums">
                 {fmtMXN(subtotal)}
               </span>
             </div>
@@ -1295,7 +1295,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                 Abrir
               </button>
             </div>
-            <button onClick={reset} className="w-full text-xs text-[#5B7A8C] text-center py-1 hover:text-[#0D2133]">
+            <button onClick={reset} className="w-full text-xs text-[#5B7A8C] text-center py-1 hover:text-[#1b3f7a]">
               Armar otro carrito
             </button>
           </div>
@@ -1305,7 +1305,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
             <button
               onClick={handleGenerate}
               disabled={loading || !selectedCount}
-              className="w-full bg-[#0D2133] text-white py-3 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-[#162D40] transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-[#1b3f7a] text-white py-3 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-[#162D40] transition-colors flex items-center justify-center gap-2"
             >
               <ShoppingCart size={14} />
               {loading
@@ -1333,7 +1333,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
     <div className="min-h-screen bg-[#F7F9FB] flex flex-col">
 
       {/* Header oscuro */}
-      <div className="bg-[#0D2133] text-white px-5 pt-5 pb-4 lg:px-8">
+      <div className="bg-[#1b3f7a] text-white px-5 pt-5 pb-4 lg:px-8">
         <button
           onClick={onBack}
           className="flex items-center gap-1.5 text-[#7EAEC0] text-sm mb-3 hover:text-white transition-colors"
@@ -1372,7 +1372,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
               <p className="text-[10px] font-extrabold text-[#1E8FA8] uppercase tracking-widest mb-0.5">
                 Protocolo activo
               </p>
-              <h2 className="text-sm font-bold text-[#0D2133] leading-snug">{protocol.name}</h2>
+              <h2 className="text-sm font-bold text-[#1b3f7a] leading-snug">{protocol.name}</h2>
               {protocol.description && (
                 <p className="text-xs text-[#5B7A8C] mt-0.5 line-clamp-1">{protocol.description}</p>
               )}
@@ -1455,7 +1455,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                         {/* Título + qty + quitar */}
                         <div className="flex items-center gap-2">
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-bold text-[#0D2133] line-clamp-1">{e.title}</p>
+                            <p className="text-xs font-bold text-[#1b3f7a] line-clamp-1">{e.title}</p>
                             {e.price > 0 && (
                               <p className="text-[11px] text-[#1E8FA8] font-semibold tabular-nums">{fmtMXN(e.price)}</p>
                             )}
@@ -1464,7 +1464,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                             <button onClick={() => setExtraQty(e.variant_id, e.quantity - 1)} className="w-6 h-6 rounded-lg border border-[#C2DFE8] bg-white flex items-center justify-center hover:bg-[#E6F4F8] transition-colors">
                               <Minus size={10} className="text-[#1E8FA8]" />
                             </button>
-                            <span className="text-xs font-extrabold text-[#0D2133] w-5 text-center tabular-nums">{e.quantity}</span>
+                            <span className="text-xs font-extrabold text-[#1b3f7a] w-5 text-center tabular-nums">{e.quantity}</span>
                             <button onClick={() => setExtraQty(e.variant_id, e.quantity + 1)} className="w-6 h-6 rounded-lg border border-[#C2DFE8] bg-white flex items-center justify-center hover:bg-[#E6F4F8] transition-colors">
                               <Plus size={10} className="text-[#1E8FA8]" />
                             </button>
@@ -1481,12 +1481,12 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                               type="number" min="1" max="20"
                               value={e.dosage?.amount ?? 1}
                               onChange={ev => setExtraDosage(e.variant_id, { ...(e.dosage || {}), amount: Math.max(1, Number(ev.target.value)) })}
-                              className="w-11 text-xs font-bold text-center border border-[#C2DFE8] rounded-lg py-0.5 bg-white outline-none focus:border-[#1E8FA8] text-[#0D2133]"
+                              className="w-11 text-xs font-bold text-center border border-[#C2DFE8] rounded-lg py-0.5 bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]"
                             />
                             <select
                               value={e.dosage?.unit ?? 'cápsula'}
                               onChange={ev => setExtraDosage(e.variant_id, { ...(e.dosage || {}), unit: ev.target.value })}
-                              className="flex-1 text-xs font-semibold text-[#0D2133] border border-[#C2DFE8] rounded-lg px-2 py-1 bg-white outline-none focus:border-[#1E8FA8] cursor-pointer"
+                              className="flex-1 text-xs font-semibold text-[#1b3f7a] border border-[#C2DFE8] rounded-lg px-2 py-1 bg-white outline-none focus:border-[#1E8FA8] cursor-pointer"
                             >
                               {DOSE_UNITS.map(u => <option key={u} value={u}>{u}s</option>)}
                             </select>
@@ -1498,7 +1498,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                               value={e.note ?? ''}
                               onChange={ev => setExtraNote(e.variant_id, ev.target.value)}
                               placeholder="ej. 2 cápsulas con el desayuno, durante 3 meses…"
-                              className="flex-1 text-xs text-[#0D2133] border-b border-[#C2DFE8] py-0.5 bg-transparent outline-none placeholder:text-[#B0C8D4] focus:border-[#1E8FA8]"
+                              className="flex-1 text-xs text-[#1b3f7a] border-b border-[#C2DFE8] py-0.5 bg-transparent outline-none placeholder:text-[#B0C8D4] focus:border-[#1E8FA8]"
                             />
                           </div>
                         </div>
@@ -1520,7 +1520,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                       }}
                       onKeyDown={e => e.key === 'Enter' && searchExtras(extraQuery)}
                       placeholder="Buscar producto extra…"
-                      className="flex-1 text-xs text-[#0D2133] bg-transparent outline-none placeholder:text-[#B0C8D4]"
+                      className="flex-1 text-xs text-[#1b3f7a] bg-transparent outline-none placeholder:text-[#B0C8D4]"
                     />
                     {extraLoading && (
                       <span className="text-[#B0C8D4] text-[10px] animate-pulse shrink-0">buscando…</span>
@@ -1552,7 +1552,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                               <img src={p.image} alt={p.title} className="w-9 h-9 rounded-lg object-cover shrink-0 border border-[#EEF3F7]" />
                             )}
                             <div className="flex-1 min-w-0">
-                              <p className="text-xs font-semibold text-[#0D2133] line-clamp-1">{p.title}</p>
+                              <p className="text-xs font-semibold text-[#1b3f7a] line-clamp-1">{p.title}</p>
                               <div className="flex items-center gap-2 mt-0.5">
                                 {p.price && <span className="text-[11px] font-bold text-[#1E8FA8] tabular-nums">${p.price} MXN</span>}
                                 {p.is_professional && <span className="text-[10px] bg-[#1e8fa8] text-white px-1.5 py-0.5 rounded-full font-semibold">PRO</span>}
@@ -1598,7 +1598,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
           <button
             onClick={handleGenerate}
             disabled={loading || !selectedCount}
-            className="w-full bg-[#0D2133] text-white py-3.5 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-[#162D40] transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-[#1b3f7a] text-white py-3.5 rounded-xl font-bold text-sm disabled:opacity-40 hover:bg-[#162D40] transition-colors flex items-center justify-center gap-2"
           >
             <ShoppingCart size={15} />
             {loading

@@ -120,10 +120,10 @@ function getBundleTier(rules, qty) {
 }
 
 const FEATURED = [
-  { handle: "vitamina-d-en-mexico", label: "Vitamina D3", desc: "Regulación del calcio, inmunidad y salud ósea",          icon: Sun,          from: "from-amber-400",   to: "to-orange-500"  },
-  { handle: "enzimas-digestivas",   label: "Enzimas",      desc: "Digestión eficiente y absorción óptima de nutrientes",   icon: FlaskConical, from: "from-emerald-500", to: "to-teal-700"    },
-  { handle: "magnesio",             label: "Magnesio",     desc: "Función muscular, sueño y sistema nervioso",             icon: Zap,          from: "from-[#1E8FA8]",   to: "to-blue-700"    },
-  { handle: "omega-3-en-mexico",    label: "Omega 3",      desc: "Salud cardiovascular, cerebro y control inflamatorio",   icon: Droplets,     from: "from-blue-500",    to: "to-indigo-600"  },
+  { handle: "vitamina-d-en-mexico",     label: "Vitamina D3", desc: "Regulación del calcio, inmunidad y salud ósea",          icon: Sun,          from: "from-amber-400",   to: "to-orange-500"  },
+  { handle: "enzimas-digestivas",       label: "Enzimas",      desc: "Digestión eficiente y absorción óptima de nutrientes",   icon: FlaskConical, from: "from-emerald-500", to: "to-teal-700"    },
+  { handle: "suplementos-con-magnesio", label: "Magnesio",     desc: "Función muscular, sueño y sistema nervioso",             icon: Zap,          from: "from-[#1E8FA8]",   to: "to-blue-700"    },
+  { handle: "omega-3-en-mexico",        label: "Omega 3",      desc: "Salud cardiovascular, cerebro y control inflamatorio",   icon: Droplets,     from: "from-blue-500",    to: "to-indigo-600"  },
 ];
 
 const NAV_TABS = [
@@ -257,7 +257,7 @@ async function generarPDF(carrito, nombre, profesional) {
     const notaTxt    = [momentoTxt, dos.acompanamiento, dos.nota].filter(Boolean).join(" · ");
     return `<div class="rx-item ${idx % 2 ? "rx-r" : ""}"><div class="rx-ic">${imgHtml}</div><div class="rx-info"><div class="rx-name">${title}</div>${variant_title ? `<div class="rx-variant">${variant_title}</div>` : ""}<div class="rx-dose-row"><span class="rx-badge">${dTx} · ${quantity} unid.</span>${notaTxt ? `<span class="rx-nota">📋 ${notaTxt}</span>` : ""}${price != null ? `<span class="rx-price">${fmtMXN(price)}</span>` : ""}</div></div></div>`;
   }).join("");
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Protocolo — ${patientName}</title><style>@page{size:A4;margin:12mm 14mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Helvetica Neue',Arial,sans-serif;color:#0D2133;font-size:14px;background:#EEF3F7;-webkit-print-color-adjust:exact;print-color-adjust:exact}.rx-page{padding:20px;display:flex;justify-content:center}.rx-card{width:100%;max-width:680px;background:#fff;border:1px solid #D0E4EC;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(13,33,51,.10)}.rx-header{background:#0D2133;color:white;padding:18px 24px;display:flex;justify-content:space-between;align-items:flex-start}.rx-logo{font-size:20px;font-weight:900;color:#1E8FA8}.rx-logo em{color:white;font-style:normal}.rx-logo small{font-size:11px;font-weight:400;color:#7EAEC0;display:block;letter-spacing:.12em;text-transform:uppercase}.rx-prof{text-align:right}.rx-prof strong{font-size:14px;color:white;display:block}.rx-prof small{font-size:11px;color:#7EAEC0}.rx-patient{background:#F4FAFB;border-bottom:1px solid #D0E4EC;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}.rx-patient h2{font-size:16px;font-weight:800}.rx-patient p{font-size:12px;color:#5B7A8C}.rx-patient-meta{text-align:right;font-size:11px;color:#8AAAB8}.rx-section{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#8AAAB8;padding:14px 24px 8px;border-bottom:1px solid #EEF3F7}.rx-items{padding:12px 24px 24px;display:flex;flex-direction:column;gap:14px}.rx-item{display:flex;gap:16px;align-items:flex-start;padding:14px;background:#F9FCFD;border:1px solid #E2EBF0;border-radius:12px}.rx-r{flex-direction:row-reverse;background:#EEF3F7}.rx-ic{width:80px;flex-shrink:0}.rx-img{width:80px;height:80px;object-fit:contain;border-radius:8px;border:1px solid #D0E4EC;background:#fff}.rx-img-ph{width:80px;height:80px;border-radius:8px;border:1px solid #D0E4EC;background:#F4FAFB;display:flex;align-items:center;justify-content:center}.rx-info{flex:1}.rx-name{font-size:14px;font-weight:800;color:#0D2133;line-height:1.3;margin-bottom:3px}.rx-variant{font-size:11px;font-weight:700;color:#1E8FA8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}.rx-dose-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}.rx-badge{background:#1b3f7a;color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}.rx-nota{font-size:11px;color:#5B7A8C}.rx-price{margin-left:auto;font-size:13px;font-weight:800;color:#1b3f7a}.rx-footer{background:#F4FAFB;border-top:1px solid #D0E4EC;padding:12px 24px;text-align:center;font-size:10px;color:#8AAAB8}@media print{body{background:white}.rx-page{padding:0}.rx-card{box-shadow:none;border:none;border-radius:0}}</style></head><body><div class="rx-page"><div class="rx-card"><div class="rx-header"><div class="rx-logo"><em>Vita</em>hub Pro<small>Protocolo de suplementación</small></div><div class="rx-prof"><strong>${professionalName}</strong><small>${today}</small></div></div><div class="rx-patient"><div><h2>${patientName}</h2><p>Paciente</p></div><div class="rx-patient-meta">${carrito.length} producto${carrito.length !== 1 ? "s" : ""}</div></div><div class="rx-section">Plan de suplementación</div><div class="rx-items">${rowsHtml}</div><div class="rx-footer">Recomendación de suplementación · Vitahub Pro · pro.vitahub.mx</div></div></div><script>window.onload=()=>{window.print()}<\/script></body></html>`;
+  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Protocolo — ${patientName}</title><style>@page{size:A4;margin:12mm 14mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b3f7a;font-size:14px;background:#EEF3F7;-webkit-print-color-adjust:exact;print-color-adjust:exact}.rx-page{padding:20px;display:flex;justify-content:center}.rx-card{width:100%;max-width:680px;background:#fff;border:1px solid #D0E4EC;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(13,33,51,.10)}.rx-header{background:#1b3f7a;color:white;padding:18px 24px;display:flex;justify-content:space-between;align-items:flex-start}.rx-logo{font-size:20px;font-weight:900;color:#1E8FA8}.rx-logo em{color:white;font-style:normal}.rx-logo small{font-size:11px;font-weight:400;color:#7EAEC0;display:block;letter-spacing:.12em;text-transform:uppercase}.rx-prof{text-align:right}.rx-prof strong{font-size:14px;color:white;display:block}.rx-prof small{font-size:11px;color:#7EAEC0}.rx-patient{background:#F4FAFB;border-bottom:1px solid #D0E4EC;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}.rx-patient h2{font-size:16px;font-weight:800}.rx-patient p{font-size:12px;color:#5B7A8C}.rx-patient-meta{text-align:right;font-size:11px;color:#8AAAB8}.rx-section{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#8AAAB8;padding:14px 24px 8px;border-bottom:1px solid #EEF3F7}.rx-items{padding:12px 24px 24px;display:flex;flex-direction:column;gap:14px}.rx-item{display:flex;gap:16px;align-items:flex-start;padding:14px;background:#F9FCFD;border:1px solid #E2EBF0;border-radius:12px}.rx-r{flex-direction:row-reverse;background:#EEF3F7}.rx-ic{width:80px;flex-shrink:0}.rx-img{width:80px;height:80px;object-fit:contain;border-radius:8px;border:1px solid #D0E4EC;background:#fff}.rx-img-ph{width:80px;height:80px;border-radius:8px;border:1px solid #D0E4EC;background:#F4FAFB;display:flex;align-items:center;justify-content:center}.rx-info{flex:1}.rx-name{font-size:14px;font-weight:800;color:#1b3f7a;line-height:1.3;margin-bottom:3px}.rx-variant{font-size:11px;font-weight:700;color:#1E8FA8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}.rx-dose-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}.rx-badge{background:#1b3f7a;color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}.rx-nota{font-size:11px;color:#5B7A8C}.rx-price{margin-left:auto;font-size:13px;font-weight:800;color:#1b3f7a}.rx-footer{background:#F4FAFB;border-top:1px solid #D0E4EC;padding:12px 24px;text-align:center;font-size:10px;color:#8AAAB8}@media print{body{background:white}.rx-page{padding:0}.rx-card{box-shadow:none;border:none;border-radius:0}}</style></head><body><div class="rx-page"><div class="rx-card"><div class="rx-header"><div class="rx-logo"><em>Vita</em>hub Pro<small>Protocolo de suplementación</small></div><div class="rx-prof"><strong>${professionalName}</strong><small>${today}</small></div></div><div class="rx-patient"><div><h2>${patientName}</h2><p>Paciente</p></div><div class="rx-patient-meta">${carrito.length} producto${carrito.length !== 1 ? "s" : ""}</div></div><div class="rx-section">Plan de suplementación</div><div class="rx-items">${rowsHtml}</div><div class="rx-footer">Recomendación de suplementación · Vitahub Pro · pro.vitahub.mx</div></div></div><script>window.onload=()=>{window.print()}<\/script></body></html>`;
   const win = window.open("", "_blank");
   if (win) { win.document.write(html); win.document.close(); }
 }
@@ -276,7 +276,7 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
   if (carrito.length === 0) {
     return (
       <button onClick={onGoToDraft}
-        className="flex items-center gap-2 bg-white border border-[#D0E4EC] text-[#5B7A8C] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#F7F9FB] hover:border-[#1E8FA8] hover:text-[#0D2133] transition-all">
+        className="flex items-center gap-2 bg-white border border-[#D0E4EC] text-[#5B7A8C] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#F7F9FB] hover:border-[#1E8FA8] hover:text-[#1b3f7a] transition-all">
         <ShoppingBag size={14} /> Crear protocolo
       </button>
     );
@@ -284,7 +284,7 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
   return (
     <div className="relative" ref={ref}>
       <button onClick={() => setOpen(o => !o)}
-        className="flex items-center gap-2 bg-[#0D2133] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#162d60] transition-all shadow-sm">
+        className="flex items-center gap-2 bg-[#1b3f7a] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#162d60] transition-all shadow-sm">
         <ShoppingBag size={14} />
         <span className="hidden sm:inline">Protocolo</span>
         <span className="bg-[#1E8FA8] text-white text-xs font-bold px-1.5 py-0.5 rounded min-w-[20px] text-center tabular-nums">{carrito.length}</span>
@@ -320,10 +320,10 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
                     ? <img src={item.image} alt="" className="w-8 h-8 rounded object-contain shrink-0 bg-[#F7F9FB] border border-[#D0E4EC]" />
                     : <div className="w-8 h-8 rounded bg-[#F7F9FB] shrink-0 flex items-center justify-center text-[#B0C8D4]"><Package size={12} /></div>}
                   <div className="flex-1 min-w-0">
-                    <p className="text-xs font-semibold text-[#0D2133] line-clamp-1">{item.title}</p>
+                    <p className="text-xs font-semibold text-[#1b3f7a] line-clamp-1">{item.title}</p>
                     {item.variant_title && <p className="text-[10px] text-[#5B7A8C]">{item.variant_title}</p>}
                     {dTx && <p className="text-[10px] text-[#1E8FA8] mt-0.5">{dTx}{momentoTxt ? ` · ${momentoTxt}` : ""}</p>}
-                    <p className="text-[10px] font-extrabold text-[#0D2133] tabular-nums mt-0.5">{fmtMXN(item.price)}</p>
+                    <p className="text-[10px] font-extrabold text-[#1b3f7a] tabular-nums mt-0.5">{fmtMXN(item.price)}</p>
                   </div>
                   <button onClick={() => onRemoveItem(item.variant_id)} className="text-[#B0C8D4] hover:text-red-400 transition-colors shrink-0 mt-0.5"><X size={12} /></button>
                 </div>
@@ -334,13 +334,13 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
           <div className="border-t border-[#EEF3F7] p-3 space-y-2 bg-[#F7F9FB]">
             <div className="flex items-center justify-between">
               <span className="text-xs text-[#5B7A8C] font-semibold">Total</span>
-              <span className="text-sm font-extrabold text-[#0D2133] tabular-nums">{fmtMXN(total)}</span>
+              <span className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">{fmtMXN(total)}</span>
             </div>
             <div className="flex gap-2">
               <button onClick={() => { onClear(); setOpen(false); }} className="flex items-center gap-1 px-3 py-2 border border-[#D0E4EC] text-[#5B7A8C] text-xs rounded-lg hover:text-red-400 hover:border-red-200 transition-colors font-semibold">
                 <Trash2 size={11} /> Limpiar
               </button>
-              <button onClick={() => { onGoToDraft(); setOpen(false); }} className="flex-1 bg-[#0D2133] text-white text-xs py-2 rounded-lg font-semibold hover:bg-[#162d60] transition-colors">
+              <button onClick={() => { onGoToDraft(); setOpen(false); }} className="flex-1 bg-[#1b3f7a] text-white text-xs py-2 rounded-lg font-semibold hover:bg-[#162d60] transition-colors">
                 Ir al borrador →
               </button>
             </div>
@@ -400,10 +400,10 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
           ? <img src={item.image} alt="" className="w-14 h-14 rounded-lg object-contain shrink-0 bg-[#F7F9FB] border border-[#D0E4EC]" />
           : <div className="w-14 h-14 rounded-lg bg-[#F7F9FB] shrink-0 flex items-center justify-center text-[#B0C8D4] border border-[#D0E4EC]"><Package size={20} /></div>}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-[#0D2133] leading-snug">{item.title}</p>
+          <p className="text-sm font-bold text-[#1b3f7a] leading-snug">{item.title}</p>
           {item.variant_title && <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mt-0.5">{item.variant_title}</p>}
           <div className="mt-2 flex flex-wrap gap-1.5">
-            {dTx && <span className="bg-[#0D2133] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{dTx}</span>}
+            {dTx && <span className="bg-[#1b3f7a] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{dTx}</span>}
             {momentos.length > 0 && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{momentos.join(", ")}</span>}
             {acomp && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{acomp}</span>}
           </div>
@@ -420,7 +420,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
                   </>
                 ) : (
                   <>
-                    <span className="text-[#0D2133]">{fmtMXN(item.price * qty)}</span>
+                    <span className="text-[#1b3f7a]">{fmtMXN(item.price * qty)}</span>
                     {qty > 1 && <span className="text-[10px] font-normal text-[#5B7A8C]">({qty} × {fmtMXN(item.price)})</span>}
                   </>
                 )}
@@ -428,14 +428,14 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
               {/* Selector de cantidad de frascos */}
               <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
                 <button onClick={() => { const n = Math.max(1, qty - 1); setQty(n); onUpdateQuantity(item.variant_id, n); }}
-                  className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold transition-colors text-base">−</button>
-                <span className="w-6 text-center text-xs font-extrabold text-[#0D2133] tabular-nums select-none">{qty}</span>
+                  className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold transition-colors text-base">−</button>
+                <span className="w-6 text-center text-xs font-extrabold text-[#1b3f7a] tabular-nums select-none">{qty}</span>
                 <button onClick={() => { const n = qty + 1; setQty(n); onUpdateQuantity(item.variant_id, n); }}
-                  className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold transition-colors text-base">+</button>
+                  className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold transition-colors text-base">+</button>
               </div>
               <span className="text-[10px] text-[#B0C8D4]">{qty === 1 ? "frasco" : "frascos"}</span>
               <button onClick={() => setOpen(o => !o)}
-                className="flex items-center gap-1 text-[10px] font-bold text-[#1E8FA8] hover:text-[#0D2133] transition-colors ml-auto">
+                className="flex items-center gap-1 text-[10px] font-bold text-[#1E8FA8] hover:text-[#1b3f7a] transition-colors ml-auto">
                 <Pencil size={10} /> {open ? "Cerrar" : "Editar dosis"}
               </button>
             </div>
@@ -461,24 +461,24 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center bg-white border border-[#D0E4EC] rounded-lg shrink-0">
                 <button onClick={() => handleField(setAmount, "amount", Math.max(meta?.tipo_dosis ? 1 : 0.5, amount - (meta?.tipo_dosis ? 1 : 0.5)))}
-                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] transition-colors font-bold text-lg">−</button>
-                <span className="w-10 text-center text-sm font-extrabold text-[#0D2133] tabular-nums select-none">{amount}</span>
+                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] transition-colors font-bold text-lg">−</button>
+                <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{amount}</span>
                 <button onClick={() => handleField(setAmount, "amount", amount + (meta?.tipo_dosis ? 1 : 0.5))}
-                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] transition-colors font-bold text-lg">+</button>
+                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] transition-colors font-bold text-lg">+</button>
               </div>
               {meta?.tipo_dosis && meta?.dosis != null ? (
                 /* Con metafields: badge fijo + resultado calculado */
                 <div className="flex items-center gap-2 flex-wrap">
                   <span className="px-3 py-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg text-sm font-semibold text-[#1E8FA8]">dosis</span>
                   <span className="text-[#B0C8D4] text-sm">=</span>
-                  <span className="text-sm font-extrabold text-[#0D2133] tabular-nums">
+                  <span className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">
                     {amount * meta.dosis} <span className="font-semibold text-[#5B7A8C]">{meta.tipo_dosis}</span>
                   </span>
                 </div>
               ) : (
                 /* Sin metafields: dropdown clásico */
                 <select value={unit} onChange={e => handleField(setUnit, "unit", e.target.value)}
-                  className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm text-[#0D2133] focus:outline-none focus:border-[#1E8FA8] bg-white">
+                  className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] bg-white">
                   {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               )}
@@ -498,7 +498,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
             <div className="flex flex-wrap gap-1.5">
               {MOMENTOS.map(m => (
                 <button key={m} onClick={() => toggleMomento(m)}
-                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${momentos.includes(m) ? "bg-[#0D2133] text-white border-[#0D2133]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8]"}`}>
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${momentos.includes(m) ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8]"}`}>
                   {m}
                 </button>
               ))}
@@ -590,7 +590,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
 
   return (
     <div className="max-w-[960px] mx-auto px-4 sm:px-6 py-6">
-      <button onClick={onBack} className="flex items-center gap-1.5 text-[#5B7A8C] hover:text-[#0D2133] text-sm font-semibold mb-6 transition-colors">
+      <button onClick={onBack} className="flex items-center gap-1.5 text-[#5B7A8C] hover:text-[#1b3f7a] text-sm font-semibold mb-6 transition-colors">
         <ArrowLeft size={14} /> Volver al catálogo
       </button>
 
@@ -598,7 +598,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
         {/* Lista de productos */}
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold text-[#0D2133]">Borrador del Protocolo</h2>
+            <h2 className="text-lg font-extrabold text-[#1b3f7a]">Borrador del Protocolo</h2>
             <button onClick={onClear} className="flex items-center gap-1 text-xs text-[#5B7A8C] hover:text-red-400 transition-colors font-semibold">
               <Trash2 size={11} /> Limpiar todo
             </button>
@@ -646,7 +646,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
           {/* Resumen */}
           <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 flex items-center justify-between">
             <span className="text-sm text-[#5B7A8C]">{carrito.length} producto{carrito.length !== 1 ? "s" : ""}</span>
-            <span className="text-lg font-extrabold text-[#0D2133] tabular-nums">{fmtMXN(total)}</span>
+            <span className="text-lg font-extrabold text-[#1b3f7a] tabular-nums">{fmtMXN(total)}</span>
           </div>
 
           {/* Acciones */}
@@ -661,7 +661,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
               </button>
               {/* Acciones secundarias */}
               <div className="flex gap-2">
-                <button onClick={copy} className="flex-1 border border-[#C2DFE8] text-[#0D2133] text-sm py-2 rounded-lg font-semibold hover:bg-white transition-colors">
+                <button onClick={copy} className="flex-1 border border-[#C2DFE8] text-[#1b3f7a] text-sm py-2 rounded-lg font-semibold hover:bg-white transition-colors">
                   {copied ? "¡Copiado!" : "Copiar link"}
                 </button>
                 <button onClick={() => generarPDF(carrito, patientData.nombre, profesional)}
@@ -673,7 +673,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
           ) : (
             <div className="space-y-2">
               <button onClick={handleCheckout} disabled={loading || carrito.length === 0}
-                className="w-full bg-[#0D2133] text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 hover:bg-[#162d60] transition-colors flex items-center justify-center gap-2">
+                className="w-full bg-[#1b3f7a] text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 hover:bg-[#162d60] transition-colors flex items-center justify-center gap-2">
                 <MessageCircle size={15} /> {loading ? "Generando…" : "Enviar por WhatsApp"}
               </button>
               {!patientData.telefono && (
@@ -709,7 +709,7 @@ function CollectionCard({ item, onClick, loading, imageUrl }) {
             </div>}
       </div>
       <div className="flex-1 bg-[#F7F9FB] group-hover:bg-[#EEF3F7] transition-colors flex flex-col justify-center px-4 py-3">
-        <p className="text-sm font-bold text-[#0D2133] leading-snug">{item.label}</p>
+        <p className="text-sm font-bold text-[#1b3f7a] leading-snug">{item.label}</p>
         <p className="text-xs text-[#5B7A8C] mt-1 leading-relaxed line-clamp-2">{item.desc}</p>
         <p className="text-xs font-semibold text-[#1E8FA8] mt-2.5 flex items-center gap-1">
           Explorar <ChevronRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
@@ -764,17 +764,18 @@ function RestockButton({ product, variant = null, size = "sm" }) {
     <button onClick={solicitar} disabled={state === "sending"}
       className={`${base} border text-center transition-all ${state === "error"
         ? "border-red-200 bg-red-50 text-red-500 hover:bg-red-100"
-        : "border-[#D0E4EC] bg-white text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#0D2133] disabled:opacity-60"}`}>
+        : "border-[#D0E4EC] bg-white text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#1b3f7a] disabled:opacity-60"}`}>
       {state === "sending" ? "Enviando…" : state === "error" ? "Reintentar" : "Solicitar reposición"}
     </button>
   );
 }
 
 // ── Product Card ──────────────────────────────────────────────────────────────
-function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQuickAdd }) {
+function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQuickAdd, tourCard, tourComision }) {
   const outOfStock = product.all_out_of_stock;
   return (
-    <div className="bg-white rounded-xl border border-[#D0E4EC] overflow-hidden flex flex-col hover:shadow-md hover:border-[#1E8FA8]/40 transition-all group">
+    <div data-tour={tourCard ? "producto-card" : undefined}
+      className="bg-white rounded-xl border border-[#D0E4EC] overflow-hidden flex flex-col hover:shadow-md hover:border-[#1E8FA8]/40 transition-all group">
       {/* Imagen — click abre detalle */}
       <div onClick={() => onClick(product)} className="cursor-pointer">
         <div className="relative bg-[#F7F9FB] p-3 flex items-center justify-center" style={{ height: "148px" }}>
@@ -782,7 +783,7 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
             ? <img src={product.image_url} alt={product.title} className={`h-full w-full object-contain ${outOfStock ? "opacity-40" : ""}`} />
             : <div className="flex items-center justify-center w-full h-full text-[#B0C8D4]"><Package size={32} /></div>}
           <div className="absolute top-2 left-2 flex flex-col gap-1">
-            {product.is_professional && <span className="bg-[#0D2133] text-white text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">PRO</span>}
+            {product.is_professional && <span className="bg-[#1b3f7a] text-white text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">PRO</span>}
             {outOfStock && <span className="bg-red-50 text-red-500 border border-red-200 text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">Sin stock</span>}
           </div>
           <button
@@ -795,12 +796,13 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
       </div>
       {/* Info — click abre detalle */}
       <div onClick={() => onClick(product)} className="px-3 pt-2.5 pb-2 flex flex-col flex-1 gap-1 cursor-pointer">
-        <p className="text-xs font-bold text-[#0D2133] leading-snug line-clamp-2">{product.title}</p>
+        <p className="text-xs font-bold text-[#1b3f7a] leading-snug line-clamp-2">{product.title}</p>
         {/* brand/vendor oculto — vendor de Shopify no refleja la marca real; pendiente mapeo correcto */}
         {product.commission_percent > 0 && (
-          <p className="text-[10px] font-extrabold text-[#1E8FA8]">+{product.commission_percent}% comisión</p>
+          <p data-tour={tourComision ? "comision-badge" : undefined}
+            className="text-[10px] font-extrabold text-[#1E8FA8]">+{product.commission_percent}% comisión</p>
         )}
-        <p className="text-sm font-extrabold text-[#0D2133] tabular-nums mt-auto pt-1">
+        <p className="text-sm font-extrabold text-[#1b3f7a] tabular-nums mt-auto pt-1">
           {product.min_price ? (product.variants?.length > 1 ? `desde ${fmtMXN(product.min_price)}` : fmtMXN(product.min_price)) : "—"}
         </p>
       </div>
@@ -812,7 +814,7 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
           ) : (
             <button
               onClick={(e) => { e.stopPropagation(); onQuickAdd(product); }}
-              className={`w-full text-[11px] font-bold py-1.5 rounded-lg border transition-all ${inProtocol ? "bg-[#E6F4F8] text-[#1E8FA8] border-[#C2DFE8] hover:bg-[#C2DFE8]" : "bg-[#F7F9FB] text-[#0D2133] border-[#D0E4EC] hover:bg-[#0D2133] hover:text-white hover:border-[#0D2133]"}`}>
+              className={`w-full text-[11px] font-bold py-1.5 rounded-lg border transition-all ${inProtocol ? "bg-[#E6F4F8] text-[#1E8FA8] border-[#C2DFE8] hover:bg-[#C2DFE8]" : "bg-[#F7F9FB] text-[#1b3f7a] border-[#D0E4EC] hover:bg-[#1b3f7a] hover:text-white hover:border-[#1b3f7a]"}`}>
               {inProtocol ? "✓ En protocolo" : "+ Agregar"}
             </button>
           )}
@@ -927,7 +929,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6">
       <div className="flex items-center justify-between mb-6">
-        <button onClick={onBack} className="flex items-center gap-2 text-[#5B7A8C] hover:text-[#0D2133] text-sm font-semibold transition-colors group">
+        <button onClick={onBack} className="flex items-center gap-2 text-[#5B7A8C] hover:text-[#1b3f7a] text-sm font-semibold transition-colors group">
           <ArrowLeft size={20} className="transition-transform group-hover:-translate-x-0.5" /> {backLabel || "Volver"}
         </button>
         <button
@@ -943,7 +945,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
       {onBreadcrumb && (product.level_1 || product.level_2 || product.level_3) && (
         <nav className="flex items-center gap-1 flex-wrap mb-4 -mt-2">
           <button onClick={() => onBreadcrumb(null, null, null)}
-            className="text-[11px] text-[#8AAAB8] hover:text-[#0D2133] transition-colors font-medium">
+            className="text-[11px] text-[#8AAAB8] hover:text-[#1b3f7a] transition-colors font-medium">
             Inicio
           </button>
           {product.level_1 && (
@@ -1042,12 +1044,12 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
         {/* Info */}
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap gap-2">
-            {product.is_professional && <span className="bg-[#0D2133] text-white text-[10px] font-extrabold px-2.5 py-1 rounded uppercase tracking-widest">PRO</span>}
+            {product.is_professional && <span className="bg-[#1b3f7a] text-white text-[10px] font-extrabold px-2.5 py-1 rounded uppercase tracking-widest">PRO</span>}
             {product.commission_percent > 0 && <span className="bg-[#E6F4F8] text-[#1E8FA8] text-xs font-extrabold px-2.5 py-1 rounded">{product.commission_percent}% comisión</span>}
             {inCart && <span className="bg-emerald-50 text-emerald-600 text-xs font-extrabold px-2.5 py-1 rounded">✓ En protocolo</span>}
           </div>
           <div>
-            <h1 className="text-base sm:text-xl font-medium text-[#0D2133] leading-snug">{product.title}</h1>
+            <h1 className="text-base sm:text-xl font-medium text-[#1b3f7a] leading-snug">{product.title}</h1>
             {/* brand oculto — pendiente mapeo vendor→marca real */}
           </div>
           {product.variants?.length > 1 && (
@@ -1055,7 +1057,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
               <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">Presentación</label>
               <select value={selectedVariant?.variant_id}
                 onChange={e => setSelectedVariant(product.variants.find(v => v.variant_id === Number(e.target.value)))}
-                className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-[#1E8FA8] text-[#0D2133]">
+                className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]">
                 {product.variants.map(v => (
                   <option key={v.variant_id} value={v.variant_id} disabled={v.stock !== null && v.stock <= 0}>
                     {v.variant_title || "Único"}{v.stock !== null && v.stock <= 0 ? " · sin stock" : ""}{v.price ? ` · ${fmtMXN(v.price)}` : ""}
@@ -1065,13 +1067,13 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             </div>
           )}
           <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-extrabold text-[#0D2133] tabular-nums">{price ? fmtMXN(price) : "—"}</span>
+            <span className="text-3xl font-extrabold text-[#1b3f7a] tabular-nums">{price ? fmtMXN(price) : "—"}</span>
           </div>
           {product.primary_ingredient && (
             <div className="bg-[#F7F9FB] border border-[#D0E4EC] rounded-xl px-4 py-3">
               <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Componente principal</p>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-[#0D2133]">{product.primary_ingredient}</span>
+                <span className="text-sm font-semibold text-[#1b3f7a]">{product.primary_ingredient}</span>
                 {product.primary_amount && <span className="text-sm font-extrabold text-[#1E8FA8] tabular-nums">{product.primary_amount} {product.primary_unit || "mg"}</span>}
               </div>
             </div>
@@ -1083,7 +1085,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             <button onClick={() => setInstrOpen(o => !o)} className="w-full flex items-start justify-between px-4 py-3.5 text-left hover:bg-[#F7F9FB] transition-colors gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-[#0D2133]">Indicaciones de toma</span>
+                  <span className="text-sm font-bold text-[#1b3f7a]">Indicaciones de toma</span>
                   <span className="text-[9px] font-extrabold bg-[#1E8FA8] text-white px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0">Requerido</span>
                 </div>
                 {/* Preview colapsado — estilo Fullscript */}
@@ -1114,7 +1116,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                         <div className="flex items-center border border-[#D0E4EC] rounded-lg overflow-hidden bg-white shrink-0">
                           <button onClick={() => setAmount(a => Math.max(hasMeta ? 1 : 0.5, a - (hasMeta ? 1 : 0.5)))}
                             className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:bg-[#F7F9FB] font-bold text-lg">−</button>
-                          <span className="w-10 text-center text-sm font-extrabold text-[#0D2133] tabular-nums select-none">{amount}</span>
+                          <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{amount}</span>
                           <button onClick={() => setAmount(a => a + (hasMeta ? 1 : 0.5))}
                             className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:bg-[#F7F9FB] font-bold text-lg">+</button>
                         </div>
@@ -1126,14 +1128,14 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                               {amount === 1 ? "dosis" : "dosis"}
                             </span>
                             <span className="text-[#B0C8D4] text-sm">=</span>
-                            <span className="text-sm font-extrabold text-[#0D2133] tabular-nums">
+                            <span className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">
                               {totalUnits} <span className="font-semibold text-[#5B7A8C]">{meta.tipo_dosis}</span>
                             </span>
                           </div>
                         ) : (
                           /* Sin metafields: dropdown clásico */
                           <select value={unit} onChange={e => setUnit(e.target.value)}
-                            className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm bg-white outline-none focus:border-[#1E8FA8] text-[#0D2133]">
+                            className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]">
                             {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                           </select>
                         )}
@@ -1158,7 +1160,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                   <div className="flex flex-wrap gap-1.5">
                     {MOMENTOS.map(m => (
                       <button key={m} onClick={() => toggleMomento(m)}
-                        className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${momentos.includes(m) ? "bg-[#0D2133] text-white border-[#0D2133]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8] hover:text-[#1E8FA8]"}`}>
+                        className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${momentos.includes(m) ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8] hover:text-[#1E8FA8]"}`}>
                         {m}
                       </button>
                     ))}
@@ -1182,7 +1184,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                 <div>
                   <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">Nota <span className="normal-case font-normal text-[#B0C8D4]">(opcional)</span></label>
                   <textarea value={nota} onChange={e => setNota(e.target.value)} placeholder="ej. Tomar durante 3 meses" rows={2}
-                    className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-[#1E8FA8] resize-none text-[#0D2133] placeholder:text-[#B0C8D4]" />
+                    className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-[#1E8FA8] resize-none text-[#1b3f7a] placeholder:text-[#B0C8D4]" />
                 </div>
 
                 {/* Instrucción para el paciente — resumen parseado */}
@@ -1197,7 +1199,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                   return (
                     <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3.5 py-3">
                       <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mb-1">Instrucción para el paciente</p>
-                      <p className="text-sm text-[#0D2133] leading-relaxed">
+                      <p className="text-sm text-[#1b3f7a] leading-relaxed">
                         {instrText}
                         {notaSentence && <span className="text-[#5B7A8C]"> {notaSentence}</span>}
                       </p>
@@ -1223,7 +1225,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                         {nutrients.map(n => (
                           <div key={n.name} className="flex justify-between items-baseline text-xs gap-2">
                             <span className="text-[#5B7A8C] truncate">{n.name}</span>
-                            <span className="font-extrabold tabular-nums text-[#0D2133] shrink-0">
+                            <span className="font-extrabold tabular-nums text-[#1b3f7a] shrink-0">
                               {Number((n.amount * mult).toFixed(1)).toLocaleString("es-MX")} {n.unit}
                             </span>
                           </div>
@@ -1274,7 +1276,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                       <button onClick={() => setDescTableOpen(o => !o)}
                         className="w-full flex items-center justify-between px-4 py-3.5 text-left bg-white hover:bg-[#F7F9FB] transition-colors">
                         <div>
-                          <span className="text-sm font-bold text-[#0D2133]">Tabla de información nutricional</span>
+                          <span className="text-sm font-bold text-[#1b3f7a]">Tabla de información nutricional</span>
                           {porcionLabel && (
                             <p className="text-[11px] text-[#8AAAB8] mt-0.5">
                               Porción del fabricante: <span className="font-semibold text-[#5B7A8C]">{porcionLabel}</span>
@@ -1287,7 +1289,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                         <div className="px-4 pb-4 pt-2 border-t border-[#EEF3F7] bg-white overflow-x-auto">
                           {descLoading
                             ? <p className="text-xs text-[#B0C8D4] text-center py-4">Cargando…</p>
-                            : <div className="[&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2.5 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:bg-[#F0F5F8] [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#5B7A8C] [&_td]:text-[#0D2133]"
+                            : <div className="[&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2.5 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:bg-[#F0F5F8] [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#5B7A8C] [&_td]:text-[#1b3f7a]"
                                 dangerouslySetInnerHTML={{ __html: tableHtml }} />}
                         </div>
                       )}
@@ -1300,7 +1302,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                   <div className="border border-[#D0E4EC] rounded-xl overflow-hidden">
                     <button onClick={() => setDescTextOpen(o => !o)}
                       className="w-full flex items-center justify-between px-4 py-3.5 text-left bg-white hover:bg-[#F7F9FB] transition-colors">
-                      <span className="text-sm font-bold text-[#0D2133]">Descripción del producto</span>
+                      <span className="text-sm font-bold text-[#1b3f7a]">Descripción del producto</span>
                       <ChevronDown size={15} className={`text-[#5B7A8C] transition-transform ${descTextOpen ? "rotate-180" : ""}`} />
                     </button>
                     {descTextOpen && (
@@ -1328,10 +1330,10 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Cantidad</span>
                   <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
                     <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                      className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold text-lg transition-colors">−</button>
-                    <span className="w-10 text-center text-sm font-extrabold text-[#0D2133] tabular-nums select-none">{quantity}</span>
+                      className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">−</button>
+                    <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{quantity}</span>
                     <button onClick={() => setQuantity(q => q + 1)}
-                      className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#0D2133] font-bold text-lg transition-colors">+</button>
+                      className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">+</button>
                   </div>
                   <span className="text-xs text-[#5B7A8C]">{quantity === 1 ? "frasco" : "frascos"}</span>
                   {quantity > 1 && price && (
@@ -1364,7 +1366,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                 <RestockButton product={product} variant={selectedVariant} size="lg" />
               </div>
             : <button onClick={handleAdd}
-                className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${inCart ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#0D2133] text-white hover:bg-[#162d60]"}`}>
+                className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${inCart ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
                 {inCart ? "✓ Actualizar en protocolo" : `Agregar al protocolo${quantity > 1 ? ` (×${quantity})` : ""}`}
               </button>
           }
@@ -1518,6 +1520,16 @@ function ArmadorCarritosInner() {
     } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
 
+  // ?tab=<handle> abre una colección directo, sin pasar por la vista home.
+  // Sirve para linkear una categoría desde afuera y es lo que usa el tour para
+  // que sus pasos de producto tengan una grilla donde apoyarse.
+  const tabParam = searchParams?.get("tab") || null;
+  useEffect(() => {
+    if (!tabParam) return;
+    const tab = NAV_TABS.find(t => t.handle === tabParam);
+    if (tab) handleCollection(tab);
+  }, [tabParam]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleProductClick = (product) => {
     setPrevView({ view, label: collLabel, activeTabKey });
     setDetailProduct(product);
@@ -1644,6 +1656,13 @@ function ArmadorCarritosInner() {
     return true;
   });
 
+  const outOfStockCount = filteredProductos.filter(p => p.all_out_of_stock).length;
+
+  // Anclas del tour: van en la primera tarjeta, y la de comisión en la primera
+  // que efectivamente tenga una — si no, el paso apuntaría a un elemento que
+  // no se renderiza y el tour lo saltearía.
+  const tourComisionIdx = filteredProductos.findIndex(p => (p.commission_percent ?? 0) > 0);
+
   const hasFilters = filterBrand || filterMinComm > 0 || filterPriceMin !== "" || filterPriceMax !== "";
   const clearFilters = () => { setFilterBrand(""); setFilterMinComm(0); setFilterPriceMin(""); setFilterPriceMax(""); };
 
@@ -1663,7 +1682,7 @@ function ArmadorCarritosInner() {
           {/* Fila 1: título + protocolo */}
           <div className="flex items-center justify-between px-5 sm:px-6 pt-4 pb-3">
             <button onClick={handleHome} className="text-left">
-              <h1 className="text-xl font-extrabold text-[#0D2133] tracking-tight leading-none">Protocolos Clínicos</h1>
+              <h1 className="text-xl font-extrabold text-[#1b3f7a] tracking-tight leading-none">Protocolos Clínicos</h1>
               <p className="text-xs text-[#5B7A8C] mt-0.5 hidden sm:block">Prescripciones de suplementación para tus pacientes</p>
             </button>
             <ProtocolIndicator
@@ -1677,18 +1696,18 @@ function ArmadorCarritosInner() {
           {/* Fila 2: búsqueda */}
           <div className="px-5 sm:px-6 pb-3 space-y-2">
             {/* Switch modo */}
-            <div className="flex items-center gap-1 bg-[#F0F5F8] rounded-lg p-0.5 w-fit">
+            <div data-tour="buscador-ia" className="flex items-center gap-1 bg-[#F0F5F8] rounded-lg p-0.5 w-fit">
               <button type="button" onClick={() => setAiMode(false)}
-                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${!aiMode ? "bg-white text-[#0D2133] shadow-sm" : "text-[#8AAAB8] hover:text-[#5B7A8C]"}`}>
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${!aiMode ? "bg-white text-[#1b3f7a] shadow-sm" : "text-[#8AAAB8] hover:text-[#5B7A8C]"}`}>
                 Normal
               </button>
               <button type="button" onClick={() => setAiMode(true)}
-                className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold transition-all ${aiMode ? "bg-[#0D2133] text-white shadow-sm" : "text-[#8AAAB8] hover:text-[#5B7A8C]"}`}>
+                className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold transition-all ${aiMode ? "bg-[#1b3f7a] text-white shadow-sm" : "text-[#8AAAB8] hover:text-[#5B7A8C]"}`}>
                 <span>🔬</span> IA
               </button>
             </div>
 
-            <form onSubmit={handleSearch} className="flex gap-2">
+            <form onSubmit={handleSearch} data-tour="buscador" className="flex gap-2">
               <div className="relative flex-1">
                 <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#B0C8D4]" />
                 <input type="text"
@@ -1696,10 +1715,10 @@ function ArmadorCarritosInner() {
                     ? "Describe el objetivo o síntoma del paciente…"
                     : "Buscar por producto, componente o marca…"}
                   value={query} onChange={e => setQuery(e.target.value)}
-                  className="w-full bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg pl-10 pr-4 py-2 text-sm text-[#0D2133] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8] focus:bg-white transition-colors" />
+                  className="w-full bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg pl-10 pr-4 py-2 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8] focus:bg-white transition-colors" />
               </div>
               <button type="submit" disabled={loading || !query.trim()}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-30 transition-colors shrink-0 ${aiMode ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#0D2133] text-white hover:bg-[#162d60]"}`}>
+                className={`px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-30 transition-colors shrink-0 ${aiMode ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
                 {aiMode ? "Analizar" : "Buscar"}
               </button>
             </form>
@@ -1708,10 +1727,10 @@ function ArmadorCarritosInner() {
             {aiResult && (
               <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3.5 py-2.5">
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mb-1">Análisis clínico</p>
-                <p className="text-xs text-[#0D2133] leading-snug mb-2">{aiResult.resumen}</p>
+                <p className="text-xs text-[#1b3f7a] leading-snug mb-2">{aiResult.resumen}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {aiResult.ingredientes.map(i => (
-                    <span key={i.nombre} className="inline-flex items-center gap-1 bg-white border border-[#C2DFE8] rounded-full px-2.5 py-0.5 text-[11px] text-[#0D2133]">
+                    <span key={i.nombre} className="inline-flex items-center gap-1 bg-white border border-[#C2DFE8] rounded-full px-2.5 py-0.5 text-[11px] text-[#1b3f7a]">
                       <span className="font-semibold">{i.nombre}</span>
                       <span className="text-[#8AAAB8]">— {i.razon}</span>
                     </span>
@@ -1723,7 +1742,7 @@ function ArmadorCarritosInner() {
           {/* Fila 3: tabs */}
           <div className="flex border-t border-[#EEF3F7] overflow-x-auto [&::-webkit-scrollbar]:hidden">
             <button onClick={handleHome}
-              className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors shrink-0 ${isHome ? "border-[#0D2133] text-[#0D2133]" : "border-transparent text-[#5B7A8C] hover:text-[#0D2133]"}`}>
+              className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors shrink-0 ${isHome ? "border-[#1b3f7a] text-[#1b3f7a]" : "border-transparent text-[#5B7A8C] hover:text-[#1b3f7a]"}`}>
               Inicio
             </button>
             {favoriteList.length > 0 && (
@@ -1737,7 +1756,7 @@ function ArmadorCarritosInner() {
               const key = tab.id || tab.handle;
               return (
                 <button key={key} onClick={() => handleCollection(tab)} disabled={loading}
-                  className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors shrink-0 ${activeTabKey === key ? "border-[#1E8FA8] text-[#1E8FA8]" : "border-transparent text-[#5B7A8C] hover:text-[#0D2133]"}`}>
+                  className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors shrink-0 ${activeTabKey === key ? "border-[#1E8FA8] text-[#1E8FA8]" : "border-transparent text-[#5B7A8C] hover:text-[#1b3f7a]"}`}>
                   {tab.label}
                 </button>
               );
@@ -1758,7 +1777,7 @@ function ArmadorCarritosInner() {
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
                     <Heart size={14} className="text-red-400" fill="currentColor" />
-                    <h2 className="text-sm font-bold text-[#0D2133]">Mis Favoritos</h2>
+                    <h2 className="text-sm font-bold text-[#1b3f7a]">Mis Favoritos</h2>
                   </div>
                   <button onClick={() => setView("favorites")} className="text-xs font-semibold text-[#1E8FA8] hover:underline">
                     Ver todos ({favoriteList.length}) →
@@ -1777,7 +1796,7 @@ function ArmadorCarritosInner() {
             )}
             {/* Colecciones */}
             <section>
-              <h2 className="text-sm font-bold text-[#0D2133] mb-4">Colecciones destacadas</h2>
+              <h2 className="text-sm font-bold text-[#1b3f7a] mb-4">Colecciones destacadas</h2>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {FEATURED.map(fc => (
                   <CollectionCard key={fc.handle || fc.id} item={fc} onClick={handleCollection}
@@ -1787,7 +1806,7 @@ function ArmadorCarritosInner() {
             </section>
             {/* PRO banner */}
             <section>
-              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#0D2133] to-[#1b3f7a] px-6 py-5 flex items-center justify-between gap-4">
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#1b3f7a] to-[#1b3f7a] px-6 py-5 flex items-center justify-between gap-4">
                 <div className="flex items-start gap-4">
                   <span className="shrink-0 bg-[#1E8FA8] text-white text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest mt-0.5">PRO</span>
                   <div>
@@ -1820,7 +1839,7 @@ function ArmadorCarritosInner() {
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6">
             <div className="flex items-center gap-2 mb-6">
               <Heart size={16} className="text-red-400" fill="currentColor" />
-              <h2 className="text-lg font-extrabold text-[#0D2133]">Mis Favoritos</h2>
+              <h2 className="text-lg font-extrabold text-[#1b3f7a]">Mis Favoritos</h2>
               <span className="text-sm text-[#5B7A8C]">({favoriteList.length})</span>
             </div>
             {favoriteList.length === 0 ? (
@@ -1890,7 +1909,7 @@ function ArmadorCarritosInner() {
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Marca</span>
                   <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)}
-                    className="border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs text-[#0D2133] focus:outline-none focus:border-[#1E8FA8] bg-white max-w-[180px]">
+                    className="border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] bg-white max-w-[180px]">
                     <option value="">Todas</option>
                     {availableBrands.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
@@ -1923,11 +1942,11 @@ function ArmadorCarritosInner() {
                   <span className="text-xs text-[#B0C8D4]">$</span>
                   <input type="number" placeholder="Desde" value={filterPriceMin}
                     onChange={e => setFilterPriceMin(e.target.value)}
-                    className="w-20 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-xs text-[#0D2133] focus:outline-none focus:border-[#1E8FA8] tabular-nums" />
+                    className="w-20 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] tabular-nums" />
                   <span className="text-xs text-[#B0C8D4]">—</span>
                   <input type="number" placeholder="Hasta" value={filterPriceMax}
                     onChange={e => setFilterPriceMax(e.target.value)}
-                    className="w-20 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-xs text-[#0D2133] focus:outline-none focus:border-[#1E8FA8] tabular-nums" />
+                    className="w-20 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] tabular-nums" />
                 </div>
               </div>
 
@@ -1953,7 +1972,7 @@ function ArmadorCarritosInner() {
                     {i < levelCtx.trail.length - 1
                       ? <button onClick={() => handleBreadcrumb(step.field, step.value, { level_1: levelCtx.trail[0]?.value, level_2: levelCtx.trail[1]?.value, level_3: levelCtx.trail[2]?.value })}
                           className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">{step.label}</button>
-                      : <span className="text-[11px] text-[#0D2133] font-semibold">{step.label}</span>
+                      : <span className="text-[11px] text-[#1b3f7a] font-semibold">{step.label}</span>
                     }
                   </span>
                 ))}
@@ -1965,17 +1984,19 @@ function ArmadorCarritosInner() {
               {filteredProductos.length} producto{filteredProductos.length !== 1 ? "s" : ""}
               {hasFilters && visibleProductos.length !== filteredProductos.length
                 ? ` de ${visibleProductos.length}` : ""}
-              {productos.length !== visibleProductos.length ? ` (${productos.length - visibleProductos.length} sin stock ocultos)` : ""}
+              {outOfStockCount > 0 ? ` · ${outOfStockCount} sin stock, al final` : ""}
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-6">
-              {filteredProductos.map(p => (
+              {filteredProductos.map((p, i) => (
                 <ProductCard key={p.product_id} product={p}
                   onClick={handleProductClick}
                   inProtocol={p.variants?.some(v => cartVariantIds.has(v.variant_id)) || false}
                   isFavorite={isFavorite}
                   onFavorite={toggleFavorite}
                   onQuickAdd={agregarRapido}
+                  tourCard={i === 0}
+                  tourComision={i === tourComisionIdx}
                 />
               ))}
             </div>
