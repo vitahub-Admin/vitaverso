@@ -35,7 +35,7 @@ export async function POST(req) {
       );
     }
 
-    const { product_id, product_title, variant_id, sku } = await req.json();
+    const { product_id, product_title, variant_id, sku, seccion } = await req.json();
     if (!product_id) {
       return NextResponse.json({ ok: false, error: "product_id requerido" }, { status: 400 });
     }
@@ -59,7 +59,9 @@ export async function POST(req) {
       customer_name:  [aff?.first_name, aff?.last_name].filter(Boolean).join(" ") || null,
       customer_email: aff?.email || null,
       requested_at:   new Date().toISOString(),
-      origen:         "armador-carritos",
+      // Legible para quien lee la hoja, y distingue de los pedidos que puedan
+      // llegar al mismo webhook desde el storefront.
+      origen:         seccion ? `Vitahub Pro · ${seccion}` : "Vitahub Pro",
     };
 
     const res = await fetch(N8N_WEBHOOK, {

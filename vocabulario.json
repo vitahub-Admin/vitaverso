@@ -1,0 +1,443 @@
+[
+ {
+  "tipo": "Multivitamínicos",
+  "descripcion": "Fórmulas con varias vitaminas y minerales para hombre, mujer, prenatal o niños; no incluye vitaminas individuales.",
+  "ejemplos": [
+   "Daily Vits NOW Foods multivitamínico con luteína y licopeno | 100 tabletas",
+   "Multivitamínico de Alta Potencia Two-Per-Day con Minerales Esenciales de Life Extension | 120 Cápsulas Vegetales",
+   "GestaNatal de IVB | Multivitamínico y mineral Prenatal Completo| 60 Cápsulas"
+  ]
+ },
+ {
+  "tipo": "Vitamina C",
+  "descripcion": "Productos cuyo ingrediente principal es vitamina C sola o con bioflavonoides, rosa mosqueta o zinc.",
+  "ejemplos": [
+   "Vitamina C 1000 mg de NOW Foods | 250 Tabletas",
+   "Vitamina C Liposomal 1,450 mg de Humble | 60 cápsulas vegetales",
+   "Alca-C Vitamina C Alcalina Matter | 120 tabletas"
+  ]
+ },
+ {
+  "tipo": "Vitamina D y K",
+  "descripcion": "Vitamina D3, D2, K1/K2 solas o combinadas entre sí; si llevan calcio como base, van en Calcio.",
+  "ejemplos": [
+   "Vitamina D-3 5000 UI Alta Potencia | 120 Cápsulas Blandas",
+   "Mega D-3 5000 IU y MK-7 180 mcg de NOW Foods | 60 Cápsulas Veganas",
+   "Super Vitamina K1 + K2 2600mcg de Life Extension | 90 cápsulas blandas"
+  ]
+ },
+ {
+  "tipo": "Complejo B y B12",
+  "descripcion": "Complejo B, B12, B6, B1, niacina, tiamina, riboflavina y folato. La biotina sola NO va acá aunque sea vitamina B7: va en Belleza.",
+  "ejemplos": [
+   "Complejo B-100 de Now Foods | 100 Cápsulas",
+   "Methyl B-12, Vitamina B12 de NOW Foods 1000 mcg | 100 tabletas",
+   "Metil Folato 1,000 mcg de NOW Foods | 90 tabletas vegetales"
+  ]
+ },
+ {
+  "tipo": "Vitamina A y E",
+  "descripcion": "Vitamina A, betacaroteno y vitamina E ingeribles como ingrediente principal.",
+  "ejemplos": [
+   "Vitamina A 10,000 IU de NOW Foods | 100 Cápsulas blandas",
+   "Vitamina E-400 IU, D-Alfa Tocoferol de NOW Foods | 100 Cápsulas Blandas",
+   "Betacaroteno Vitamina A 25.000 UI de Swanson | 100 cápsulas blandas"
+  ]
+ },
+ {
+  "tipo": "Magnesio",
+  "descripcion": "Todas las formas de magnesio (citrato, glicinato, treonato, cloruro) solas o combinadas entre sí.",
+  "ejemplos": [
+   "Glicinato de Magnesio con BioPerine® de Now Foods | 180 Cápsulas",
+   "L-Treonato de Magnesio 144mg Neuro-Mag de Life Extension | 90 cápsulas",
+   "3 Mag Blend | B-Life | Citrato, Óxido y Gluconato de Magnesio | 200 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Calcio",
+  "descripcion": "Calcio solo o en fórmulas cal-mag/cal-mag-zinc enfocadas a huesos.",
+  "ejemplos": [
+   "Citrato de Calcio 500mg de Nature's Way | 100 cápsulas veganas",
+   "Calcio y Magnesio de Now con Vitamina D3 y Zinc | 240 Cápsulas",
+   "Bone Restore de Life Extension | 120 cápsulas vegetales"
+  ]
+ },
+ {
+  "tipo": "Zinc",
+  "descripcion": "Zinc como ingrediente principal en cualquier forma (gluconato, picolinato, L-OptiZinc).",
+  "ejemplos": [
+   "Gluconato de Zinc 50 mg de NOW Foods | 250 Tabletas",
+   "Picolinato de Zinc 22mg de Swanson | 60 cápsulas vegetales",
+   "L-OptiZinc 30 mg con Cobre de NOW Foods | 100 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Hierro",
+  "descripcion": "Hierro en cápsula, tableta o líquido, incluidos los infantiles.",
+  "ejemplos": [
+   "Hierro Bisglicinato 36 mg de NOW Foods | 90 Cápsulas Vegetales",
+   "Glicinato de Hierro Líquido 18mg de Nature's Way | 480ml",
+   "FerroPlus de IVB | Hierro bisglicinato Ferrochel® | 60 Cápsulas"
+  ]
+ },
+ {
+  "tipo": "Potasio y electrolitos",
+  "descripcion": "Potasio, sodio y mezclas de electrolitos e hidratación en polvo o líquido.",
+  "ejemplos": [
+   "Citrato de Potasio 99 mg de NOW Foods | 180 Cápsulas Veganas",
+   "Electrolitos U-NIT de Matter | 27 sobres de 7 g",
+   "Concentrado Electrolítico 40000 Volts de Trace Minerals | 237ml"
+  ]
+ },
+ {
+  "tipo": "Otros minerales y multiminerales",
+  "descripcion": "Selenio, cromo, yodo, boro, litio, minerales traza y fórmulas multiminerales sin vitaminas.",
+  "ejemplos": [
+   "Selenio 200 mcg de NOW Foods | 90 Cápsulas Vegetales",
+   "Cromo GTF 200 mcg de NOW Foods | 100 tabletas",
+   "Minerales coloidales de Now | 946 ml"
+  ]
+ },
+ {
+  "tipo": "Omega 3 y aceites de pescado",
+  "descripcion": "Omega 3, 6 y 9 de pescado, krill, algas o linaza, incluidos DHA infantil y aceite de hígado de bacalao.",
+  "ejemplos": [
+   "Ultra Omega-3 Fish Oil 500 EPA / 250 DHA de NOW Foods | 180 cápsulas blandas",
+   "Aceite de Kril Neptune 500 mg de NOW Foods | 60 Cápsulas Blandas",
+   "Birdman Premium Omega 3 a base de Algas | 60 Cápsulas Veganas"
+  ]
+ },
+ {
+  "tipo": "Colágeno",
+  "descripcion": "Colágeno hidrolizado, péptidos, tipo II y grenetina, en polvo o cápsula, solo o con biotina y ácido hialurónico.",
+  "ejemplos": [
+   "Colágeno Hidrolizado Peptídico de Now Foods | Polvos 227 gr",
+   "Colágeno BioCell Hidrolizado Tipo II 1,000 mg de Now Foods | 120 cápsulas",
+   "Péptidos Bioactivos de Colágeno 10g de Nutraceutix | Polvo de 400g"
+  ]
+ },
+ {
+  "tipo": "Belleza: cabello, piel y uñas",
+  "descripcion": "Fórmulas ingeribles para cabello, piel y uñas: biotina como ingrediente principal, ácido hialurónico, ceramidas, MSM, cola de caballo. Sin colágeno como base. La biotina sola va acá, no en Complejo B.",
+  "ejemplos": [
+   "Biotina 5,000 mcg de NOW Foods | 60 cápsulas vegetales",
+   "Ácido hialurónico con MSM de Now | 120 cápsulas",
+   "Ceramidas restauradoras de la piel 350mg de Life Extension | 30 cápsulas líquidas"
+  ]
+ },
+ {
+  "tipo": "Proteínas en polvo y barras",
+  "descripcion": "Whey, aislado, proteína vegetal, caldo de huesos y barras proteicas para aporte de proteína.",
+  "ejemplos": [
+   "ISO100 Dymatize | Whey Protein | 2.3 kg",
+   "Proteína de Chícharo Orgánica de NOW Sports | 907g",
+   "Wild Protein | Barras altas en proteína 15g"
+  ]
+ },
+ {
+  "tipo": "Creatina",
+  "descripcion": "Creatina monohidratada y fórmulas cuyo eje es la creatina, en polvo o cápsula.",
+  "ejemplos": [
+   "Creatina Monohidratada Pura en Polvo 5,000 mg de NOW Sports | 45 servicios",
+   "Creatina Clean de Ascent | Creapure | 45 servicios",
+   "CREAMAG de IVB | Creatina Monohidratada + Magnesio | 60 Servicios"
+  ]
+ },
+ {
+  "tipo": "Aminoácidos y BCAA",
+  "descripcion": "Aminoácidos sueltos o combinados: BCAA, glutamina, arginina, taurina, glicina, lisina, tirosina y beta alanina.",
+  "ejemplos": [
+   "Aminoácidos BCAA 2600 mg de Now Sports | 120 cápsulas",
+   "L-Glutamina en Polvo de NOW Sports 5000 mg | 170 g",
+   "L-Arginina 1000 mg de Now Foods | 120 Tabletas"
+  ]
+ },
+ {
+  "tipo": "Pre-entrenos y rendimiento físico",
+  "descripcion": "Pre-workouts, termogénicos deportivos, carnitina, CLA y fórmulas para energía y resistencia en el ejercicio.",
+  "ejemplos": [
+   "RAW Essential Pre Workout | Cafeína y Beta-Alanina | 380 g",
+   "Acetil L-Carnitina 500 mg de Now Foods | 200 Cápsulas Vegetales",
+   "Aceite de MCT 100% triglicéridos de cadena media | 473 ml - NOW Sport"
+  ]
+ },
+ {
+  "tipo": "Articulaciones y huesos",
+  "descripcion": "Glucosamina, condroitina, MSM, boswellia y fórmulas para movilidad articular y soporte óseo.",
+  "ejemplos": [
+   "Joint Support de NOW Foods | 90 cápsulas",
+   "Glucosamina + Condroitina + MSM + Boswellia BioFlex de Bioptimizado | 100 cápsulas",
+   "UC-II Colágeno Tipo II NOW Foods | 60 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Probióticos",
+  "descripcion": "Probióticos y simbióticos en cápsula, polvo o gomita, para adultos, mujeres y niños.",
+  "ejemplos": [
+   "Probiótic-10 de NOW Foods | 50 cápsulas",
+   "Probióticos RAW Ultimate Care 100 Billion UFC de Garden of Life | 30 Cápsulas",
+   "BerryDophilus Kids, Now | 120 Tabletas masticables"
+  ]
+ },
+ {
+  "tipo": "Enzimas digestivas",
+  "descripcion": "Enzimas digestivas, betaína HCl, bromelina y serrapeptasa para apoyo de la digestión.",
+  "ejemplos": [
+   "Fórmula Completa de Enzimas Digestivas de Enzymedica | 30 Cápsulas Veganas",
+   "Betaína HCl 648 mg de NOW Foods | 120 Cápsulas Vegetales",
+   "Super Enzimas de NOW Foods | 90 Tabletas Vegetales"
+  ]
+ },
+ {
+  "tipo": "Fibra y prebióticos",
+  "descripcion": "Psyllium, inulina, chitosan y polvos de fibra soluble para regularidad intestinal.",
+  "ejemplos": [
+   "Cáscara de psyllium entera de Now | 340 g",
+   "Inulina Orgánica Certificada en Polvo de NOW Foods | 227g",
+   "FiberTotal de IVB | fibra soluble en polvo | 20 servicios"
+  ]
+ },
+ {
+  "tipo": "Digestivos y confort intestinal",
+  "descripcion": "Fórmulas herbales y de aminoácidos para digestión, acidez y mucosa intestinal; excluye enzimas, probióticos y fibra.",
+  "ejemplos": [
+   "Gastro Comfort NOW Foods | 60 cápsulas",
+   "GI Revive de Designs for Health | 28 porciones polvo",
+   "Olmo resbaladizo de NOW | 113 g Polvo Vegano"
+  ]
+ },
+ {
+  "tipo": "Detox y apoyo hepático",
+  "descripcion": "Cardo mariano, diente de león, NAC, glutatión, carbón activado y fórmulas de desintoxicación.",
+  "ejemplos": [
+   "Extracto de Cardo Mariano 150 mg con Silimarina y Cúrcuma de NOW Foods | 60 Cápsulas",
+   "NAC N-Acetil Cisteína 1000 mg de NOW Foods | 120 tabletas veganas",
+   "Carbón activado de Now | 200 Cápsulas"
+  ]
+ },
+ {
+  "tipo": "Antioxidantes",
+  "descripcion": "Resveratrol, quercetina, astaxantina, semilla de uva, té verde y mezclas antioxidantes generales.",
+  "ejemplos": [
+   "Resveratrol Extra Fuerte de Now Foods | 60 cápsulas",
+   "Quercetina con Bromelina de Now Foods | 120 Cápsulas",
+   "Extracto de semilla de uva NOW | 200 cápsulas"
+  ]
+ },
+ {
+  "tipo": "CoQ10 y energía celular",
+  "descripcion": "Coenzima Q10, ubiquinol, PQQ, NADH y D-ribosa enfocados a energía celular.",
+  "ejemplos": [
+   "Coenzima Q10 (CoQ10) 200 mg de NOW Foods | 60 cápsulas vegetales",
+   "Ubiquinol 100 mg - CoQ10 de NOW Foods | 60 Cápsulas Blandas",
+   "PQQ Energy NOW Foods | 30 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Longevidad: NAD+, NMN y resveratrol",
+  "descripcion": "NAD+, NMN, nicotinamida ribósido, espermidina, fisetina y pterostilbeno para envejecimiento saludable.",
+  "ejemplos": [
+   "NAD+ 300 mg con Resveratrol de Life Extension | 30 cápsulas vegetales",
+   "NMN Pro Uthever® de ProHealth | 30 Cápsulas",
+   "Fisetina 125 mg | Fisetin PRO Longevity Plus de ProHealth | 60 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Control de peso y metabolismo",
+  "descripcion": "Berberina, inositol para resistencia a la insulina, ácido alfa lipoico, garcinia, vinagre de manzana y quemadores.",
+  "ejemplos": [
+   "Berberina 500mg de Solaray | 60 Cápsulas veganas",
+   "Ácido Alfa Lipoico 600mg de Nature's Way | 60 cápsulas veganas",
+   "Vinagre de Sidra de Manzana 450 mg de NOW Foods | 180 Cápsulas Veganas"
+  ]
+ },
+ {
+  "tipo": "Inositol",
+  "descripcion": "Inositol en cualquier forma (myo, D-chiro, en polvo o cápsula), solo o combinado, sin importar si se comercializa para SOP, ansiedad, sueño o metabolismo.",
+  "ejemplos": [
+   "Myo Inositol y D-Chiro Inositol de WU Nutrition",
+   "Inositol 500mg de Solaray",
+   "Inositol en polvo 700mg de Designs for Health"
+  ]
+ },
+ {
+  "tipo": "Adaptógenos y manejo del estrés",
+  "descripcion": "Ashwagandha, rhodiola, maca, ginseng, shilajit y mezclas adaptógenas para energía y estrés cotidiano.",
+  "ejemplos": [
+   "Extracto de Ashwaganda 450mg de Now | 90 Cápsulas Vegetales",
+   "Rhodiola 500 mg - Adaptógeno Natural de NOW Foods | 60 Cápsulas Vegetales",
+   "Raíz de Maca 500 mg de NOW Foods | 100 Cápsulas Vegetales"
+  ]
+ },
+ {
+  "tipo": "Hongos funcionales",
+  "descripcion": "Reishi, melena de león, cordyceps, chaga, cola de pavo y mezclas de hongos en cápsula, polvo o extracto.",
+  "ejemplos": [
+   "Melena de León Orgánica 500 mg de Now Foods | 60 Cápsulas Vegetales",
+   "Mushroom Blend B Life Mezcla de 9 Hongos Adaptógenos | 180 cápsulas",
+   "Hongo Reishi 500 mg de NATSA | 100 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Sueño y relajación",
+  "descripcion": "Melatonina, valeriana, GABA, L-teanina, 5-HTP, triptófano y fórmulas nocturnas.",
+  "ejemplos": [
+   "Melatonina 5mg de NOW Foods para el Sueño y Descanso | 60 cápsulas Vegetales",
+   "GABA 250 mg de Swanson | 60 cápsulas vegetales",
+   "Night Blend B Life Triptófano GABA Teanina | 180 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Memoria y concentración",
+  "descripcion": "Nootrópicos con ginkgo, colina, fosfatidilserina, citicolina, alpha GPC y DMAE.",
+  "ejemplos": [
+   "Brain Elevate NOW Foods | 60 cápsulas",
+   "Alpha GPC 300 mg de Now Foods | 60 cápsulas vegetales",
+   "Citicolina CDP 250g de Life Extension | 60 cápsulas vegetarianas"
+  ]
+ },
+ {
+  "tipo": "Defensas e inmunidad",
+  "descripcion": "Equinácea, saúco, astrágalo, calostro, propóleo, plata coloidal y fórmulas inmunes multiingrediente.",
+  "ejemplos": [
+   "Equinácea 400 mg Extracto de Raíz Púrpura de NOW Foods | 100 Cápsulas Vegetales",
+   "Elderberry Kids, Saúco negro 500mg + Zinc de NOW Foods | Liquido 237 ml",
+   "Calostro bovino 500 mg de Now Foods | 120 Cápsulas"
+  ]
+ },
+ {
+  "tipo": "Cúrcuma y antiinflamatorios naturales",
+  "descripcion": "Cúrcuma, curcumina, jengibre, boswellia en fórmulas para respuesta inflamatoria natural.",
+  "ejemplos": [
+   "Curcumina de Extracto de Cúrcuma 95% de NOW Foods | 60 Cápsulas Vegetales",
+   "Cúrcuma y Pimienta Negra 605mg de Swanson | 60 cápsulas veganas",
+   "Turmeric + Ginger B Life Cúrcuma Jengibre Aceite de Coco y Pimienta | 180 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Ajo, orégano y antimicrobianos naturales",
+  "descripcion": "Aceite de ajo, aceite de orégano ingerible, ácido caprílico, pau d'arco y fórmulas para equilibrio de flora.",
+  "ejemplos": [
+   "Aceite de ajo 1500 mg Garlic Oil de NOW Foods | 100 Cápsulas Blandas",
+   "Aceite de Orégano 181 mg de Now Foods | 90 cápsulas blandas",
+   "Candida Support de Now | 90 cápsulas vegetales"
+  ]
+ },
+ {
+  "tipo": "Hierbas y extractos botánicos",
+  "descripcion": "Hierbas individuales y mezclas herbales que no entran en adaptógenos, hongos ni cúrcuma: aloe, moringa, graviola, uña de gato, arándano, triphala.",
+  "ejemplos": [
+   "Uña de Gato de Now 500 mg | 100 cápsulas veganas",
+   "Triphala 500mg de Now Foods | 120 Cápsulas",
+   "Moringa oleifera 500 mg NATSA | 100 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Superalimentos y verdes",
+  "descripcion": "Espirulina, chlorella, clorofila, musgo marino, matcha, polen y mezclas de greens.",
+  "ejemplos": [
+   "Spirulina orgánica de Now Foods | 100 Tabletas",
+   "Chlorella de Now Foods | 120 Tabletas",
+   "Green Alba de Natural Health | Super Greens con Lactobacilos | 180 gr"
+  ]
+ },
+ {
+  "tipo": "Salud cardiovascular y circulación",
+  "descripcion": "Fórmulas para colesterol, presión y circulación: levadura roja de arroz, bergamota, espino, betabel, esteroles.",
+  "ejemplos": [
+   "Colesterol Pro™ con Bergamota y Policosanol de NOW Foods | 120 Tabletas Veganas",
+   "Beta-Sitosterol, Esteroles Vegetales de Now | 90 Cápsulas",
+   "Arroz de Levadura Roja 1.2g de Designs For Health | 180 Cápsulas Vegetales"
+  ]
+ },
+ {
+  "tipo": "Bienestar femenino y menopausia",
+  "descripcion": "Cohosh negro, vitex, dong quai, isoflavonas, ñame silvestre y fórmulas de equilibrio hormonal femenino.",
+  "ejemplos": [
+   "Black Cohosh Root de Now | 90 cápsulas",
+   "Vitex VTX 500 mg Adaptoheal | 150 cápsulas Vegetales",
+   "EstroPause Menopause Support de Irwin Naturals | 80 Cápsulas"
+  ]
+ },
+ {
+  "tipo": "Bienestar masculino y próstata",
+  "descripcion": "Saw palmetto, tongkat ali, tribulus, DHEA y fórmulas de vitalidad masculina y próstata.",
+  "ejemplos": [
+   "Extracto de Saw Palmetto 160 mg de Now | 120 Cápsulas blandas",
+   "TestoJack 100 NOW Foods | 60 cápsulas",
+   "Tongkat Ali 200:1 Eternal Nutrition | 150 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Salud de la vista",
+  "descripcion": "Luteína, zeaxantina, arándano europeo y fórmulas para bienestar ocular.",
+  "ejemplos": [
+   "Luteína 20 mg + Zeaxantina 4 mg de Health Thru Nutrition | 60 cápsulas Blandas",
+   "MacuGuard® 173mg con Azafrán de Life Extension | 60 Cápsulas Blandas",
+   "Vision Sharp con Luteína de Irwin Naturals | 42 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Vías urinarias y renal",
+  "descripcion": "Arándano, D-manosa, uva ursi y mezclas herbales para riñón y vejiga.",
+  "ejemplos": [
+   "D-Mannosa 500 mg de NOW Foods | 120 Cápsulas Vegetales",
+   "Fruta de Arándano 930mg de Nature's Way | 180 cápsulas veganas",
+   "Kidney Cleanse de Now | 90 cápsulas"
+  ]
+ },
+ {
+  "tipo": "Apoyo tiroideo",
+  "descripcion": "Fórmulas con yodo, tirosina y hierbas dirigidas al funcionamiento normal de la tiroides.",
+  "ejemplos": [
+   "L-Tirosina Thyroid Energy de Now Foods | 90 Cápsulas Vegetales",
+   "Apoyo tiroideo, Thyroid Max Support | GOU Medical | 90 cápsulas",
+   "MedCaps T3 Xymogen | 120 Cápsulas Vegetales"
+  ]
+ },
+ {
+  "tipo": "Suplementos para niños",
+  "descripcion": "Vitaminas, minerales, omegas y fórmulas formuladas específicamente para bebés y niños.",
+  "ejemplos": [
+   "Multivitamínico Orgánicas Para Niños de Mary Ruth's | 60 gomitas",
+   "Aceite de hígado de bacalao para niños de Child Life | 273 ml",
+   "DHA Kids de Now | 60 Cápsulas"
+  ]
+ },
+ {
+  "tipo": "Aceites esenciales y aromaterapia",
+  "descripcion": "Aceites esenciales puros y roll-ons de uso tópico o aromático; no se ingieren.",
+  "ejemplos": [
+   "Aceite esencial de árbol de té 100% puro de Now | 59 mL",
+   "Aceite Esencial Orgánico Lavanda de NOW Foods | Roll-On 10 ml",
+   "Aceite de Citronela, NOW, 100% puro | 30 ml"
+  ]
+ },
+ {
+  "tipo": "Cuidado de la piel y cosmética",
+  "descripcion": "Sérums, cremas, lociones, geles y aceites corporales de aplicación tópica.",
+  "ejemplos": [
+   "Serúm de Bakuchiol de Now | 30 ml",
+   "Crema rejuvenecedora MSM Healthy Skin de NOW | 237 ml",
+   "Gel calmante de aloe de NOW Solutions | 237 mL"
+  ]
+ },
+ {
+  "tipo": "Higiene bucal",
+  "descripcion": "Pastas dentales y productos para el cuidado de la boca.",
+  "ejemplos": [
+   "Pasta Dental en gel XyliWhite Refreshmint de NOW Solutions | 181 g",
+   "Pasta Dental Herbal Menta | Libre de Fluor | 150 g",
+   "Pasta Dental Natural con Neem y Granada | 150 g"
+  ]
+ },
+ {
+  "tipo": "Despensa y accesorios",
+  "descripcion": "Aceites de cocina, leche en polvo, levadura nutricional, snacks, cápsulas vacías, tests genéticos y servicios.",
+  "ejemplos": [
+   "Aceite de Aguacate Extra Virgen con Vitamina E de NBF | 260ml",
+   "Cápsulas vacías vegetales NOW Double \"00\" 250 piezas",
+   "Test genético \"Gen Test\" de Nutrición + Envío"
+  ]
+ }
+]

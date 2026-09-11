@@ -170,7 +170,10 @@ export default function MisCarritosMerge() {
   // ── Stats ──
   const totalCarts     = carts.length;
   const totalValor     = carts.reduce((s, c) => s + c.items_value, 0);
-  const completados    = carts.filter(c => c.status === "completed").length;
+  // `has_sale` es la señal real de conversión: lo calcula el endpoint cruzando
+  // el token contra orders. Antes esto miraba c.status === "completed", pero la
+  // API devuelve "Completed" con mayúscula, así que el contador daba siempre 0.
+  const completados    = carts.filter(c => c.has_sale).length;
   const walletBalance  = walletData?.wallet?.available ?? 0;
 
   const chartColor1 = "#1b3f7a";
@@ -185,7 +188,7 @@ export default function MisCarritosMerge() {
             Analytics
           </h1>
           <p className="text-xs text-gray-400 font-medium">
-            Evolución de tus sharecarts y ganancias a través del tiempo
+            Evolución de tus protocolos y ganancias a través del tiempo
           </p>
         </div>
       </div>
@@ -197,7 +200,7 @@ export default function MisCarritosMerge() {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <StatCard
             icon={ShoppingCart}
-            label="Total sharecarts"
+            label="Total protocolos"
             value={totalCarts}
             accent="bg-[#1b3f7a]"
           />
@@ -225,8 +228,8 @@ export default function MisCarritosMerge() {
 
         {/* Chart 1: Sharecarts por mes */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6">
-          <h2 className="text-sm font-bold text-gray-700 mb-1">Sharecarts por mes</h2>
-          <p className="text-xs text-gray-400 mb-5">Número de carritos compartidos cada mes</p>
+          <h2 className="text-sm font-bold text-gray-700 mb-1">Protocolos por mes</h2>
+          <p className="text-xs text-gray-400 mb-5">Número de protocolos compartidos cada mes</p>
           {cartsPerMonth.length === 0 ? (
             <div className="h-48 flex items-center justify-center text-gray-300 text-sm">
               Sin datos suficientes
@@ -262,7 +265,7 @@ export default function MisCarritosMerge() {
         {/* Chart 2: Valor de carritos por mes */}
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 sm:p-6">
           <h2 className="text-sm font-bold text-gray-700 mb-1">Valor generado por mes</h2>
-          <p className="text-xs text-gray-400 mb-5">Suma del valor de los productos en tus sharecarts</p>
+          <p className="text-xs text-gray-400 mb-5">Suma del valor de los productos en tus protocolos</p>
           {valuePerMonth.length === 0 ? (
             <div className="h-48 flex items-center justify-center text-gray-300 text-sm">
               Sin datos suficientes

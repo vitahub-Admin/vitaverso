@@ -723,8 +723,19 @@ function CollectionCard({ item, onClick, loading, imageUrl }) {
 // Los productos sin stock se listan igual, al final. Desde acá el especialista
 // le avisa al equipo que hay demanda; el endpoint resuelve quién lo pide por
 // sesión, así que no hace falta pedirle ningún dato.
-function RestockButton({ product, variant = null, size = "sm" }) {
+function RestockButton({ product, variant = null, size = "sm", seccion = "listado" }) {
   const [state, setState] = useState("idle"); // idle | sending | done | error
+
+  // El SKU es lo que usa el equipo para reponer, así que tiene que viajar
+  // siempre. Desde la ficha del producto hay una variante elegida; desde la
+  // tarjeta del listado no hay ninguna, y entonces tomamos las del producto
+  // —que al estar sin stock están todas—. Si hay varias presentaciones van
+  // las dos, separadas por coma.
+  const variantes = variant ? [variant] : (product.variants || []);
+  const skus      = variantes.map(v => v?.sku).filter(Boolean);
+  const sku       = skus.length ? [...new Set(skus)].join(", ") : null;
+  const variantId = variant?.variant_id
+    ?? (variantes.length === 1 ? variantes[0]?.variant_id : null);
 
   const solicitar = async (e) => {
     e.stopPropagation();
@@ -737,8 +748,9 @@ function RestockButton({ product, variant = null, size = "sm" }) {
         body:    JSON.stringify({
           product_id:    product.product_id,
           product_title: product.title,
-          variant_id:    variant?.variant_id ?? null,
-          sku:           variant?.sku ?? null,
+          variant_id:    variantId,
+          sku,
+          seccion,
         }),
       });
       const data = await res.json();
@@ -1363,7 +1375,8 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
           {outOfStock
             ? <div className="space-y-2">
                 <div className="w-full bg-[#F7F9FB] text-[#B0C8D4] text-sm font-semibold py-3.5 rounded-xl text-center border border-[#D0E4EC]">Sin stock disponible</div>
-                <RestockButton product={product} variant={selectedVariant} size="lg" />
+                <RestockButton product={product} variant={selectedVariant} size="lg"
+                  seccion="ficha de producto" />
               </div>
             : <button onClick={handleAdd}
                 className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${inCart ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
