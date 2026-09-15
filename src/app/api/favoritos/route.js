@@ -106,27 +106,59 @@ async function fetchCollectionProducts(collectionId, commissionMap) {
       is_professional:    enrichment.is_professional || false,
       commission_percent: enrichment.commission_percent ?? 0,
       componente:         enrichment.componente || null,
+      // Niveles del árbol de categorías: sin ellos el breadcrumb del
+      // detalle no aparece para productos abiertos desde favoritos.
+      level_1:            enrichment.level_1 || null,
+      level_2:            enrichment.level_2 || null,
+      level_3:            enrichment.level_3 || null,
       variants,
       all_out_of_stock:   inStock.length === 0,
     };
   });
 }
 
-/** Trae comisiones y marcas de product_catalog para una lista de product IDs */
+/**
+ * Trae marca, componente, niveles y comisión para una lista de product IDs.
+ * product_catalog tiene una fila por variante y no guarda la comisión: esa vive
+ * en product_variant_commissions, y al producto le toca la mayor de sus variantes.
+ */
 async function fetchCommissions(productIds) {
   if (!productIds.length) return {};
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("product_catalog")
-    .select("product_shopify_id, brand, commission_percent, is_professional, componente")
-    .in("product_shopify_id", productIds.map(Number));
+    .select("product_id, variant_id, brand, is_professional, componente, level_1, level_2, level_3")
+    .in("product_id", productIds.map(Number))
+    .limit(2000);
+  if (error) console.error("favoritos fetchCommissions error:", error.message);
+
+  const variantIds = (data || []).map(r => r.variant_id).filter(Boolean);
+  const { data: commData } = variantIds.length
+    ? await supabase
+        .from("product_variant_commissions")
+        .select("variant_id, commission_percent")
+        .in("variant_id", variantIds)
+        .eq("active", true)
+    : { data: [] };
+  const commByVariant = {};
+  for (const c of commData || []) commByVariant[c.variant_id] = Number(c.commission_percent);
+
   const map = {};
   for (const row of data || []) {
-    map[String(row.product_shopify_id)] = {
-      brand:              row.brand || null,
-      commission_percent: row.commission_percent ?? 0,
-      is_professional:    row.is_professional || false,
-      componente:         row.componente || null,
-    };
+    const key  = String(row.product_id);
+    const comm = commByVariant[row.variant_id] ?? 0;
+    if (!map[key]) {
+      map[key] = {
+        brand:              row.brand || null,
+        commission_percent: comm,
+        is_professional:    row.is_professional || false,
+        componente:         row.componente || null,
+        level_1:            row.level_1 || null,
+        level_2:            row.level_2 || null,
+        level_3:            row.level_3 || null,
+      };
+    } else if (comm > map[key].commission_percent) {
+      map[key].commission_percent = comm;
+    }
   }
   return map;
 }

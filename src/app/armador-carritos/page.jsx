@@ -207,6 +207,7 @@ function useFavorites(customerId) {
       commission_percent: product.commission_percent || 0,
       componente: product.componente || null, variants: product.variants || [],
       all_out_of_stock: product.all_out_of_stock || false,
+      level_1: product.level_1 || null, level_2: product.level_2 || null, level_3: product.level_3 || null,
     };
 
     setFavorites(prev => {
