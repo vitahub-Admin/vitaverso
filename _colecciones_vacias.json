@@ -1,0 +1,422 @@
+[
+ {
+  "handle": "plan-cuidado-de-la-piel",
+  "title": "Plan Cuidado de la piel",
+  "seo": null,
+  "tipo": "Cuidado de la piel y cosmética",
+  "auto": true
+ },
+ {
+  "handle": "destacados-vitamina-a",
+  "title": "Destacados vitamina-a",
+  "seo": null,
+  "tipo": "Vitamina C",
+  "auto": true
+ },
+ {
+  "handle": "multivitaminicos",
+  "title": "Multivitamínicos",
+  "seo": null,
+  "tipo": "Multivitamínicos",
+  "auto": true
+ },
+ {
+  "handle": "aminoacidos-1",
+  "title": "Aminoácidos",
+  "seo": null,
+  "tipo": "Aminoácidos y BCAA",
+  "auto": true
+ },
+ {
+  "handle": "multivitaminicos-post-parto",
+  "title": "Multivitamínicos post parto",
+  "seo": null,
+  "tipo": "Multivitamínicos",
+  "auto": true
+ },
+ {
+  "handle": "multivitaminicos-para-adultos-mayores",
+  "title": "Multivitamínicos para adultos mayores",
+  "seo": null,
+  "tipo": "Multivitamínicos",
+  "auto": true
+ },
+ {
+  "handle": "multivitaminicos-deportivos-en-mexico",
+  "title": "Tienda para Comprar Multivitamínicos deportivos",
+  "seo": null,
+  "tipo": "Multivitamínicos",
+  "auto": true
+ },
+ {
+  "handle": "combinados-para-huesos-en-mexico",
+  "title": "Tienda para Comprar Combinados para huesos",
+  "seo": null,
+  "tipo": "Articulaciones y huesos",
+  "auto": true
+ },
+ {
+  "handle": "combinados-para-longevidad-en-mexico",
+  "title": "Tienda para Comprar Combinados para longevidad",
+  "seo": null,
+  "tipo": "Longevidad: NAD+, NMN y resveratrol",
+  "auto": true
+ },
+ {
+  "handle": "combinados-para-cabello-piel-y-unas",
+  "title": "Combinados para cabello, piel y uñas",
+  "seo": null,
+  "tipo": "Belleza: cabello, piel y uñas",
+  "auto": true
+ },
+ {
+  "handle": "caida-de-cabello-mujer",
+  "title": "Caída de cabello mujer",
+  "seo": null,
+  "tipo": "Belleza: cabello, piel y uñas",
+  "auto": true
+ },
+ {
+  "handle": "prostata-en-mexico",
+  "title": "Tienda para Comprar Próstata",
+  "seo": null,
+  "tipo": "Bienestar masculino y próstata",
+  "auto": true
+ },
+ {
+  "handle": "caida-de-cabello-hombres",
+  "title": "Caída de cabello hombres",
+  "seo": null,
+  "tipo": "Belleza: cabello, piel y uñas",
+  "auto": true
+ },
+ {
+  "handle": "electrolitos-e-hidratacion",
+  "title": "Electrolitos e hidratación",
+  "seo": null,
+  "tipo": "Potasio y electrolitos",
+  "auto": true
+ },
+ {
+  "handle": "probioticos-para-mujeres",
+  "title": "Probióticos para mujeres",
+  "seo": null,
+  "tipo": "Probióticos",
+  "auto": true
+ },
+ {
+  "handle": "probioticos-para-hombres",
+  "title": "Probióticos para hombres",
+  "seo": null,
+  "tipo": "Probióticos",
+  "auto": true
+ },
+ {
+  "handle": "probioticos-para-ninos",
+  "title": "Probióticos para niños",
+  "seo": null,
+  "tipo": "Probióticos",
+  "auto": true
+ },
+ {
+  "handle": "edades",
+  "title": "Edades",
+  "seo": null,
+  "tipo": "",
+  "auto": false
+ },
+ {
+  "handle": "suplementos-survivor-shot-en-mexico",
+  "title": "Survivor shot",
+  "seo": "Survivor Shot Suplemento para Energía y Resistencia",
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "clinica-vitaminas",
+  "title": "Clinica vitaminas",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "hormonas-y-neurotrasmisores",
+  "title": "Hormonas y neurotrasmisores",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "suplementos-para-hombres",
+  "title": "Suplementos para hombres",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "embarazo-y-prenatales",
+  "title": "Embarazo y prenatales",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "post-parto-y-lactancia",
+  "title": "Post parto y lactancia",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "testosterona-en-mexico",
+  "title": "Tienda para Comprar Testosterona",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "vigorizantes-en-mexico",
+  "title": "Tienda para Comprar Vigorizantes",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "pre-entreno",
+  "title": "Pre entreno",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "post-entreno-y-recuperacion",
+  "title": "Post entreno y recuperación",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "creatinas",
+  "title": "Creatinas",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "combinados-para-deportistas",
+  "title": "Combinados para deportistas",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "combinados-para-soporte-digestivo",
+  "title": "Combinados para soporte digestivo",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "ganadores-de-masa-muscular",
+  "title": "Ganadores de masa muscular",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "matcha-en-mexico",
+  "title": "Tienda para Comprar Matcha",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "chia-en-mexico",
+  "title": "Tienda para Comprar Chia",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "harina-de-avena",
+  "title": "harina de avena",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "harina-de-maiz",
+  "title": "Harina de maíz",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "harina-de-coliflor",
+  "title": "Harina de coliflor",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "harina-sin-gluten",
+  "title": "Harina sin gluten",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "harina-para-hotcakes-sin-gluten",
+  "title": "Harina para hotcakes sin gluten",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "empanizador-sin-gluten",
+  "title": "Empanizador sin gluten",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "jarabe-de-agave-organico",
+  "title": "Jarabe de agave orgánico",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "mascabado",
+  "title": "Mascabado",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "azucar-organica",
+  "title": "Azúcar orgánica",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "granola-con-proteina",
+  "title": "Granola con proteína",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "snacks-proteicos",
+  "title": "Snacks proteicos",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "crema-de-cacahuate",
+  "title": "Crema de cacahuate",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "crema-de-avellana",
+  "title": "Crema de avellana",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "crema-de-pistacho",
+  "title": "Crema de pistacho",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "crema-de-almendra",
+  "title": "Crema de almendra",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "te-masala",
+  "title": "Té masala",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "te-negro",
+  "title": "Té negro",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "ghee",
+  "title": "Ghee",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "botanas-en-mexico",
+  "title": "Tienda para Comprar Botanas",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "galletas",
+  "title": "Galletas",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "frutas-deshidratads",
+  "title": "Frutas deshidratads",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "andrea-isabel-lopez-ramirez",
+  "title": "Andrea Isabel López Ramírez",
+  "seo": null,
+  "tipo": "",
+  "auto": false
+ },
+ {
+  "handle": "30-60-90-3-6",
+  "title": "30-60-90-3%-6%",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "marco-antonio-buendia-fernandez",
+  "title": "Marco Antonio Buendia Fernandez",
+  "seo": null,
+  "tipo": "",
+  "auto": false
+ },
+ {
+  "handle": "suplementos-ronnie-coleman-en-mexico",
+  "title": "Tienda de suplementos Ronnie Coleman",
+  "seo": null,
+  "tipo": "",
+  "auto": true
+ },
+ {
+  "handle": "sonia-cecilia-montes-espinoza",
+  "title": "Sonia cecilia Montes espinoza",
+  "seo": null,
+  "tipo": "",
+  "auto": false
+ }
+]

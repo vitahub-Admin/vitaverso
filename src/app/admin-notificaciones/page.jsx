@@ -6,6 +6,7 @@ import { Bell, Send, Users, User, Smartphone } from "lucide-react";
 export default function AdminNotificacionesPage() {
   const [title,    setTitle]    = useState("");
   const [body,     setBody]     = useState("");
+  const [url,      setUrl]      = useState("");
   const [sending,  setSending]  = useState(false);
   const [feedback, setFeedback] = useState(null);
   const [mode,     setMode]     = useState("all"); // "all" | "single"
@@ -58,6 +59,7 @@ export default function AdminNotificacionesPage() {
         body:    JSON.stringify({
           title: title.trim(),
           body:  body.trim(),
+          url:   url.trim() || undefined,
           target: mode === "single" ? String(selected.shopify_customer_id) : "all",
         }),
       });
@@ -72,6 +74,7 @@ export default function AdminNotificacionesPage() {
         });
         setTitle("");
         setBody("");
+        setUrl("");
         setSelected(null);
         setSearch("");
       } else {
@@ -209,7 +212,7 @@ export default function AdminNotificacionesPage() {
           <div className="flex flex-col gap-1.5">
             <label className="text-sm font-bold text-gray-700">Mensaje</label>
             <textarea
-              placeholder="Escribí el cuerpo de la notificación..."
+              placeholder="Escribe el cuerpo de la notificación..."
               value={body}
               onChange={(e) => setBody(e.target.value)}
               rows={4}
@@ -217,6 +220,22 @@ export default function AdminNotificacionesPage() {
               className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]/30 resize-none"
             />
             <span className="text-xs text-gray-400 text-right">{body.length}/200</span>
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <label className="text-sm font-bold text-gray-700">
+              Link <span className="font-normal text-gray-400">(opcional)</span>
+            </label>
+            <input
+              type="url"
+              placeholder="https://vitahub.mx/..."
+              value={url}
+              onChange={(e) => setUrl(e.target.value)}
+              className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]/30"
+            />
+            <span className="text-xs text-gray-400">
+              Se abre al tocar la notificación. Solo funciona en la versión de la app que incluye esta función.
+            </span>
           </div>
 
           {feedback && (

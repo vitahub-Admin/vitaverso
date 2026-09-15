@@ -15,13 +15,27 @@ function daysRemaining(startDate, durationDays) {
   return Math.max(0, durationDays - elapsed);
 }
 
-async function sendPush(tokens, title, body, url) {
+/**
+ * Datos del aviso, con la misma forma que usan los recordatorios locales de la
+ * app de clientes. La app decide qué hacer al tocarlo mirando `productHandle`
+ * (abre /restock-detail); con solo `url`, tocar un aviso enviado desde el
+ * servidor no hacía nada.
+ */
+function restockData(row) {
+  return {
+    url: row.product_handle ? `${STORE_URL}/${row.product_handle}` : STORE_URL,
+    productHandle: row.product_handle ?? null,
+    productTitle:  row.product_title ?? null,
+  };
+}
+
+async function sendPush(tokens, title, body, data) {
   if (!tokens.length) return;
   const messages = tokens.map((token) => ({
     to: token,
     title,
     body,
-    data: { url },
+    data,
     sound: "default",
   }));
 
@@ -72,11 +86,10 @@ export async function sendRestockNotifications() {
   for (const row of at5) {
     const token = tokenByCustomer[row.shopify_customer_id];
     if (!token) continue;
-    const url = row.product_handle ? `${STORE_URL}/${row.product_handle}` : STORE_URL;
     await sendPush([token],
       "Te quedan 5 días de suplemento",
-      `Tu ${row.product_title} se acaba pronto. ¡Reabastecete!`,
-      url
+      `Tu ${row.product_title} se acaba pronto. ¡Reabastécete!`,
+      restockData(row)
     );
     sent++;
   }
@@ -84,11 +97,10 @@ export async function sendRestockNotifications() {
   for (const row of at3) {
     const token = tokenByCustomer[row.shopify_customer_id];
     if (!token) continue;
-    const url = row.product_handle ? `${STORE_URL}/${row.product_handle}` : STORE_URL;
     await sendPush([token],
       "Te quedan solo 3 días",
-      `Tu ${row.product_title} está por terminarse. Comprá antes de que se agote.`,
-      url
+      `Tu ${row.product_title} está por terminarse. Compra antes de que se agote.`,
+      restockData(row)
     );
     sent++;
   }

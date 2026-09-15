@@ -129,7 +129,7 @@ export async function POST(req) {
     // Más rows porque hay una por variante y deduplicamos por product_id
     const { data: rows, error: dbError } = await supabase
       .from("product_catalog")
-      .select("product_id, title, brand, componente, primary_ingredient, is_professional, price")
+      .select("product_id, title, brand, componente, primary_ingredient, is_professional, price, level_1, level_2, level_3")
       .or(orConditions)
       .order("is_professional", { ascending: false })
       .limit(200);
@@ -179,6 +179,9 @@ export async function POST(req) {
         brand:              row.brand,
         is_professional:    !!row.is_professional,
         is_favorite:        favoriteIds.has(id),
+        level_1:            row.level_1 || null,
+        level_2:            row.level_2 || null,
+        level_3:            row.level_3 || null,
         image_url:          null,
         min_price:          row.price ?? null,
         commission_percent: 0,

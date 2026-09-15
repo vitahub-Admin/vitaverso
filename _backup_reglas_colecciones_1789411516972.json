@@ -1,0 +1,122 @@
+[
+ {
+  "handle": "electrolitos-e-hidratacion",
+  "id": "gid://shopify/Collection/638747476289",
+  "title": "Electrolitos e hidratación",
+  "ruleSet": {
+   "appliedDisjunctively": false,
+   "rules": [
+    {
+     "column": "TAG",
+     "relation": "EQUALS",
+     "condition": "Electrolitos e hidratación"
+    }
+   ]
+  }
+ },
+ {
+  "handle": "aminoacidos-1",
+  "id": "gid://shopify/Collection/638359142721",
+  "title": "Aminoácidos",
+  "ruleSet": {
+   "appliedDisjunctively": false,
+   "rules": [
+    {
+     "column": "TAG",
+     "relation": "EQUALS",
+     "condition": "prueba"
+    }
+   ]
+  }
+ },
+ {
+  "handle": "multivitaminicos",
+  "id": "gid://shopify/Collection/638358978881",
+  "title": "Multivitamínicos",
+  "ruleSet": {
+   "appliedDisjunctively": true,
+   "rules": [
+    {
+     "column": "TAG",
+     "relation": "EQUALS",
+     "condition": "prueba"
+    }
+   ]
+  }
+ },
+ {
+  "handle": "combinados-para-longevidad-en-mexico",
+  "id": "gid://shopify/Collection/638662836545",
+  "title": "Tienda para Comprar Combinados para longevidad",
+  "ruleSet": {
+   "appliedDisjunctively": false,
+   "rules": [
+    {
+     "column": "TAG",
+     "relation": "EQUALS",
+     "condition": "Combinados para longevidad"
+    }
+   ]
+  }
+ },
+ {
+  "handle": "creatinas",
+  "id": "gid://shopify/Collection/638747541825",
+  "title": "Creatinas",
+  "ruleSet": {
+   "appliedDisjunctively": false,
+   "rules": [
+    {
+     "column": "TAG",
+     "relation": "EQUALS",
+     "condition": "Creatinas"
+    }
+   ]
+  }
+ },
+ {
+  "handle": "combinados-para-cabello-piel-y-unas",
+  "id": "gid://shopify/Collection/638662902081",
+  "title": "Combinados para cabello, piel y uñas",
+  "ruleSet": {
+   "appliedDisjunctively": false,
+   "rules": [
+    {
+     "column": "TAG",
+     "relation": "EQUALS",
+     "condition": "Combinados para cabello, piel y uñas"
+    }
+   ]
+  }
+ },
+ {
+  "handle": "prostata-en-mexico",
+  "id": "gid://shopify/Collection/638663721281",
+  "title": "Tienda para Comprar Próstata",
+  "ruleSet": {
+   "appliedDisjunctively": false,
+   "rules": [
+    {
+     "column": "TAG",
+     "relation": "EQUALS",
+     "condition": "Prostata"
+    }
+   ]
+  }
+ },
+ {
+  "handle": "combinados-para-huesos-en-mexico",
+  "id": "gid://shopify/Collection/638662803777",
+  "title": "Tienda para Comprar Combinados para huesos",
+  "ruleSet": {
+   "appliedDisjunctively": false,
+   "rules": [
+    {
+     "column": "TAG",
+     "relation": "EQUALS",
+     "condition": "Combinados para huesos"
+    }
+   ]
+  }
+ }
+]

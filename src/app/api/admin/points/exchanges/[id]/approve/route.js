@@ -120,12 +120,28 @@ const available = totalIn - totalOut;
 
     if (updateError) throw updateError;
 
-    sendPushToAffiliate(
-      exchange.customer_id,
-      '¡Cobro aprobado! 🎉',
-      `Tu solicitud de ${exchange.points_requested} puntos fue procesada correctamente.`,
-      { type: 'exchange_approved', exchangeId: exchange.id }
-    ).catch(() => {});
+    // Aviso solo para retiros a CLABE: los créditos en tienda se generan solos y
+    // ya mandan su propio aviso desde la ruta de store-credit.
+    //
+    // Se espera la llamada: en serverless una promesa sin await puede cortarse al
+    // devolver la respuesta y el push nunca sale. Un fallo del push no revierte la
+    // aprobación, por eso va en su propio try.
+    if (exchange.exchange_type === 'cash') {
+      const monto = Number(exchange.points_requested).toLocaleString('es-MX', {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+      try {
+        await sendPushToAffiliate(
+          exchange.customer_id,
+          '¡Tu pago fue aprobado! 💸',
+          `Tu pago de $${monto} MXN fue aprobado y se verá reflejado en tu cuenta en las próximas horas.`,
+          { type: 'exchange_approved', exchangeId: exchange.id }
+        );
+      } catch (pushErr) {
+        console.error('⚠️ Push de pago aprobado no enviado:', pushErr?.message);
+      }
+    }
 
     return NextResponse.json({
       success: true,

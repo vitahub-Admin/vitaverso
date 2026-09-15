@@ -395,6 +395,9 @@ export async function GET(req) {
             primary_amount:     r.primary_amount || null,
             primary_unit:       r.primary_unit || null,
             nutrients:          r.nutrients || [],
+            level_1:            r.level_1 || null,
+            level_2:            r.level_2 || null,
+            level_3:            r.level_3 || null,
             skuByVariant:       {},
           }
         }
@@ -447,6 +450,11 @@ export async function GET(req) {
           primary_amount:     enrich?.primary_amount || null,
           primary_unit:       enrich?.primary_unit || null,
           nutrients:          enrich?.nutrients || [],
+          // Niveles del árbol de categorías: sin ellos el breadcrumb del
+          // detalle no aparece para productos abiertos desde una colección.
+          level_1:            enrich?.level_1 || null,
+          level_2:            enrich?.level_2 || null,
+          level_3:            enrich?.level_3 || null,
           variants,
           min_price:          prices.length ? Math.min(...prices) : null,
           all_out_of_stock:   allOOS,

@@ -1,0 +1,2097 @@
+[
+ {
+  "handle": "all_products",
+  "n": 2375,
+  "seo": "all products"
+ },
+ {
+  "handle": "globofilter-best-selling-products-index",
+  "n": 2375,
+  "seo": "Smart Products Filter Index - Do not delete"
+ },
+ {
+  "handle": "best-selling-products",
+  "n": 2375,
+  "seo": "Best Selling Products"
+ },
+ {
+  "handle": "newest-products",
+  "n": 2375,
+  "seo": "Newest Products"
+ },
+ {
+  "handle": "all",
+  "n": 2292,
+  "seo": "All"
+ },
+ {
+  "handle": "new-collection",
+  "n": 2292,
+  "seo": "New products"
+ },
+ {
+  "handle": "best-selling-collection",
+  "n": 2292,
+  "seo": "Best selling products"
+ },
+ {
+  "handle": "suplementos-para-salud-femenina-mujer",
+  "n": 2213,
+  "seo": "Suplementos para salud femenina mujer"
+ },
+ {
+  "handle": "descuentos-lanzamiento",
+  "n": 1816,
+  "seo": "Descuentos Lanzamiento"
+ },
+ {
+  "handle": "regala-bienestar",
+  "n": 1816,
+  "seo": "Regala Bienestar"
+ },
+ {
+  "handle": "rebajas",
+  "n": 1816,
+  "seo": "Rebajas"
+ },
+ {
+  "handle": "black-friday-ofertas",
+  "n": 1815,
+  "seo": "Black Friday ofertas"
+ },
+ {
+  "handle": "comprar-suplementos",
+  "n": 1766,
+  "seo": "Comprar suplementos"
+ },
+ {
+  "handle": "comision",
+  "n": 1663,
+  "seo": "Comision"
+ },
+ {
+  "handle": "productos",
+  "n": 1464,
+  "seo": "Todos los productos"
+ },
+ {
+  "handle": "aniversario-old",
+  "n": 1306,
+  "seo": "Aniversario 2025"
+ },
+ {
+  "handle": "productos-con-descuento",
+  "n": 1305,
+  "seo": "Productos con descuento"
+ },
+ {
+  "handle": "compra-1-2-o-3-unidades",
+  "n": 1152,
+  "seo": "Compra 1 , 2 o 3 unidades"
+ },
+ {
+  "handle": "envio-cita-gratis",
+  "n": 1137,
+  "seo": "Envío + cita gratis"
+ },
+ {
+  "handle": "productos-con-regalo",
+  "n": 1092,
+  "seo": "Productos con regalo"
+ },
+ {
+  "handle": "vitaminas-y-suplementos-en-mexico",
+  "n": 1040,
+  "seo": "Tienda para Comprar Vitaminas y Suplementos en México"
+ },
+ {
+  "handle": "l1-prueba",
+  "n": 1040,
+  "seo": "l1 prueba"
+ },
+ {
+  "handle": "suplementos-vitaminas-y-minerales",
+  "n": 1027,
+  "seo": "Vitaminas y Minerales para salud y bienestar"
+ },
+ {
+  "handle": "l1-vitaminas-y-suplementos",
+  "n": 1027,
+  "seo": "L1 vitaminas y suplementos"
+ },
+ {
+  "handle": "super-rebajas",
+  "n": 937,
+  "seo": "Super Rebajas"
+ },
+ {
+  "handle": "envio-gratis",
+  "n": 900,
+  "seo": "Envío gratis"
+ },
+ {
+  "handle": "suscripciones",
+  "n": 785,
+  "seo": "Suscripciones"
+ },
+ {
+  "handle": "level123",
+  "n": 754,
+  "seo": "level123"
+ },
+ {
+  "handle": "vitasale",
+  "n": 738,
+  "seo": "Vitasale"
+ },
+ {
+  "handle": "30-dias",
+  "n": 619,
+  "seo": "30.60 90 días"
+ },
+ {
+  "handle": "herbales-y-adaptogenos",
+  "n": 607,
+  "seo": "Herbales y Adaptógenos"
+ },
+ {
+  "handle": "productos-con-cupon",
+  "n": 607,
+  "seo": "Productos con Cupón"
+ },
+ {
+  "handle": "marcas-profesionales",
+  "n": 602,
+  "seo": "Marcas Profesionales"
+ },
+ {
+  "handle": "vitahub-afiliados-15",
+  "n": 592,
+  "seo": "Vitahub Afiliados 15%"
+ },
+ {
+  "handle": "suscripcion-mensual",
+  "n": 577,
+  "seo": "suscripción mensual"
+ },
+ {
+  "handle": "hasta-20",
+  "n": 524,
+  "seo": "hasta 20%"
+ },
+ {
+  "handle": "hasta-10",
+  "n": 470,
+  "seo": "hasta 10%"
+ },
+ {
+  "handle": "vitaminas",
+  "n": 462,
+  "seo": "Vitaminas esenciales para salud y energía"
+ },
+ {
+  "handle": "herbales",
+  "n": 448,
+  "seo": "Herbales"
+ },
+ {
+  "handle": "aniversario",
+  "n": 412,
+  "seo": "Aniversario"
+ },
+ {
+  "handle": "suplementos-marcas-mexicanas",
+  "n": 368,
+  "seo": "Suplementos Marcas Mexicanas"
+ },
+ {
+  "handle": "productos-excluidos-wiser",
+  "n": 362,
+  "seo": "productos excluidos wiser"
+ },
+ {
+  "handle": "pruebaaaaa",
+  "n": 355,
+  "seo": "PRUEBAAAAA"
+ },
+ {
+  "handle": "60-dias",
+  "n": 341,
+  "seo": "60 días"
+ },
+ {
+  "handle": "suplementos-now-foods-en-mexico",
+  "n": 326,
+  "seo": "Tienda de suplementos Now foods"
+ },
+ {
+  "handle": "15-de-descuento",
+  "n": 315,
+  "seo": "15% de Descuento"
+ },
+ {
+  "handle": "rebajas-malestar-digestivo",
+  "n": 286,
+  "seo": "Rebajas Malestar Digestivo"
+ },
+ {
+  "handle": "10-de-descuento",
+  "n": 245,
+  "seo": "10% de Descuento"
+ },
+ {
+  "handle": "suplementos-minerales",
+  "n": 210,
+  "seo": "Suplementos minerales | Magnesio, zinc, hierro, calcio y más"
+ },
+ {
+  "handle": "longevidad-huesos-y-piel",
+  "n": 209,
+  "seo": "Longevidad , huesos y piel"
+ },
+ {
+  "handle": "suplementos-con-magnesio",
+  "n": 207,
+  "seo": "Suplementos con magnesio para relajación y salud"
+ },
+ {
+  "handle": "vitaminas-de-letras-en-mexico",
+  "n": 198,
+  "seo": "Vitaminas por letra | A, B, C, D, E y K con orientación profesional"
+ },
+ {
+  "handle": "como-reducir-ansiedad-y-estres",
+  "n": 188,
+  "seo": "¿Cómo calmar o combatir la ansiedad y el estrés?"
+ },
+ {
+  "handle": "rebajas-ansiedad",
+  "n": 188,
+  "seo": "Rebajas Ansiedad"
+ },
+ {
+  "handle": "suplementos-para-salud-masculina-hombres",
+  "n": 185,
+  "seo": "Suplementos para salud masculina -  hombres"
+ },
+ {
+  "handle": "suplementos-now",
+  "n": 156,
+  "seo": "Suplementos NOW para salud integral y bienestar"
+ },
+ {
+  "handle": "90-dias",
+  "n": 138,
+  "seo": "90 dias"
+ },
+ {
+  "handle": "cabello",
+  "n": 129,
+  "seo": "Cabello"
+ },
+ {
+  "handle": "multivitaminico-en-mexico",
+  "n": 122,
+  "seo": "Tienda para comprar Multivitamínicos para mujeres, hombres, niños y más | Vitahub"
+ },
+ {
+  "handle": "ansiedad",
+  "n": 119,
+  "seo": "Ansiedad"
+ },
+ {
+  "handle": "rebajas-insomnio",
+  "n": 119,
+  "seo": "Rebajas Insomnio"
+ },
+ {
+  "handle": "rebajas-cansancio",
+  "n": 119,
+  "seo": "Rebajas Cansancio"
+ },
+ {
+  "handle": "digestion-y-absorcion",
+  "n": 118,
+  "seo": "Digestión y absorción"
+ },
+ {
+  "handle": "deporte-y-fitness",
+  "n": 115,
+  "seo": "Deporte y Fitness"
+ },
+ {
+  "handle": "combinado-de-hongos-adaptogenos-en-mexico",
+  "n": 112,
+  "seo": "Tienda para Comprar Hongos adaptógenos suplemento natural para resistencia"
+ },
+ {
+  "handle": "45-dias",
+  "n": 111,
+  "seo": "45 días"
+ },
+ {
+  "handle": "hongos-adaptogenos",
+  "n": 110,
+  "seo": "Hongos adaptógenos"
+ },
+ {
+  "handle": "vitadeals-copia",
+  "n": 108,
+  "seo": "VITADEALS bkp"
+ },
+ {
+  "handle": "black-friday-destacados",
+  "n": 107,
+  "seo": "Black friday destacados"
+ },
+ {
+  "handle": "aminoacidos",
+  "n": 105,
+  "seo": " Aminoácidos para potenciar tu energía y desempeño"
+ },
+ {
+  "handle": "vitadeals",
+  "n": 104,
+  "seo": "VITADEALS"
+ },
+ {
+  "handle": "descuentos-mas-hot",
+  "n": 103,
+  "seo": "Descuentos más hot"
+ },
+ {
+  "handle": "suplementos-para-mujeres",
+  "n": 102,
+  "seo": "Suplementos para mujeres"
+ },
+ {
+  "handle": "suplementos-mary-ruths-en-mexico",
+  "n": 101,
+  "seo": "Mary Ruth’s: Suplementos Naturales Premium"
+ },
+ {
+  "handle": "memoria-y-concentracion",
+  "n": 99,
+  "seo": "Suplementos para mejorar memoria y concentración"
+ },
+ {
+  "handle": "colageno-en-mexico",
+  "n": 98,
+  "seo": "Tienda para Comprar Colágeno para una piel firme y articulaciones saludables"
+ },
+ {
+  "handle": "destacados-mutivitaminicos",
+  "n": 96,
+  "seo": "Destacados multivitaminicos"
+ },
+ {
+  "handle": "omegas-y-acidos-grasos",
+  "n": 96,
+  "seo": "Omegas y ácidos Grasos"
+ },
+ {
+  "handle": "suplementos-con-zinc",
+  "n": 94,
+  "seo": "Suplementos con Zinc para salud y vitalidad"
+ },
+ {
+  "handle": "suplementos-marcas-mexicanas-1",
+  "n": 94,
+  "seo": "Suplementos marcas mexicanas"
+ },
+ {
+  "handle": "20-de-descuento",
+  "n": 89,
+  "seo": "20% de Descuento"
+ },
+ {
+  "handle": "25-de-descuento",
+  "n": 88,
+  "seo": "25% de Descuento"
+ },
+ {
+  "handle": "hasta-40",
+  "n": 85,
+  "seo": "hasta 40%"
+ },
+ {
+  "handle": "120-dias",
+  "n": 81,
+  "seo": "120 dias"
+ },
+ {
+  "handle": "suplementos-deportivos",
+  "n": 79,
+  "seo": "Multivitamínicos deportivos | Energía, resistencia y recuperación"
+ },
+ {
+  "handle": "ofertas-suplementos-esenciales",
+  "n": 76,
+  "seo": "OFERTAS "
+ },
+ {
+  "handle": "rebaja-peso",
+  "n": 76,
+  "seo": "Suplementos para rebajar peso de forma natural"
+ },
+ {
+  "handle": "vitamina-d-en-mexico",
+  "n": 72,
+  "seo": "Tienda para Comprar Vitamina D"
+ },
+ {
+  "handle": "problemas-para-dormir",
+  "n": 70,
+  "seo": "Soluciones para problemas para dormir y descanso"
+ },
+ {
+  "handle": "inositol-en-mexico",
+  "n": 70,
+  "seo": "Tienda para Comprar Inositol para equilibrio hormonal y bienestar"
+ },
+ {
+  "handle": "suplemeetos-swanson-en-mexico",
+  "n": 69,
+  "seo": "Suplementos Swanson para salud y bienestar"
+ },
+ {
+  "handle": "vitamina-d3",
+  "n": 68,
+  "seo": "Vitamina D3 para huesos, inmunidad y energía"
+ },
+ {
+  "handle": "rebajas-dolores",
+  "n": 68,
+  "seo": "Rebajas Dolores"
+ },
+ {
+  "handle": "zinc",
+  "n": 67,
+  "seo": "Zinc para sistema inmune y salud celular"
+ },
+ {
+  "handle": "vitamina-b-en-mexico",
+  "n": 67,
+  "seo": "Tienda para Comprar Vitamina B | Suplementos para energía y sistema nervioso"
+ },
+ {
+  "handle": "suplementos-natsa-en-mexico",
+  "n": 66,
+  "seo": "Natsa Suplementos Naturales Para tu Bienestar"
+ },
+ {
+  "handle": "natsa-1",
+  "n": 66,
+  "seo": "Natsa"
+ },
+ {
+  "handle": "enzimas-digestivas",
+  "n": 65,
+  "seo": "Enzimas digestivas para una mejor absorción de nutrientes"
+ },
+ {
+  "handle": "matter-y-matter-fem",
+  "n": 61,
+  "seo": "Matter y Matter Fem bienestar para todos"
+ },
+ {
+  "handle": "suplementos-life-extension-en-mexico",
+  "n": 58,
+  "seo": "Suplementos Life Extension para longevidad y salud"
+ },
+ {
+  "handle": "suplementos-you-matter-en-mexico",
+  "n": 58,
+  "seo": "Tienda de suplementos You Matter"
+ },
+ {
+  "handle": "proteinas",
+  "n": 57,
+  "seo": "Proteínas para recuperación y masa muscular"
+ },
+ {
+  "handle": "destacados-vitamina-c",
+  "n": 53,
+  "seo": "Destacados Vitamina C"
+ },
+ {
+  "handle": "kits",
+  "n": 52,
+  "seo": "KITS"
+ },
+ {
+  "handle": "miriam-schievenini-espiritu-santo",
+  "n": 52,
+  "seo": "Miriam Schievenini Espíritu Santo"
+ },
+ {
+  "handle": "colageno-hidrolizado-en-mexico",
+  "n": 50,
+  "seo": "Tienda para Comprar Colágeno hidrolizado para piel más joven y fuerte"
+ },
+ {
+  "handle": "suplementos-natures-way-en-mexico",
+  "n": 50,
+  "seo": "Nature’s Way suplementos para salud natural"
+ },
+ {
+  "handle": "multivitaminicos-para-ni-os-en-mexico",
+  "n": 50,
+  "seo": "Tienda para Comprar Multivitamínicos para niños | Crecimiento, defensas y aprendizaje"
+ },
+ {
+  "handle": "destacados-complejo-vitamina-b",
+  "n": 49,
+  "seo": "Destacados complejo-vitamina-b"
+ },
+ {
+  "handle": "suplementos-b-life-en-mexico",
+  "n": 49,
+  "seo": "Tienda de Suplementos B-life"
+ },
+ {
+  "handle": "complejo-vitamina-b",
+  "n": 49,
+  "seo": "Complejo de vitamina B para energía y vitalidad"
+ },
+ {
+  "handle": "suplementos-adapto-heal-en-mexico",
+  "n": 48,
+  "seo": " Suplementos Adapto Heal para equilibrio y bienestar"
+ },
+ {
+  "handle": "myo-inositol-en-mexico",
+  "n": 48,
+  "seo": "Tienda para Comprar Inositol"
+ },
+ {
+  "handle": "cmd-biofarma",
+  "n": 47,
+  "seo": "CMD Biofarma Suplementos Naturales de Alta Calidad"
+ },
+ {
+  "handle": "aumentar-masa-muscular",
+  "n": 46,
+  "seo": "Aumentar masa muscular"
+ },
+ {
+  "handle": "hasta-50",
+  "n": 46,
+  "seo": "hasta 50%"
+ },
+ {
+  "handle": "jatziri-perez",
+  "n": 46,
+  "seo": "Suplementos recomendados"
+ },
+ {
+  "handle": "ninos",
+  "n": 45,
+  "seo": "Niños"
+ },
+ {
+  "handle": "calcio-en-mexico",
+  "n": 44,
+  "seo": "Tienda para Comprar El calcio para fortalecer tus huesos"
+ },
+ {
+  "handle": "combinado-de-hierbas-en-mexico",
+  "n": 44,
+  "seo": "Tienda para Comprar Mezcla de hierbas naturales para bienestar integral"
+ },
+ {
+  "handle": "ashwagandha-en-mexico",
+  "n": 43,
+  "seo": "Tienda para Comprar Ashwagandha Suplemento Natural para Estrés y Energía"
+ },
+ {
+  "handle": "nutricionistas",
+  "n": 43,
+  "seo": "Nutricionistas"
+ },
+ {
+  "handle": "combinado-de-minerales-en-mexico",
+  "n": 42,
+  "seo": "Tienda para Comprar Combinado de minerales"
+ },
+ {
+  "handle": "omega-3-en-mexico",
+  "n": 41,
+  "seo": "Tienda para Comprar Omega 3 para salud cardiovascular y cerebral"
+ },
+ {
+  "handle": "creatina",
+  "n": 40,
+  "seo": "Creatina para mejorar tu fuerza y rendimiento"
+ },
+ {
+  "handle": "destacados-colageno-hidrolizado",
+  "n": 39,
+  "seo": "Destacados colageno-hidrolizado"
+ },
+ {
+  "handle": "flow-supplement",
+  "n": 39,
+  "seo": "Flow Supplement Suplemento Para Energía y Enfoque"
+ },
+ {
+  "handle": "suplementos-cmd-by-biofarma-en-mexico",
+  "n": 39,
+  "seo": "Tienda de suplementos  CMD By BIOFARMA"
+ },
+ {
+  "handle": "suplementos-briah-en-mexico",
+  "n": 38,
+  "seo": "Tienda de suplementos Briah"
+ },
+ {
+  "handle": "vitahub-afiliados-20",
+  "n": 37,
+  "seo": "Vitahub Afiliados 20%"
+ },
+ {
+  "handle": "resveratrol-en-mexico",
+  "n": 36,
+  "seo": "Tienda para Comprar Resveratrol para salud cardiovascular y longevidad"
+ },
+ {
+  "handle": "suplementos-flow-supplements-en-mexico",
+  "n": 36,
+  "seo": "Tienda para comprar suplementos Flow Supplements"
+ },
+ {
+  "handle": "desempeno-fisico",
+  "n": 35,
+  "seo": "Desempeño físico"
+ },
+ {
+  "handle": "suplementos-commons-en-mexico",
+  "n": 34,
+  "seo": "Tienda de suplementos Commons"
+ },
+ {
+  "handle": "suplemementos-5h8-en-mexico",
+  "n": 33,
+  "seo": "Tienda para comprar suplementos 5H8 en México"
+ },
+ {
+  "handle": "disfuncion-erectil",
+  "n": 33,
+  "seo": "Disfuncion eréctil"
+ },
+ {
+  "handle": "suplementos-natures-answer-en-mexico",
+  "n": 33,
+  "seo": "Tienda de suplementos natures answer"
+ },
+ {
+  "handle": "suplementos-con-colina",
+  "n": 32,
+  "seo": "Suplementos con colina para salud cerebral"
+ },
+ {
+  "handle": "combinados-de-hierbas",
+  "n": 32,
+  "seo": "Combinados de hierbas"
+ },
+ {
+  "handle": "suplementos-michael-health-en-mexico",
+  "n": 32,
+  "seo": "Tienda de suplementos Michael Health"
+ },
+ {
+  "handle": "eyaculacion-precoz",
+  "n": 31,
+  "seo": "Tratamiento para la eyaculación precoz y mejora sexual"
+ },
+ {
+  "handle": "curcuma-en-mexico",
+  "n": 31,
+  "seo": "Cúrcuma para apoyar tu salud y bienestar"
+ },
+ {
+  "handle": "vitamina-e-en-mexico",
+  "n": 31,
+  "seo": "Tienda para Comprar Vitamina E"
+ },
+ {
+  "handle": "zinc-1",
+  "n": 31,
+  "seo": "Zinc"
+ },
+ {
+  "handle": "180-dias",
+  "n": 31,
+  "seo": "180 dias"
+ },
+ {
+  "handle": "suplementos-nutriadn-en-mexico",
+  "n": 31,
+  "seo": "Tienda de suplementos NutriADN"
+ },
+ {
+  "handle": "suplementos-con-hongo-reishi",
+  "n": 30,
+  "seo": "Suplementos con hongo Reishi para salud inmune"
+ },
+ {
+  "handle": "glutamina",
+  "n": 30,
+  "seo": "Glutamina para recuperación y salud muscular"
+ },
+ {
+  "handle": "superalimentos",
+  "n": 30,
+  "seo": "Superalimentos"
+ },
+ {
+  "handle": "promo-b-life",
+  "n": 29,
+  "seo": "PROMO B Life"
+ },
+ {
+  "handle": "planes",
+  "n": 29,
+  "seo": "planes"
+ },
+ {
+  "handle": "suplementos-landa-adaptogenos-en-mexico",
+  "n": 29,
+  "seo": "Landa Adaptógenos Suplementos para Estrés y Energía"
+ },
+ {
+  "handle": "multivitaminicos-para-hombres-en-mexico",
+  "n": 29,
+  "seo": "Tienda para Comprar Multivitamínicos para hombres | Rendimiento, energía y defensas"
+ },
+ {
+  "handle": "destacados-omega-3",
+  "n": 28,
+  "seo": "Destacados omega-3"
+ },
+ {
+  "handle": "cardo-mariano-en-mexico",
+  "n": 28,
+  "seo": "Tienda para Comprar Cardo Mariano"
+ },
+ {
+  "handle": "suplementos-designs-for-health-en-mexico",
+  "n": 28,
+  "seo": "Tienda de suplementos Designs For Health"
+ },
+ {
+  "handle": "ivb-wellness",
+  "n": 28,
+  "seo": "IVB Wellness"
+ },
+ {
+  "handle": "suplementos-eternal-en-mexico",
+  "n": 28,
+  "seo": "Tienda de suplementos Eternal"
+ },
+ {
+  "handle": "sistema-inmunitario",
+  "n": 27,
+  "seo": "Suplementos para fortalecer el sistema inmune"
+ },
+ {
+  "handle": "adelgazar-o-quemar-grasa",
+  "n": 27,
+  "seo": "Adelgazar o quemar grasa"
+ },
+ {
+  "handle": "jengibre-en-mexico",
+  "n": 27,
+  "seo": "Jengibre suplemento natural para la digestión"
+ },
+ {
+  "handle": "hierro",
+  "n": 27,
+  "seo": "Suplementos de hierro para energía y vitalidad"
+ },
+ {
+  "handle": "mas-vendidos",
+  "n": 27,
+  "seo": "Destacados"
+ },
+ {
+  "handle": "potasio-en-mexico",
+  "n": 27,
+  "seo": "Tienda para Comprar Potasio"
+ },
+ {
+  "handle": "mercado",
+  "n": 27,
+  "seo": "Mercado"
+ },
+ {
+  "handle": "coenzima-q10-en-mexico",
+  "n": 26,
+  "seo": "Tienda para Comprar Coenzima Q10"
+ },
+ {
+  "handle": "whey-protein-en-mexico",
+  "n": 24,
+  "seo": "Tienda para Comprar Whey protein"
+ },
+ {
+  "handle": "suplementos-irwin-naturals-en-mexico",
+  "n": 24,
+  "seo": "Tienda de suplementos Irwin Naturals"
+ },
+ {
+  "handle": "vitamina-a-en-mexico",
+  "n": 23,
+  "seo": "Tienda para comprar Vitamina A Suplemento Para una mejor Salud"
+ },
+ {
+  "handle": "acido-folico-vitamina-b9",
+  "n": 23,
+  "seo": "Ácido Fólico (Vitamina B9) para tu salud diario"
+ },
+ {
+  "handle": "biotina-en-mexico",
+  "n": 23,
+  "seo": "Tienda para Comprar biotina para fortalecer cabello y uñas"
+ },
+ {
+  "handle": "suplementos-child-life-en-mexico",
+  "n": 23,
+  "seo": "Tienda de suplementos Child Life"
+ },
+ {
+  "handle": "proteina-vegana-en-mexico",
+  "n": 23,
+  "seo": "Tienda para Comprar Proteina Vegana"
+ },
+ {
+  "handle": "suplementos-bets-naturals-en-mexico",
+  "n": 23,
+  "seo": "Tienda de Suplementos Bets Naturals"
+ },
+ {
+  "handle": "suplementos-cellx-en-mexico",
+  "n": 23,
+  "seo": "Tienda de suplementos CellX"
+ },
+ {
+  "handle": "suplementos-wu-nutrition-en-mexico",
+  "n": 22,
+  "seo": "Tienda de suplementos Wu nutrition"
+ },
+ {
+  "handle": "gaba",
+  "n": 22,
+  "seo": "GABA: Suplemento para reducir el estrés"
+ },
+ {
+  "handle": "retinol",
+  "n": 22,
+  "seo": "Retinol para una piel joven y saludable"
+ },
+ {
+  "handle": "cordyceps-en-mexico",
+  "n": 21,
+  "seo": "Tienda para Comprar Cordyceps para energía y resistencia natural"
+ },
+ {
+  "handle": "reishi-en-mexico",
+  "n": 21,
+  "seo": "Tienda para Comprar Reishi para mejorar la inmunidad y bienestar"
+ },
+ {
+  "handle": "kits-vitahub",
+  "n": 21,
+  "seo": "Kits de Suplementación Vitahub para tu Bienestar"
+ },
+ {
+  "handle": "suplementos-trace-minerals-en-mexico",
+  "n": 21,
+  "seo": "Trace Minerals minerales esenciales para salud"
+ },
+ {
+  "handle": "destacados-proteina",
+  "n": 20,
+  "seo": "Destacados proteina"
+ },
+ {
+  "handle": "multivitaminicos-para-mujeres-en-mexico",
+  "n": 20,
+  "seo": "Tienda para Comprar Multivitamínicos para mujeres | Energía, piel, defensas y hormonas"
+ },
+ {
+  "handle": "suplementos-tibet-natura-en-mexico",
+  "n": 19,
+  "seo": "Tibet Natura suplementos para salud integral"
+ },
+ {
+  "handle": "destacados-vinagre-de-manzana",
+  "n": 18,
+  "seo": "Destacados vinagre-de-manzana"
+ },
+ {
+  "handle": "vinagre-de-manzana",
+  "n": 18,
+  "seo": "Vinagre de manzana para salud digestiva y peso"
+ },
+ {
+  "handle": "kits-de-suplementacion",
+  "n": 18,
+  "seo": "Kits de suplementación para salud y rendimiento"
+ },
+ {
+  "handle": "collabs-shopify",
+  "n": 18,
+  "seo": "Collabs shopify"
+ },
+ {
+  "handle": "vitamina-k-en-mexico",
+  "n": 18,
+  "seo": "Tienda para Comprar Vitamina K | Suplementos para huesos y coagulación"
+ },
+ {
+  "handle": "suplementos-healththrunutrition-en-mexico",
+  "n": 18,
+  "seo": "Tienda de suplementos Health Thru Nutrition"
+ },
+ {
+  "handle": "destacados-melena-de-leon",
+  "n": 17,
+  "seo": "Melena de León Suplemento Natural para la Memoria"
+ },
+ {
+  "handle": "melena-de-leon-o-lions-mane",
+  "n": 17,
+  "seo": "Melena de León Suplemento Natural Para la Mente"
+ },
+ {
+  "handle": "extracto-de-te-verde-en-mexico",
+  "n": 17,
+  "seo": "Tienda para Comprar Extracto de té verde"
+ },
+ {
+  "handle": "melena-de-leon-en-mexico",
+  "n": 17,
+  "seo": "Tienda para Comprar Melena de Léon"
+ },
+ {
+  "handle": "tienda-de-suplementos-b-fit",
+  "n": 17,
+  "seo": "Tienda de suplementos B-Fit"
+ },
+ {
+  "handle": "glicinato-de-magnesio",
+  "n": 16,
+  "seo": "Glicinato de Magnesio para músculos y relajación"
+ },
+ {
+  "handle": "dha-en-mexico",
+  "n": 16,
+  "seo": "Tienda para Comprar DHA para mejorar tu función cerebral y visión"
+ },
+ {
+  "handle": "acido-hialuronico",
+  "n": 16,
+  "seo": "Compra Ácido Hialurónico para piel hidratada y saludable"
+ },
+ {
+  "handle": "nad-en-mexico",
+  "n": 16,
+  "seo": "Tienda para Comprar NAD"
+ },
+ {
+  "handle": "acido-alfa-lipoico-en-mexico",
+  "n": 16,
+  "seo": "Tienda para Comprar Ácido Alfa Lipoico"
+ },
+ {
+  "handle": "glucosamina-en-mexico",
+  "n": 15,
+  "seo": "Tienda para Comprar Glucosamina para fortalecer las articulaciones"
+ },
+ {
+  "handle": "vitamina-b-12",
+  "n": 15,
+  "seo": "Vitamina B-12 para energía y salud cerebral"
+ },
+ {
+  "handle": "suplementos-vitativa-en-mexico",
+  "n": 15,
+  "seo": "Vitativa suplementos naturales para bienestar"
+ },
+ {
+  "handle": "bisglicinato-de-magnesio-1-en-mexico",
+  "n": 15,
+  "seo": "Tienda para Comprar Bisglicinato de magnesio | Suplemento para sueño, estrés y músculos"
+ },
+ {
+  "handle": "selenio",
+  "n": 15,
+  "seo": "Selenio"
+ },
+ {
+  "handle": "menstruales",
+  "n": 15,
+  "seo": "Menstruales"
+ },
+ {
+  "handle": "maca-en-mexico",
+  "n": 15,
+  "seo": "Tienda para Comprar Maca"
+ },
+ {
+  "handle": "cafe",
+  "n": 15,
+  "seo": "Café"
+ },
+ {
+  "handle": "suplementos-garden-of-life-en-mexico",
+  "n": 15,
+  "seo": "Tienda de suplementos Garden Of Life"
+ },
+ {
+  "handle": "suplementos-solaray-en-mexico",
+  "n": 15,
+  "seo": "Tienda de suplementos solaray"
+ },
+ {
+  "handle": "jeniree-colina",
+  "n": 15,
+  "seo": "Jeniree Colina"
+ },
+ {
+  "handle": "suplementos-con-valeriana",
+  "n": 14,
+  "seo": "Suplementos con Valeriana para dormir mejor"
+ },
+ {
+  "handle": "combinados-de-magnesio-en-mexico",
+  "n": 14,
+  "seo": "Tienda para Comprar Combinados de magnesio para mejorar tu energía y salud"
+ },
+ {
+  "handle": "apricot-linea-pomelo",
+  "n": 14,
+  "seo": "Apricot Línea Pomelo"
+ },
+ {
+  "handle": "combinados-de-magnesio-1",
+  "n": 14,
+  "seo": "Combinados de Magnesio"
+ },
+ {
+  "handle": "l-glutamina-en-mexico",
+  "n": 14,
+  "seo": "Tienda para Comprar L-glutamina"
+ },
+ {
+  "handle": "julio-beltran",
+  "n": 14,
+  "seo": "Julio Beltrán"
+ },
+ {
+  "handle": "suplementos-kal-en-mexico",
+  "n": 14,
+  "seo": "Tienda de suplementos kal"
+ },
+ {
+  "handle": "suplementos-quenut-en-mexico",
+  "n": 13,
+  "seo": "Quenut suplementos naturales para bienestar"
+ },
+ {
+  "handle": "nutrasana-2",
+  "n": 13,
+  "seo": "Nutrasana suplementos para energía y salud"
+ },
+ {
+  "handle": "suplementos-birdman-en-mexico",
+  "n": 13,
+  "seo": "Tienda de suplementos Birdman"
+ },
+ {
+  "handle": "l-carnitina-en-mexico",
+  "n": 13,
+  "seo": "Tienda para Comprar L-carnitina"
+ },
+ {
+  "handle": "ra-ices",
+  "n": 13,
+  "seo": "Ra+ices"
+ },
+ {
+  "handle": "tienda-para-comprar-suplementos-himalaya",
+  "n": 13,
+  "seo": "Tienda para comprar Suplementos Himalaya"
+ },
+ {
+  "handle": "destacados-berberina",
+  "n": 12,
+  "seo": "Destacados berberina"
+ },
+ {
+  "handle": "l-arginina-en-mexico",
+  "n": 12,
+  "seo": "Tienda Para Comprar L-Arginina para circulación y rendimiento físico"
+ },
+ {
+  "handle": "vitamina-b12",
+  "n": 12,
+  "seo": "Vitamina B12 para metabolismo y vitalidad"
+ },
+ {
+  "handle": "berberina-en-mexico",
+  "n": 12,
+  "seo": "Tienda para Comprar Berberina Suplemento Natural Para Controlar el Azúcar"
+ },
+ {
+  "handle": "enzymedica",
+  "n": 12,
+  "seo": "Enzymedica"
+ },
+ {
+  "handle": "nutri-adn",
+  "n": 12,
+  "seo": "Nutri ADN Suplemento Para Tu Salud Celular"
+ },
+ {
+  "handle": "afiliados-10",
+  "n": 12,
+  "seo": "Vitahub Afiliados 10%"
+ },
+ {
+  "handle": "50-descuento-1",
+  "n": 12,
+  "seo": "50% Descuento"
+ },
+ {
+  "handle": "multivitaminicos-prenatales",
+  "n": 12,
+  "seo": "Multivitamínicos prenatales"
+ },
+ {
+  "handle": "bcaa-en-mexico",
+  "n": 12,
+  "seo": "Tienda para Comprar BCAA"
+ },
+ {
+  "handle": "suplementos-advance-labs-nutrition-en-mexico",
+  "n": 12,
+  "seo": "Tienda de suplementos Advance Labs Nutrition"
+ },
+ {
+  "handle": "bromelina-en-mexico",
+  "n": 11,
+  "seo": "Tienda para Comprar Bromelina para mejorar tu digestión"
+ },
+ {
+  "handle": "vitamina-d3-k2-en-mexico",
+  "n": 11,
+  "seo": "Tienda para comprar Vitamina D3+K2"
+ },
+ {
+  "handle": "ginseng",
+  "n": 11,
+  "seo": "Ginseng suplemento para energía y vitalidad"
+ },
+ {
+  "handle": "msm",
+  "n": 11,
+  "seo": "MSM Suplemento Para Articulaciones y Bienestar"
+ },
+ {
+  "handle": "nac-en-mexico",
+  "n": 11,
+  "seo": "Tienda para Comprar NAC suplemento antioxidante para salud celular"
+ },
+ {
+  "handle": "glutation",
+  "n": 11,
+  "seo": "Glutation"
+ },
+ {
+  "handle": "suplementos-suluu-en-mexico",
+  "n": 11,
+  "seo": "Tienda de suplementos Súluu"
+ },
+ {
+  "handle": "suplementos-amz-nutrition-en-mexico",
+  "n": 11,
+  "seo": "Tienda para comprar suplementos AMZ Nutritrion"
+ },
+ {
+  "handle": "hasta-30",
+  "n": 11,
+  "seo": "hasta 30%"
+ },
+ {
+  "handle": "suplementos-lalun-organic-en-mexico",
+  "n": 11,
+  "seo": "Tienda de suplementos Lalun Organic"
+ },
+ {
+  "handle": "eli-de-la-cruz",
+  "n": 11,
+  "seo": "Eli De la Cruz Patiño"
+ },
+ {
+  "handle": "plan-de-suplementacion-aumento-del-rendimiento-fisico",
+  "n": 10,
+  "seo": "Plan de Suplementación | Aumento del rendimiento físico"
+ },
+ {
+  "handle": "plan-de-suplementacion-crecimiento-del-cabello-hombre",
+  "n": 10,
+  "seo": "Plan de Suplementación | Crecimiento del cabello (hombre)"
+ },
+ {
+  "handle": "rhodiola-en-mexico",
+  "n": 10,
+  "seo": "Tienda para Comprar Rhodiola para reducir el estrés y mejorar energía"
+ },
+ {
+  "handle": "natural-wisdom",
+  "n": 10,
+  "seo": " Natural Wisdom suplementos para salud y longevidad"
+ },
+ {
+  "handle": "suplementos-valara-en-mexico",
+  "n": 10,
+  "seo": "Valara Suplementos Naturales para Salud y Energía"
+ },
+ {
+  "handle": "ana-paola-topete",
+  "n": 10,
+  "seo": "Ana Paola Topete"
+ },
+ {
+  "handle": "suplementos-metagenics-en-mexico",
+  "n": 10,
+  "seo": "Metagenics México – Compra productos originales en Vitahub"
+ },
+ {
+  "handle": "nmn-en-mexico",
+  "n": 10,
+  "seo": "Tienda para Comprar NMN"
+ },
+ {
+  "handle": "equinacea-en-mexico",
+  "n": 10,
+  "seo": "Tienda para Comprar Equinácea"
+ },
+ {
+  "handle": "linea-avanzados-ivb",
+  "n": 10,
+  "seo": "Línea Avanzados IVB"
+ },
+ {
+  "handle": "novedades",
+  "n": 10,
+  "seo": "novedades"
+ },
+ {
+  "handle": "tratamiento-para-el-alivio-del-dolor-cronico",
+  "n": 9,
+  "seo": "Plan de Suplementación | Alivio del dolor crónico"
+ },
+ {
+  "handle": "plan-de-salud-reducir-estres-y-ansiedad",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Reducir estrés y ansiedad"
+ },
+ {
+  "handle": "plan-de-salud-control-de-peso",
+  "n": 9,
+  "seo": "Plan de Suplementación | Control de peso (Hombre)"
+ },
+ {
+  "handle": "plan-de-bienestar-crecimiento-del-cabello-mujer",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Crecimiento de cabello (Mujer)"
+ },
+ {
+  "handle": "plan-de-salud-cuidado-de-la-piel",
+  "n": 9,
+  "seo": "Plan de Suplementación | Cuidado de la piel"
+ },
+ {
+  "handle": "plan-de-salud-fortalecimiento-de-masa-muscular",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Fortalecimiento de masa muscular"
+ },
+ {
+  "handle": "plan-de-salud-aumento-del-rendimiento-fisico",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Aumento del rendimiento físico"
+ },
+ {
+  "handle": "plan-de-salud-longevidad-masculina",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Longevidad masculina"
+ },
+ {
+  "handle": "plan-de-salud-longevidad-femenina",
+  "n": 9,
+  "seo": "Plan de Suplementación | Longevidad femenina"
+ },
+ {
+  "handle": "plan-de-salud-alivio-de-sintomas-de-la-menopausia",
+  "n": 9,
+  "seo": "Plan de Suplementación | Alivio de síntomas de la menopausia"
+ },
+ {
+  "handle": "plan-de-salud-fortalece-tu-energia",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Fortalece tu energía"
+ },
+ {
+  "handle": "plan-de-salud-mejora-la-digestion-y-funcion-intestinal",
+  "n": 9,
+  "seo": "Plan de Suplementación | Mejora la digestión y función intestinal"
+ },
+ {
+  "handle": "plan-de-salud-fortalecimiento-de-las-defensas",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Fortalecimiento de las defensas"
+ },
+ {
+  "handle": "plan-de-salud-potenciar-la-concentracion-y-atencion",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Potenciar la concentración y atención"
+ },
+ {
+  "handle": "plan-de-salud-potenciar-la-memoria-y-concentracion",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Potenciar la memoria y concentración"
+ },
+ {
+  "handle": "plan-de-salud-mejorar-la-salud-menstrual",
+  "n": 9,
+  "seo": "Plan de Suplementación | Mejorar el bienestar menstrual"
+ },
+ {
+  "handle": "plan-de-salud-equilibrio-hormonal-femenino",
+  "n": 9,
+  "seo": "Plan de Suplementación | Equilibrio hormonal femenino"
+ },
+ {
+  "handle": "plan-de-salud-equilibrio-hormonal-masculino",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Equilibrio hormonal masculino"
+ },
+ {
+  "handle": "plan-de-salud-eyaculacion-precoz",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Eyaculación precoz"
+ },
+ {
+  "handle": "plan-de-salud-disfuncion-erectil",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Disfunción eréctil"
+ },
+ {
+  "handle": "plan-de-salud-bienestar-sexual-masculino",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Bienestar sexual masculino"
+ },
+ {
+  "handle": "plan-de-salud-bienestar-sexual-femenino",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Bienestar sexual femenino"
+ },
+ {
+  "handle": "plan-de-salud-mejora-del-sueno-y-descanso",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Mejora del sueño y descanso"
+ },
+ {
+  "handle": "plan-de-salud-sindrome-de-intestino-irritable",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Síndrome de intestino irritable"
+ },
+ {
+  "handle": "plan-de-salud-prevencion-de-infecciones-urinarias",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Prevención de infecciones urinarias"
+ },
+ {
+  "handle": "plan-de-salud-detoxificacion-hepatica",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Detoxificación hepática"
+ },
+ {
+  "handle": "plan-de-salud-fortalecimiento-de-huesos-articulaciones-y-musculos",
+  "n": 9,
+  "seo": "Plan de Suplementación  | Fortalecimiento de huesos, articulaciones y músculos"
+ },
+ {
+  "handle": "plan-de-bienestar-control-de-peso-mujer",
+  "n": 9,
+  "seo": "Plan de Suplementación | Control de peso (Mujer)"
+ },
+ {
+  "handle": "plan-de-bienestar-crecimiento-del-cabello-hombre",
+  "n": 9,
+  "seo": "Plan de Suplementación | Crecimiento del cabello (Hombre)"
+ },
+ {
+  "handle": "oby",
+  "n": 9,
+  "seo": "Oby: Suplementos para una Vida Saludable"
+ },
+ {
+  "handle": "plan-de-suplementacion-cuidado-de-la-piel",
+  "n": 9,
+  "seo": "Plan de Suplementación | Cuidado de la piel"
+ },
+ {
+  "handle": "omega-6-en-mexico",
+  "n": 9,
+  "seo": "Tienda para Comprar Omega 6 para equilibrio y salud celular"
+ },
+ {
+  "handle": "prueba10",
+  "n": 9,
+  "seo": "prueba10"
+ },
+ {
+  "handle": "suplementos-dekos-en-mexico",
+  "n": 9,
+  "seo": "Dekos Suplementos para Bienestar y Vitalidad"
+ },
+ {
+  "handle": "suplementos-gou-medical-en-mexico",
+  "n": 9,
+  "seo": "Gou Medical Suplementos Para Tu Bienestar"
+ },
+ {
+  "handle": "suplementos-nbf-nb-foods-en-mexico",
+  "n": 9,
+  "seo": "NB Foods: Suplementos de Alta Calidad"
+ },
+ {
+  "handle": "suplementos-tiba-salud-en-mexico",
+  "n": 9,
+  "seo": "Tiba Salud Suplementos Naturales para tu Bienestar"
+ },
+ {
+  "handle": "suplementos-nutrasana-en-mexico",
+  "n": 9,
+  "seo": "Nutrasana suplementos naturales para bienestar"
+ },
+ {
+  "handle": "hierro-1",
+  "n": 9,
+  "seo": "Hierro"
+ },
+ {
+  "handle": "tsuplementos-beyond-vitamins-en-mexico",
+  "n": 9,
+  "seo": "Tienda de Suplementos Beyond Vitamins"
+ },
+ {
+  "handle": "suplementos-nutravia-en-mexico",
+  "n": 9,
+  "seo": "Tienda de suplementos Nutravia"
+ },
+ {
+  "handle": "reset-wellness-en-mexico",
+  "n": 9,
+  "seo": "Tienda para comprar suplementos Reset Wellness"
+ },
+ {
+  "handle": "linea-esencial-ivb",
+  "n": 9,
+  "seo": "Línea Esencial IVB"
+ },
+ {
+  "handle": "objetivo-menopausia-y-perimenopausia",
+  "n": 9,
+  "seo": "Objetivo: Menopausia y perimenopausia IVB"
+ },
+ {
+  "handle": "vitaminas-minerales-y-suplementos",
+  "n": 8,
+  "seo": "L1 | Vitaminas, Minerales y Suplementos"
+ },
+ {
+  "handle": "calostro",
+  "n": 8,
+  "seo": "Fortalece tus defensas con calostro natural"
+ },
+ {
+  "handle": "boro",
+  "n": 8,
+  "seo": "Boro"
+ },
+ {
+  "handle": "suplemetos-moods-en-mexico",
+  "n": 8,
+  "seo": "Moods suplementos para equilibrio emocional"
+ },
+ {
+  "handle": "valeriana",
+  "n": 8,
+  "seo": "Valeriana para descanso y reducción de estrés"
+ },
+ {
+  "handle": "pre-y-post-entreno",
+  "n": 8,
+  "seo": "Suplementos pre y post entreno para tu rendimiento"
+ },
+ {
+  "handle": "nad-suplemento",
+  "n": 8,
+  "seo": "Compra NAD suplemento para energía celular"
+ },
+ {
+  "handle": "suplementos-bluecherry-en-mexico",
+  "n": 8,
+  "seo": "Tienda de suplementos Bluecherry"
+ },
+ {
+  "handle": "suplemento-inner-en-mexico",
+  "n": 8,
+  "seo": "Inner suplementos para equilibrio y energía"
+ },
+ {
+  "handle": "suplementos-evolution-real-en-mexico",
+  "n": 8,
+  "seo": "Evolution Real Suplemento para Energía y Rendimiento"
+ },
+ {
+  "handle": "protein-world",
+  "n": 8,
+  "seo": "Protein World suplementos para rendimiento físico"
+ },
+ {
+  "handle": "humble",
+  "n": 8,
+  "seo": "Humble suplementos para bienestar y vitalidad"
+ },
+ {
+  "handle": "ajo-en-mexico",
+  "n": 8,
+  "seo": "Tienda para Comprar Ajo Negro Fermentado"
+ },
+ {
+  "handle": "arandano-en-mexico",
+  "n": 8,
+  "seo": "Tienda para Comprar Arándano"
+ },
+ {
+  "handle": "astragalo-en-mexico",
+  "n": 8,
+  "seo": "Tienda para Comprar Astrágalo"
+ },
+ {
+  "handle": "objetivo-empezar-a-cuidarme",
+  "n": 8,
+  "seo": "Objetivo: Empezar a Cuidarme IVB"
+ },
+ {
+  "handle": "suplementos-silvia-strauss-en-mexico",
+  "n": 7,
+  "seo": "Silvia Strauss Suplementos Para Tu Salud y Energía"
+ },
+ {
+  "handle": "citrato-de-potasio",
+  "n": 7,
+  "seo": "Citrato de potasio para el equilibrio mineral"
+ },
+ {
+  "handle": "alivio-del-dolor-cronico",
+  "n": 7,
+  "seo": "Plan de Suplementación | Alivio del dolor crónico"
+ },
+ {
+  "handle": "plan-de-la-suplementacion-control-de-peso-hombres",
+  "n": 7,
+  "seo": "Plan de Suplementación | Control de peso hombres"
+ },
+ {
+  "handle": "plan-de-suplementacion-detoxificacion-hepatica",
+  "n": 7,
+  "seo": "Plan de Suplementación | Detoxificación hepática"
+ },
+ {
+  "handle": "melatonina-en-mexico",
+  "n": 7,
+  "seo": "Tienda para Comprar Melatonina Suplemento Natural Para Dormir Mejor"
+ },
+ {
+  "handle": "vida-supplement",
+  "n": 7,
+  "seo": "Vida Supplement suplementos para bienestar total"
+ },
+ {
+  "handle": "matter-dv",
+  "n": 7,
+  "seo": "Matter DV suplementos para salud y energía"
+ },
+ {
+  "handle": "suplementos-wild-foods-en-mexico",
+  "n": 7,
+  "seo": "Tienda de suplementos Wild Foods"
+ },
+ {
+  "handle": "l-teanina-en-mexico",
+  "n": 7,
+  "seo": "Tienda para Comprar L-teanina"
+ },
+ {
+  "handle": "suplementos-entera-en-mexico",
+  "n": 7,
+  "seo": "Tienda de suplementos Entera"
+ },
+ {
+  "handle": "suplementos-gudgut-en-mexico",
+  "n": 7,
+  "seo": "Tienda de suplementos GudGut"
+ },
+ {
+  "handle": "objetivo-energia-ivb",
+  "n": 7,
+  "seo": "Objetivo: Energía IVB"
+ },
+ {
+  "handle": "objetivo-envejecimiento-saludable",
+  "n": 7,
+  "seo": "Objetivo: Envejecimiento Saludable"
+ },
+ {
+  "handle": "objetivo-memoria-y-concentracion",
+  "n": 7,
+  "seo": "Objetivo: Memoria y concentración"
+ },
+ {
+  "handle": "objetivo-deporte-y-rendimiento",
+  "n": 7,
+  "seo": "Objetivo: Deporte y rendimiento IVB"
+ },
+ {
+  "handle": "destacados-vitamina-d3",
+  "n": 6,
+  "seo": "Destacados vitamina D3"
+ },
+ {
+  "handle": "destacados-treonato-de-magnesio",
+  "n": 6,
+  "seo": "Destacados treonato-de-magnesio"
+ },
+ {
+  "handle": "cloruro-de-magnesio",
+  "n": 6,
+  "seo": "Cloruro de magnesio para vitalidad y bienestar"
+ },
+ {
+  "handle": "suplementos-con-name",
+  "n": 6,
+  "seo": "Suplementos con Ñame para equilibrio hormonal"
+ },
+ {
+  "handle": "plan-de-suplementacion-control-de-peso-mujeres",
+  "n": 6,
+  "seo": "Plan de Suplementación | Control de peso mujeres"
+ },
+ {
+  "handle": "plan-de-suplementacion-balance-hormonal-hombres",
+  "n": 6,
+  "seo": "Plan de Suplementación | Balance Hormonal Masculino"
+ },
+ {
+  "handle": "complejo-acidos-grasos",
+  "n": 6,
+  "seo": "Complejo de ácidos grasos para salud cardiovascular"
+ },
+ {
+  "handle": "5-htp-en-mexico",
+  "n": 6,
+  "seo": "Tienda para Comprar 5-HTP"
+ },
+ {
+  "handle": "dhea",
+  "n": 6,
+  "seo": " DHEA para equilibrio hormonal y bienestar general"
+ },
+ {
+  "handle": "suplementos-bioflora-en-mexico",
+  "n": 6,
+  "seo": "Bioflora Suplementos Para Tu Salud Digestiva"
+ },
+ {
+  "handle": "nordic-naturals",
+  "n": 6,
+  "seo": "Nordic Naturals Suplementos Para Tu Salud Óptima"
+ },
+ {
+  "handle": "suplementos-bioptimizado-1-en-mexico",
+  "n": 6,
+  "seo": "Suplementos Bioptimizado Salud Digestiva y Energía | VitaHub"
+ },
+ {
+  "handle": "suplementos-vito-by-biofarma-en-mexico",
+  "n": 6,
+  "seo": "Vito by Biofarma suplementos para salud avanzada"
+ },
+ {
+  "handle": "40-de-descuento",
+  "n": 6,
+  "seo": "40% de Descuento"
+ },
+ {
+  "handle": "suplementos-bhavani-en-mexico",
+  "n": 6,
+  "seo": "Tienda de Suplementos Bhavani"
+ },
+ {
+  "handle": "bebidas-y-snacks",
+  "n": 6,
+  "seo": "Bebidas y snacks"
+ },
+ {
+  "handle": "240-dias",
+  "n": 6,
+  "seo": "240 dias"
+ },
+ {
+  "handle": "suplementos-natural-health-en-mexico",
+  "n": 6,
+  "seo": "Tienda de suplementos Natural Health"
+ },
+ {
+  "handle": "suplementos-wohl-vidalabs-en-mexico",
+  "n": 6,
+  "seo": "Tienda de suplementos WOHL /Vidalabs"
+ },
+ {
+  "handle": "objetivo-pelo-y-piel-de-ivb",
+  "n": 6,
+  "seo": "Objetivo : Pelo y piel de IVB"
+ },
+ {
+  "handle": "objetivo-dolor-e-inflamacion",
+  "n": 6,
+  "seo": "Objetivo: Dolor e Inflamación IVB-IVB"
+ },
+ {
+  "handle": "objetivo-embarazo-y-lactancia",
+  "n": 6,
+  "seo": "Objetivo: Embarazo y lactancia IVB"
+ },
+ {
+  "handle": "objetivo-salud-osea",
+  "n": 6,
+  "seo": "Objetivo: Salud ósea IVB"
+ },
+ {
+  "handle": "suplementos-xymogen-en-mexico",
+  "n": 6,
+  "seo": "Tienda de suplementos Xymogen"
+ },
+ {
+  "handle": "consultas",
+  "n": 5,
+  "seo": "Consultas y acompañamientos"
+ },
+ {
+  "handle": "l1-planes",
+  "n": 5,
+  "seo": "L1 | Planes"
+ },
+ {
+  "handle": "treonato-de-magnesio",
+  "n": 5,
+  "seo": "Treonato de Magnesio Suplemento para la Mente"
+ },
+ {
+  "handle": "destacados-vitamina-b-6",
+  "n": 5,
+  "seo": "Destacados vitamina-b-6"
+ },
+ {
+  "handle": "gingko-biloba-en-mexico",
+  "n": 5,
+  "seo": "Tienda para Comprar Ginkgo Biloba: Potencia tu memoria"
+ },
+ {
+  "handle": "daniela-cortes",
+  "n": 5,
+  "seo": "Daniela Cortés"
+ },
+ {
+  "handle": "suplementos-munar-en-mexico",
+  "n": 5,
+  "seo": "Tienda de suplementos Munar"
+ },
+ {
+  "handle": "suplementos-abitu-en-mexico",
+  "n": 5,
+  "seo": "Tienda para Comprar Suplementos Abitü"
+ },
+ {
+  "handle": "diente-de-leon-en-mexico",
+  "n": 5,
+  "seo": "Tienda para Comprar Diente de león"
+ },
+ {
+  "handle": "dong-quai-en-mexico",
+  "n": 5,
+  "seo": "Tienda para Comprar Dong quai"
+ },
+ {
+  "handle": "acai-en-mexico",
+  "n": 5,
+  "seo": "Tienda para comprar Acai"
+ },
+ {
+  "handle": "suplementos-prohealth-en-mexico",
+  "n": 5,
+  "seo": "Tienda de suplementos ProHealth"
+ },
+ {
+  "handle": "tienda-de-suplementos-raw",
+  "n": 5,
+  "seo": "Tienda de suplementos Raw"
+ },
+ {
+  "handle": "linea-de-fertilidad-ivb",
+  "n": 5,
+  "seo": "Línea de Fertilidad IVB"
+ },
+ {
+  "handle": "l1-tests",
+  "n": 4,
+  "seo": "L1 | Tests"
+ },
+ {
+  "handle": "plan-de-suplementacion-crecimiento-del-cabello-mujer",
+  "n": 4,
+  "seo": "Plan de Suplementación | Crecimiento del cabello (mujer)"
+ },
+ {
+  "handle": "plan-de-suplementacion-equilibrio-hormonal-femenino",
+  "n": 4,
+  "seo": "Plan de Suplementación | Equilibrio hormonal femenino"
+ },
+ {
+  "handle": "aceite-mtc-en-mexico",
+  "n": 4,
+  "seo": "Tienda para Comprar Aceite MCT para energía y rendimiento"
+ },
+ {
+  "handle": "vitamina-c-liposomal",
+  "n": 4,
+  "seo": "Vitamina C Liposomal para absorción máxima"
+ },
+ {
+  "handle": "extracto-de-betabel-en-mexico",
+  "n": 4,
+  "seo": "Tienda para Comprar Extracto de betabel"
+ },
+ {
+  "handle": "cola-de-pavo-en-mexico",
+  "n": 4,
+  "seo": "Tienda para Comprar Cola de Pavo"
+ },
+ {
+  "handle": "name-silvestre-en-mexico",
+  "n": 4,
+  "seo": "Tienda para Comprar Ñame silvestre"
+ },
+ {
+  "handle": "moringa-en-mexico",
+  "n": 4,
+  "seo": "Tienda para Comprar Moringa"
+ },
+ {
+  "handle": "barras-con-proteina",
+  "n": 4,
+  "seo": "Barras con proteína"
+ },
+ {
+  "handle": "objetivo-ciclo-menstrual",
+  "n": 4,
+  "seo": "Objetivo: Ciclo Menstrual IVB"
+ },
+ {
+  "handle": "objetivo-perdida-de-grasa-y-metabolismo-ivb",
+  "n": 4,
+  "seo": "Objetivo: Pérdida de grasa y metabolismo IVB"
+ },
+ {
+  "handle": "longevidad",
+  "n": 3,
+  "seo": "Suplementos para longevidad y bienestar"
+ },
+ {
+  "handle": "plan-de-suplementacion-control-de-peso-hombres",
+  "n": 3,
+  "seo": "Plan de Suplementación | Control de Peso Hombres"
+ },
+ {
+  "handle": "shilajit",
+  "n": 3,
+  "seo": "Shilajit suplemento para energía y vitalidad"
+ },
+ {
+  "handle": "fit-boost",
+  "n": 3,
+  "seo": "Fit-Boost Suplemento Natural Para Mejorar tu Rendimiento"
+ },
+ {
+  "handle": "suplementos-supplement-factory-en-mexico",
+  "n": 3,
+  "seo": "Supplement Factory suplementos para rendimiento"
+ },
+ {
+  "handle": "karen-diaz-consultas",
+  "n": 3,
+  "seo": "Karen Diaz- Consultas"
+ },
+ {
+  "handle": "shilajit-1",
+  "n": 3,
+  "seo": "Shilajit"
+ },
+ {
+  "handle": "alga-espirulina-en-mexico",
+  "n": 3,
+  "seo": "Tienda para Comprar Alga espirulina"
+ },
+ {
+  "handle": "clorofila-en-mexico",
+  "n": 3,
+  "seo": "Tienda para Comprar Clorofila"
+ },
+ {
+  "handle": "miel-organica",
+  "n": 3,
+  "seo": "Miel orgánica"
+ },
+ {
+  "handle": "aceite-de-coco",
+  "n": 3,
+  "seo": "Aceite de coco"
+ },
+ {
+  "handle": "suplementos-ascent-en-mexico",
+  "n": 3,
+  "seo": "Tienda para Comprar Suplementos Ascent en México"
+ },
+ {
+  "handle": "linea-movimiento-go-start-de-ivb",
+  "n": 3,
+  "seo": "Línea Movimiento Go&Start de IVB"
+ },
+ {
+  "handle": "objetivo-estres-y-ansiedad-ivb",
+  "n": 3,
+  "seo": "Objetivo: Estrés y ansiedad IVB"
+ },
+ {
+  "handle": "objetivo-salud-digestiva-ivb",
+  "n": 3,
+  "seo": "Objetivo: Salud Digestiva IVB"
+ },
+ {
+  "handle": "objetivo-sueno-y-descanso-ivb",
+  "n": 3,
+  "seo": "Objetivo: Sueño y descanso IVB"
+ },
+ {
+  "handle": "objetivo-sistema-inmunitario",
+  "n": 3,
+  "seo": "Objetivo: Sistema Inmunitario IVB"
+ },
+ {
+  "handle": "suplementos-menoglow-en-mexico",
+  "n": 3,
+  "seo": "Tienda de suplementos MenoGlow"
+ },
+ {
+  "handle": "gozana",
+  "n": 2,
+  "seo": "Gozana Suplementos para Energía y Vitalidad"
+ },
+ {
+  "handle": "cacao-en-mexico",
+  "n": 2,
+  "seo": "Tienda para Comprar Cacao"
+ },
+ {
+  "handle": "te-de-matcha",
+  "n": 2,
+  "seo": "Té de matcha"
+ },
+ {
+  "handle": "suplementos-bofoods-en-mexico",
+  "n": 2,
+  "seo": "Tienda de suplementos BoFoods"
+ },
+ {
+  "handle": "suplementos-evogen-en-mexico",
+  "n": 2,
+  "seo": "Tienda de suplementos Evogen"
+ },
+ {
+  "handle": "health-coaching-3-6-12-meses",
+  "n": 1,
+  "seo": "Health Coaching 3 / 6 / 12 meses"
+ },
+ {
+  "handle": "caida-del-cabello",
+  "n": 1,
+  "seo": "Caída del cabello"
+ },
+ {
+  "handle": "gluten-yes",
+  "n": 1,
+  "seo": "Gluten YES! suplemento digestivo natural"
+ },
+ {
+  "handle": "control-de-peso",
+  "n": 1,
+  "seo": "Control de peso"
+ },
+ {
+  "handle": "calcio-1",
+  "n": 1,
+  "seo": "Calcio"
+ },
+ {
+  "handle": "azucar-de-coco",
+  "n": 1,
+  "seo": "Azúcar de coco"
+ },
+ {
+  "handle": "cereales-con-proteina-1",
+  "n": 1,
+  "seo": "Cereales con proteína"
+ },
+ {
+  "handle": "aceite-de-aguacate",
+  "n": 1,
+  "seo": "Aceite de aguacate"
+ },
+ {
+  "handle": "suplementos-dimatize-en-mexico",
+  "n": 1,
+  "seo": "Tienda de suplementos Dimatize"
+ },
+ {
+  "handle": "suplementos-mutant-en-mexico",
+  "n": 1,
+  "seo": "Tienda de suplementos Mutant"
+ },
+ {
+  "handle": "suplementos-nutrex-en-mexico",
+  "n": 1,
+  "seo": "Tienda de suplementos Nutrex"
+ },
+ {
+  "handle": "review-especialistas",
+  "n": 1,
+  "seo": "review especialistas"
+ }
+]

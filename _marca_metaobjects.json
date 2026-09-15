@@ -1,0 +1,567 @@
+[
+ {
+  "id": "gid://shopify/Metaobject/60115026241",
+  "handle": "swanson",
+  "name": "Swanson"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60121645377",
+  "handle": "life-extension",
+  "name": "Life Extension"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60174598465",
+  "handle": "bluecherry",
+  "name": "Bluecherry"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60178104641",
+  "handle": "pomelo",
+  "name": "Apricot"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60428255553",
+  "handle": "natures-way",
+  "name": "Natures Way"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60711698753",
+  "handle": "wu-nutrition",
+  "name": "WU Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60731097409",
+  "handle": "herbal-plants",
+  "name": "Herbal&Plants"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60778545473",
+  "handle": "dekos",
+  "name": "Dekos"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60780020033",
+  "handle": "gou-medical",
+  "name": "Gou Medical"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60789260609",
+  "handle": "survivor",
+  "name": "Survivor"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60816064833",
+  "handle": "nutri-adn",
+  "name": "NutriADN"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60830253377",
+  "handle": "commons",
+  "name": "Commons"
+ },
+ {
+  "id": "gid://shopify/Metaobject/60837101889",
+  "handle": "inner",
+  "name": "Inner"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61016047937",
+  "handle": "bhavani",
+  "name": "Bhavani"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61018898753",
+  "handle": "nbf",
+  "name": "NBF"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61063037249",
+  "handle": "designs-for-health",
+  "name": "Designs for health"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61089186113",
+  "handle": "natural-wisdom",
+  "name": "Natural Wisdom"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61242081601",
+  "handle": "trace-minerals",
+  "name": "Trace Minerals"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61250732353",
+  "handle": "quenut",
+  "name": "Quenut"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61329801537",
+  "handle": "evolution-real-nutrition",
+  "name": "Evolution Real Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61459300673",
+  "handle": "tibet-natura",
+  "name": "Tibet Natura"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61468606785",
+  "handle": "b-life",
+  "name": "B-Life"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61472178497",
+  "handle": "inteliva",
+  "name": "Inteliva"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61607969089",
+  "handle": "natsa",
+  "name": "Natsa"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61619306817",
+  "handle": "supplement-factory",
+  "name": "Supplement Factory"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61621731649",
+  "handle": "silvia-strauss",
+  "name": "Silvia Strauss"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61622911297",
+  "handle": "flow-supplement",
+  "name": "Flow Supplement"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61626777921",
+  "handle": "oby",
+  "name": "Oby"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61641392449",
+  "handle": "empowermind",
+  "name": "Empowermind"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61641720129",
+  "handle": "zenergy",
+  "name": "Zenergy"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61642309953",
+  "handle": "gluten-yes",
+  "name": "Gluten Yes"
+ },
+ {
+  "id": "gid://shopify/Metaobject/61826629953",
+  "handle": "bioptimizado",
+  "name": "Bioptimizado"
+ },
+ {
+  "id": "gid://shopify/Metaobject/62082122049",
+  "handle": "moods",
+  "name": "Moods"
+ },
+ {
+  "id": "gid://shopify/Metaobject/62129602881",
+  "handle": "vito",
+  "name": "Vito"
+ },
+ {
+  "id": "gid://shopify/Metaobject/62131044673",
+  "handle": "cmd",
+  "name": "CMD"
+ },
+ {
+  "id": "gid://shopify/Metaobject/62132191553",
+  "handle": "mary-ruths",
+  "name": "MaryRuth's"
+ },
+ {
+  "id": "gid://shopify/Metaobject/62411047233",
+  "handle": "abitu",
+  "name": "Abitu"
+ },
+ {
+  "id": "gid://shopify/Metaobject/62533632321",
+  "handle": "nutrasana",
+  "name": "Nutrasana"
+ },
+ {
+  "id": "gid://shopify/Metaobject/62573936961",
+  "handle": "vitativa",
+  "name": "Vitativa"
+ },
+ {
+  "id": "gid://shopify/Metaobject/62774247745",
+  "handle": "valara-nutrition",
+  "name": "Valara Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/62853546305",
+  "handle": "thorne",
+  "name": "Thorne"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63069421889",
+  "handle": "5-h-8-nutrition",
+  "name": "5H8 Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63172313409",
+  "handle": "adapto-heal",
+  "name": "AdaptoHeal"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63176737089",
+  "handle": "birdman",
+  "name": "Birdman"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63178211649",
+  "handle": "zen-gen",
+  "name": "ZenGen"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63180636481",
+  "handle": "landa-adaptogenos",
+  "name": "Landa Adaptógenos"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63265767745",
+  "handle": "sugarbear",
+  "name": "Sugarbear"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63266095425",
+  "handle": "protein-world",
+  "name": "Protein World"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63266652481",
+  "handle": "fitboost",
+  "name": "Fitboost"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63434064193",
+  "handle": "nomuk",
+  "name": "Nomuk"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63451038017",
+  "handle": "tiba-salud",
+  "name": "Tiba Salud"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63456936257",
+  "handle": "suluu",
+  "name": "Súluu"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63500812609",
+  "handle": "humble",
+  "name": "Humble"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63540232513",
+  "handle": "you-matter-1",
+  "name": "You Matter"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63554748737",
+  "handle": "bioflora",
+  "name": "Bioflora"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63639126337",
+  "handle": "h-2-pro",
+  "name": "H2PRO"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63676383553",
+  "handle": "nordic",
+  "name": "Nordic Naturals"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63682150721",
+  "handle": "vitaminate",
+  "name": "Child Life"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63683199297",
+  "handle": "metagenics",
+  "name": "Metagenics"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63698239809",
+  "handle": "vida-supplement",
+  "name": "Vida Supplement"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63782879553",
+  "handle": "vida-labs",
+  "name": "VidaLabs"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63783207233",
+  "handle": "whol",
+  "name": "Whol"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63956451649",
+  "handle": "nuvi-nutrition",
+  "name": "Nuvi Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63958712641",
+  "handle": "enzymedica",
+  "name": "Enzymedica"
+ },
+ {
+  "id": "gid://shopify/Metaobject/63970509121",
+  "handle": "now-foods",
+  "name": "NOW Foods"
+ },
+ {
+  "id": "gid://shopify/Metaobject/64411009345",
+  "handle": "now-sports",
+  "name": "NOW Sports"
+ },
+ {
+  "id": "gid://shopify/Metaobject/67052044609",
+  "handle": "habits",
+  "name": "Habits"
+ },
+ {
+  "id": "gid://shopify/Metaobject/69355307329",
+  "handle": "profesionales-vitahub",
+  "name": "Profesionales Vitahub"
+ },
+ {
+  "id": "gid://shopify/Metaobject/76416057665",
+  "handle": "kal",
+  "name": "KAL"
+ },
+ {
+  "id": "gid://shopify/Metaobject/76745081153",
+  "handle": "solaray",
+  "name": "Solaray"
+ },
+ {
+  "id": "gid://shopify/Metaobject/76896207169",
+  "handle": "mrm-nutrition",
+  "name": "MRM Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/92698673473",
+  "handle": "advance-labs-nutrition",
+  "name": "Advance Labs Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/93064986945",
+  "handle": "red-gold",
+  "name": "Red Gold Laboratory"
+ },
+ {
+  "id": "gid://shopify/Metaobject/93635477825",
+  "handle": "michaels-health",
+  "name": "Michael's Health"
+ },
+ {
+  "id": "gid://shopify/Metaobject/93738795329",
+  "handle": "irwin",
+  "name": "Irwin Naturals"
+ },
+ {
+  "id": "gid://shopify/Metaobject/93738860865",
+  "handle": "nature-answer",
+  "name": "Nature's Answer"
+ },
+ {
+  "id": "gid://shopify/Metaobject/93738893633",
+  "handle": "best-naturals",
+  "name": "Best Naturals"
+ },
+ {
+  "id": "gid://shopify/Metaobject/94069260609",
+  "handle": "health-thru-nutrition",
+  "name": "Health Thru Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/94138433857",
+  "handle": "entera",
+  "name": "Entera Pharma"
+ },
+ {
+  "id": "gid://shopify/Metaobject/96060670273",
+  "handle": "natures-secret",
+  "name": "Nature's Secret"
+ },
+ {
+  "id": "gid://shopify/Metaobject/107584389441",
+  "handle": "gene-x-formulas",
+  "name": "GeneX Formulas"
+ },
+ {
+  "id": "gid://shopify/Metaobject/109142278465",
+  "handle": "ivb",
+  "name": "IVB"
+ },
+ {
+  "id": "gid://shopify/Metaobject/116506558785",
+  "handle": "munar",
+  "name": "Munar"
+ },
+ {
+  "id": "gid://shopify/Metaobject/118766534977",
+  "handle": "nutravia",
+  "name": "Nutravia"
+ },
+ {
+  "id": "gid://shopify/Metaobject/121194905921",
+  "handle": "raw",
+  "name": "RAW"
+ },
+ {
+  "id": "gid://shopify/Metaobject/122101367105",
+  "handle": "nutrex",
+  "name": "Nutrex"
+ },
+ {
+  "id": "gid://shopify/Metaobject/122151108929",
+  "handle": "mutant",
+  "name": "Mutant"
+ },
+ {
+  "id": "gid://shopify/Metaobject/122155860289",
+  "handle": "ronnie-coleman",
+  "name": "Ronnie Coleman"
+ },
+ {
+  "id": "gid://shopify/Metaobject/122192757057",
+  "handle": "evogen",
+  "name": "Evogen"
+ },
+ {
+  "id": "gid://shopify/Metaobject/122209435969",
+  "handle": "dimatize",
+  "name": "Dimatize"
+ },
+ {
+  "id": "gid://shopify/Metaobject/123019133249",
+  "handle": "natural-health",
+  "name": "Natural Health"
+ },
+ {
+  "id": "gid://shopify/Metaobject/123793310017",
+  "handle": "eternal-nutrition",
+  "name": "Eternal Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/125284024641",
+  "handle": "amz-nutrition",
+  "name": "AMZ Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/126008295745",
+  "handle": "wild-foods",
+  "name": "Wild Foods"
+ },
+ {
+  "id": "gid://shopify/Metaobject/128881590593",
+  "handle": "briah",
+  "name": "Briah"
+ },
+ {
+  "id": "gid://shopify/Metaobject/130459828545",
+  "handle": "lalun-organic",
+  "name": "Lalun Organic"
+ },
+ {
+  "id": "gid://shopify/Metaobject/131468165441",
+  "handle": "ascent",
+  "name": "Ascent"
+ },
+ {
+  "id": "gid://shopify/Metaobject/131490742593",
+  "handle": "garden-of-life",
+  "name": "Garden of Life"
+ },
+ {
+  "id": "gid://shopify/Metaobject/131493495105",
+  "handle": "prohealth",
+  "name": "Prohealth"
+ },
+ {
+  "id": "gid://shopify/Metaobject/135653425473",
+  "handle": "cell-x",
+  "name": "CellX"
+ },
+ {
+  "id": "gid://shopify/Metaobject/136316682561",
+  "handle": "gud-gut",
+  "name": "GudGut"
+ },
+ {
+  "id": "gid://shopify/Metaobject/137827713345",
+  "handle": "beyond-vitamins",
+  "name": "Beyond Vitamins"
+ },
+ {
+  "id": "gid://shopify/Metaobject/138110468417",
+  "handle": "bo-foods",
+  "name": "Bo Foods"
+ },
+ {
+  "id": "gid://shopify/Metaobject/138847093057",
+  "handle": "now-kids",
+  "name": "Now Kids"
+ },
+ {
+  "id": "gid://shopify/Metaobject/138854400321",
+  "handle": "now-solutions",
+  "name": "Now Solutions"
+ },
+ {
+  "id": "gid://shopify/Metaobject/144303391041",
+  "handle": "reset",
+  "name": "Reset Wellness"
+ },
+ {
+  "id": "gid://shopify/Metaobject/158503764289",
+  "handle": "superlabs-nutrition",
+  "name": "Superlabs Nutrition"
+ },
+ {
+  "id": "gid://shopify/Metaobject/160270451009",
+  "handle": "himalaya",
+  "name": "Himalaya"
+ },
+ {
+  "id": "gid://shopify/Metaobject/165041602881",
+  "handle": "b-fit",
+  "name": "B Fit"
+ },
+ {
+  "id": "gid://shopify/Metaobject/186808271169",
+  "handle": "menoglow",
+  "name": "Menoglow"
+ },
+ {
+  "id": "gid://shopify/Metaobject/209928651073",
+  "handle": "doctors-best",
+  "name": "Doctor's Best"
+ },
+ {
+  "id": "gid://shopify/Metaobject/210849628481",
+  "handle": "xymogen",
+  "name": "Xymogen"
+ },
+ {
+  "id": "gid://shopify/Metaobject/213897904449",
+  "handle": "habits-1",
+  "name": "Habits"
+ }
+]

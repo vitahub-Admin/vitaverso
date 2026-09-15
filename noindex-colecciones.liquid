@@ -1,0 +1,50 @@
+{%- comment -%}
+═══════════════════════════════════════════════════════════════════════════════
+  VITAHUB — noindex de colecciones que no deben estar en el índice de Google
+═══════════════════════════════════════════════════════════════════════════════
+
+  DÓNDE VA
+  Shopify admin → Tienda online → Temas → ⋯ → Editar código
+  → layout/theme.liquid
+  → pegar justo DEBAJO de la línea:   <link rel="canonical" href="{{ canonical_url }}">
+
+  QUÉ HACE
+  Imprime <meta name="robots" content="noindex,follow"> en tres tipos de página:
+
+    1. Colecciones de afiliado (1,516) — storefronts casi duplicados del catálogo.
+       Siguen funcionando igual: el afiliado comparte su link, la app lee su
+       shopify_collection_id, todo idéntico. Solo Google deja de indexarlas.
+
+    2. Colecciones vacías (60) — no hay nada que indexar en una página en blanco.
+       Se aplica sola: si mañana una se llena, vuelve al índice; si una se
+       vacía, sale.
+
+    3. Colecciones internas y duplicados técnicos (12) — la lista de abajo.
+
+  QUÉ *NO* HACE
+  No borra nada. No modifica ninguna colección. No toca productos ni metafields.
+  Es una etiqueta HTML. Para revertir: borrá este bloque y listo.
+
+  POR QUÉ "follow" Y NO "noindex,nofollow"
+  Con follow, Google sigue entrando por estas páginas hacia tus productos y les
+  pasa autoridad. Solo deja de indexar la colección en sí. Es lo que queremos.
+
+  QUEDAN INDEXADAS ~407 colecciones de catálogo real, incluidas todas las que
+  tienen título SEO trabajado: /suplementos-minerales, /suplementos-con-magnesio,
+  /multivitaminico-en-mexico, /vitaminas-de-letras-en-mexico, /zinc, /cabello,
+  /comprar-suplementos, /vitaminas-y-suplementos-en-mexico, etc.
+
+  PARA AJUSTAR LA LISTA
+  no_index_handles es texto separado por comas. Sacá o agregá handles a gusto.
+═══════════════════════════════════════════════════════════════════════════════
+{%- endcomment -%}
+
+{%- if request.page_type == 'collection' -%}
+  {%- assign no_index_handles = 'pruebaaaaa,l1-prueba,productos-excluidos-wiser,comision,globofilter-best-selling-products-index,aniversario-old,all,all_products,best-selling-products,newest-products,new-collection,best-selling-collection' | split: ',' -%}
+  {%- if template.suffix == 'coleccion-afiliado'
+      or template.suffix == 'col-afiliado-embajador'
+      or collection.all_products_count == 0
+      or no_index_handles contains collection.handle -%}
+    <meta name="robots" content="noindex,follow">
+  {%- endif -%}
+{%- endif -%}

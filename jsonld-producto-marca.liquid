@@ -1,0 +1,119 @@
+{%- comment -%}
+═══════════════════════════════════════════════════════════════════════════════
+  VITAHUB — Marca real en los datos estructurados de producto
+═══════════════════════════════════════════════════════════════════════════════
+
+  SITUACIÓN (verificada en vivo el 14 sep 2026)
+  La app Booster SEO ya no está instalada, pero su CÓDIGO quedó pegado en el
+  tema y sigue funcionando en todas las páginas. Ese código es hoy la ÚNICA
+  fuente de <title> y meta description de toda la tienda — el <title> propio
+  del tema fue quitado cuando se instaló.
+
+  NO BORRES EL CÓDIGO DE BOOSTER COMPLETO: las páginas se quedarían sin título.
+
+  Cada ficha de producto emite hoy dos bloques, ambos con la marca equivocada:
+    · "Product"      → del código de Booster      (brand = vendor)
+    · "ProductGroup" → del tema, structured_data  (brand = vendor)
+
+═══════════════════════════════════════════════════════════════════════════════
+  PLAN A — RECOMENDADO: dos cambios pequeños
+═══════════════════════════════════════════════════════════════════════════════
+
+  1) Corregir la marca dentro del código de Booster
+     Editar código → buscador de archivos → busca:   Booster Apps Seo
+     Dentro de ese código, localiza la línea de "brand" del bloque Product.
+     Hoy renderiza así:   "brand": {"@type": "Brand","name": "OLSEGO GROUP"}
+
+     Cambia SOLO la parte donde aparece product.vendor:
+
+       si dice          {{ product.vendor | json }}
+       reemplaza por    {{ product.metafields.custom.marca_lista.value.nombre | default: product.vendor | json }}
+
+       si dice          "{{ product.vendor }}"   o   "{{ product.vendor | escape }}"
+       reemplaza por    "{{ product.metafields.custom.marca_lista.value.nombre | default: product.vendor | escape }}"
+
+     No toques <title>, meta description ni nada más de ese código.
+
+  2) Quitar el bloque duplicado del tema
+     sections/main-product.liquid → busca y BORRA estas 3 líneas:
+
+       <script type="application/ld+json">
+         {{ product | structured_data }}
+       </script>
+
+     Resultado: un solo bloque de producto por ficha, con la marca correcta.
+     vendor queda intacto. Los títulos no se tocan.
+
+═══════════════════════════════════════════════════════════════════════════════
+  PLAN B — solo si el código de Booster no se deja editar
+═══════════════════════════════════════════════════════════════════════════════
+
+  Si la línea de brand no aparece o el código está minificado/ilegible:
+    a) En el código de Booster, borra SOLO el <script type="application/ld+json">
+       del bloque Product (deja <title>, meta description y WebSite).
+    b) En sections/main-product.liquid reemplaza las 3 líneas del
+       structured_data por el bloque de abajo.
+
+  TinySEO: mantén APAGADO su embed "Product JSON-LD". Hoy no emite nada; si se
+  activa agregaría un tercer bloque de producto.
+
+  DESPUÉS DE CUALQUIER PLAN
+  Probar una ficha en https://search.google.com/test/rich-results
+  Para revertir: deshacer los cambios (Shopify guarda versiones de cada archivo).
+═══════════════════════════════════════════════════════════════════════════════
+{%- endcomment -%}
+
+{%- comment -%} ── Bloque del PLAN B (no hace falta con el Plan A) ── {%- endcomment -%}
+{%- liquid
+  assign marca_real = product.metafields.custom.marca_lista.value.nombre | default: product.vendor
+  if product.selected_or_first_available_variant.featured_media
+    assign seo_media = product.selected_or_first_available_variant.featured_media
+  else
+    assign seo_media = product.featured_media
+  endif
+-%}
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "ProductGroup",
+  "@id": {{ request.origin | append: product.url | append: '#product' | json }},
+  "name": {{ product.title | json }},
+  "url": {{ request.origin | append: product.url | json }},
+  "description": {{ product.description | strip_html | strip | truncate: 5000 | json }},
+  "brand": { "@type": "Brand", "name": {{ marca_real | json }} },
+  "productGroupID": {{ product.id | json }},
+  {%- if seo_media %}
+  "image": [{{ seo_media | image_url: width: 1920 | prepend: 'https:' | json }}],
+  {%- endif %}
+  "hasVariant": [
+    {%- for variant in product.variants -%}
+      {%- liquid
+        assign v_name = product.title
+        unless product.has_only_default_variant
+          assign v_name = product.title | append: ' - ' | append: variant.title
+        endunless
+        assign bc = variant.barcode | strip
+      -%}
+    {
+      "@type": "Product",
+      "name": {{ v_name | json }},
+      {%- if variant.sku != blank %}
+      "sku": {{ variant.sku | json }},
+      {%- endif %}
+      {%- if bc.size == 8 or bc.size == 12 or bc.size == 13 or bc.size == 14 %}
+      "gtin": {{ bc | json }},
+      {%- endif %}
+      "brand": { "@type": "Brand", "name": {{ marca_real | json }} },
+      "url": {{ request.origin | append: variant.url | json }},
+      "offers": {
+        "@type": "Offer",
+        "price": {{ variant.price | divided_by: 100.00 | json }},
+        "priceCurrency": {{ cart.currency.iso_code | json }},
+        "availability": "https://schema.org/{% if variant.available %}InStock{% else %}OutOfStock{% endif %}",
+        "url": {{ request.origin | append: variant.url | json }}
+      }
+    }{% unless forloop.last %},{% endunless %}
+    {%- endfor %}
+  ]
+}
+</script>
