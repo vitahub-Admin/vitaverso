@@ -86,7 +86,14 @@ export async function GET(req) {
       })
     );
 
-    return NextResponse.json({ ok: true, codes });
+    const { data: bonusSetting } = await supabase
+      .from('platform_settings')
+      .select('value')
+      .eq('key', 'store_credit_bonus_rate')
+      .maybeSingle();
+    const bonus_rate = Number(bonusSetting?.value ?? 0.05);
+
+    return NextResponse.json({ ok: true, codes, bonus_rate });
   } catch (err) {
     console.error('❌ GET store-credit:', err);
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 });
