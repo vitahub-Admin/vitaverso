@@ -336,7 +336,9 @@ async function buildItemsFromShopify(shopifyNodes) {
       product_id:         pid,
       title:              sp.title,
       image_url:          sp.featuredImage?.url || null,
-      brand:              enrich?.brand || sp.vendor || null,
+      // Sin respaldo en vendor: el vendor de Shopify es el distribuidor
+      // (Vitaminate, OLSEGO GROUP), no la marca, y ensuciaba el filtro de marca.
+      brand:              enrich?.brand || null,
       is_professional:    enrich?.is_professional || false,
       componente:         enrich?.componente || null,
       primary_ingredient: enrich?.primary_ingredient || null,
@@ -750,7 +752,7 @@ export async function GET(req) {
           product_id:         p.product_id,
           title:              p.title,
           image_url:          p.image_url,
-          brand:              enrich.brand || p.vendor || null,
+          brand:              enrich.brand || null, // vendor = distribuidor, no marca
           componente:         enrich.componente || null,
           is_professional:    enrich.is_professional || false,
           primary_ingredient: enrich.primary_ingredient || null,

@@ -101,7 +101,7 @@ async function fetchCollectionProducts(collectionId, commissionMap) {
       product_id:         productId,
       title:              p.title,
       image_url:          p.featuredImage?.url || null,
-      brand:              enrichment.brand || p.vendor || null,
+      brand:              enrichment.brand || null, // vendor = distribuidor, no marca
       min_price:          isFinite(min_price) ? min_price : null,
       is_professional:    enrichment.is_professional || false,
       commission_percent: enrichment.commission_percent ?? 0,

@@ -2015,7 +2015,6 @@ function ArmadorCarritosInner() {
               {filteredProductos.length} producto{filteredProductos.length !== 1 ? "s" : ""}
               {hasFilters && visibleProductos.length !== filteredProductos.length
                 ? ` de ${visibleProductos.length}` : ""}
-              {outOfStockCount > 0 ? ` · ${outOfStockCount} sin stock, al final` : ""}
             </p>
 
             <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-6">
