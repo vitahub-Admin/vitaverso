@@ -13,8 +13,42 @@ const SF_TOKEN       = process.env.SHOPIFY_STOREFRONT_TOKEN
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-// Trae featured images de Shopify para una lista de product_ids
+/**
+ * Imágenes y datos de variantes se piden con un alias por ID en una sola query.
+ * Con cientos de IDs esa query se pasa de tamaño y Shopify la rechaza entera:
+ * como el error se ignora, los productos salían sin stock ni comisión. Por eso
+ * todo pasa por lotes.
+ */
+const LOTE_GQL = 100
+
+// Corre los lotes de a 3 en paralelo: más rápido que uno por uno y sin
+// vaciar el presupuesto de Shopify, que se recarga a 100 puntos por segundo.
+const LOTES_EN_PARALELO = 5
+
+async function mapLimit(items, limit, fn) {
+  const out = []
+  for (let i = 0; i < items.length; i += limit) {
+    out.push(...await Promise.all(items.slice(i, i + limit).map(fn)))
+  }
+  return out
+}
+
 async function fetchImages(productIds) {
+  const partes = await mapLimit(chunk(productIds, LOTE_GQL), LOTES_EN_PARALELO, fetchImagesBatch)
+  return Object.assign({}, ...partes)
+}
+
+async function fetchVariantData(variantIds) {
+  const partes = await mapLimit(chunk(variantIds, LOTE_GQL), LOTES_EN_PARALELO, fetchVariantDataBatch)
+  return {
+    prices:        Object.assign({}, ...partes.map(p => p.prices)),
+    stock:         Object.assign({}, ...partes.map(p => p.stock)),
+    productStatus: Object.assign({}, ...partes.map(p => p.productStatus)),
+  }
+}
+
+// Trae featured images de Shopify para una lista de product_ids
+async function fetchImagesBatch(productIds) {
   if (!productIds.length) return {}
   const ids = productIds.map(id => `gid://shopify/Product/${id}`)
 
@@ -22,24 +56,25 @@ async function fetchImages(productIds) {
     `p${i}: node(id: "${gid}") { ... on Product { id featuredImage { url } } }`
   ).join('\n')
 
-  const res = await fetch(GQL_URL, {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': GQL_TOKEN },
-    body:    JSON.stringify({ query: `{ ${aliases} }` }),
-  })
-  const json = await res.json()
-  if (!json.data) return {}
+  let data
+  try {
+    data = await adminGql(`{ ${aliases} }`)
+  } catch (e) {
+    console.warn('[fetchImages]', e.message)
+    return {}
+  }
+  if (!data) return {}
 
   const map = {}
   productIds.forEach((pid, i) => {
-    const node = json.data[`p${i}`]
+    const node = data[`p${i}`]
     if (node?.featuredImage?.url) map[pid] = node.featuredImage.url
   })
   return map
 }
 
 // Trae price + inventoryQuantity + product.status de Shopify en tiempo real
-async function fetchVariantData(variantIds) {
+async function fetchVariantDataBatch(variantIds) {
   if (!variantIds.length) return { prices: {}, stock: {}, productStatus: {} }
   const gids = variantIds.map(id => `gid://shopify/ProductVariant/${id}`)
 
@@ -48,111 +83,278 @@ async function fetchVariantData(variantIds) {
   ).join('\n')
 
   try {
-    const res  = await fetch(GQL_URL, {
-      method:  'POST',
-      headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': GQL_TOKEN },
-      body:    JSON.stringify({ query: `{ ${aliases} }` }),
-    })
-    const json = await res.json()
-    if (!json.data) return { prices: {}, stock: {}, productStatus: {} }
+    const data = await adminGql(`{ ${aliases} }`)
+    if (!data) return { prices: {}, stock: {}, productStatus: {} }
 
     const prices        = {}
     const stock         = {}
     const productStatus = {}
     variantIds.forEach((vid, i) => {
-      const node = json.data[`v${i}`]
+      const node = data[`v${i}`]
       if (!node) return
       if (node.price             != null) prices[vid]        = parseFloat(node.price)
       if (node.inventoryQuantity != null) stock[vid]         = node.inventoryQuantity
       if (node.product?.status)           productStatus[vid] = node.product.status
     })
     return { prices, stock, productStatus }
-  } catch {
+  } catch (e) {
+    console.warn('[fetchVariantData]', e.message)
     return { prices: {}, stock: {}, productStatus: {} }
   }
 }
 
 /**
- * Dado rows de Supabase + mapas de imágenes/comisiones/stock/status,
- * agrupa por producto y devuelve la lista ordenada lista para respuesta.
+ * Comisiones activas por variante. Va por lotes porque un .in() con miles de
+ * IDs arma una URL enorme que Supabase rechaza entera.
  */
-function groupProducts({ rows, imageMap, commissionMap, stock, productStatus }) {
-  const productMap = new Map()
-  for (const r of rows) {
-    const ps = productStatus[r.variant_id]
-    if (ps && ps !== 'ACTIVE') continue
-    if (!productMap.has(r.product_id)) {
-      productMap.set(r.product_id, {
-        product_id:         r.product_id,
-        title:              r.title,
-        image_url:          imageMap[r.product_id] || null,
-        brand:              r.brand || null,
-        primary_ingredient: r.primary_ingredient || null,
-        primary_amount:     r.primary_amount || null,
-        primary_unit:       r.primary_unit || null,
-        is_professional:    r.is_professional || false,
-        componente:         r.componente || null,
-        level_1:            r.level_1 || null,
-        level_2:            r.level_2 || null,
-        level_3:            r.level_3 || null,
-        variants:           [],
-      })
-    }
-    productMap.get(r.product_id).variants.push({
-      variant_id:         r.variant_id,
-      variant_title:      r.variant_title || null,
-      price:              r.price ?? null,
-      sku:                r.sku || null,
-      stock:              stock[r.variant_id] ?? null,
-      commission_percent: commissionMap[r.variant_id] ?? 0,
-      nutrients:          r.nutrients || [],
-    })
-  }
+async function fetchCommissions(variantIds) {
+  if (!variantIds.length) return []
+  const partes = await mapLimit(chunk(variantIds, 300), LOTES_EN_PARALELO, async ids => {
+    const { data, error } = await supabase
+      .from('product_variant_commissions')
+      .select('variant_id, commission_percent')
+      .in('variant_id', ids)
+      .eq('active', true)
+    if (error) console.warn('[fetchCommissions]', error.message)
+    return data || []
+  })
+  return partes.flat()
+}
 
-  return [...productMap.values()].map(p => {
-    const prices  = p.variants.map(v => v.price).filter(pr => pr != null && pr > 0)
-    const allOOS  = p.variants.length > 0 && p.variants.every(v => v.stock !== null && v.stock <= 0)
-    const maxComm = Math.max(0, ...p.variants.map(v => v.commission_percent ?? 0))
-    const nutMap  = new Map()
-    for (const v of p.variants) for (const n of v.nutrients || []) {
-      if (!nutMap.has(n.name) || n.amount > nutMap.get(n.name).amount) nutMap.set(n.name, n)
-    }
-    return {
-      ...p,
-      min_price:        prices.length ? Math.min(...prices) : null,
-      all_out_of_stock: allOOS,
-      commission_percent: maxComm,
-      nutrients:        [...nutMap.values()],
-    }
-  }).sort((a, b) => {
+/**
+ * Lee product_catalog aplicando filtros, paginando de a 1000.
+ * Supabase nunca devuelve más de 1000 filas por consulta, así que sin paginar
+ * las categorías grandes se mostraban recortadas.
+ */
+async function catalogRows(aplicarFiltros) {
+  const out  = []
+  const PAGE = 1000
+  for (let from = 0; ; from += PAGE) {
+    const q = aplicarFiltros(supabase.from('product_catalog').select(CATALOG_SELECT))
+    const { data, error } = await q.range(from, from + PAGE - 1)
+    if (error) throw error
+    if (!data?.length) break
+    out.push(...data)
+    if (data.length < PAGE) break
+  }
+  return out
+}
+
+/**
+ * Items del armador a partir de filas de product_catalog.
+ * Shopify manda sobre existencia, stock e imagen; pedir el producto entero por
+ * ID sale mucho más barato que pedir imagen y variantes por separado.
+ */
+async function itemsFromCatalogRows(rows) {
+  const ids = [...new Set((rows || []).map(r => r.product_id).filter(Boolean))]
+  if (!ids.length) return []
+
+  const nodes = await fetchProductsByIds(ids)
+  const items = await buildItemsFromShopify(nodes)
+
+  return items.sort((a, b) => {
     if (a.all_out_of_stock !== b.all_out_of_stock) return a.all_out_of_stock ? 1 : -1
     return (b.min_price ?? 0) - (a.min_price ?? 0)
   })
 }
 
-/**
- * Dado rows de Supabase, resuelve imágenes/stock/comisiones y retorna products[].
- */
-async function resolveProducts(rows) {
-  if (!rows.length) return []
-  const uniqueProductIds = [...new Set(rows.map(r => r.product_id))]
-  const variantIds       = rows.map(r => r.variant_id)
+const CATALOG_SELECT = 'variant_id, product_id, title, variant_title, sku, price, brand, primary_ingredient, primary_amount, primary_unit, nutrients, is_professional, componente, level_1, level_2, level_3'
 
-  const [imageMap, { data: commData }, { stock, productStatus }] = await Promise.all([
-    fetchImages(uniqueProductIds),
-    variantIds.length
-      ? supabase.from('product_variant_commissions').select('variant_id, commission_percent').in('variant_id', variantIds).eq('active', true)
-      : Promise.resolve({ data: [] }),
-    variantIds.length ? fetchVariantData(variantIds) : Promise.resolve({ prices: {}, stock: {}, productStatus: {} }),
-  ])
+// Campos de producto que necesita el armador. Se comparten entre la consulta por
+// colección y la consulta por IDs para que ambas devuelvan la misma forma.
+const PRODUCT_FIELDS = `
+  id title status vendor
+  featuredImage { url }
+  variants(first: 20) {
+    edges { node { id title price inventoryQuantity inventoryPolicy } }
+  }
+`
 
-  const commissionMap = {}
-  for (const c of commData || []) commissionMap[c.variant_id] = Number(c.commission_percent)
-
-  return groupProducts({ rows, imageMap, commissionMap, stock, productStatus })
+function chunk(arr, size) {
+  const out = []
+  for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size))
+  return out
 }
 
-const CATALOG_SELECT = 'variant_id, product_id, title, variant_title, sku, price, brand, primary_ingredient, primary_amount, primary_unit, nutrients, is_professional, componente, level_1, level_2, level_3'
+/**
+ * Admin GraphQL con reintento ante throttling.
+ * Sin el reintento un THROTTLED se lee como "no hay datos" y la colección
+ * aparecería vacía o recortada sin ningún aviso.
+ */
+async function adminGql(query, variables = {}, intento = 1) {
+  const res  = await fetch(GQL_URL, {
+    method:  'POST',
+    headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': GQL_TOKEN },
+    body:    JSON.stringify({ query, variables }),
+  })
+  const json = await res.json()
+
+  if (json.errors) {
+    const throttled = json.errors.some(e => e.extensions?.code === 'THROTTLED')
+    if (throttled && intento <= 4) {
+      await new Promise(r => setTimeout(r, 1000 * intento))
+      return adminGql(query, variables, intento + 1)
+    }
+    throw new Error(json.errors.map(e => e.message).join(' | '))
+  }
+  return json.data
+}
+
+/**
+ * Todos los productos de una colección, paginando de a 250.
+ * Antes se pedía una sola página: las colecciones de más de 250 productos se
+ * mostraban recortadas. Cada página cuesta ~58 de un presupuesto de 2000 que se
+ * recarga a 100/s, así que paginar sale barato.
+ * Devuelve { title: null, nodes: null } si la colección no existe.
+ */
+async function fetchAllCollectionProducts({ collectionId, handle, maxPages = 12 }) {
+  const query = collectionId
+    ? `query($id: ID!, $after: String) {
+         node(id: $id) {
+           ... on Collection {
+             title
+             products(first: 250, after: $after) {
+               pageInfo { hasNextPage endCursor }
+               edges { node { ${PRODUCT_FIELDS} } }
+             }
+           }
+         }
+       }`
+    : `query($handle: String!, $after: String) {
+         collectionByHandle(handle: $handle) {
+           title
+           products(first: 250, after: $after) {
+             pageInfo { hasNextPage endCursor }
+             edges { node { ${PRODUCT_FIELDS} } }
+           }
+         }
+       }`
+
+  const nodes = []
+  let after = null, title = null, pages = 0
+
+  do {
+    const vars = collectionId
+      ? { id: `gid://shopify/Collection/${collectionId}`, after }
+      : { handle, after }
+    const data = await adminGql(query, vars)
+    const coll = collectionId ? data?.node : data?.collectionByHandle
+    if (!coll) return { title: null, nodes: null }
+
+    title = coll.title
+    const page = coll.products
+    nodes.push(...(page?.edges || []).map(e => e.node))
+    after = page?.pageInfo?.hasNextPage ? page.pageInfo.endCursor : null
+    pages++
+  } while (after && pages < maxPages)
+
+  return { title, nodes }
+}
+
+/** Productos de Shopify por IDs numéricos, en lotes de 100 */
+async function fetchProductsByIds(productIds) {
+  const query = `query($ids: [ID!]!) { nodes(ids: $ids) { ... on Product { ${PRODUCT_FIELDS} } } }`
+  const out = []
+  for (const ids of chunk(productIds.map(id => `gid://shopify/Product/${id}`), 100)) {
+    const data = await adminGql(query, { ids })
+    out.push(...(data?.nodes || []).filter(Boolean))
+  }
+  return out
+}
+
+/**
+ * Convierte nodos de Shopify en items del armador, enriquecidos con Supabase.
+ * Las lecturas a Supabase van por lotes: un .in() con cientos de IDs arma una
+ * URL enorme y puede fallar entera.
+ */
+async function buildItemsFromShopify(shopifyNodes) {
+  const activos    = (shopifyNodes || []).filter(n => n.status === 'ACTIVE' || !n.status)
+  const productIds = activos.map(n => Number(n.id.replace('gid://shopify/Product/', ''))).filter(Boolean)
+  if (!productIds.length) return []
+
+  const partes = await mapLimit(chunk(productIds, 200), LOTES_EN_PARALELO, async ids => {
+    const { data, error } = await supabase.from('product_catalog').select(CATALOG_SELECT).in('product_id', ids)
+    if (error) console.error('product-catalog enrich error:', error.message)
+    return data || []
+  })
+  const supaRows = partes.flat()
+
+  const supaProductMap = {}
+  const supaVariantIds = []
+  for (const r of supaRows) {
+    if (!supaProductMap[r.product_id]) {
+      supaProductMap[r.product_id] = {
+        brand:              r.brand,
+        is_professional:    r.is_professional || false,
+        componente:         r.componente || null,
+        primary_ingredient: r.primary_ingredient || null,
+        primary_amount:     r.primary_amount || null,
+        primary_unit:       r.primary_unit || null,
+        nutrients:          r.nutrients || [],
+        level_1:            r.level_1 || null,
+        level_2:            r.level_2 || null,
+        level_3:            r.level_3 || null,
+        skuByVariant:       {},
+      }
+    }
+    supaProductMap[r.product_id].skuByVariant[r.variant_id] = r.sku || null
+    supaVariantIds.push(r.variant_id)
+  }
+
+  const commissionMap = {}
+  for (const c of await fetchCommissions(supaVariantIds)) {
+    commissionMap[c.variant_id] = Number(c.commission_percent)
+  }
+
+  return activos.map(sp => {
+    const pid    = Number(sp.id.replace('gid://shopify/Product/', ''))
+    const enrich = supaProductMap[pid] || null
+
+    const variants = (sp.variants?.edges || []).map(ve => {
+      const v   = ve.node
+      const vid = Number(v.id.replace('gid://shopify/ProductVariant/', ''))
+      // inventoryQuantity null = Shopify no trackea stock → tratar como disponible
+      const stockVal = v.inventoryPolicy === 'CONTINUE'
+        ? null  // "never out of stock" → disponible siempre
+        : v.inventoryQuantity ?? null
+      return {
+        variant_id:         vid,
+        variant_title:      v.title === 'Default Title' ? null : v.title,
+        price:              parseFloat(v.price) || null,
+        sku:                enrich?.skuByVariant?.[vid] || null,
+        stock:              stockVal,
+        commission_percent: commissionMap[vid] ?? 0,
+        nutrients:          [],
+      }
+    })
+
+    const prices  = variants.map(v => v.price).filter(p => p != null && p > 0)
+    const allOOS  = variants.length > 0 && variants.every(v => v.stock !== null && v.stock <= 0)
+    const maxComm = Math.max(0, ...variants.map(v => v.commission_percent))
+
+    return {
+      product_id:         pid,
+      title:              sp.title,
+      image_url:          sp.featuredImage?.url || null,
+      brand:              enrich?.brand || sp.vendor || null,
+      is_professional:    enrich?.is_professional || false,
+      componente:         enrich?.componente || null,
+      primary_ingredient: enrich?.primary_ingredient || null,
+      primary_amount:     enrich?.primary_amount || null,
+      primary_unit:       enrich?.primary_unit || null,
+      nutrients:          enrich?.nutrients || [],
+      // Niveles del árbol de categorías: sin ellos el breadcrumb del
+      // detalle no aparece para productos abiertos desde una colección.
+      level_1:            enrich?.level_1 || null,
+      level_2:            enrich?.level_2 || null,
+      level_3:            enrich?.level_3 || null,
+      variants,
+      min_price:          prices.length ? Math.min(...prices) : null,
+      all_out_of_stock:   allOOS,
+      commission_percent: maxComm,
+    }
+  })
+}
 
 // ── Handler principal ─────────────────────────────────────────────────────────
 
@@ -171,6 +373,7 @@ export async function GET(req) {
     const l1               = searchParams.get('l1')   // filtro level_1
     const l2               = searchParams.get('l2')   // filtro level_2
     const l3               = searchParams.get('l3')   // filtro level_3
+    const professional     = searchParams.get('professional') === 'true' // solo is_professional
 
     // ── ?collectionsMeta=id1,id2,... ────────────────────────────────────────
     // Batch: title + image de varias colecciones en una sola query GraphQL
@@ -318,149 +521,28 @@ export async function GET(req) {
     // para los productos que ya estén sincronizados, pero NO es requisito:
     // los productos no-sincronizados aparecen igual con datos básicos de Shopify.
     if (collectionId || collectionHandle) {
-      // Query que incluye variantes directamente — elimina round-trip de fetchVariantData
-      const collSelector = collectionId
-        ? `node(id: "gid://shopify/Collection/${collectionId}")`
-        : `collectionByHandle(handle: "${collectionHandle}")`
-
-      const gqlQuery = `{
-        ${collSelector} {
-          ... on Collection {
-            title
-            products(first: 250) {
-              edges {
-                node {
-                  id title status vendor
-                  featuredImage { url }
-                  variants(first: 20) {
-                    edges {
-                      node {
-                        id title price
-                        inventoryQuantity
-                        inventoryPolicy
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }
-      }`
-
-      const gqlRes  = await fetch(GQL_URL, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': GQL_TOKEN },
-        body:    JSON.stringify({ query: gqlQuery }),
+      // Trae la colección completa: pagina de a 250 hasta terminarla
+      const { title: collTitle, nodes } = await fetchAllCollectionProducts({
+        collectionId,
+        handle: collectionHandle,
       })
-      const gqlJson = await gqlRes.json()
-      const coll    = collectionId
-        ? gqlJson?.data?.node
-        : gqlJson?.data?.collectionByHandle
 
-      if (!coll) {
+      if (!nodes) {
         return NextResponse.json({ ok: true, collectionTitle: null, items: [] })
       }
 
-      const shopifyProducts = (coll.products?.edges || [])
-        .map(e => e.node)
-        .filter(n => n.status === 'ACTIVE' || !n.status)
+      const shopifyProducts = nodes.filter(n => n.status === 'ACTIVE' || !n.status)
 
       const shopifyProductIds = shopifyProducts
         .map(n => Number(n.id.replace('gid://shopify/Product/', '')))
         .filter(Boolean)
 
       if (!shopifyProductIds.length) {
-        return NextResponse.json({ ok: true, collectionTitle: coll.title, items: [] })
+        return NextResponse.json({ ok: true, collectionTitle: collTitle, items: [] })
       }
 
-      // ── Enriquecimiento desde Supabase (opcional, best-effort) ──────────────
-      const { data: supaRows } = await supabase
-        .from('product_catalog')
-        .select(CATALOG_SELECT)
-        .in('product_id', shopifyProductIds)
-        .limit(2000)
-
-      // Mapa: product_id → datos clínicos de Supabase
-      const supaProductMap = {}
-      // Mapa: variant_id → sku de Supabase
-      const supaVariantIds = []
-      for (const r of supaRows || []) {
-        if (!supaProductMap[r.product_id]) {
-          supaProductMap[r.product_id] = {
-            brand:              r.brand,
-            is_professional:    r.is_professional || false,
-            componente:         r.componente || null,
-            primary_ingredient: r.primary_ingredient || null,
-            primary_amount:     r.primary_amount || null,
-            primary_unit:       r.primary_unit || null,
-            nutrients:          r.nutrients || [],
-            level_1:            r.level_1 || null,
-            level_2:            r.level_2 || null,
-            level_3:            r.level_3 || null,
-            skuByVariant:       {},
-          }
-        }
-        supaProductMap[r.product_id].skuByVariant[r.variant_id] = r.sku || null
-        supaVariantIds.push(r.variant_id)
-      }
-
-      // Comisiones para variantes conocidas en Supabase
-      const { data: commData } = supaVariantIds.length
-        ? await supabase.from('product_variant_commissions').select('variant_id, commission_percent').in('variant_id', supaVariantIds).eq('active', true)
-        : { data: [] }
-      const commissionMap = {}
-      for (const c of commData || []) commissionMap[c.variant_id] = Number(c.commission_percent)
-
-      // ── Construir lista de productos con datos de Shopify + enrichment ───────
-      const products = shopifyProducts.map(sp => {
-        const pid     = Number(sp.id.replace('gid://shopify/Product/', ''))
-        const enrich  = supaProductMap[pid] || null
-
-        const variants = (sp.variants?.edges || []).map(ve => {
-          const v   = ve.node
-          const vid = Number(v.id.replace('gid://shopify/ProductVariant/', ''))
-          // inventoryQuantity null = Shopify no trackea stock → tratar como disponible
-          const stockVal = v.inventoryPolicy === 'CONTINUE'
-            ? null  // "never out of stock" → disponible siempre
-            : v.inventoryQuantity ?? null
-          return {
-            variant_id:         vid,
-            variant_title:      v.title === 'Default Title' ? null : v.title,
-            price:              parseFloat(v.price) || null,
-            sku:                enrich?.skuByVariant?.[vid] || null,
-            stock:              stockVal,
-            commission_percent: commissionMap[vid] ?? 0,
-            nutrients:          [],
-          }
-        })
-
-        const prices  = variants.map(v => v.price).filter(p => p != null && p > 0)
-        const allOOS  = variants.length > 0 && variants.every(v => v.stock !== null && v.stock <= 0)
-        const maxComm = Math.max(0, ...variants.map(v => v.commission_percent))
-
-        return {
-          product_id:         pid,
-          title:              sp.title,
-          image_url:          sp.featuredImage?.url || null,
-          brand:              enrich?.brand || sp.vendor || null,
-          is_professional:    enrich?.is_professional || false,
-          componente:         enrich?.componente || null,
-          primary_ingredient: enrich?.primary_ingredient || null,
-          primary_amount:     enrich?.primary_amount || null,
-          primary_unit:       enrich?.primary_unit || null,
-          nutrients:          enrich?.nutrients || [],
-          // Niveles del árbol de categorías: sin ellos el breadcrumb del
-          // detalle no aparece para productos abiertos desde una colección.
-          level_1:            enrich?.level_1 || null,
-          level_2:            enrich?.level_2 || null,
-          level_3:            enrich?.level_3 || null,
-          variants,
-          min_price:          prices.length ? Math.min(...prices) : null,
-          all_out_of_stock:   allOOS,
-          commission_percent: maxComm,
-        }
-      })
+      // Enriquecimiento desde Supabase (opcional, best-effort)
+      const products = await buildItemsFromShopify(shopifyProducts)
 
       // Ordenar: posición en colección de Shopify, sin stock al final
       const posMap = {}
@@ -470,7 +552,16 @@ export async function GET(req) {
         return (posMap[a.product_id] ?? 999) - (posMap[b.product_id] ?? 999)
       })
 
-      return NextResponse.json({ ok: true, collectionTitle: coll.title, items: products })
+      return NextResponse.json({ ok: true, collectionTitle: collTitle, items: products })
+    }
+
+    // ── ?professional=true — solo marcas de grado clínico ────────────────────
+    // La colección "Marcas Profesionales" de Shopify es un nombre comercial y no
+    // coincide con estos: la lista buena es la marca is_professional de Supabase.
+    if (professional) {
+      const rows  = await catalogRows(q => q.eq('is_professional', true))
+      const items = await itemsFromCatalogRows(rows)
+      return NextResponse.json({ ok: true, collectionTitle: 'Marcas Profesionales', items })
     }
 
     // ── ?search=query ────────────────────────────────────────────────────────
@@ -584,7 +675,7 @@ export async function GET(req) {
         console.log('[search] 0 resultados en Shopify, intentando Supabase trgm para:', q)
         const { data: rpcData, error: rpcError } = await supabase.rpc('search_product_catalog', { q })
         if (!rpcError && rpcData?.length) {
-          const products = await resolveProducts(rpcData)
+          const products = await itemsFromCatalogRows(rpcData)
           return NextResponse.json({ ok: true, items: products, source: 'supabase_trgm' })
         }
         // Si tampoco hay RPC, devolver vacío limpio
@@ -725,13 +816,13 @@ export async function GET(req) {
 
     // ── ?l1, ?l2, ?l3 — árbol de categorías (level_1/2/3 en Supabase) ─────────
     if (l1 || l2 || l3) {
-      let q = supabase.from('product_catalog').select(CATALOG_SELECT)
-      if (l1) q = q.eq('level_1', l1)
-      if (l2) q = q.eq('level_2', l2)
-      if (l3) q = q.eq('level_3', l3)
-      const { data, error } = await q
-      if (error) throw error
-      const items = await resolveProducts(data || [])
+      const rows = await catalogRows(q => {
+        if (l1) q = q.eq('level_1', l1)
+        if (l2) q = q.eq('level_2', l2)
+        if (l3) q = q.eq('level_3', l3)
+        return q
+      })
+      const items = await itemsFromCatalogRows(rows)
       // Label para el título de la vista: el nivel más específico
       const label = l3 || l2 || l1
       return NextResponse.json({ ok: true, items, collectionTitle: label })
@@ -739,14 +830,8 @@ export async function GET(req) {
 
     // ── ?componente ──────────────────────────────────────────────────────────
     if (componente) {
-      const { data, error } = await supabase
-        .from('product_catalog')
-        .select(CATALOG_SELECT)
-        .eq('componente', componente)
-        .limit(2000)
-
-      if (error) throw error
-      const products = await resolveProducts(data || [])
+      const rows     = await catalogRows(q => q.eq('componente', componente))
+      const products = await itemsFromCatalogRows(rows)
       return NextResponse.json({ ok: true, items: products })
     }
 

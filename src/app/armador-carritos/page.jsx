@@ -126,6 +126,11 @@ const FEATURED = [
   { handle: "omega-3-en-mexico",        label: "Omega 3",      desc: "Salud cardiovascular, cerebro y control inflamatorio",   icon: Droplets,     from: "from-blue-500",    to: "to-indigo-600"  },
 ];
 
+// Destino del banner "Marcas Profesionales". Va por handle y no por posición en
+// FEATURED: apuntaba a FEATURED[1], así que al reordenar las destacadas el
+// banner terminó abriendo Enzimas.
+const PRO_COLLECTION = { handle: "marcas-profesionales", label: "Marcas Profesionales" };
+
 const NAV_TABS = [
   ...FEATURED,
   // Handles adicionales — sin duplicar los que ya están en FEATURED
@@ -1651,10 +1656,11 @@ function ArmadorCarritosInner() {
   const [filterMinComm,  setFilterMinComm]  = useState(0);   // 0 = todas
   const [filterPriceMin, setFilterPriceMin] = useState("");
   const [filterPriceMax, setFilterPriceMax] = useState("");
+  const [filterPro,      setFilterPro]      = useState(false); // solo is_professional
 
   // Reset filtros al cambiar de colección
   useEffect(() => {
-    setFilterBrand(""); setFilterMinComm(0); setFilterPriceMin(""); setFilterPriceMax("");
+    setFilterBrand(""); setFilterMinComm(0); setFilterPriceMin(""); setFilterPriceMax(""); setFilterPro(false);
   }, [activeTabKey]);
 
   // Marcas disponibles (sorted)
@@ -1663,6 +1669,7 @@ function ArmadorCarritosInner() {
   // Aplicar filtros
   const filteredProductos = visibleProductos.filter(p => {
     if (filterBrand && p.brand !== filterBrand) return false;
+    if (filterPro && !p.is_professional) return false;
     if (filterMinComm > 0 && (p.commission_percent ?? 0) < filterMinComm) return false;
     const price = p.min_price ?? 0;
     if (filterPriceMin !== "" && price < Number(filterPriceMin)) return false;
@@ -1677,8 +1684,8 @@ function ArmadorCarritosInner() {
   // no se renderiza y el tour lo saltearía.
   const tourComisionIdx = filteredProductos.findIndex(p => (p.commission_percent ?? 0) > 0);
 
-  const hasFilters = filterBrand || filterMinComm > 0 || filterPriceMin !== "" || filterPriceMax !== "";
-  const clearFilters = () => { setFilterBrand(""); setFilterMinComm(0); setFilterPriceMin(""); setFilterPriceMax(""); };
+  const hasFilters = filterBrand || filterPro || filterMinComm > 0 || filterPriceMin !== "" || filterPriceMax !== "";
+  const clearFilters = () => { setFilterBrand(""); setFilterMinComm(0); setFilterPriceMin(""); setFilterPriceMax(""); setFilterPro(false); };
 
   const isHome     = view === "home";
   const isProduct  = view === "product";
@@ -1828,7 +1835,7 @@ function ArmadorCarritosInner() {
                     <p className="text-[#7EAEC0] text-xs mt-1 max-w-xs">Productos exclusivos de grado clínico que tus pacientes no pueden comprar directo.</p>
                   </div>
                 </div>
-                <button onClick={() => handleCollection(FEATURED[1])}
+                <button onClick={() => handleCollection(PRO_COLLECTION)}
                   className="shrink-0 flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors whitespace-nowrap">
                   Explorar <ChevronRight size={12} />
                 </button>
@@ -1932,6 +1939,16 @@ function ArmadorCarritosInner() {
 
               {/* Separador */}
               {availableBrands.length > 1 && <div className="h-5 w-px bg-[#D0E4EC] hidden sm:block" />}
+
+              {/* Solo PRO — marcas de grado clínico (is_professional en Supabase) */}
+              <button onClick={() => setFilterPro(v => !v)}
+                title="Mostrar solo marcas profesionales"
+                className={`text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full border transition-colors ${filterPro ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1b3f7a]"}`}>
+                Solo PRO
+              </button>
+
+              {/* Separador */}
+              <div className="h-5 w-px bg-[#D0E4EC] hidden sm:block" />
 
               {/* Comisión */}
               <div className="flex items-center gap-2">
