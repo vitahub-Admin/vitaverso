@@ -365,6 +365,35 @@ async function handleBookingPayment(payload) {
   return true;
 }
 
+/**
+ * Dueño del carrito compartido del que salió la orden.
+ * Prueba primero el atributo share_cart y después el token en la URL de entrada
+ * (?shared-cart-id=), que es lo único que queda cuando el tema no manda atributos.
+ * Un token sin dueño no corta la búsqueda: se sigue con el siguiente.
+ */
+async function resolveCartOwner(shareCart, landingSite) {
+  const candidatos = [];
+  if (shareCart) candidatos.push({ token: shareCart, via: "share_cart" });
+
+  if (landingSite) {
+    try {
+      const ls = new URL(landingSite, "https://vitahub.mx");
+      const token = ls.searchParams.get("shared-cart-id") || ls.searchParams.get("ml-shared-cart-id");
+      if (token && token !== shareCart) candidatos.push({ token, via: "landing_site" });
+    } catch (_) { /* URL inválida, ignorar */ }
+  }
+
+  for (const c of candidatos) {
+    const { data } = await supabase
+      .from("sharecarts")
+      .select("owner_id")
+      .eq("token", c.token)
+      .maybeSingle();
+    if (data?.owner_id) return { ownerId: String(data.owner_id), ...c };
+  }
+  return null;
+}
+
 const getCollectionHandle = (landingSite) => {
   if (!landingSite) return null;
   const match = landingSite.match(/^\/collections\/([^/?]+)/);
@@ -442,7 +471,13 @@ export async function POST(req) {
 
     const discountTitle = payload.discount_codes?.[0]?.code || null;
 
-    // ── Resolución de specialist_ref (6 pasos) ──────────────────
+    // ── Resolución de specialist_ref ─────────────────────────────
+    // 1. sref explícito en la orden → gana (y traspasa la paciente)
+    // 2. comprador especialista → autocompra
+    // 3. carrito compartido (atributo o URL de entrada) → su dueño (y traspasa)
+    // 4. metafield referido de la paciente → recompra
+    // 4c. mismos productos que un carrito reciente → su dueño (sin traspaso)
+    // 5. colección del especialista en la URL de entrada
     let correctedRef = null;
     let status = "ok";
     let isRecompra = false; // true cuando el cliente vuelve solo (sin sref) por metafield referido
@@ -477,65 +512,46 @@ export async function POST(req) {
           .catch(e => console.error("setReferido error:", e.message));
       };
 
+      // Dueño del carrito compartido, si la orden viene de uno
+      const cartOwner = await resolveCartOwner(shareCart, payload.landing_site);
+
       // Paso 2: Customer es especialista → self-referral
       if (isEspecialista) {
         correctedRef = String(customerId);
         status = "corrected";
         if (!referidoValue) setReferido(customerId);
 
-      // Paso 3: Customer tiene metafield referido → recompra (cliente vuelve sin sref)
+      // Paso 3: Carrito compartido → la venta es de quien lo armó.
+      // Va antes que el referido: el carrito prueba qué profesional atendió
+      // esta compra, el referido solo dice quién trajo a la paciente la primera
+      // vez. Y la paciente pasa a ser de ese profesional para sus recompras.
+      } else if (cartOwner) {
+        correctedRef = cartOwner.ownerId;
+        status = "corrected";
+        if (referidoValue !== cartOwner.ownerId) setReferido(cartOwner.ownerId);
+        if (cartOwner.via === "landing_site") {
+          console.log(`[webhook] shareCart recuperado desde landing_site: ${cartOwner.token}`);
+        }
+
+      // Paso 4: Customer tiene metafield referido → recompra (cliente vuelve sin sref ni carrito)
       } else if (referidoValue) {
         correctedRef = referidoValue;
         status = "corrected";
         isRecompra = true;
-
-      // Paso 4: Share cart (note_attribute directo)
-      } else if (shareCart) {
-        const { data: cartData } = await supabase
-          .from("sharecarts")
-          .select("owner_id")
-          .eq("token", shareCart)
-          .maybeSingle();
-
-        if (cartData?.owner_id) {
-          correctedRef = String(cartData.owner_id);
-          status = "corrected";
-          if (!referidoValue) setReferido(cartData.owner_id);
-        }
-      }
-
-      // Paso 4b: landing_site contiene ?shared-cart-id=TOKEN (note_attributes vacío por cambio de tema)
-      if (!correctedRef && payload.landing_site) {
-        try {
-          const ls = new URL(payload.landing_site, "https://vitahub.mx");
-          const tokenFromUrl = ls.searchParams.get("shared-cart-id") ||
-                               ls.searchParams.get("ml-shared-cart-id");
-          if (tokenFromUrl) {
-            const { data: cartData } = await supabase
-              .from("sharecarts")
-              .select("owner_id")
-              .eq("token", tokenFromUrl)
-              .maybeSingle();
-            if (cartData?.owner_id) {
-              correctedRef = String(cartData.owner_id);
-              status = "corrected";
-              if (!referidoValue) setReferido(cartData.owner_id);
-              console.log(`[webhook] shareCart recuperado desde landing_site: ${tokenFromUrl}`);
-            }
-          }
-        } catch (_) { /* URL inválida, ignorar */ }
       }
 
       // Paso 4c: Match por productos — busca sharecarts con exactamente los mismos variant_ids.
       //
       // Es el paso más frágil de la cadena porque infiere el origen sin token, así que
       // se aplica solo cuando la huella identifica de verdad:
-      //   · 2+ productos — la huella de un carrito de un solo producto colisiona con
-      //     cualquier orden de ese producto suelto (atribuía ventas a carritos de prueba)
+      //   · 3+ productos — la huella de un carrito de un solo producto colisiona con
+      //     cualquier orden de ese producto suelto (atribuía ventas a carritos de prueba),
+      //     y con dos tampoco alcanza: unos pocos productos concentran la mayoría de
+      //     las ventas, así que las parejas más comunes se repiten entre clientes
       //   · un único especialista entre los carritos que matchean — si son varios, la
       //     combinación no distingue a nadie y se prefiere no atribuir
       //   · ventana corta: un carrito viejo no debería capturar ventas de meses después
-      const MATCH_MIN_PRODUCTS = 2;
+      const MATCH_MIN_PRODUCTS = 3;
       const MATCH_WINDOW_DAYS  = 14;
 
       if (!correctedRef) {
@@ -591,7 +607,12 @@ export async function POST(req) {
 
       status = correctedRef ? "corrected" : "suspect";
     } else {
-      // Paso 1: Ya tiene ref válido → backfill referido si falta (fire-and-forget)
+      // Paso 1: Ya tiene ref válido → la paciente pasa a ser de ese profesional
+      // (traspaso). Excepción: si el ref lo escribimos nosotros al corregir la
+      // orden (atributo "corregido"), esto es el rebote de orders/updated y el
+      // ref pudo salir de una inferencia débil; ahí solo se completa si falta.
+      const refPropio = Boolean(getAttr("corregido"));
+
       if (customer.id) {
         fetch(`https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/customers/${customer.id}/metafields.json`, {
           headers: { "X-Shopify-Access-Token": process.env.SHOPIFY_ACCESS_TOKEN },
@@ -599,7 +620,8 @@ export async function POST(req) {
           .then(r => r.json())
           .then(({ metafields = [] }) => {
             const referidoMeta  = metafields.find(m => m.key === "referido");
-            if (!referidoMeta?.value) {
+            const traspaso = !refPropio && referidoMeta?.value && referidoMeta.value !== specialistRef;
+            if (!referidoMeta?.value || traspaso) {
               const url  = referidoMeta
                 ? `https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/metafields/${referidoMeta.id}.json`
                 : `https://${process.env.SHOPIFY_STORE}/admin/api/2024-01/customers/${customer.id}/metafields.json`;

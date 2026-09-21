@@ -13,6 +13,19 @@ import { TourProvider } from "./context/TourContext.jsx";
 
 const PUBLIC_ROUTES = ["/", "/privacidad", "/soporte", "/terminos"];
 
+// Adónde ir después de iniciar sesión: la página a la que se quería entrar, sin
+// los parámetros del login. Si no, un link como /armador-carritos?fromCart=TOKEN
+// (el "Continuar en PRO" de la tienda) terminaba en /wallet y perdía el carrito.
+function destinoTrasLogin() {
+  const url = new URL(window.location.href);
+  ["enc", "t", "sig", "aId", "redirect"].forEach((p) => url.searchParams.delete(p));
+  const destino = url.pathname + url.search;
+  return url.pathname !== "/" ? destino : "/wallet";
+}
+
+// Solo rutas internas: "//otro-sitio.com" también empieza con "/"
+const esRutaInterna = (r) => typeof r === "string" && r.startsWith("/") && !r.startsWith("//");
+
 function AuthManager({ children }) {
   const searchParams = useSearchParams();
   const router = useRouter();
@@ -63,7 +76,7 @@ function AuthManager({ children }) {
           if (data.ok && data.customerId) {
             Cookies.set("customerId", data.customerId, { expires: 30 });
             setShowAuthModal(false);
-            router.replace("/wallet");
+            router.replace(destinoTrasLogin());
           } else {
             Cookies.remove("customerId");
             setShowAuthModal(true);
@@ -114,7 +127,7 @@ function AuthManager({ children }) {
         setPendingBackdoorId(null);
         setBackdoorPassword("");
 
-        router.replace("/wallet");
+        router.replace(destinoTrasLogin());
         setShowAuthModal(false);
       } else {
         setBackdoorError("Password incorrecta");
@@ -144,7 +157,7 @@ function AuthManager({ children }) {
         if (data.token) Cookies.set("proJwt", data.token, { expires: 30 });
         setShowAuthModal(false);
         const redirect = searchParams.get("redirect");
-        router.replace(redirect && redirect.startsWith("/") ? redirect : "/wallet");
+        router.replace(esRutaInterna(redirect) ? redirect : destinoTrasLogin());
       } else {
         setLoginError(data.error || "Email o contraseña incorrectos");
       }
