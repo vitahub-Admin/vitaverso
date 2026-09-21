@@ -3,7 +3,7 @@ import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useCustomer } from "@/app/context/CustomerContext";
 import {
-  X, ChevronDown, FileText, Package, Search,
+  X, ChevronDown, Package, Search,
   ArrowLeft, ShoppingBag, Trash2, ChevronRight,
   Plus, Minus, Heart, Pencil, MessageCircle,
   Sun, FlaskConical, Zap, Droplets,
@@ -247,25 +247,6 @@ function useFavorites(customerId) {
   const isFavorite   = useCallback((id) => !!favorites[id], [favorites]);
   const favoriteList = Object.values(favorites);
   return { favoriteList, toggleFavorite, isFavorite };
-}
-
-// ── PDF ───────────────────────────────────────────────────────────────────────
-async function generarPDF(carrito, nombre, profesional) {
-  const patientName      = nombre?.trim() || "Paciente";
-  const professionalName = profesional    || "Especialista Vitahub";
-  const today = new Date().toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" });
-  const PH = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#9ECEDD" stroke-width="1.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="3"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>`;
-  const rowsHtml = carrito.map(({ title, variant_title, image, price, quantity, dosage }, idx) => {
-    const imgHtml = image ? `<img src="${image}" class="rx-img" alt="${title}"/>` : `<div class="rx-img rx-img-ph">${PH}</div>`;
-    const dos        = dosage || { amount: 1, unit: "cápsula" };
-    const dTx        = `${dos.amount} ${pluralUnit(dos.unit, dos.amount)}`;
-    const momentoTxt = Array.isArray(dos.momentos) && dos.momentos.length ? dos.momentos.join(" · ") : (dos.momento || "");
-    const notaTxt    = [momentoTxt, dos.acompanamiento, dos.nota].filter(Boolean).join(" · ");
-    return `<div class="rx-item ${idx % 2 ? "rx-r" : ""}"><div class="rx-ic">${imgHtml}</div><div class="rx-info"><div class="rx-name">${title}</div>${variant_title ? `<div class="rx-variant">${variant_title}</div>` : ""}<div class="rx-dose-row"><span class="rx-badge">${dTx} · ${quantity} unid.</span>${notaTxt ? `<span class="rx-nota">📋 ${notaTxt}</span>` : ""}${price != null ? `<span class="rx-price">${fmtMXN(price)}</span>` : ""}</div></div></div>`;
-  }).join("");
-  const html = `<!DOCTYPE html><html lang="es"><head><meta charset="utf-8"><title>Protocolo — ${patientName}</title><style>@page{size:A4;margin:12mm 14mm}*{box-sizing:border-box;margin:0;padding:0}body{font-family:'Helvetica Neue',Arial,sans-serif;color:#1b3f7a;font-size:14px;background:#EEF3F7;-webkit-print-color-adjust:exact;print-color-adjust:exact}.rx-page{padding:20px;display:flex;justify-content:center}.rx-card{width:100%;max-width:680px;background:#fff;border:1px solid #D0E4EC;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(13,33,51,.10)}.rx-header{background:#1b3f7a;color:white;padding:18px 24px;display:flex;justify-content:space-between;align-items:flex-start}.rx-logo{font-size:20px;font-weight:900;color:#1E8FA8}.rx-logo em{color:white;font-style:normal}.rx-logo small{font-size:11px;font-weight:400;color:#7EAEC0;display:block;letter-spacing:.12em;text-transform:uppercase}.rx-prof{text-align:right}.rx-prof strong{font-size:14px;color:white;display:block}.rx-prof small{font-size:11px;color:#7EAEC0}.rx-patient{background:#F4FAFB;border-bottom:1px solid #D0E4EC;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}.rx-patient h2{font-size:16px;font-weight:800}.rx-patient p{font-size:12px;color:#5B7A8C}.rx-patient-meta{text-align:right;font-size:11px;color:#8AAAB8}.rx-section{font-size:10px;font-weight:800;letter-spacing:.16em;text-transform:uppercase;color:#8AAAB8;padding:14px 24px 8px;border-bottom:1px solid #EEF3F7}.rx-items{padding:12px 24px 24px;display:flex;flex-direction:column;gap:14px}.rx-item{display:flex;gap:16px;align-items:flex-start;padding:14px;background:#F9FCFD;border:1px solid #E2EBF0;border-radius:12px}.rx-r{flex-direction:row-reverse;background:#EEF3F7}.rx-ic{width:80px;flex-shrink:0}.rx-img{width:80px;height:80px;object-fit:contain;border-radius:8px;border:1px solid #D0E4EC;background:#fff}.rx-img-ph{width:80px;height:80px;border-radius:8px;border:1px solid #D0E4EC;background:#F4FAFB;display:flex;align-items:center;justify-content:center}.rx-info{flex:1}.rx-name{font-size:14px;font-weight:800;color:#1b3f7a;line-height:1.3;margin-bottom:3px}.rx-variant{font-size:11px;font-weight:700;color:#1E8FA8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px}.rx-dose-row{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-top:8px}.rx-badge{background:#1b3f7a;color:white;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px}.rx-nota{font-size:11px;color:#5B7A8C}.rx-price{margin-left:auto;font-size:13px;font-weight:800;color:#1b3f7a}.rx-footer{background:#F4FAFB;border-top:1px solid #D0E4EC;padding:12px 24px;text-align:center;font-size:10px;color:#8AAAB8}@media print{body{background:white}.rx-page{padding:0}.rx-card{box-shadow:none;border:none;border-radius:0}}</style></head><body><div class="rx-page"><div class="rx-card"><div class="rx-header"><div class="rx-logo"><em>Vita</em>hub Pro<small>Protocolo de suplementación</small></div><div class="rx-prof"><strong>${professionalName}</strong><small>${today}</small></div></div><div class="rx-patient"><div><h2>${patientName}</h2><p>Paciente</p></div><div class="rx-patient-meta">${carrito.length} producto${carrito.length !== 1 ? "s" : ""}</div></div><div class="rx-section">Plan de suplementación</div><div class="rx-items">${rowsHtml}</div><div class="rx-footer">Recomendación de suplementación · Vitahub Pro · pro.vitahub.mx</div></div></div><script>window.onload=()=>{window.print()}<\/script></body></html>`;
-  const win = window.open("", "_blank");
-  if (win) { win.document.write(html); win.document.close(); }
 }
 
 // ── Protocol Indicator ────────────────────────────────────────────────────────
@@ -536,7 +517,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
 }
 
 // ── Draft View ────────────────────────────────────────────────────────────────
-function DraftView({ carrito, patientData, onPatientChange, customerId, profesional, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity }) {
+function DraftView({ carrito, patientData, onPatientChange, customerId, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity }) {
   const [loading, setLoading]         = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [whatsappUrl, setWhatsappUrl] = useState(null);
@@ -665,16 +646,11 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
                 className="w-full bg-[#25D366] text-white text-sm py-2.5 rounded-lg font-semibold hover:bg-[#1ebe5b] transition-colors flex items-center justify-center gap-2">
                 <MessageCircle size={15} /> Abrir WhatsApp
               </button>
-              {/* Acciones secundarias */}
-              <div className="flex gap-2">
-                <button onClick={copy} className="flex-1 border border-[#C2DFE8] text-[#1b3f7a] text-sm py-2 rounded-lg font-semibold hover:bg-white transition-colors">
-                  {copied ? "¡Copiado!" : "Copiar link"}
-                </button>
-                <button onClick={() => generarPDF(carrito, patientData.nombre, profesional)}
-                  className="flex-1 flex items-center justify-center gap-1.5 border border-[#C2DFE8] text-[#1E8FA8] text-sm py-2 rounded-lg font-semibold hover:bg-white transition-colors">
-                  <FileText size={13} /> PDF
-                </button>
-              </div>
+              {/* Acción secundaria. Sin PDF: la receta le llega a la paciente
+                  por mail cuando compra, así no se entrega antes de la venta. */}
+              <button onClick={copy} className="w-full border border-[#C2DFE8] text-[#1b3f7a] text-sm py-2 rounded-lg font-semibold hover:bg-white transition-colors">
+                {copied ? "¡Copiado!" : "Copiar link"}
+              </button>
             </div>
           ) : (
             <div className="space-y-2">
@@ -687,10 +663,6 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, profesio
                   Ingresa el teléfono del paciente para enviar
                 </p>
               )}
-              <button onClick={() => generarPDF(carrito, patientData.nombre, profesional)}
-                className="w-full flex items-center justify-center gap-2 border border-[#D0E4EC] text-[#5B7A8C] text-sm py-3 rounded-xl font-semibold hover:bg-[#F7F9FB] transition-colors">
-                <FileText size={15} /> Solo PDF
-              </button>
             </div>
           )}
         </div>
@@ -1407,9 +1379,6 @@ function ArmadorCarritosInner() {
   const customerId   = customer?.id;
   const searchParams = useSearchParams();
   const fromCartToken = searchParams?.get("fromCart") || null;
-  const profesional  = customer
-    ? `${customer.first_name || ""} ${customer.last_name || ""}`.trim() || "Especialista Vitahub"
-    : "Especialista Vitahub";
 
   const { favoriteList, toggleFavorite, isFavorite } = useFavorites(customerId);
 
@@ -1849,7 +1818,7 @@ function ArmadorCarritosInner() {
         {isDraft && (
           <DraftView
             carrito={carrito} patientData={patientData} onPatientChange={setPatientData}
-            customerId={customerId} profesional={profesional}
+            customerId={customerId}
             onBack={handleHome} onRemoveItem={quitarDelProtocolo} onClear={limpiarProtocolo}
             onUpdateDosage={actualizarDosage} onUpdateQuantity={actualizarCantidad}
           />
