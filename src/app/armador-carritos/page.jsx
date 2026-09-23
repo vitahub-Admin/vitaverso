@@ -1430,6 +1430,18 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                           {meta.total_dosis && <span className="text-[#B0C8D4]"> · {meta.total_dosis} dosis por frasco</span>}
                         </p>
                       )}
+
+                      {/* Cuánto rinde un frasco con la pauta elegida */}
+                      {(() => {
+                        const dur = duracionDias({ meta, amount, momentos, quantity: 1 });
+                        if (!dur) return null;
+                        return (
+                          <p className="text-[11px] font-semibold text-[#1E8FA8] mt-1 flex items-center gap-1">
+                            <CalendarDays size={11} className="shrink-0" />
+                            Cada frasco dura {textoDuracion(dur.dias)} con {dur.porDia} dosis al día
+                          </p>
+                        );
+                      })()}
                     </div>
                   );
                 })()}

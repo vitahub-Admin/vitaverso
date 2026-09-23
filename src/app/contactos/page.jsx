@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Cookies from "js-cookie";
-import { Users, ShoppingBag, TrendingUp, Search, X } from "lucide-react";
+import { Users, ShoppingBag, TrendingUp, Search, X, Send } from "lucide-react";
 import ContactsSheet from "./components/Contactsheet";
 import PageHeader from "../components/PageHeader";
 
@@ -68,16 +68,17 @@ export default function ContactsPage() {
   }, []);
 
   const totals = useMemo(() => {
-    let totalContactos = contactsData.length;
     let totalCarritos = 0;
+    let totalCompras  = 0;
     let gananciaTotal = 0;
 
     contactsData.forEach((item) => {
-      totalCarritos += item.cantidad_ordenes || 0;
-      gananciaTotal += item.ganancia_total || 0;
+      totalCarritos += item.cantidad_carritos || 0;
+      totalCompras  += item.cantidad_ordenes  || 0;
+      gananciaTotal += item.ganancia_total    || 0;
     });
 
-    return { totalContactos, totalCarritos, gananciaTotal };
+    return { totalContactos: contactsData.length, totalCarritos, totalCompras, gananciaTotal };
   }, [contactsData]);
 
   // Busca por nombre, apellido y correo; el teléfono se compara solo por dígitos,
@@ -107,7 +108,7 @@ export default function ContactsPage() {
   return (
     <div className="min-h-full bg-[#F7F9FB]">
       <PageHeader title="Mis Contactos"
-        subtitle="Pacientes que compraron con tus protocolos" />
+        subtitle="Tus pacientes: a quién le armaste carritos y quién compró" />
 
       <div className="max-w-[960px] mx-auto px-4 sm:px-6 py-6 space-y-6">
 
@@ -119,10 +120,11 @@ export default function ContactsPage() {
 
         {/* Resumen */}
         {contactsData.length > 0 && (
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <StatCard icon={Users}       label="Contactos"      value={totals.totalContactos} />
-            <StatCard icon={ShoppingBag} label="Órdenes"        value={totals.totalCarritos} />
-            <StatCard icon={TrendingUp}  label="Ganancia total" value={fmtMXN(totals.gananciaTotal)}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <StatCard icon={Users}       label="Pacientes"        value={totals.totalContactos} />
+            <StatCard icon={Send}        label="Carritos"         value={totals.totalCarritos} />
+            <StatCard icon={ShoppingBag} label="Compras"          value={totals.totalCompras} />
+            <StatCard icon={TrendingUp}  label="Ganancia total"   value={fmtMXN(totals.gananciaTotal)}
               accent="text-[#1E8FA8]" />
           </div>
         )}
@@ -175,7 +177,7 @@ export default function ContactsPage() {
                 {error ? error : "Todavía no tienes contactos"}
               </p>
               <p className="text-xs text-[#B0C8D4] mt-1">
-                Aparecen aquí cuando un paciente compra con alguno de tus protocolos
+                Aparecen aquí en cuanto le armas un carrito a un paciente, compre o no
               </p>
             </div>
           )
