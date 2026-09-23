@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { lineasDeProducto } from '@/lib/lineItems';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -104,7 +105,8 @@ export async function GET(req, { params }) {
     let ordersQuery = supabase
       .from('orders')
       .select('order_id, order_name, financial_status, customer_email, customer_name, share_cart, shopify_created_at, line_items, total_discounts')
-      .eq('specialist_ref', String(id))
+      // Las dos columnas: las ventas que resolvió el webhook llevan el ID en corrected_ref
+      .or(`specialist_ref.eq.${String(id)},corrected_ref.eq.${String(id)}`)
       .not('customer_email', 'is', null)
       .order('shopify_created_at', { ascending: false });
 
@@ -134,7 +136,7 @@ export async function GET(req, { params }) {
 
     // Construir respuesta agrupada por orden
     const data = orders.map(order => {
-      const items         = (order.line_items || []).filter(i => i.title && !i.title.toLowerCase().includes('tip'));
+      const items         = lineasDeProducto(order.line_items);
       const orderSubtotal = items.reduce((s, i) => s + Number(i.price || 0) * (i.quantity || 1), 0);
       const totalDiscount = Number(order.total_discounts || 0);
 

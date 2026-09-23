@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef, useCallback, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useCustomer } from "@/app/context/CustomerContext";
 import {
@@ -7,6 +7,7 @@ import {
   ArrowLeft, ShoppingBag, Trash2, ChevronRight,
   Plus, Minus, Heart, Pencil, MessageCircle,
   Sun, FlaskConical, Zap, Droplets,
+  Save, FileClock, Bookmark, CalendarDays,
 } from "lucide-react";
 
 const DOSE_UNITS = ["cápsula", "tableta", "softgel", "gota", "ml", "mg", "g", "sobre", "cucharada", "probiótico", "unidad"];
@@ -113,10 +114,82 @@ function detectUnit(title = "", variantTitle = "") {
   return "cápsula";
 }
 
+// ── Duración estimada ─────────────────────────────────────────────────────────
+// Cuántos días alcanza lo que se está prescribiendo:
+//   días = dosis por frasco ÷ (dosis por toma × tomas por día) × frascos
+// Solo se calcula con el metafield `total_dosis`. Las unidades sueltas
+// (cápsulas, ml) no sirven: una dosis puede ser 2 cápsulas o media cucharada,
+// y estimar con ellas da números equivocados. Sin ese dato, no mostramos nada.
+function duracionDias({ meta, amount = 1, momentos = [], quantity = 1 }) {
+  const porFrasco = Number(meta?.total_dosis);
+  if (!porFrasco || !Number.isFinite(porFrasco)) return null;
+
+  const porToma   = Number(amount) || 1;
+  const tomasDia  = momentos?.length || 1;
+  const porDia    = porToma * tomasDia;
+  if (porDia <= 0) return null;
+
+  const frascos = Math.max(1, Number(quantity) || 1);
+  const dias    = Math.floor((porFrasco * frascos) / porDia);
+  if (dias < 1) return null;
+
+  return { dias, porDia, frascos, porFrasco };
+}
+
+// "24 días" · "1 mes y 5 días" · "2 meses". Meses de 30 días: es una estimación
+// para el consultorio, no una cuenta de calendario.
+function textoDuracion(dias) {
+  if (!dias) return null;
+  if (dias < 45) return `${dias} día${dias === 1 ? "" : "s"}`;
+  const meses = Math.floor(dias / 30);
+  const resto = dias % 30;
+  const m = `${meses} mes${meses === 1 ? "" : "es"}`;
+  return resto >= 5 ? `${m} y ${resto} días` : m;
+}
+
 // Retorna el tier de descuento activo ({qty, pct}) para una cantidad dada
 function getBundleTier(rules, qty) {
   if (!rules?.length || qty < 2) return null;
   return [...rules].sort((a, b) => b.qty - a.qty).find(r => qty >= r.qty) || null;
+}
+
+// ── Protocolos guardados: borradores y plantillas ────────────────────────────
+// Se guardan en la tabla `protocols`, en el mismo formato de "componentes" que
+// ya usaba el builder: un paso por producto, con su dosis. Nunca se guardan los
+// datos del paciente: un borrador se retoma y una plantilla se reusa con otra
+// persona, así que esos datos no tienen por qué viajar.
+function carritoAComponentes(carrito) {
+  return (carrito || []).map(item => ({
+    type:     "libre",
+    label:    item.title,
+    quantity: item.quantity || 1,
+    dosage:   item.dosage || null,
+    items: [{
+      product_id:    item.product_id ?? null,
+      variant_id:    item.variant_id,
+      title:         item.title,
+      variant_title: item.variant_title ?? null,
+      image:         item.image ?? null,
+      price:         item.price ?? null,
+    }],
+  }));
+}
+
+function componentesACarrito(components) {
+  return (components || []).flatMap(comp => {
+    const it = comp.items?.[0];
+    if (!it?.variant_id) return [];
+    return [{
+      variant_id:    it.variant_id,
+      product_id:    it.product_id ?? null,
+      title:         it.title || comp.label || "Producto",
+      variant_title: it.variant_title ?? null,
+      image:         it.image ?? null,
+      price:         it.price ?? 0,
+      quantity:      comp.quantity || 1,
+      dosage:        comp.dosage || { amount: 1, unit: "cápsula", momentos: [], acompanamiento: "", nota: "", meta: null },
+    }];
+  });
 }
 
 const FEATURED = [
@@ -378,6 +451,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
         ? `${amount * meta.dosis} ${pluralUnit(meta.tipo_dosis, amount * meta.dosis)}`
         : `${amount} ${pluralUnit(unit, amount)}`)
     : null;
+  const dur = duracionDias({ meta, amount, momentos, quantity: qty });
   return (
     <div className="bg-white border border-[#D0E4EC] rounded-xl overflow-hidden">
       {/* Fila principal */}
@@ -393,6 +467,11 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
             {dTx && <span className="bg-[#1b3f7a] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{dTx}</span>}
             {momentos.length > 0 && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{momentos.join(", ")}</span>}
             {acomp && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{acomp}</span>}
+            {dur && (
+              <span className="bg-[#E6F4F8] text-[#1E8FA8] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#C2DFE8] flex items-center gap-1">
+                <CalendarDays size={9} /> {textoDuracion(dur.dias)}
+              </span>
+            )}
           </div>
           {nota && <p className="text-[10px] text-[#5B7A8C] mt-1.5 italic">📋 {nota}</p>}
           <div className="mt-2 space-y-1">
@@ -447,10 +526,12 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
             </p>
             <div className="flex items-center gap-2 flex-wrap">
               <div className="flex items-center bg-white border border-[#D0E4EC] rounded-lg shrink-0">
-                <button onClick={() => handleField(setAmount, "amount", Math.max(meta?.tipo_dosis ? 1 : 0.5, amount - (meta?.tipo_dosis ? 1 : 0.5)))}
+                {/* Solo unidades enteras: media dosis complica la indicación y el
+                    cálculo de duración, y casi nadie prescribe media cápsula. */}
+                <button onClick={() => handleField(setAmount, "amount", Math.max(1, amount - 1))}
                   className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] transition-colors font-bold text-lg">−</button>
                 <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{amount}</span>
-                <button onClick={() => handleField(setAmount, "amount", amount + (meta?.tipo_dosis ? 1 : 0.5))}
+                <button onClick={() => handleField(setAmount, "amount", amount + 1)}
                   className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] transition-colors font-bold text-lg">+</button>
               </div>
               {meta?.tipo_dosis && meta?.dosis != null ? (
@@ -475,6 +556,16 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
                 Porción del fabricante: <span className="font-semibold">{meta.dosis} {meta.tipo_dosis}</span>
                 {meta.total_dosis && <span className="text-[#B0C8D4]"> · {meta.total_dosis} dosis por frasco</span>}
               </p>
+            )}
+            {dur && (
+              <div className="mt-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3 py-2 flex items-start gap-2">
+                <CalendarDays size={13} className="text-[#1E8FA8] mt-0.5 shrink-0" />
+                <p className="text-[11px] text-[#5B7A8C] leading-relaxed">
+                  <span className="font-bold text-[#1b3f7a]">Alcanza para {textoDuracion(dur.dias)}</span>
+                  {" · "}{dur.porDia} dosis al día
+                  {dur.frascos > 1 ? ` con ${dur.frascos} frascos` : ""}
+                </p>
+              </div>
             )}
           </div>
           {/* Momentos — multi-select */}
@@ -517,13 +608,58 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
 }
 
 // ── Draft View ────────────────────────────────────────────────────────────────
-function DraftView({ carrito, patientData, onPatientChange, customerId, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity }) {
+function DraftView({ carrito, patientData, onPatientChange, customerId, protocoloOrigen, onGuardar, guardando, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity }) {
   const [loading, setLoading]         = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [whatsappUrl, setWhatsappUrl] = useState(null);
   const [error, setError]             = useState(null);
   const [copied, setCopied]           = useState(false);
+  const [avisoGuardado, setAvisoGuardado] = useState("");
+  const [nombrePlantilla, setNombrePlantilla] = useState("");
+  const [plantillaLista, setPlantillaLista]   = useState(false);
+  const [modalBorrador, setModalBorrador]     = useState(false);
+  const [nombreBorrador, setNombreBorrador]   = useState("");
   const total = carrito.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 1), 0);
+
+  // Duración del protocolo: el producto que se termina primero marca cuándo
+  // vuelve la paciente. Solo cuentan los que tienen dosis por frasco cargada.
+  const duraciones = carrito
+    .map(p => {
+      const d = duracionDias({
+        meta:     p.dosage?.meta,
+        amount:   p.dosage?.amount,
+        momentos: p.dosage?.momentos,
+        quantity: p.quantity,
+      });
+      return d ? { dias: d.dias, title: p.title } : null;
+    })
+    .filter(Boolean);
+  const corto   = duraciones.length ? duraciones.reduce((a, b) => (b.dias < a.dias ? b : a)) : null;
+  const largo   = duraciones.length ? duraciones.reduce((a, b) => (b.dias > a.dias ? b : a)) : null;
+  const sinDato = carrito.length - duraciones.length;
+
+  const guardarBorrador = async () => {
+    const nombre = nombreBorrador.trim();
+    if (!nombre) return;
+    const r = await onGuardar({ status: "borrador", nombre });
+    setModalBorrador(false);
+    setAvisoGuardado(r.ok
+      ? `Borrador "${nombre}" guardado. Lo puedes retomar desde el inicio del armador.`
+      : `No se pudo guardar: ${r.error}`);
+    setTimeout(() => setAvisoGuardado(""), 6000);
+  };
+
+  const guardarPlantilla = async () => {
+    const nombre = nombrePlantilla.trim();
+    if (!nombre) return;
+    const r = await onGuardar({ status: "plantilla", nombre });
+    if (r.ok) {
+      setPlantillaLista(true);
+      setNombrePlantilla("");
+    } else {
+      setAvisoGuardado(`No se pudo guardar: ${r.error}`);
+    }
+  };
 
   const handleCheckout = async () => {
     // Teléfono requerido para enviar por WhatsApp
@@ -545,6 +681,13 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, onBack, 
           extra: {
             patient_info: { name: patientName, phone: patientPhone },
             origen: "protocolo",
+            // Si el protocolo salió de una plantilla o un borrador guardado,
+            // queda registrado para poder medir cuánto se usan y cuánto venden.
+            ...(protocoloOrigen?.id ? {
+              protocol_id:     protocoloOrigen.id,
+              protocol_name:   protocoloOrigen.name,
+              protocol_status: protocoloOrigen.status,
+            } : {}),
             dosis_map: Object.fromEntries(
               carrito.map(p => {
                 const d = p.dosage || {};
@@ -584,19 +727,34 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, onBack, 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
         {/* Lista de productos */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="text-lg font-extrabold text-[#1b3f7a]">Borrador del Protocolo</h2>
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-lg font-extrabold text-[#1b3f7a]">Borrador del Protocolo</h2>
+              {protocoloOrigen && (
+                <p className="text-[11px] text-[#5B7A8C] mt-0.5">
+                  {protocoloOrigen.status === "borrador" ? "Borrador guardado:" : "Desde la plantilla:"}{" "}
+                  <span className="font-semibold text-[#1E8FA8]">{protocoloOrigen.name}</span>
+                </p>
+              )}
+            </div>
             <button onClick={onClear} className="flex items-center gap-1 text-xs text-[#5B7A8C] hover:text-red-400 transition-colors font-semibold">
               <Trash2 size={11} /> Limpiar todo
             </button>
           </div>
+          {avisoGuardado && (
+            <p className="text-xs font-semibold text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-3 py-2">
+              {avisoGuardado}
+            </p>
+          )}
           {carrito.length === 0 ? (
             <div className="bg-white border border-[#D0E4EC] rounded-xl p-8 text-center text-[#B0C8D4]">
               <Package size={32} className="mx-auto mb-2" />
               <p className="text-sm">Sin productos en el protocolo</p>
             </div>
           ) : carrito.map((item, idx) => (
-            <DraftItem key={item.variant_id} item={item} idx={idx}
+            // La key incluye si ya tiene meta: cuando llega, el ítem se vuelve
+            // a montar y el editor lee la dosis ya convertida a "número de dosis".
+            <DraftItem key={`${item.variant_id}-${item.dosage?.meta ? 1 : 0}`} item={item} idx={idx}
               onRemove={onRemoveItem} onUpdateDosage={onUpdateDosage} onUpdateQuantity={onUpdateQuantity} />
           ))}
         </div>
@@ -631,9 +789,41 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, onBack, 
           </div>
 
           {/* Resumen */}
-          <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 flex items-center justify-between">
-            <span className="text-sm text-[#5B7A8C]">{carrito.length} producto{carrito.length !== 1 ? "s" : ""}</span>
-            <span className="text-lg font-extrabold text-[#1b3f7a] tabular-nums">{fmtMXN(total)}</span>
+          <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[#5B7A8C]">{carrito.length} producto{carrito.length !== 1 ? "s" : ""}</span>
+              <span className="text-lg font-extrabold text-[#1b3f7a] tabular-nums">{fmtMXN(total)}</span>
+            </div>
+
+            {corto && (
+              <div className="pt-3 border-t border-[#EEF3F7]">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">
+                  Duración estimada
+                </p>
+                <p className="text-sm text-[#1b3f7a] leading-snug flex items-start gap-1.5">
+                  <CalendarDays size={14} className="text-[#1E8FA8] mt-0.5 shrink-0" />
+                  {corto.dias === largo.dias ? (
+                    <span>El protocolo alcanza para <span className="font-extrabold">{textoDuracion(corto.dias)}</span></span>
+                  ) : (
+                    <span>
+                      Entre <span className="font-extrabold">{textoDuracion(corto.dias)}</span> y{" "}
+                      <span className="font-extrabold">{textoDuracion(largo.dias)}</span>
+                    </span>
+                  )}
+                </p>
+                {corto.dias !== largo.dias && (
+                  <p className="text-[11px] text-[#5B7A8C] mt-1.5 leading-snug">
+                    Se termina primero <span className="font-semibold text-[#1b3f7a]">{corto.title}</span>,
+                    a los {corto.dias} días. Súbele los frascos si quieres emparejar el protocolo.
+                  </p>
+                )}
+                {sinDato > 0 && (
+                  <p className="text-[10px] text-[#B0C8D4] mt-1.5">
+                    {sinDato} producto{sinDato !== 1 ? "s" : ""} sin dosis por frasco cargada: no entra{sinDato !== 1 ? "n" : ""} en la cuenta
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Acciones */}
@@ -651,6 +841,36 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, onBack, 
               <button onClick={copy} className="w-full border border-[#C2DFE8] text-[#1b3f7a] text-sm py-2 rounded-lg font-semibold hover:bg-white transition-colors">
                 {copied ? "¡Copiado!" : "Copiar link"}
               </button>
+
+              {/* Guardar como plantilla — solo si el protocolo tiene cuerpo y
+                  no vino ya de una plantilla */}
+              {carrito.length >= 3 && protocoloOrigen?.status !== "plantilla" && (
+                plantillaLista ? (
+                  <div className="bg-white border border-[#C2DFE8] rounded-lg p-3">
+                    <p className="text-xs font-semibold text-[#1E8FA8]">
+                      Plantilla guardada. La vas a encontrar en el inicio del armador.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-[#C2DFE8] rounded-lg p-3 space-y-2">
+                    <p className="text-xs text-[#5B7A8C] leading-snug">
+                      Armaste un protocolo de {carrito.length} productos.
+                      <span className="font-semibold text-[#1b3f7a]"> ¿Lo guardas como plantilla</span> para reutilizarlo?
+                    </p>
+                    <div className="flex gap-2">
+                      <input type="text" value={nombrePlantilla} maxLength={60}
+                        onChange={e => setNombrePlantilla(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") guardarPlantilla(); }}
+                        placeholder="Ej: Protocolo tiroides"
+                        className="flex-1 min-w-0 border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                      <button onClick={guardarPlantilla} disabled={!nombrePlantilla.trim() || guardando}
+                        className="bg-[#1E8FA8] text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#177a90] transition-colors disabled:opacity-40 shrink-0">
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+                )
+              )}
             </div>
           ) : (
             <div className="space-y-2">
@@ -663,10 +883,81 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, onBack, 
                   Ingresa el teléfono del paciente para enviar
                 </p>
               )}
+              {/* Guardar para seguir después: no envía nada al paciente */}
+              {carrito.length > 0 && (
+                <button onClick={() => { setNombreBorrador(protocoloOrigen?.status === "borrador" ? protocoloOrigen.name : ""); setModalBorrador(true); }}
+                  disabled={guardando}
+                  className="w-full flex items-center justify-center gap-2 border border-[#C2DFE8] text-[#1E8FA8] text-sm py-2.5 rounded-xl font-semibold hover:bg-[#F4FAFB] transition-colors disabled:opacity-50">
+                  <Save size={14} />
+                  {protocoloOrigen?.status === "borrador" ? "Actualizar borrador" : "Guardar borrador"}
+                </button>
+              )}
             </div>
           )}
         </div>
       </div>
+
+      {/* Modal: nombre del borrador */}
+      {modalBorrador && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(13,33,51,0.72)]"
+          onClick={() => setModalBorrador(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-extrabold text-[#1b3f7a]">
+              {protocoloOrigen?.status === "borrador" ? "Actualizar borrador" : "Guardar borrador"}
+            </h3>
+            <p className="text-xs text-[#5B7A8C] mt-1 leading-snug">
+              Ponle un nombre para reconocerlo después. No se guardan los datos del paciente.
+            </p>
+            <input autoFocus type="text" value={nombreBorrador} maxLength={60}
+              onChange={e => setNombreBorrador(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") guardarBorrador(); if (e.key === "Escape") setModalBorrador(false); }}
+              placeholder="Ej: Caso tiroides, faltan omegas"
+              className="w-full mt-3 border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setModalBorrador(false)}
+                className="flex-1 border border-[#D0E4EC] text-[#5B7A8C] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#F7F9FB] transition-colors">
+                Cancelar
+              </button>
+              <button onClick={guardarBorrador} disabled={!nombreBorrador.trim() || guardando}
+                className="flex-1 bg-[#1b3f7a] text-white text-sm py-2.5 rounded-lg font-semibold hover:bg-[#162d60] transition-colors disabled:opacity-40">
+                {guardando ? "Guardando…" : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Tarjeta de borrador o plantilla guardada ─────────────────────────────────
+function GuardadoCard({ protocolo, onAbrir, onBorrar }) {
+  const [confirmando, setConfirmando] = useState(false);
+  const productos = (protocolo.components || []).length;
+  const fecha = new Date(protocolo.updated_at || protocolo.created_at)
+    .toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+
+  return (
+    <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 flex items-start justify-between gap-3 hover:border-[#1E8FA8] transition-colors">
+      <button onClick={() => onAbrir(protocolo)} className="text-left flex-1 min-w-0">
+        <p className="text-sm font-bold text-[#1b3f7a] leading-snug line-clamp-2">{protocolo.name}</p>
+        <p className="text-[11px] text-[#5B7A8C] mt-1">
+          {productos} producto{productos !== 1 ? "s" : ""} · {fecha}
+        </p>
+      </button>
+      {confirmando ? (
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={() => onBorrar(protocolo.id)}
+            className="text-[11px] font-semibold text-red-500 hover:underline">Borrar</button>
+          <button onClick={() => setConfirmando(false)}
+            className="text-[11px] text-[#8AAAB8] hover:text-[#1b3f7a]">No</button>
+        </div>
+      ) : (
+        <button onClick={() => setConfirmando(true)} aria-label="Borrar"
+          className="text-[#B0C8D4] hover:text-red-400 transition-colors shrink-0">
+          <Trash2 size={13} />
+        </button>
+      )}
     </div>
   );
 }
@@ -1104,10 +1395,11 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                       <div className="flex items-center gap-2">
                         {/* Stepper */}
                         <div className="flex items-center border border-[#D0E4EC] rounded-lg overflow-hidden bg-white shrink-0">
-                          <button onClick={() => setAmount(a => Math.max(hasMeta ? 1 : 0.5, a - (hasMeta ? 1 : 0.5)))}
+                          {/* Solo unidades enteras, igual que en el borrador */}
+                          <button onClick={() => setAmount(a => Math.max(1, a - 1))}
                             className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:bg-[#F7F9FB] font-bold text-lg">−</button>
                           <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{amount}</span>
-                          <button onClick={() => setAmount(a => a + (hasMeta ? 1 : 0.5))}
+                          <button onClick={() => setAmount(a => a + 1)}
                             className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:bg-[#F7F9FB] font-bold text-lg">+</button>
                         </div>
 
@@ -1186,6 +1478,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                   const notaSentence = notaClean
                     ? (notaClean.endsWith(".") ? notaClean : notaClean + ".")
                     : "";
+                  const dur = duracionDias({ meta, amount, momentos, quantity });
                   return (
                     <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3.5 py-3">
                       <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mb-1">Instrucción para el paciente</p>
@@ -1193,6 +1486,16 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                         {instrText}
                         {notaSentence && <span className="text-[#5B7A8C]"> {notaSentence}</span>}
                       </p>
+                      {dur && (
+                        <p className="text-[11px] text-[#5B7A8C] mt-2 pt-2 border-t border-[#C2DFE8] flex items-center gap-1.5">
+                          <CalendarDays size={12} className="text-[#1E8FA8] shrink-0" />
+                          <span>
+                            Con {dur.frascos === 1 ? "este frasco" : `${dur.frascos} frascos`} alcanza para{" "}
+                            <span className="font-bold text-[#1b3f7a]">{textoDuracion(dur.dias)}</span>
+                            <span className="text-[#B0C8D4]"> · {dur.porDia} dosis al día</span>
+                          </span>
+                        </p>
+                      )}
                     </div>
                   );
                 })()}
@@ -1326,6 +1629,18 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                       className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">+</button>
                   </div>
                   <span className="text-xs text-[#5B7A8C]">{quantity === 1 ? "frasco" : "frascos"}</span>
+                  {/* Cuánto dura lo que lleva: ayuda a decidir cuántos frascos mandar */}
+                  {(() => {
+                    const dur = duracionDias({
+                      meta: variantMeta[String(selectedVariant?.variant_id)],
+                      amount, momentos, quantity,
+                    });
+                    return dur ? (
+                      <span className="text-[11px] font-bold text-[#1E8FA8] tabular-nums">
+                        ≈ {textoDuracion(dur.dias)}
+                      </span>
+                    ) : null;
+                  })()}
                   {quantity > 1 && price && (
                     <span className="ml-auto flex items-baseline gap-1.5 tabular-nums">
                       {activeTier && (
@@ -1379,6 +1694,7 @@ function ArmadorCarritosInner() {
   const customerId   = customer?.id;
   const searchParams = useSearchParams();
   const fromCartToken = searchParams?.get("fromCart") || null;
+  const fromProtocol  = searchParams?.get("fromProtocol") || null;
 
   const { favoriteList, toggleFavorite, isFavorite } = useFavorites(customerId);
 
@@ -1402,6 +1718,25 @@ function ArmadorCarritosInner() {
   // Protocolo
   const [carrito, setCarrito]         = useState([]);
   const [patientData, setPatientData] = useState({ nombre: "", telefono: "" });
+
+  // Borradores y plantillas guardados
+  const [guardados, setGuardados]         = useState([]);   // los del profesional
+  const [protocoloOrigen, setProtocoloOrigen] = useState(null); // { id, name, status } si el carrito salió de uno
+  const [guardando, setGuardando]         = useState(false);
+
+  const cargarGuardados = useCallback(async () => {
+    if (!customerId) return;
+    try {
+      const r = await fetch(`/api/protocols?owner_id=${customerId}`);
+      const d = await r.json();
+      if (d.ok) setGuardados(d.protocols || []);
+    } catch {}
+  }, [customerId]);
+
+  useEffect(() => { cargarGuardados(); }, [cargarGuardados]);
+
+  const borradores = useMemo(() => guardados.filter(p => p.status === "borrador"), [guardados]);
+  const plantillas = useMemo(() => guardados.filter(p => p.status !== "borrador"), [guardados]);
 
   // ── Persistencia localStorage ────────────────────────────────────────────────
   useEffect(() => {
@@ -1435,7 +1770,26 @@ function ArmadorCarritosInner() {
         const res  = await fetch(`/api/sharecart/restore?token=${fromCartToken}`);
         const data = await res.json();
         if (!data.ok) { console.warn("[fromCart] restore error:", data.error); return; }
-        setCarrito(data.items || []);
+        let items = data.items || [];
+        // El sharecart no guarda los metafields de dosis: los reponemos para
+        // que el carrito regenerado muestre la duración como cualquier otro.
+        const ids = items.map(i => i.variant_id).filter(Boolean);
+        if (ids.length) {
+          try {
+            const rp = await fetch(`/api/product-catalog?variant_ids=${ids.join(",")}`);
+            const dp = await rp.json();
+            if (dp.ok && dp.variantMeta) {
+              items = items.map(i => ({
+                ...i,
+                dosage: {
+                  ...(i.dosage || {}),
+                  meta: i.dosage?.meta || dp.variantMeta[String(i.variant_id)] || null,
+                },
+              }));
+            }
+          } catch {}
+        }
+        setCarrito(items);
         if (data.patientData) setPatientData(data.patientData);
         setView("draft");
       } catch (e) {
@@ -1443,6 +1797,88 @@ function ArmadorCarritosInner() {
       }
     })();
   }, [fromCartToken]);
+  // ── Abrir un borrador o una plantilla guardada ───────────────────────────────
+  // Los precios guardados pueden haber cambiado, así que se refrescan con el
+  // catálogo antes de mostrar el borrador.
+  const abrirGuardado = useCallback(async (protocolo) => {
+    if (!protocolo?.id) return;
+    setError(null);
+    try {
+      const r = await fetch(`/api/protocols/${protocolo.id}`);
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || "No se pudo abrir");
+
+      let items = componentesACarrito(d.protocol.components);
+      const ids = items.map(i => i.variant_id).filter(Boolean);
+      if (ids.length) {
+        try {
+          const rp = await fetch(`/api/product-catalog?variant_ids=${ids.join(",")}`);
+          const dp = await rp.json();
+          if (dp.ok) {
+            items = items.map(i => ({
+              ...i,
+              price: dp.prices?.[i.variant_id] ?? i.price,
+              // Si el guardado no traía los metafields de dosis, los reponemos:
+              // sin ellos no se puede calcular la duración del protocolo.
+              dosage: {
+                ...(i.dosage || {}),
+                meta: i.dosage?.meta || dp.variantMeta?.[String(i.variant_id)] || null,
+              },
+            }));
+          }
+        } catch {}
+      }
+
+      setCarrito(items);
+      setProtocoloOrigen({ id: d.protocol.id, name: d.protocol.name, status: d.protocol.status });
+      setDetailProduct(null);
+      setView("draft");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      setError(e.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!fromProtocol) return;
+    abrirGuardado({ id: fromProtocol });
+  }, [fromProtocol, abrirGuardado]);
+
+  // ── Guardar el carrito como borrador o plantilla ─────────────────────────────
+  const guardarProtocolo = useCallback(async ({ status, nombre }) => {
+    if (!carrito.length) return { ok: false, error: "El protocolo está vacío" };
+    setGuardando(true);
+    try {
+      const components = carritoAComponentes(carrito);
+      // Si ya veníamos de un borrador, se actualiza en vez de duplicarlo
+      const actualizar = protocoloOrigen?.id && protocoloOrigen.status === "borrador" && status === "borrador";
+
+      const res = await fetch(actualizar ? `/api/protocols/${protocoloOrigen.id}` : "/api/protocols", {
+        method: actualizar ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, components, ...(nombre ? { name: nombre } : {}) }),
+      });
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.error || "No se pudo guardar");
+
+      setProtocoloOrigen({ id: d.protocol.id, name: d.protocol.name, status: d.protocol.status });
+      cargarGuardados();
+      return { ok: true, protocolo: d.protocol };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    } finally {
+      setGuardando(false);
+    }
+  }, [carrito, protocoloOrigen, cargarGuardados]);
+
+  const borrarGuardado = useCallback(async (id) => {
+    try {
+      await fetch(`/api/protocols/${id}`, { method: "DELETE" });
+      if (protocoloOrigen?.id === id) setProtocoloOrigen(null);
+      cargarGuardados();
+    } catch {}
+  }, [protocoloOrigen, cargarGuardados]);
+
   useEffect(() => {
     try { localStorage.setItem("vh_protocolo_carrito", JSON.stringify(carrito)); } catch {}
   }, [carrito]);
@@ -1616,6 +2052,40 @@ function ArmadorCarritosInner() {
     setCarrito(prev => prev.map(p => p.variant_id === vid ? { ...p, quantity: Math.max(1, qty) } : p));
   }, []);
 
+  // ── Metafields de dosis faltantes ───────────────────────────────────────────
+  // Solo el detalle del producto trae la `meta` (tipo de dosis, dosis por
+  // frasco). Un producto agregado con el botón rápido, un carrito guardado en
+  // el navegador o uno restaurado entran sin ella, y sin ella no hay duración
+  // ni "número de dosis". Los completamos acá, una sola vez por variante.
+  const metaPedida = useRef(new Set());
+  useEffect(() => {
+    const faltan = carrito
+      .filter(i => i.variant_id && !i.dosage?.meta && !metaPedida.current.has(String(i.variant_id)))
+      .map(i => i.variant_id);
+    if (!faltan.length) return;
+    faltan.forEach(v => metaPedida.current.add(String(v)));
+
+    (async () => {
+      try {
+        const r = await fetch(`/api/product-catalog?variant_ids=${faltan.join(",")}`);
+        const d = await r.json();
+        if (!d.ok || !d.variantMeta) return;
+        setCarrito(prev => prev.map(i => {
+          const m = d.variantMeta[String(i.variant_id)];
+          if (!m || i.dosage?.meta) return i;
+          // Sin meta el stepper contaba unidades; con meta cuenta dosis. Si una
+          // dosis son varias cápsulas, convertimos para no multiplicar por
+          // error lo que el profesional ya había indicado.
+          const previo = Number(i.dosage?.amount) || 1;
+          const amount = m.tipo_dosis && m.dosis > 1
+            ? Math.max(1, Math.round(previo / m.dosis))
+            : previo;
+          return { ...i, dosage: { ...(i.dosage || {}), amount, meta: m } };
+        }));
+      } catch {}
+    })();
+  }, [carrito]);
+
   // Los sin stock se muestran igual — el API ya los ordena al final del listado —
   // para que el especialista pueda verlos y solicitar reposición.
   const visibleProductos = productos;
@@ -1784,6 +2254,36 @@ function ArmadorCarritosInner() {
                 </div>
               </section>
             )}
+            {/* Borradores sin terminar */}
+            {borradores.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <FileClock size={14} className="text-[#1E8FA8]" />
+                  <h2 className="text-sm font-bold text-[#1b3f7a]">Continúa donde lo dejaste</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {borradores.map(p => (
+                    <GuardadoCard key={p.id} protocolo={p} onAbrir={abrirGuardado} onBorrar={borrarGuardado} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Plantillas propias */}
+            {plantillas.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <Bookmark size={14} className="text-[#1E8FA8]" />
+                  <h2 className="text-sm font-bold text-[#1b3f7a]">Mis plantillas</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {plantillas.map(p => (
+                    <GuardadoCard key={p.id} protocolo={p} onAbrir={abrirGuardado} onBorrar={borrarGuardado} />
+                  ))}
+                </div>
+              </section>
+            )}
+
             {/* Colecciones */}
             <section>
               <h2 className="text-sm font-bold text-[#1b3f7a] mb-4">Colecciones destacadas</h2>
@@ -1819,6 +2319,7 @@ function ArmadorCarritosInner() {
           <DraftView
             carrito={carrito} patientData={patientData} onPatientChange={setPatientData}
             customerId={customerId}
+            protocoloOrigen={protocoloOrigen} onGuardar={guardarProtocolo} guardando={guardando}
             onBack={handleHome} onRemoveItem={quitarDelProtocolo} onClear={limpiarProtocolo}
             onUpdateDosage={actualizarDosage} onUpdateQuantity={actualizarCantidad}
           />

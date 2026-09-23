@@ -651,7 +651,11 @@ export async function POST(req) {
           customer_email: customer.email || null,
           customer_phone: customer.phone || null,
           share_cart: shareCart,
-          specialist_ref: specialistRef,
+          // specialist_ref queda siempre con el profesional que cobra: si la orden
+          // llegó sin ref y la resolvimos, se guarda ya el ID resuelto, sin esperar
+          // a que Shopify reenvíe la orden. corrected_ref deja el rastro de que
+          // hubo corrección (el valor que traía la orden era "0000").
+          specialist_ref: correctedRef || specialistRef,
           corrected_ref: correctedRef,
           status,
           financial_status: payload.financial_status,

@@ -37,9 +37,10 @@ const NAV_GROUPS = [
   ],
   // Grupo 2 — protocolos y operación
   [
-    { href: "/mis-protocolos",          label: "Protocolos",              icon: ClipboardList, requireProtocols: true },
+    // Plantillas de protocolos (/mis-protocolos) fuera del nav: en dos meses se
+    // usó una sola vez. La ruta sigue viva, pero no se ofrece.
     { href: "/armador-carritos",        label: "Protocolos Clínicos",     icon: Stethoscope   },
-    { href: "/protocolos-compartidos",  label: "Protocolos Compartidos",  icon: History        },
+    { href: "/protocolos-compartidos",  label: "Mis Protocolos",          icon: History        },
     { href: "/mi-tienda",               label: "Mi Tienda",               icon: Store          },
     // Historial Protocolos quitado del nav — solo accesible desde analytics/home
     { href: "/booking-dashboard",       label: "Mis Citas",               icon: CalendarCheck, requireBooking: true },
@@ -92,25 +93,10 @@ export default function Sidebar() {
     setTimeout(() => window.location.reload(), 50);
   };
   const [novedadesPendientes, setNovedadesPendientes] = useState(0);
-  const [hasProtocols, setHasProtocols] = useState(false);
 
   const tagsArray = customer?.tags?.split(",")?.map(t => t.trim().toLowerCase()) || [];
   const isVitahuber = tagsArray.includes("vitahuber");
   const hasBookingAccess = isVitahuber || BOOKING_WHITELIST.includes(String(customer?.id || ""));
-
-  useEffect(() => {
-    if (!customer?.id) return;
-    fetch(`/api/protocols?owner_id=${customer.id}`)
-      .then(r => r.json())
-      .then(data => {
-        const list = data.protocols || data.items || data || [];
-        const own = Array.isArray(list)
-          ? list.filter(p => String(p.owner_id) === String(customer.id))
-          : [];
-        setHasProtocols(own.length > 0);
-      })
-      .catch(() => {});
-  }, [customer?.id]);
 
   useEffect(() => {
     async function checkNovedades() {
@@ -135,7 +121,6 @@ export default function Sidebar() {
   function filterItem(item) {
     if (item.requireTag === "vitahuber" && !isVitahuber) return false;
     if (item.requireBooking && !hasBookingAccess) return false;
-    if (item.requireProtocols && !hasProtocols) return false;
     return true;
   }
 

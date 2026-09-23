@@ -47,6 +47,44 @@ async function fetchVariantData(variantIds) {
   }
 }
 
+// Metafields de dosis por variante. Los necesita el armador para calcular la
+// duración de un protocolo que se restaura (borrador, plantilla o carrito
+// regenerado), donde la meta no viajó con el ítem guardado.
+async function fetchVariantDoseMeta(variantIds) {
+  if (!variantIds.length) return {}
+  const partes = await mapLimit(chunk(variantIds, LOTE_GQL), LOTES_EN_PARALELO, async ids => {
+    const aliases = ids.map((id, i) =>
+      `v${i}: node(id: "gid://shopify/ProductVariant/${id}") { ... on ProductVariant {
+        tipo_dosis:     metafield(namespace: "custom", key: "tipo_dosis")     { value }
+        dosis:          metafield(namespace: "custom", key: "dosis")          { value }
+        total_unidades: metafield(namespace: "custom", key: "total_unidades") { value }
+        total_dosis:    metafield(namespace: "custom", key: "total_dosis")    { value }
+      } }`
+    ).join('\n')
+
+    let data
+    try {
+      data = await adminGql(`{ ${aliases} }`)
+    } catch (e) {
+      console.warn('[fetchVariantDoseMeta]', e.message)
+      return {}
+    }
+    const map = {}
+    ids.forEach((vid, i) => {
+      const n = data?.[`v${i}`]
+      if (!n) return
+      map[vid] = {
+        tipo_dosis:     n.tipo_dosis?.value     || null,
+        dosis:          n.dosis?.value          != null ? Number(n.dosis.value) : null,
+        total_unidades: n.total_unidades?.value != null ? Number(n.total_unidades.value) : null,
+        total_dosis:    n.total_dosis?.value    != null ? Number(n.total_dosis.value) : null,
+      }
+    })
+    return map
+  })
+  return Object.assign({}, ...partes)
+}
+
 // Trae featured images de Shopify para una lista de product_ids
 async function fetchImagesBatch(productIds) {
   if (!productIds.length) return {}
@@ -787,8 +825,9 @@ export async function GET(req) {
     if (variantIdsRaw) {
       const ids = variantIdsRaw.split(',').map(Number).filter(Boolean)
 
-      const [{ prices, stock }, { data: commData }] = await Promise.all([
+      const [{ prices, stock }, variantMeta, { data: commData }] = await Promise.all([
         fetchVariantData(ids),
+        fetchVariantDoseMeta(ids),
         supabase
           .from('product_variant_commissions')
           .select('variant_id, commission_percent')
@@ -813,7 +852,7 @@ export async function GET(req) {
         commissions[r.variant_id] = Number(r.commission_percent)
       }
 
-      return NextResponse.json({ ok: true, prices, stock, commissions })
+      return NextResponse.json({ ok: true, prices, stock, commissions, variantMeta })
     }
 
     // ── ?l1, ?l2, ?l3 — árbol de categorías (level_1/2/3 en Supabase) ─────────

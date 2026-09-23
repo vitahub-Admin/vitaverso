@@ -1299,10 +1299,10 @@ export default function MisProtocolosPage() {
       <div className="w-full border-b border-gray-100 bg-white px-6">
         <div className="max-w-[960px] mx-auto py-6">
           <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
-            Mis Protocolos
+            Plantillas de protocolos
           </h1>
           <p className="text-sm text-gray-400 font-medium">
-            Plantillas clínicas para prescribir suplementación por componente
+            Protocolos guardados para reutilizar con tus pacientes
           </p>
         </div>
       </div>

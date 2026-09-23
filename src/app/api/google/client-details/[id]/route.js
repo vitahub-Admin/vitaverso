@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { lineasDeProducto } from '@/lib/lineItems';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -73,7 +74,8 @@ export async function GET(req, { params }) {
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('order_id, order_name, financial_status, shopify_created_at, shopify_updated_at, line_items, share_cart, total_discounts')
-      .eq('specialist_ref', String(id))
+      // Las dos columnas: las ventas que resolvió el webhook llevan el ID en corrected_ref
+      .or(`specialist_ref.eq.${String(id)},corrected_ref.eq.${String(id)}`)
       .eq('customer_email', email)
       .order('shopify_created_at', { ascending: false });
 
@@ -105,7 +107,8 @@ export async function GET(req, { params }) {
     // 5. Expandir line_items en filas planas, igual que devolvía BQ
     const rows = [];
     for (const order of orders) {
-      const items = order.line_items || [];
+      // Sin propinas ni líneas de referencia: no son productos y no dan comisión
+      const items = lineasDeProducto(order.line_items);
       if (!items.length) continue;
 
       // Prorratear descuento de orden entre líneas por valor

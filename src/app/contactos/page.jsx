@@ -2,9 +2,15 @@
 
 import { useEffect, useState, useMemo } from "react";
 import Cookies from "js-cookie";
-import { Users, ShoppingBag, TrendingUp } from "lucide-react";
+import { Users, ShoppingBag, TrendingUp, Search, X } from "lucide-react";
 import ContactsSheet from "./components/Contactsheet";
 import PageHeader from "../components/PageHeader";
+
+// Sin acentos ni mayúsculas, para que "maria" encuentre a "María"
+const normalizar = (s) =>
+  String(s || "").normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
+
+const soloDigitos = (s) => String(s || "").replace(/\D/g, "");
 
 const fmtMXN = (n) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 2 })
@@ -33,6 +39,7 @@ export default function ContactsPage() {
   const [contactsData, setContactsData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [customerId, setCustomerId] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
 
   const fetchData = (customerId) => {
     fetch(`/api/google/contacts/${customerId}`)
@@ -73,6 +80,19 @@ export default function ContactsPage() {
     return { totalContactos, totalCarritos, gananciaTotal };
   }, [contactsData]);
 
+  // Busca por nombre, apellido y correo; el teléfono se compara solo por dígitos,
+  // así "55 1234" encuentra "+5215512345678".
+  const contactosFiltrados = useMemo(() => {
+    const q = normalizar(busqueda.trim());
+    if (!q) return contactsData;
+    const qDigitos = soloDigitos(busqueda);
+    return contactsData.filter((c) => {
+      const texto = normalizar(`${c.nombre_cliente || ""} ${c.apellido_cliente || ""} ${c.email_cliente || ""}`);
+      if (texto.includes(q)) return true;
+      return qDigitos.length >= 3 && soloDigitos(c.telefono_cliente).includes(qDigitos);
+    });
+  }, [contactsData, busqueda]);
+
   if (loading) {
     return (
       <div className="min-h-full bg-[#F7F9FB] flex items-center justify-center">
@@ -109,8 +129,43 @@ export default function ContactsPage() {
 
         {/* Tabla */}
         {contactsData.length > 0 && customerId ? (
-          <div className="bg-white border border-[#D0E4EC] rounded-2xl p-4 overflow-hidden">
-            <ContactsSheet data={contactsData} specialistId={customerId} />
+          <div className="bg-white border border-[#D0E4EC] rounded-2xl p-4 overflow-hidden space-y-4">
+            {/* Buscador */}
+            <div className="flex items-center gap-2 border border-[#D0E4EC] rounded-xl px-3 py-2.5 focus-within:border-[#1E8FA8] transition-colors">
+              <Search size={16} className="text-[#8AAAB8] shrink-0" />
+              <input
+                type="search"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar por nombre, correo o teléfono"
+                aria-label="Buscar contactos"
+                className="flex-1 min-w-0 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] bg-transparent outline-none"
+              />
+              {busqueda && (
+                <button onClick={() => setBusqueda("")} aria-label="Borrar búsqueda"
+                  className="text-[#8AAAB8] hover:text-[#1b3f7a] transition-colors">
+                  <X size={16} />
+                </button>
+              )}
+            </div>
+            {busqueda.trim() && (
+              <p className="text-xs text-[#5B7A8C] -mt-2">
+                {contactosFiltrados.length} de {contactsData.length} contactos
+              </p>
+            )}
+
+            {contactosFiltrados.length > 0 ? (
+              <ContactsSheet data={contactosFiltrados} specialistId={customerId} />
+            ) : (
+              <div className="py-10 text-center">
+                <Search size={24} className="mx-auto mb-2 text-[#B0C8D4]" strokeWidth={1.5} />
+                <p className="text-sm text-[#5B7A8C]">Ningún contacto coincide con “{busqueda.trim()}”</p>
+                <button onClick={() => setBusqueda("")}
+                  className="mt-2 text-xs font-semibold text-[#1E8FA8] hover:underline">
+                  Ver todos
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           !loading && (

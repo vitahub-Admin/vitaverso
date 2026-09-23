@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { lineasDeProducto } from '@/lib/lineItems';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -14,11 +15,13 @@ export async function GET(req, { params }) {
       return NextResponse.json({ success: false, message: 'No hay id en parámetros' }, { status: 400 });
     }
 
-    // 1. Órdenes del especialista con email
+    // 1. Órdenes del especialista con email.
+    //    Se miran las dos columnas: las ventas que llegaron sin ref y resolvió el
+    //    webhook quedan con "0000" en specialist_ref y el ID en corrected_ref.
     const { data: orders, error: ordersError } = await supabase
       .from('orders')
       .select('order_id, order_name, customer_email, customer_name, customer_phone, share_cart, shopify_created_at, line_items, total_discounts')
-      .eq('specialist_ref', String(id))
+      .or(`specialist_ref.eq.${String(id)},corrected_ref.eq.${String(id)}`)
       .not('customer_email', 'is', null)
       .neq('customer_email', '');
 
@@ -70,13 +73,12 @@ export async function GET(req, { params }) {
 
       if (order.share_cart) client.cantidad_carritos.add(order.share_cart);
 
-      // Ganancia de esta orden
-      const items         = order.line_items || [];
+      // Ganancia de esta orden (sin propinas ni líneas de referencia)
+      const items         = lineasDeProducto(order.line_items);
       const orderSubtotal = items.reduce((s, i) => s + Number(i.price || 0) * (i.quantity || 1), 0);
       const totalDiscount = Number(order.total_discounts || 0);
 
       for (const item of items) {
-        if (!item.title || LOWER_includes_tip(item.title)) continue;
         const commission   = commMap[String(item.product_id || '')] ?? 0;
         const price        = Number(item.price || 0);
         const qty          = item.quantity || 1;
@@ -111,6 +113,3 @@ export async function GET(req, { params }) {
   }
 }
 
-function LOWER_includes_tip(title) {
-  return title.toLowerCase().includes('tip');
-}

@@ -83,7 +83,7 @@ function buildRestockEmail({ specialistName, products }) {
   <tr><td style="background:#f0f7ff;border-top:2px solid #dbeafe;padding:24px 36px;text-align:center;border-radius:0 0 16px 16px;">
     <p style="margin:0 0 4px;font-size:14px;font-weight:700;color:#1b3f7a;">¿Ya probaste nuestro armador de prescripciones?</p>
     <p style="margin:0 0 16px;font-size:13px;color:#6b7280;">Arma el protocolo ideal para cada paciente y compártelo en segundos</p>
-    <a href="https://pro.vitahub.mx/mis-protocolos"
+    <a href="https://pro.vitahub.mx/armador-carritos"
        style="display:inline-block;background:#1b3f7a;color:#ffffff;font-size:14px;font-weight:700;padding:13px 32px;border-radius:8px;text-decoration:none;">
       Ir al armador de prescripciones →
     </a>

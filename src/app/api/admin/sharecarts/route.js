@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { lineasDeProducto } from "@/lib/lineItems";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -55,7 +56,7 @@ export async function GET(req) {
 
     // 3. Calcular métricas por orden → una fila por orden (igual que BQ)
     const rows = orders.map(order => {
-      const items         = (order.line_items || []).filter(i => i.title && !i.title.toLowerCase().includes("tip"));
+      const items         = lineasDeProducto(order.line_items);
       const orderSubtotal = items.reduce((s, i) => s + Number(i.price || 0) * (i.quantity || 1), 0);
       const totalDiscount = Number(order.total_discounts || 0);
 
