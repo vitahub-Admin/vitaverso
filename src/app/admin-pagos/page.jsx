@@ -30,6 +30,9 @@ export default function AdminWalletPage() {
   const [adjustNote, setAdjustNote] = useState("");
   const [adjusting, setAdjusting] = useState(false);
 
+  /* Crédito de tienda otorgado por Vitahub */
+  const [creditoGenerado, setCreditoGenerado] = useState(null);
+
   /* ============================= */
   /* PLATFORM SETTINGS */
   /* ============================= */
@@ -170,7 +173,63 @@ export default function AdminWalletPage() {
   /* MANUAL ADJUST */
   /* ============================= */
 
+  /**
+   * Regala crédito de tienda: genera el cupón en Shopify al instante y se lo
+   * deja al afiliado en su app. No pasa por el saldo de puntos, así que no se
+   * puede retirar por transferencia: solo se gasta comprando.
+   */
+  const handleRegalarCredito = async () => {
+    if (!selectedAffiliate || !adjustAmount) {
+      showToast("Elige el afiliado y el monto", "error");
+      return;
+    }
+    const monto = Number(adjustAmount);
+    if (isNaN(monto) || monto <= 0) {
+      showToast("Monto inválido", "error");
+      return;
+    }
+
+    try {
+      setAdjusting(true);
+      setCreditoGenerado(null);
+
+      const res = await fetch("/api/admin/store-credit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          affiliateId: selectedAffiliate.shopify_customer_id,
+          amount: monto,
+          note: adjustNote,
+        }),
+      });
+
+      const data = await res.json();
+      if (!data.success) {
+        showToast(data.message || "No se pudo generar el crédito", "error");
+        return;
+      }
+
+      setCreditoGenerado({
+        code: data.code,
+        url: data.url,
+        amount: data.amount,
+        afiliado: `${selectedAffiliate.first_name} ${selectedAffiliate.last_name}`.trim(),
+      });
+      showToast(`Crédito de $${data.amount} generado`);
+
+      setAdjustAmount("");
+      setAdjustNote("");
+      setAffiliateSearch("");
+      setSelectedAffiliate(null);
+      setAffiliates([]);
+    } finally {
+      setAdjusting(false);
+    }
+  };
+
   const handleManualAdjust = async () => {
+    if (adjustType === "CREDITO") return handleRegalarCredito();
+
     if (!selectedAffiliate || !adjustAmount || !adjustNote) {
       showToast("Completa todos los campos", "error");
       return;
@@ -548,8 +607,9 @@ export default function AdminWalletPage() {
               onChange={(e) => setAdjustType(e.target.value)}
               className="w-full border rounded p-2 text-sm"
             >
-              <option value="IN">+</option>
-              <option value="OUT">-</option>
+              <option value="IN">+ saldo</option>
+              <option value="OUT">− saldo</option>
+              <option value="CREDITO">🎁 Crédito tienda</option>
             </select>
           </div>
 
@@ -583,6 +643,51 @@ export default function AdminWalletPage() {
             </button>
           </div>
         </div>
+
+        {/* Aviso del crédito de tienda */}
+        {adjustType === "CREDITO" && (
+          <div className="mt-3 border-t pt-3 text-sm text-gray-600">
+            <p>
+              Genera el cupón en Shopify al instante por el monto que pongas (máximo $2,000)
+              y le llega una notificación al afiliado. <strong>No suma a su saldo</strong>:
+              no lo puede pedir por transferencia, solo gastarlo comprando. Es transferible,
+              así que puede usarlo él o pasárselo a un paciente.
+            </p>
+          </div>
+        )}
+
+        {/* Cupón recién generado */}
+        {creditoGenerado && (
+          <div className="mt-3 border border-green-200 bg-green-50 rounded-lg p-3 text-sm">
+            <p className="text-green-800">
+              Crédito de <strong>${creditoGenerado.amount}</strong> para{" "}
+              <strong>{creditoGenerado.afiliado}</strong>
+            </p>
+            <div className="flex items-center gap-2 mt-2">
+              <code className="bg-white border rounded px-2 py-1 font-mono">
+                {creditoGenerado.code}
+              </code>
+              <button
+                onClick={() => navigator.clipboard?.writeText(creditoGenerado.code)}
+                className="text-blue-600 hover:underline text-xs"
+              >
+                Copiar código
+              </button>
+              <button
+                onClick={() => navigator.clipboard?.writeText(creditoGenerado.url)}
+                className="text-blue-600 hover:underline text-xs"
+              >
+                Copiar link
+              </button>
+              <button
+                onClick={() => setCreditoGenerado(null)}
+                className="ml-auto text-gray-400 hover:text-gray-600 text-xs"
+              >
+                Cerrar
+              </button>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* HISTORIAL MANUAL */}
