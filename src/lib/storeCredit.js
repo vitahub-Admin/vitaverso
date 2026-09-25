@@ -73,3 +73,39 @@ export async function crearCuponDeCredito({ monto, titulo }) {
 
   return { code, priceRuleId: price_rule.id };
 }
+
+/**
+ * Marca un cupón como usado. Lo llama el webhook de órdenes en cuanto entra
+ * una compra con el código, así el afiliado deja de verlo en su lista sin que
+ * haya que preguntarle a Shopify por cada cupón cada vez que abre la app.
+ *
+ * Es idempotente: si ya estaba marcado, no lo pisa (nos quedamos con la
+ * primera orden que lo gastó).
+ *
+ * @returns {boolean} true si lo marcó ahora
+ */
+export async function marcarCuponUsado(supabase, code, datos = {}) {
+  if (!code) return false;
+
+  const { data: fila } = await supabase
+    .from('point_exchanges')
+    .select('id, metadata')
+    .eq('exchange_type', 'store_credit')
+    .filter('metadata->>discount_code', 'eq', code)
+    .maybeSingle();
+
+  if (!fila || fila.metadata?.used_at) return false;
+
+  const { error } = await supabase
+    .from('point_exchanges')
+    .update({
+      metadata: {
+        ...(fila.metadata || {}),
+        used_at:    datos.usedAt   || new Date().toISOString(),
+        used_order: datos.orderName || null,
+      },
+    })
+    .eq('id', fila.id);
+
+  return !error;
+}

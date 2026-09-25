@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPushToAffiliate } from "@/lib/affiliateNotifications";
+import { marcarCuponUsado } from "@/lib/storeCredit";
 import { createCalendarEvent } from "@/lib/bookingCalendar";
 import { Resend } from "resend";
 
@@ -671,6 +672,17 @@ export async function POST(req) {
       );
 
     if (orderError) console.error("Order upsert error:", orderError);
+
+    // Cupones de crédito gastados en esta orden. Se marcan acá para que el
+    // afiliado deje de verlos en su lista sin tener que preguntarle a Shopify
+    // por cada código cada vez que abre la app.
+    for (const d of payload.discount_codes || []) {
+      if (!d?.code?.startsWith("VH-")) continue;
+      marcarCuponUsado(supabase, d.code, {
+        orderName: payload.name,
+        usedAt:    payload.created_at,
+      }).catch(e => console.error("marcarCuponUsado:", e.message));
+    }
 
     // Si fue corregida automáticamente → actualizar note_attributes en Shopify
     if (status === "corrected" && correctedRef) {

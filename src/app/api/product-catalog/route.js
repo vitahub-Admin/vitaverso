@@ -414,6 +414,19 @@ export async function GET(req) {
     const l2               = searchParams.get('l2')   // filtro level_2
     const l3               = searchParams.get('l3')   // filtro level_3
     const professional     = searchParams.get('professional') === 'true' // solo is_professional
+    const unProducto       = searchParams.get('product')  // un producto completo por su ID
+
+    // ── ?product=123 — un producto armado como los del listado ───────────────
+    // Lo usa el borrador del protocolo para volver a la ficha desde un ítem
+    // del carrito, donde solo se guarda el ID.
+    if (unProducto) {
+      const rows  = await catalogRows(q => q.eq('product_id', Number(unProducto)))
+      if (!rows.length) {
+        return NextResponse.json({ ok: false, error: 'Producto no encontrado' }, { status: 404 })
+      }
+      const items = await itemsFromCatalogRows(rows)
+      return NextResponse.json({ ok: true, item: items[0] || null })
+    }
 
     // ── ?collectionsMeta=id1,id2,... ────────────────────────────────────────
     // Batch: title + image de varias colecciones en una sola query GraphQL

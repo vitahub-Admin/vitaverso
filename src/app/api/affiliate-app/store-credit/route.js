@@ -39,17 +39,24 @@ async function shopifyPost(path, body) {
   return json;
 }
 
+/**
+ * Veces que se usó un cupón.
+ *   número → usos
+ *   'no-existe' → Shopify ya no lo tiene (borrado a mano); no se puede canjear
+ *   null → no se pudo averiguar (error de red o de Shopify): no concluimos nada
+ */
 async function getCodeUsageCount(code) {
   try {
     const res = await fetch(
       `${SHOPIFY_BASE}/discount_codes/lookup.json?code=${encodeURIComponent(code)}`,
       { headers: { 'X-Shopify-Access-Token': SHOPIFY_TOKEN } }
     );
-    if (!res.ok) return 0;
+    if (res.status === 404) return 'no-existe';
+    if (!res.ok) return null;
     const data = await res.json();
     return data.discount_code?.usage_count ?? 0;
   } catch {
-    return 0;
+    return null;
   }
 }
 
@@ -69,11 +76,40 @@ export async function GET(req) {
 
     if (error) throw error;
 
+    const { searchParams } = new URL(req.url);
+    const incluirUsados = searchParams.get('incluir_usados') === 'true';
+
     const exchanges = (data || []).filter((ex) => ex.metadata?.discount_code);
 
+    // Los ya marcados no se vuelven a consultar a Shopify: el webhook de
+    // órdenes los marca en cuanto se gastan. A los demás se les pregunta, por
+    // si el cupón se usó antes de que existiera esa marca, y se deja escrito.
     const codes = await Promise.all(
       exchanges.map(async (ex) => {
-        const usage = await getCodeUsageCount(ex.metadata.discount_code);
+        let usedAt    = ex.metadata.used_at    || null;
+        let missingAt = ex.metadata.missing_at || null;
+
+        if (!usedAt && !missingAt) {
+          const usage = await getCodeUsageCount(ex.metadata.discount_code);
+          const ahora = new Date().toISOString();
+
+          if (usage === 'no-existe') missingAt = ahora;
+          else if (typeof usage === 'number' && usage > 0) usedAt = ahora;
+
+          if (usedAt || missingAt) {
+            await supabase
+              .from('point_exchanges')
+              .update({
+                metadata: {
+                  ...ex.metadata,
+                  ...(usedAt    ? { used_at: usedAt }       : {}),
+                  ...(missingAt ? { missing_at: missingAt } : {}),
+                },
+              })
+              .eq('id', ex.id);
+          }
+        }
+
         return {
           id: ex.id,
           amount: Number(ex.metadata?.credit_amount ?? ex.points_requested),
@@ -81,10 +117,19 @@ export async function GET(req) {
           url: `${STORE_FRONT_URL}/${ex.metadata.discount_code}`,
           requested_at: ex.requested_at,
           processed_at: ex.processed_at,
-          used: usage > 0,
+          used: Boolean(usedAt),
+          used_at: usedAt,
+          used_order: ex.metadata.used_order || null,
+          // Ya no está en Shopify: tampoco sirve mostrarlo
+          missing: Boolean(missingAt),
         };
       })
     );
+
+    // Por defecto solo los que puede usar; el historial se pide aparte.
+    const visibles = incluirUsados
+      ? codes.filter((c) => !c.missing)
+      : codes.filter((c) => !c.used && !c.missing);
 
     const { data: bonusSetting } = await supabase
       .from('platform_settings')
@@ -93,7 +138,12 @@ export async function GET(req) {
       .maybeSingle();
     const bonus_rate = Number(bonusSetting?.value ?? 0.05);
 
-    return NextResponse.json({ ok: true, codes, bonus_rate });
+    return NextResponse.json({
+      ok: true,
+      codes: visibles,
+      usados: codes.length - visibles.length,
+      bonus_rate,
+    });
   } catch (err) {
     console.error('❌ GET store-credit:', err);
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 });

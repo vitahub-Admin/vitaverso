@@ -61,7 +61,9 @@ export default function WalletPage() {
     };
     const getCreditCodes = async () => {
       try {
-        const r = await fetch("/api/affiliate-app/store-credit");
+        // En la web se ven también los canjeados, marcados como tales.
+        // La app solo pide los vigentes (sin el parámetro).
+        const r = await fetch("/api/affiliate-app/store-credit?incluir_usados=true");
         const d = await r.json();
         if (d.ok) setCreditCodes(d.codes || []);
       } catch {}
@@ -104,7 +106,7 @@ export default function WalletPage() {
         setWithdrawAmount(""); setExchangeType(null);
         // Refrescar códigos y wallet
         const [codesRes, walletRes] = await Promise.all([
-          fetch("/api/affiliate-app/store-credit"),
+          fetch("/api/affiliate-app/store-credit?incluir_usados=true"),
           fetch("/api/affiliates/wallet"),
         ]);
         const codesData  = await codesRes.json();
@@ -378,23 +380,44 @@ export default function WalletPage() {
           <div className="bg-white border border-gray-100 rounded-2xl p-6 shadow-sm">
             <h2 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
               <BadgePercent size={15} className="text-emerald-500" />
-              Créditos en tienda disponibles
+              Créditos en tienda
             </h2>
             <div className="flex flex-col gap-3">
-              {creditCodes.map((item) => (
-                <div key={item.id} className="flex items-center gap-4 border border-emerald-100 bg-emerald-50 rounded-xl px-4 py-3">
+              {/* Primero los que puede usar; los canjeados quedan abajo, apagados */}
+              {[...creditCodes].sort((a, b) => Number(a.used) - Number(b.used)).map((item) => (
+                <div
+                  key={item.id}
+                  className={`flex items-center gap-4 border rounded-xl px-4 py-3 ${
+                    item.used
+                      ? "border-gray-100 bg-gray-50"
+                      : "border-emerald-100 bg-emerald-50"
+                  }`}
+                >
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-bold text-gray-800 tracking-wider">{item.code}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">${fmt(item.amount)} MXN de crédito</p>
+                    <p className={`text-sm font-bold tracking-wider ${
+                      item.used ? "text-gray-400 line-through" : "text-gray-800"
+                    }`}>
+                      {item.code}
+                    </p>
+                    <p className="text-xs text-gray-500 mt-0.5">
+                      ${fmt(item.amount)} MXN de crédito
+                      {item.used && item.used_order && ` · usado en ${item.used_order}`}
+                    </p>
                   </div>
-                  <a
-                    href={item.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="shrink-0 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors"
-                  >
-                    Usar cupón
-                  </a>
+                  {item.used ? (
+                    <span className="shrink-0 px-3 py-1.5 bg-gray-200 text-gray-500 rounded-lg text-xs font-bold">
+                      Canjeado
+                    </span>
+                  ) : (
+                    <a
+                      href={item.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="shrink-0 px-4 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors"
+                    >
+                      Usar cupón
+                    </a>
+                  )}
                 </div>
               ))}
             </div>

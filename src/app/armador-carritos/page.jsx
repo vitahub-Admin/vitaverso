@@ -412,7 +412,7 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
 }
 
 // ── DraftItem — card editable dentro del borrador ────────────────────────────
-function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
+function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAbrirProducto }) {
   const dos   = item.dosage || {};
   const smart = detectUnit(item.title, item.variant_title || "");
 
@@ -461,7 +461,16 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
           ? <img src={item.image} alt="" className="w-14 h-14 rounded-lg object-contain shrink-0 bg-[#F7F9FB] border border-[#D0E4EC]" />
           : <div className="w-14 h-14 rounded-lg bg-[#F7F9FB] shrink-0 flex items-center justify-center text-[#B0C8D4] border border-[#D0E4EC]"><Package size={20} /></div>}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-bold text-[#1b3f7a] leading-snug">{item.title}</p>
+          {/* El nombre vuelve a la ficha del producto: desde el borrador se
+              necesita releer la descripción o la tabla nutricional. */}
+          {onAbrirProducto && item.product_id ? (
+            <button onClick={() => onAbrirProducto(item)}
+              className="text-left text-sm font-bold text-[#1b3f7a] leading-snug hover:text-[#1E8FA8] hover:underline transition-colors">
+              {item.title}
+            </button>
+          ) : (
+            <p className="text-sm font-bold text-[#1b3f7a] leading-snug">{item.title}</p>
+          )}
           {item.variant_title && <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mt-0.5">{item.variant_title}</p>}
           <div className="mt-2 flex flex-wrap gap-1.5">
             {dTx && <span className="bg-[#1b3f7a] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{dTx}</span>}
@@ -608,7 +617,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity }) {
 }
 
 // ── Draft View ────────────────────────────────────────────────────────────────
-function DraftView({ carrito, patientData, onPatientChange, customerId, protocoloOrigen, onGuardar, guardando, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity }) {
+function DraftView({ carrito, patientData, onPatientChange, customerId, protocoloOrigen, onGuardar, guardando, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity, onAbrirProducto }) {
   const [loading, setLoading]         = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [whatsappUrl, setWhatsappUrl] = useState(null);
@@ -755,7 +764,8 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
             // La key incluye si ya tiene meta: cuando llega, el ítem se vuelve
             // a montar y el editor lee la dosis ya convertida a "número de dosis".
             <DraftItem key={`${item.variant_id}-${item.dosage?.meta ? 1 : 0}`} item={item} idx={idx}
-              onRemove={onRemoveItem} onUpdateDosage={onUpdateDosage} onUpdateQuantity={onUpdateQuantity} />
+              onRemove={onRemoveItem} onUpdateDosage={onUpdateDosage} onUpdateQuantity={onUpdateQuantity}
+              onAbrirProducto={onAbrirProducto} />
           ))}
         </div>
 
@@ -1973,6 +1983,18 @@ function ArmadorCarritosInner() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  // Abre la ficha de un producto que ya está en el carrito. El ítem guardado
+  // solo tiene el ID, así que el producto completo se pide al catálogo.
+  const abrirProductoDelCarrito = useCallback(async (item) => {
+    if (!item?.product_id) return;
+    try {
+      const r = await fetch(`/api/product-catalog?product=${item.product_id}`);
+      const d = await r.json();
+      if (!d.ok || !d.item) return;
+      handleProductClick(d.item);
+    } catch {}
+  }, [handleProductClick]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const handleBack = () => {
     if (prevView) {
       setView(prevView.view);
@@ -2334,6 +2356,7 @@ function ArmadorCarritosInner() {
             protocoloOrigen={protocoloOrigen} onGuardar={guardarProtocolo} guardando={guardando}
             onBack={handleHome} onRemoveItem={quitarDelProtocolo} onClear={limpiarProtocolo}
             onUpdateDosage={actualizarDosage} onUpdateQuantity={actualizarCantidad}
+            onAbrirProducto={abrirProductoDelCarrito}
           />
         )}
 
@@ -2371,6 +2394,7 @@ function ArmadorCarritosInner() {
             backLabel={
               prevView?.view === "home"      ? "Inicio"     :
               prevView?.view === "favorites" ? "Favoritos"  :
+              prevView?.view === "draft"     ? "Borrador"   :
               collLabel || "Volver"
             }
             onAdd={agregarAlProtocolo}
