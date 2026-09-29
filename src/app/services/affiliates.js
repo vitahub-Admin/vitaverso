@@ -1,5 +1,7 @@
 
-const API_BASE = 'api/admin/affiliates';
+// Absoluta a propósito: relativa se rompía al llamarla desde una página
+// anidada como /admin/consignacion, donde resolvía a /admin/api/admin/...
+const API_BASE = '/api/admin/affiliates';
 
 /**
  * Servicio para manejar todas las operaciones de afiliados

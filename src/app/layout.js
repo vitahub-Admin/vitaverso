@@ -13,6 +13,10 @@ import { TourProvider } from "./context/TourContext.jsx";
 
 const PUBLIC_ROUTES = ["/", "/privacidad", "/soporte", "/terminos"];
 
+// El cobro de una venta de consultorio lo abre el paciente, que no tiene
+// cuenta: pedirle login ahí sería pedirle que se registre para poder pagar.
+const esRutaPublica = (p) => PUBLIC_ROUTES.includes(p) || (p || "").startsWith("/cobro/");
+
 // Adónde ir después de iniciar sesión: la página a la que se quería entrar, sin
 // los parámetros del login. Si no, un link como /armador-carritos?fromCart=TOKEN
 // (el "Continuar en PRO" de la tienda) terminaba en /wallet y perdía el carrito.
@@ -39,7 +43,7 @@ function AuthManager({ children }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (PUBLIC_ROUTES.includes(pathname)) { setIsLoading(false); return; }
+    if (esRutaPublica(pathname)) { setIsLoading(false); return; }
 
     const enc = searchParams.get("enc");
     const t = searchParams.get("t");
@@ -174,7 +178,7 @@ function AuthManager({ children }) {
   };
 
   // 🌐 Rutas públicas — sin auth
-  if (PUBLIC_ROUTES.includes(pathname)) return <>{children}</>;
+  if (esRutaPublica(pathname)) return <>{children}</>;
 
   // ⏳ Loader
   if (isLoading) {

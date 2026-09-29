@@ -14,7 +14,7 @@ import {
   Users, GraduationCap, Newspaper, UserPlus, Award,
   DollarSign, ShoppingBag, ShoppingCart, BookOpen,
   HelpCircle, Layers, Calendar, Settings, Compass,
-  PanelLeftClose, PanelLeftOpen, User, LogOut,
+  PanelLeftClose, PanelLeftOpen, User, LogOut, Package,
 } from "lucide-react";
 
 const BOOKING_WHITELIST = [
@@ -65,6 +65,7 @@ const ADMIN_ITEMS = [
   { href: "/admin-datos-afiliados",    label: "Profesionales Data",    icon: Layers      },
   { href: "/admin-datos-analytics",    label: "Analytics Admin",       icon: Layers      },
   { href: "/admin-pagos",              label: "Pagos",                 icon: Layers      },
+  { href: "/admin/consignacion",       label: "Consignación",          icon: Package     },
   { href: "/admin-resena",             label: "Reseñas tienda",        icon: Layers      },
   { href: "/admin-comunidad",          label: "Reseñas productos",     icon: Layers      },
   { href: "/calendar",                 label: "Calendar",              icon: Calendar    },

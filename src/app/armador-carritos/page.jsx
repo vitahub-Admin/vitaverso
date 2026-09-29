@@ -7,7 +7,7 @@ import {
   ArrowLeft, ShoppingBag, Trash2, ChevronRight,
   Plus, Minus, Heart, Pencil, MessageCircle,
   Sun, FlaskConical, Zap, Droplets,
-  Save, FileClock, Bookmark, CalendarDays,
+  Save, FileClock, Bookmark, CalendarDays, Check,
 } from "lucide-react";
 
 const DOSE_UNITS = ["cápsula", "tableta", "softgel", "gota", "ml", "mg", "g", "sobre", "cucharada", "probiótico", "unidad"];
@@ -204,6 +204,10 @@ const FEATURED = [
 // banner terminó abriendo Enzimas.
 const PRO_COLLECTION = { handle: "marcas-profesionales", label: "Marcas Profesionales" };
 
+// Destino del banner "Novedades". La colección se llama "novedades" en Shopify,
+// en minúscula; el label es el que ve el profesional en el encabezado.
+const NOVEDADES_COLLECTION = { handle: "novedades", label: "Novedades" };
+
 const NAV_TABS = [
   ...FEATURED,
   // Handles adicionales — sin duplicar los que ya están en FEATURED
@@ -220,6 +224,40 @@ const fmtMXN = (n) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(Number(n) || 0);
 
 // ── useFavorites — Supabase (auth) + localStorage (fallback / no-auth) ────────
+// ── Stock en consignación ─────────────────────────────────────────────────────
+// Lo que el profesional tiene físicamente en su consultorio. Sirve para
+// marcarlo mientras arma el protocolo: lo que ya tiene ahí se le puede
+// entregar al paciente en la consulta, sin esperar envío.
+function useConsignacion(customerId) {
+  const [disponibles, setDisponibles] = useState({});   // variant_id → unidades
+  const [puedeCobrar, setPuedeCobrar] = useState(false); // ¿hay pasarela de pago?
+
+  useEffect(() => {
+    if (!customerId) return;
+    fetch("/api/consignment")
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) return;
+        setDisponibles(d.disponibles || {});
+        setPuedeCobrar(Boolean(d.puede_cobrar));
+      })
+      .catch(() => {});
+  }, [customerId]);
+
+  // Unidades disponibles de una variante (0 si no tiene)
+  const enConsultorio = useCallback(
+    (variantId) => Number(disponibles[String(variantId)] || 0), [disponibles]);
+
+  // ¿Alguna variante de este producto está en el consultorio?
+  const productoEnConsultorio = useCallback((product) =>
+    (product?.variants || []).reduce(
+      (max, v) => Math.max(max, Number(disponibles[String(v.variant_id)] || 0)), 0),
+    [disponibles]);
+
+  return { disponibles, enConsultorio, productoEnConsultorio, puedeCobrar,
+           tieneAlgo: Object.keys(disponibles).length > 0 };
+}
+
 function useFavorites(customerId) {
   const [favorites, setFavorites] = useState({});
 
@@ -412,7 +450,7 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
 }
 
 // ── DraftItem — card editable dentro del borrador ────────────────────────────
-function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAbrirProducto }) {
+function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAbrirProducto, enConsultorio }) {
   const dos   = item.dosage || {};
   const smart = detectUnit(item.title, item.variant_title || "");
 
@@ -452,6 +490,8 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
         : `${amount} ${pluralUnit(unit, amount)}`)
     : null;
   const dur = duracionDias({ meta, amount, momentos, quantity: qty });
+  // Unidades de este producto que el profesional ya tiene en su consultorio
+  const enStock = enConsultorio ? enConsultorio(item.variant_id) : 0;
   return (
     <div className="bg-white border border-[#D0E4EC] rounded-xl overflow-hidden">
       {/* Fila principal */}
@@ -479,6 +519,18 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
             {dur && (
               <span className="bg-[#E6F4F8] text-[#1E8FA8] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#C2DFE8] flex items-center gap-1">
                 <CalendarDays size={9} /> {textoDuracion(dur.dias)}
+              </span>
+            )}
+            {enStock > 0 && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                enStock >= qty
+                  ? "bg-[#1E8FA8] text-white"
+                  : "bg-amber-50 text-amber-700 border border-amber-200"
+              }`}>
+                <Package size={9} />
+                {enStock >= qty
+                  ? "En tu consultorio"
+                  : `Solo ${enStock} en tu consultorio`}
               </span>
             )}
           </div>
@@ -617,7 +669,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
 }
 
 // ── Draft View ────────────────────────────────────────────────────────────────
-function DraftView({ carrito, patientData, onPatientChange, customerId, protocoloOrigen, onGuardar, guardando, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity, onAbrirProducto }) {
+function DraftView({ carrito, patientData, onPatientChange, customerId, protocoloOrigen, onGuardar, guardando, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity, onAbrirProducto, enConsultorio, puedeCobrar }) {
   const [loading, setLoading]         = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [whatsappUrl, setWhatsappUrl] = useState(null);
@@ -647,6 +699,63 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
   const largo   = duraciones.length ? duraciones.reduce((a, b) => (b.dias > a.dias ? b : a)) : null;
   const sinDato = carrito.length - duraciones.length;
 
+  // Qué parte del protocolo puede entregar hoy mismo en la consulta y qué
+  // parte hay que enviar. Con el cobro local todavía sin construir, por ahora
+  // solo se informa.
+  const enConsulta = enConsultorio
+    ? carrito.filter(p => enConsultorio(p.variant_id) >= (p.quantity || 1))
+    : [];
+  const parciales = enConsultorio
+    ? carrito.filter(p => {
+        const hay = enConsultorio(p.variant_id);
+        return hay > 0 && hay < (p.quantity || 1);
+      })
+    : [];
+
+  // ── Cobro de la parte que entrega en mano ───────────────────────────────
+  const [venta, setVenta]         = useState(null);   // la venta en curso
+  const [cobrando, setCobrando]   = useState(false);
+
+  const cobrarEnConsultorio = async () => {
+    if (!enConsulta.length) return;
+    setCobrando(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/consignment/sale", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          items: enConsulta.map(p => ({ variant_id: p.variant_id, quantity: p.quantity || 1 })),
+          patient_name:  patientData.nombre || null,
+          patient_phone: patientData.telefono ? `+521${patientData.telefono}` : null,
+        }),
+      });
+      const d = await r.json();
+      if (!d.ok) { setError(d.error); return; }
+      setVenta({ ...d.venta, payment_url: d.payment_url });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCobrando(false);
+    }
+  };
+
+  // Mientras el cobro está pendiente, preguntamos si ya pagó. Cuando entre
+  // Stripe esto sigue sirviendo: el webhook marca la venta y acá se ve.
+  useEffect(() => {
+    if (!venta?.id || venta.estado !== "pendiente") return;
+    const t = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/consignment/sale/${venta.id}`);
+        const d = await r.json();
+        if (d.ok && d.venta.estado !== "pendiente") {
+          setVenta(v => ({ ...v, ...d.venta }));
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(t);
+  }, [venta?.id, venta?.estado]);
+
   const guardarBorrador = async () => {
     const nombre = nombreBorrador.trim();
     if (!nombre) return;
@@ -671,6 +780,12 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
   };
 
   const handleCheckout = async () => {
+    // Sin especialista identificado no se genera el protocolo: un carrito sin
+    // owner_id no se puede atribuir y la venta queda sin comisión (caso #ORDVHMX17451).
+    if (!customerId) {
+      setError("Tu sesión expiró. Vuelve a iniciar sesión para enviar el protocolo — sin esto la venta no queda registrada a tu nombre.");
+      return;
+    }
     // Teléfono requerido para enviar por WhatsApp
     if (!patientData.telefono || patientData.telefono.replace(/\D/g, "").length < 10) {
       setError("Ingresa el teléfono del paciente (10 dígitos) para enviar por WhatsApp");
@@ -765,7 +880,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
             // a montar y el editor lee la dosis ya convertida a "número de dosis".
             <DraftItem key={`${item.variant_id}-${item.dosage?.meta ? 1 : 0}`} item={item} idx={idx}
               onRemove={onRemoveItem} onUpdateDosage={onUpdateDosage} onUpdateQuantity={onUpdateQuantity}
-              onAbrirProducto={onAbrirProducto} />
+              onAbrirProducto={onAbrirProducto} enConsultorio={enConsultorio} />
           ))}
         </div>
 
@@ -804,6 +919,83 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
               <span className="text-sm text-[#5B7A8C]">{carrito.length} producto{carrito.length !== 1 ? "s" : ""}</span>
               <span className="text-lg font-extrabold text-[#1b3f7a] tabular-nums">{fmtMXN(total)}</span>
             </div>
+
+            {(enConsulta.length > 0 || parciales.length > 0) && (
+              <div className="pt-3 border-t border-[#EEF3F7]">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">
+                  En tu consultorio
+                </p>
+                <p className="text-sm text-[#1b3f7a] leading-snug flex items-start gap-1.5">
+                  <Package size={14} className="text-[#1E8FA8] mt-0.5 shrink-0" />
+                  <span>
+                    <span className="font-extrabold">{enConsulta.length}</span> de {carrito.length}{" "}
+                    {carrito.length === 1 ? "producto" : "productos"} se los puedes entregar hoy
+                  </span>
+                </p>
+                {parciales.length > 0 && (
+                  <p className="text-[11px] text-[#5B7A8C] mt-1.5 leading-snug">
+                    {parciales.length === 1 ? "De uno" : `De ${parciales.length}`} tienes menos unidades
+                    de las que pusiste: el resto va por envío.
+                  </p>
+                )}
+                {carrito.length > enConsulta.length && (
+                  <p className="text-[10px] text-[#B0C8D4] mt-1.5">
+                    Los demás se envían como siempre
+                  </p>
+                )}
+
+                {/* Cobro de lo que se entrega en mano */}
+                {enConsulta.length > 0 && puedeCobrar && (
+                  venta ? (
+                    <div className="mt-3">
+                      {venta.estado === "pagado" ? (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                          <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                            <Check size={13} /> Pagado · {fmtMXN(venta.total)}
+                          </p>
+                          <p className="text-[11px] text-emerald-600 mt-0.5">
+                            Ya le puedes entregar los productos
+                          </p>
+                        </div>
+                      ) : venta.estado === "cancelado" ? (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                          <p className="text-xs font-bold text-red-600">Pago rechazado</p>
+                          <button onClick={() => setVenta(null)}
+                            className="text-[11px] font-semibold text-[#1E8FA8] hover:underline mt-1">
+                            Generar otro cobro
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg p-3 space-y-2">
+                          <p className="text-xs text-[#5B7A8C] leading-snug">
+                            Esperando el pago de <span className="font-bold text-[#1b3f7a]">{fmtMXN(venta.total)}</span>.
+                            Mostrale esta pantalla o mandale el link.
+                          </p>
+                          <div className="flex gap-2">
+                            <a href={venta.payment_url} target="_blank" rel="noopener noreferrer"
+                              className="flex-1 bg-[#1b3f7a] text-white text-xs font-semibold py-2 rounded-lg text-center hover:bg-[#162d60] transition-colors">
+                              Abrir cobro
+                            </a>
+                            <button
+                              onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${venta.payment_url}`)}
+                              className="px-3 border border-[#C2DFE8] text-[#1b3f7a] text-xs font-semibold rounded-lg hover:bg-white transition-colors">
+                              Copiar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={cobrarEnConsultorio}
+                      disabled={cobrando}
+                      className="mt-3 w-full bg-[#1E8FA8] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#177a90] transition-colors disabled:opacity-50">
+                      {cobrando ? "Generando cobro…" : `Cobrar aquí · ${enConsulta.length} ${enConsulta.length === 1 ? "producto" : "productos"}`}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
 
             {corto && (
               <div className="pt-3 border-t border-[#EEF3F7]">
@@ -1062,7 +1254,7 @@ function RestockButton({ product, variant = null, size = "sm", seccion = "listad
 }
 
 // ── Product Card ──────────────────────────────────────────────────────────────
-function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQuickAdd, tourCard, tourComision }) {
+function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQuickAdd, tourCard, tourComision, enConsultorio = 0 }) {
   const outOfStock = product.all_out_of_stock;
   return (
     <div data-tour={tourCard ? "producto-card" : undefined}
@@ -1076,6 +1268,12 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
           <div className="absolute top-2 left-2 flex flex-col gap-1">
             {product.is_professional && <span className="bg-[#1b3f7a] text-white text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">PRO</span>}
             {outOfStock && <span className="bg-red-50 text-red-500 border border-red-200 text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">Sin stock</span>}
+            {/* Lo tiene en su consultorio: se lo puede entregar en la consulta */}
+            {enConsultorio > 0 && (
+              <span className="bg-[#1E8FA8] text-white text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">
+                En consultorio · {enConsultorio}
+              </span>
+            )}
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); onFavorite(product); }}
@@ -1719,6 +1917,7 @@ function ArmadorCarritosInner() {
   const fromProtocol  = searchParams?.get("fromProtocol") || null;
 
   const { favoriteList, toggleFavorite, isFavorite } = useFavorites(customerId);
+  const consigna = useConsignacion(customerId);
 
   // Navegación
   const [view, setView]                 = useState("home");
@@ -2282,7 +2481,8 @@ function ArmadorCarritosInner() {
                     <div key={p.product_id} className="w-40 shrink-0">
                       <ProductCard product={p} onClick={handleProductClick}
                         inProtocol={p.variants?.some(v => cartVariantIds.has(v.variant_id)) || false}
-                        isFavorite={isFavorite} onFavorite={toggleFavorite} onQuickAdd={agregarRapido} />
+                        isFavorite={isFavorite} onFavorite={toggleFavorite} onQuickAdd={agregarRapido}
+                        enConsultorio={consigna.productoEnConsultorio(p)} />
                     </div>
                   ))}
                 </div>
@@ -2345,6 +2545,24 @@ function ArmadorCarritosInner() {
                 <div className="absolute -right-8 -top-8 w-32 h-32 bg-[#1E8FA8]/10 rounded-full pointer-events-none" />
               </div>
             </section>
+
+            {/* Novedades — lo último que entró al catálogo */}
+            <section>
+              <div className="relative overflow-hidden rounded-xl bg-[#E6F4F8] border border-[#C2DFE8] px-6 py-5 flex items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <span className="shrink-0 bg-[#1E8FA8] text-white text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest mt-0.5">Nuevo</span>
+                  <div>
+                    <p className="text-[#1b3f7a] font-bold text-base leading-snug">Novedades</p>
+                    <p className="text-[#5B7A8C] text-xs mt-1 max-w-xs">Lo último que sumamos al catálogo, para que lo conozcas antes de prescribir.</p>
+                  </div>
+                </div>
+                <button onClick={() => handleCollection(NOVEDADES_COLLECTION)}
+                  className="shrink-0 flex items-center gap-1.5 bg-white hover:bg-[#F7F9FB] border border-[#C2DFE8] text-[#1b3f7a] text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors whitespace-nowrap">
+                  Explorar <ChevronRight size={12} />
+                </button>
+                <div className="absolute -right-8 -top-8 w-32 h-32 bg-[#1E8FA8]/10 rounded-full pointer-events-none" />
+              </div>
+            </section>
           </div>
         )}
 
@@ -2357,6 +2575,8 @@ function ArmadorCarritosInner() {
             onBack={handleHome} onRemoveItem={quitarDelProtocolo} onClear={limpiarProtocolo}
             onUpdateDosage={actualizarDosage} onUpdateQuantity={actualizarCantidad}
             onAbrirProducto={abrirProductoDelCarrito}
+            enConsultorio={consigna.enConsultorio}
+            puedeCobrar={consigna.puedeCobrar}
           />
         )}
 
@@ -2379,7 +2599,8 @@ function ArmadorCarritosInner() {
                 {favoriteList.filter(p => !p.all_out_of_stock).map(p => (
                   <ProductCard key={p.product_id} product={p} onClick={handleProductClick}
                     inProtocol={p.variants?.some(v => cartVariantIds.has(v.variant_id)) || false}
-                    isFavorite={isFavorite} onFavorite={toggleFavorite} onQuickAdd={agregarRapido} />
+                    isFavorite={isFavorite} onFavorite={toggleFavorite} onQuickAdd={agregarRapido}
+                    enConsultorio={consigna.productoEnConsultorio(p)} />
                 ))}
               </div>
             )}
@@ -2531,6 +2752,7 @@ function ArmadorCarritosInner() {
                   isFavorite={isFavorite}
                   onFavorite={toggleFavorite}
                   onQuickAdd={agregarRapido}
+                  enConsultorio={consigna.productoEnConsultorio(p)}
                   tourCard={i === 0}
                   tourComision={i === tourComisionIdx}
                 />
