@@ -14,7 +14,7 @@ const ESTADOS = ['borrador', 'plantilla']
  * Trae el protocolo y verifica que quien pide sea su dueño (o un admin).
  * Devuelve { protocolo } o { respuesta } con el error listo para retornar.
  */
-async function protocoloPropio(req, id) {
+async function protocoloPropio(req, id, permitirEjemplo = false) {
   const sesion = await resolveCustomerId(req)
   if (!sesion) {
     return { respuesta: NextResponse.json({ ok: false, error: 'Sin sesión' }, { status: 401 }) }
@@ -29,6 +29,9 @@ async function protocoloPropio(req, id) {
   if (error || !data) {
     return { respuesta: NextResponse.json({ ok: false, error: 'No encontrado' }, { status: 404 }) }
   }
+  // Los ejemplos se pueden abrir para usarlos, pero no editar: al guardarlos
+  // desde el armador se crea una copia con el profesional como dueño.
+  if (permitirEjemplo && data.is_public) return { protocolo: data }
   if (!esAdmin(sesion) && String(data.owner_id) !== String(sesion)) {
     // Mismo mensaje que "no existe": no se revela qué protocolos tienen otros
     return { respuesta: NextResponse.json({ ok: false, error: 'No encontrado' }, { status: 404 }) }
@@ -39,7 +42,7 @@ async function protocoloPropio(req, id) {
 export async function GET(req, { params }) {
   try {
     const { id } = await params
-    const { protocolo, respuesta } = await protocoloPropio(req, id)
+    const { protocolo, respuesta } = await protocoloPropio(req, id, true)
     if (respuesta) return respuesta
     return NextResponse.json({ ok: true, protocol: protocolo })
   } catch (err) {
@@ -87,11 +90,43 @@ export async function PATCH(req, { params }) {
   }
 }
 
+/**
+ * DELETE → borra el protocolo propio.
+ *
+ * Si es un ejemplo (is_public de otro dueño) no se borra: se registra que este
+ * profesional no quiere verlo más. Para él desaparece; para el resto sigue ahí.
+ */
 export async function DELETE(req, { params }) {
   try {
     const { id } = await params
-    const { respuesta } = await protocoloPropio(req, id)
-    if (respuesta) return respuesta
+    const sesion = await resolveCustomerId(req)
+    if (!sesion) {
+      return NextResponse.json({ ok: false, error: 'Sin sesión' }, { status: 401 })
+    }
+
+    const { data: protocolo } = await supabase
+      .from('protocols')
+      .select('id, owner_id, is_public')
+      .eq('id', id)
+      .maybeSingle()
+
+    if (!protocolo) {
+      return NextResponse.json({ ok: false, error: 'No encontrado' }, { status: 404 })
+    }
+
+    const esPropio = String(protocolo.owner_id) === String(sesion)
+
+    if (!esPropio) {
+      if (!protocolo.is_public) {
+        // Mismo mensaje que "no existe": no se revela qué tienen otros
+        return NextResponse.json({ ok: false, error: 'No encontrado' }, { status: 404 })
+      }
+      const { error } = await supabase
+        .from('protocol_hidden')
+        .upsert({ owner_id: String(sesion), protocol_id: id }, { onConflict: 'owner_id,protocol_id' })
+      if (error) throw error
+      return NextResponse.json({ ok: true, oculto: true })
+    }
 
     const { error } = await supabase.from('protocols').delete().eq('id', id)
     if (error) throw error

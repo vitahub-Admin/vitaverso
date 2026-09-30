@@ -57,9 +57,18 @@ function GuardadoCard({ protocolo, onAbrir, onBorrar }) {
   return (
     <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 flex items-start justify-between gap-3 hover:border-[#1E8FA8] transition-colors">
       <button onClick={() => onAbrir(protocolo)} className="text-left flex-1 min-w-0">
-        <p className="text-sm font-bold text-[#1b3f7a] leading-snug line-clamp-2">{protocolo.name}</p>
+        <p className="text-sm font-bold text-[#1b3f7a] leading-snug line-clamp-2">
+          {protocolo.name}
+          {protocolo.es_ejemplo && (
+            <span className="ml-2 align-middle text-[9px] font-extrabold uppercase tracking-widest text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] px-1.5 py-0.5 rounded">
+              Ejemplo
+            </span>
+          )}
+        </p>
         <p className="text-[11px] text-[#5B7A8C] mt-1">
-          {productos} producto{productos !== 1 ? "s" : ""} · {fecha}
+          {protocolo.es_ejemplo
+            ? `${productos} producto${productos !== 1 ? "s" : ""} · armado por Vitahub`
+            : `${productos} producto${productos !== 1 ? "s" : ""} · ${fecha}`}
         </p>
         <p className="text-[11px] font-semibold text-[#1E8FA8] mt-2 flex items-center gap-1">
           Abrir en el armador <ChevronRight size={11} />
@@ -68,7 +77,9 @@ function GuardadoCard({ protocolo, onAbrir, onBorrar }) {
       {confirmando ? (
         <div className="flex items-center gap-1 shrink-0">
           <button onClick={() => onBorrar(protocolo.id)}
-            className="text-[11px] font-semibold text-red-500 hover:underline">Borrar</button>
+            className="text-[11px] font-semibold text-red-500 hover:underline">
+            {protocolo.es_ejemplo ? "Ocultar" : "Borrar"}
+          </button>
           <button onClick={() => setConfirmando(false)}
             className="text-[11px] text-[#8AAAB8] hover:text-[#1b3f7a]">No</button>
         </div>

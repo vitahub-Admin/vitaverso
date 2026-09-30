@@ -40,14 +40,34 @@ export async function GET(req) {
       .order('updated_at', { ascending: false, nullsFirst: false })
       .order('created_at', { ascending: false })
 
-    if (ownerId) query = query.eq('owner_id', ownerId)
+    // Los ejemplos (is_public) los ve todo el mundo junto con los suyos: son
+    // una sola fila compartida, no una copia por profesional.
+    if (ownerId) query = query.or(`owner_id.eq.${ownerId},is_public.eq.true`)
     if (status)  query = query.eq('status', status)
 
     const { data: protocols, error } = await query
     if (error) throw error
 
+    // Cada profesional puede descartar un ejemplo; ahí deja de verlo solo él
+    let visibles = protocols || []
+    if (ownerId) {
+      const { data: ocultos } = await supabase
+        .from('protocol_hidden')
+        .select('protocol_id')
+        .eq('owner_id', ownerId)
+
+      const descartados = new Set((ocultos || []).map(o => o.protocol_id))
+      visibles = visibles
+        .filter(p => !descartados.has(p.id))
+        .map(p => ({
+          ...p,
+          // El front lo marca como ejemplo y no deja editarlo
+          es_ejemplo: p.is_public && String(p.owner_id) !== String(ownerId),
+        }))
+    }
+
     // Vista admin: agregar el nombre del profesional dueño
-    let enriched = protocols || []
+    let enriched = visibles
     if (!ownerId && enriched.length > 0) {
       const ownerIds = [...new Set(enriched.map(p => p.owner_id).filter(Boolean))]
       if (ownerIds.length > 0) {

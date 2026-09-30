@@ -7,7 +7,7 @@ import {
   ArrowLeft, ShoppingBag, Trash2, ChevronRight,
   Plus, Minus, Heart, Pencil, MessageCircle,
   Sun, FlaskConical, Zap, Droplets,
-  Save, FileClock, Bookmark, CalendarDays, Check,
+  Save, FileClock, Bookmark, CalendarDays, Check, Sparkles,
 } from "lucide-react";
 
 const DOSE_UNITS = ["cápsula", "tableta", "softgel", "gota", "ml", "mg", "g", "sobre", "cucharada", "probiótico", "unidad"];
@@ -1142,15 +1142,26 @@ function GuardadoCard({ protocolo, onAbrir, onBorrar }) {
   return (
     <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 flex items-start justify-between gap-3 hover:border-[#1E8FA8] transition-colors">
       <button onClick={() => onAbrir(protocolo)} className="text-left flex-1 min-w-0">
-        <p className="text-sm font-bold text-[#1b3f7a] leading-snug line-clamp-2">{protocolo.name}</p>
+        <p className="text-sm font-bold text-[#1b3f7a] leading-snug line-clamp-2">
+          {protocolo.name}
+          {protocolo.es_ejemplo && (
+            <span className="ml-2 align-middle text-[9px] font-extrabold uppercase tracking-widest text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] px-1.5 py-0.5 rounded">
+              Ejemplo
+            </span>
+          )}
+        </p>
         <p className="text-[11px] text-[#5B7A8C] mt-1">
-          {productos} producto{productos !== 1 ? "s" : ""} · {fecha}
+          {protocolo.es_ejemplo
+            ? `${productos} producto${productos !== 1 ? "s" : ""} · armado por Vitahub`
+            : `${productos} producto${productos !== 1 ? "s" : ""} · ${fecha}`}
         </p>
       </button>
       {confirmando ? (
         <div className="flex items-center gap-1 shrink-0">
           <button onClick={() => onBorrar(protocolo.id)}
-            className="text-[11px] font-semibold text-red-500 hover:underline">Borrar</button>
+            className="text-[11px] font-semibold text-red-500 hover:underline">
+            {protocolo.es_ejemplo ? "Ocultar" : "Borrar"}
+          </button>
           <button onClick={() => setConfirmando(false)}
             className="text-[11px] text-[#8AAAB8] hover:text-[#1b3f7a]">No</button>
         </div>
@@ -1936,6 +1947,20 @@ function ArmadorCarritosInner() {
   const [detailProduct, setDetailProduct] = useState(null);
   const [collectionImages, setCollectionImages] = useState({});
 
+  // Novedades: lo último que entró al catálogo, como tira en el inicio.
+  // Se piden los con stock nada más: mostrar algo nuevo y agotado es peor que
+  // no mostrarlo.
+  const [novedades, setNovedades] = useState([]);
+  useEffect(() => {
+    fetch(`/api/product-catalog?collection=${NOVEDADES_COLLECTION.handle}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) return;
+        setNovedades((d.items || []).filter(p => !p.all_out_of_stock).slice(0, 12));
+      })
+      .catch(() => {});
+  }, []);
+
   // Protocolo
   const [carrito, setCarrito]         = useState([]);
   const [patientData, setPatientData] = useState({ nombre: "", telefono: "" });
@@ -2547,22 +2572,33 @@ function ArmadorCarritosInner() {
             </section>
 
             {/* Novedades — lo último que entró al catálogo */}
-            <section>
-              <div className="relative overflow-hidden rounded-xl bg-[#E6F4F8] border border-[#C2DFE8] px-6 py-5 flex items-center justify-between gap-4">
-                <div className="flex items-start gap-4">
-                  <span className="shrink-0 bg-[#1E8FA8] text-white text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest mt-0.5">Nuevo</span>
-                  <div>
-                    <p className="text-[#1b3f7a] font-bold text-base leading-snug">Novedades</p>
-                    <p className="text-[#5B7A8C] text-xs mt-1 max-w-xs">Lo último que sumamos al catálogo, para que lo conozcas antes de prescribir.</p>
+            {novedades.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-[#1E8FA8]" />
+                    <h2 className="text-sm font-bold text-[#1b3f7a]">Novedades</h2>
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] px-2 py-0.5 rounded-full">
+                      Nuevo
+                    </span>
                   </div>
+                  <button onClick={() => handleCollection(NOVEDADES_COLLECTION)}
+                    className="text-xs font-semibold text-[#1E8FA8] hover:underline">
+                    Ver todos ({novedades.length}) →
+                  </button>
                 </div>
-                <button onClick={() => handleCollection(NOVEDADES_COLLECTION)}
-                  className="shrink-0 flex items-center gap-1.5 bg-white hover:bg-[#F7F9FB] border border-[#C2DFE8] text-[#1b3f7a] text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors whitespace-nowrap">
-                  Explorar <ChevronRight size={12} />
-                </button>
-                <div className="absolute -right-8 -top-8 w-32 h-32 bg-[#1E8FA8]/10 rounded-full pointer-events-none" />
-              </div>
-            </section>
+                <div className="flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden -mx-4 sm:-mx-6 px-4 sm:px-6">
+                  {novedades.map(p => (
+                    <div key={p.product_id} className="w-40 shrink-0">
+                      <ProductCard product={p} onClick={handleProductClick}
+                        inProtocol={p.variants?.some(v => cartVariantIds.has(v.variant_id)) || false}
+                        isFavorite={isFavorite} onFavorite={toggleFavorite} onQuickAdd={agregarRapido}
+                        enConsultorio={consigna.productoEnConsultorio(p)} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
           </div>
         )}
 

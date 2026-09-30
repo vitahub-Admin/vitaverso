@@ -14,7 +14,7 @@ import {
   Users, GraduationCap, Newspaper, UserPlus, Award,
   DollarSign, ShoppingBag, ShoppingCart, BookOpen,
   HelpCircle, Layers, Calendar, Settings, Compass,
-  PanelLeftClose, PanelLeftOpen, User, LogOut, Package,
+  PanelLeftClose, PanelLeftOpen, User, LogOut, Package, MapPin,
 } from "lucide-react";
 
 const BOOKING_WHITELIST = [
@@ -52,6 +52,17 @@ const NAV_GROUPS = [
     { href: "/referral",           label: "Invita y gana",        icon: UserPlus      },
   ],
 ];
+
+// Ítem señalado como novedad: una flecha va y viene señalándolo. Está puesto
+// en el armador mientras dure la migración de los carritos de la tienda a PRO.
+// Para moverlo, cambiar el href; para apagarlo, dejarlo en null.
+//
+// No se apaga al primer ingreso: en una campaña de migración, entrar una vez no
+// significa haber adoptado nada.
+// Se apaga después de VISITAS_PARA_APAGAR ingresos. En 0 queda siempre visible.
+const NAV_NUEVO           = "/armador-carritos";
+const NAV_NUEVO_VISITAS   = "vh_nav_nuevo_visitas";
+const VISITAS_PARA_APAGAR = 5;
 
 // ── Nav admin — solo vitahuber ────────────────────────────────────────────────
 const ADMIN_ITEMS = [
@@ -95,6 +106,21 @@ export default function Sidebar() {
   };
   const [novedadesPendientes, setNovedadesPendientes] = useState(0);
 
+  // El marcador de "nuevo" se apaga la primera vez que entra a esa sección.
+  // Arranca en true para no hacerlo parpadear mientras se lee localStorage.
+  const [nuevoVisto, setNuevoVisto] = useState(true);
+  useEffect(() => {
+    if (!NAV_NUEVO) return;
+    try {
+      let visitas = parseInt(localStorage.getItem(NAV_NUEVO_VISITAS) || "0", 10);
+      if (pathname.startsWith(NAV_NUEVO)) {
+        visitas += 1;
+        localStorage.setItem(NAV_NUEVO_VISITAS, String(visitas));
+      }
+      setNuevoVisto(VISITAS_PARA_APAGAR > 0 && visitas >= VISITAS_PARA_APAGAR);
+    } catch { setNuevoVisto(true); }
+  }, [pathname]);
+
   const tagsArray = customer?.tags?.split(",")?.map(t => t.trim().toLowerCase()) || [];
   const isVitahuber = tagsArray.includes("vitahuber");
   const hasBookingAccess = isVitahuber || BOOKING_WHITELIST.includes(String(customer?.id || ""));
@@ -128,6 +154,7 @@ export default function Sidebar() {
   const w = collapsed ? "w-14" : "w-14 sm:w-52";
 
   function NavLink({ item }) {
+    const esNuevo = item.href === NAV_NUEVO && !nuevoVisto;
     const isActive    = pathname === item.href || (item.href !== "/" && item.href !== "/home" && pathname.startsWith(item.href));
     const isNovedades = item.href === "/notificaciones";
     return (
@@ -147,14 +174,27 @@ export default function Sidebar() {
       >
         <item.icon size={17} className="shrink-0" />
         {!collapsed && <span className="hidden sm:inline truncate">{item.label}</span>}
-        {isNovedades && novedadesPendientes > 0 && (
-          <span className="
-            absolute top-1.5 right-1.5
-            min-w-[18px] h-[18px] bg-red-500 text-white text-[10px] font-bold
-            rounded-full flex items-center justify-center px-1
-          ">
-            {novedadesPendientes}
-          </span>
+        {esNuevo && (
+          <>
+            {/* Riel angosto — mobile o sidebar colapsado: no hay lugar para el
+                pin sin encimarlo sobre el ícono, así que va solo un punto. */}
+            <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full
+              ${isActive ? "bg-white" : "bg-[#1E8FA8]"} ${collapsed ? "" : "sm:hidden"}`} />
+
+            {/* Sidebar expandido: el pin girado 90°, apuntando al ítem */}
+            {!collapsed && (
+              <span className="hidden sm:flex ml-auto shrink-0 items-center pointer-events-none">
+                {/* Relleno, con el círculo hueco: se pinta del color del fondo
+                    del ítem, que cambia cuando está activo. */}
+                <MapPin size={19} fill="currentColor"
+                  className={`rotate-90 flecha-nuevo drop-shadow-sm ${
+                    isActive
+                      ? "text-white [&>circle]:fill-[#1b3f7a] [&>circle]:stroke-[#1b3f7a]"
+                      : "text-[#1E8FA8] [&>circle]:fill-white [&>circle]:stroke-white"
+                  }`} />
+              </span>
+            )}
+          </>
         )}
       </Link>
     );

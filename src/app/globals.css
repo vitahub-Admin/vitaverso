@@ -35,3 +35,16 @@
   width: 2px;
   box-shadow: 2px 0 5px -2px rgba(0,0,0,0.1);
 }
+/* Marcador de "novedad" en el nav: una flecha que va y viene señalando el
+   ítem nuevo. Se anima con `translate` y no con `transform`: el ícono usa
+   transform para la rotación y se pisarían entre sí. */
+@keyframes vaiven-flecha {
+  0%, 100% { translate: 0 0; }
+  50%      { translate: -5px 0; }
+}
+.flecha-nuevo {
+  animation: vaiven-flecha 1.1s ease-in-out infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .flecha-nuevo { animation: none; }
+}
