@@ -1038,10 +1038,12 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                 className="w-full bg-[#25D366] text-white text-sm py-2.5 rounded-lg font-semibold hover:bg-[#1ebe5b] transition-colors flex items-center justify-center gap-2">
                 <MessageCircle size={15} /> Abrir WhatsApp
               </button>
-              {/* Acción secundaria. Sin PDF: la receta le llega a la paciente
-                  por mail cuando compra, así no se entrega antes de la venta. */}
-              <button onClick={copy} className="w-full border border-[#C2DFE8] text-[#1b3f7a] text-sm py-2 rounded-lg font-semibold hover:bg-white transition-colors">
-                {copied ? "¡Copiado!" : "Copiar link"}
+              {/* Salida de emergencia, a propósito discreta: el camino bueno es
+                  WhatsApp. Esto queda para cuando no se abre — pasa en laptops
+                  sin la sesión de WhatsApp Web vinculada. Sin PDF: la receta le
+                  llega a la paciente por mail cuando compra. */}
+              <button onClick={copy} className="w-full text-[#1E8FA8] text-xs font-medium hover:underline transition-colors">
+                {copied ? "¡Copiado!" : "¿No se abrió? Copiar link"}
               </button>
 
               {/* Guardar como plantilla — solo si el protocolo tiene cuerpo y
@@ -1947,6 +1949,59 @@ function ArmadorCarritosInner() {
   const [detailProduct, setDetailProduct] = useState(null);
   const [collectionImages, setCollectionImages] = useState({});
 
+  // ── Historial del navegador ────────────────────────────────────────────────
+  // El armador navega con estado interno (inicio → colección → producto →
+  // borrador), así que para el navegador todo es una sola página: el botón
+  // atrás sacaba al profesional afuera, en medio de armar un protocolo.
+  //
+  // Acá se espeja esa navegación en el historial. Cada vista guarda una foto de
+  // su estado —incluida la lista de productos, para no volver a pedirla— y al
+  // ir atrás se restaura la foto en vez de abandonar la página.
+  const pila        = useRef([]);     // fotos de cada vista visitada
+  const restaurando = useRef(false);  // evita re-apilar lo que acabamos de restaurar
+
+  const fotoActual = () => ({
+    view, activeTabKey, collLabel, levelCtx, productos, detailProduct, query, aiResult,
+  });
+
+  const restaurarFoto = (f) => {
+    restaurando.current = true;
+    setView(f.view);
+    setActiveTabKey(f.activeTabKey);
+    setCollLabel(f.collLabel);
+    setLevelCtx(f.levelCtx);
+    setProductos(f.productos || []);
+    setDetailProduct(f.detailProduct);
+    setQuery(f.query || "");
+    setAiResult(f.aiResult || null);
+    setPrevView(null);
+    window.scrollTo({ top: 0 });
+  };
+
+  // Apila cada cambio de vista. Mira el contenido, no quién lo disparó, así
+  // cubre también las navegaciones que no pasan por los handlers.
+  useEffect(() => {
+    if (restaurando.current) { restaurando.current = false; return; }
+    const foto = fotoActual();
+    const i    = pila.current.length;
+    pila.current.push(foto);
+    // La primera vista reemplaza la entrada actual: si se apilara, haría falta
+    // tocar "atrás" dos veces para salir del armador.
+    if (i === 0) window.history.replaceState({ vh: 0 }, "");
+    else         window.history.pushState({ vh: i }, "");
+  }, [view, activeTabKey, collLabel, levelCtx, detailProduct?.product_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const alVolver = (e) => {
+      const i = e.state?.vh;
+      // Sin índice nuestro, la entrada es de otra página: que el navegador siga
+      if (i == null || !pila.current[i]) return;
+      restaurarFoto(pila.current[i]);
+    };
+    window.addEventListener("popstate", alVolver);
+    return () => window.removeEventListener("popstate", alVolver);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Novedades: lo último que entró al catálogo, como tira en el inicio.
   // Se piden los con stock nada más: mostrar algo nuevo y agotado es peor que
   // no mostrarlo.
@@ -2220,6 +2275,11 @@ function ArmadorCarritosInner() {
   }, [handleProductClick]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleBack = () => {
+    // Si hay historial propio, el "Volver" de la pantalla y el del navegador
+    // hacen lo mismo. Si no se delegara, cada "Volver" apilaría una entrada
+    // nueva y el botón del navegador terminaría yendo hacia adelante.
+    if (window.history.state?.vh > 0) { window.history.back(); return; }
+
     if (prevView) {
       setView(prevView.view);
       setActiveTabKey(prevView.activeTabKey);
