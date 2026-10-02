@@ -499,6 +499,8 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
         : `${amount} ${pluralUnit(unit, amount)}`)
     : null;
   const dur = duracionDias({ meta, amount, momentos, quantity: qty });
+  // stock viene solo en protocolos recuperados; null = no se consultó
+  const sinStock = item.stock !== null && item.stock !== undefined && item.stock <= 0;
   // Unidades de este producto que el profesional ya tiene en su consultorio
   const enStock = enConsultorio ? enConsultorio(item.variant_id) : 0;
   return (
@@ -528,6 +530,11 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
             {dur && (
               <span className="bg-[#E6F4F8] text-[#1E8FA8] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#C2DFE8] flex items-center gap-1">
                 <CalendarDays size={9} /> {textoDuracion(dur.dias)}
+              </span>
+            )}
+            {sinStock && (
+              <span className="bg-red-50 text-red-500 border border-red-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                Sin stock
               </span>
             )}
             {enStock > 0 && (
@@ -707,6 +714,9 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
   const corto   = duraciones.length ? duraciones.reduce((a, b) => (b.dias < a.dias ? b : a)) : null;
   const largo   = duraciones.length ? duraciones.reduce((a, b) => (b.dias > a.dias ? b : a)) : null;
   const sinDato = carrito.length - duraciones.length;
+
+  // Agotados: solo se sabe en protocolos recuperados, donde se consultó el stock
+  const agotados = carrito.filter(p => p.stock !== null && p.stock !== undefined && p.stock <= 0);
 
   // Qué parte del protocolo puede entregar hoy mismo en la consulta y qué
   // parte hay que enviar. Con el cobro local todavía sin construir, por ahora
@@ -921,6 +931,21 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
               </div>
             </div>
           </div>
+
+          {/* Productos agotados — el checkout los va a rechazar, mejor avisar acá */}
+          {agotados.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3.5">
+              <p className="text-xs font-bold text-red-600">
+                {agotados.length === 1 ? "Un producto sin stock" : `${agotados.length} productos sin stock`}
+              </p>
+              <p className="text-[11px] text-red-500 mt-1 leading-snug">
+                {agotados.map(p => p.title).join(" · ")}
+              </p>
+              <p className="text-[11px] text-[#5B7A8C] mt-1.5 leading-snug">
+                Quítalos o cámbialos: el protocolo no se puede enviar con productos agotados.
+              </p>
+            </div>
+          )}
 
           {/* Resumen */}
           <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 space-y-3">
@@ -2137,6 +2162,11 @@ function ArmadorCarritosInner() {
             items = items.map(i => ({
               ...i,
               price: dp.prices?.[i.variant_id] ?? i.price,
+              // El stock se guarda en el ítem para avisar en el borrador. Un
+              // protocolo guardado hace meses puede tener productos agotados, y
+              // antes eso recién aparecía al querer enviarlo, con el paciente
+              // ya cargado.
+              stock: dp.stock?.[i.variant_id] ?? null,
               // Si el guardado no traía los metafields de dosis, los reponemos:
               // sin ellos no se puede calcular la duración del protocolo.
               dosage: {

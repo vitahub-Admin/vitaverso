@@ -22,11 +22,26 @@ import {
 import CartRow, { fmtMXN } from "../components/CartRow";
 import PageHeader from "../components/PageHeader";
 
-// Mismo criterio que /vitahuber: los tres valores marcan carritos del armador.
-// "armador-carritos" y "armador-checkout" son etiquetas históricas que quedaron
-// en registros viejos; hoy solo se escribe "protocolo".
-const esProtocolo = (origen) =>
-  origen === "protocolo" || origen === "armador-carritos" || origen === "armador-checkout";
+// De dónde salió el carrito. "armador-carritos" y "armador-checkout" son
+// etiquetas históricas; hoy el armador escribe "protocolo". Los de la tienda
+// —el flujo original— no traen origen: son la enorme mayoría del historial.
+const DEL_ARMADOR = ["protocolo", "armador-carritos", "armador-checkout"];
+const PUENTE      = ["storefront-a-pro", "producto-a-pro"];
+
+const origenDe = (origen) =>
+  DEL_ARMADOR.includes(origen) ? "armador"
+  : PUENTE.includes(origen)    ? "puente"
+  : "tienda";
+
+// Para buscar por teléfono: solo los dígitos, así "55 1234" encuentra
+// "+5215512345678" y no importa cómo lo haya escrito el profesional.
+const soloDigitos = (v) => String(v || "").replace(/\D/g, "");
+
+const ETIQUETA_ORIGEN = {
+  armador: { label: "Armador", clase: "bg-[#E6F4F8] text-[#1E8FA8] border-[#C2DFE8]" },
+  puente:  { label: "Desde la tienda", clase: "bg-amber-50 text-amber-700 border-amber-200" },
+  tienda:  { label: "Tienda", clase: "bg-[#F7F9FB] text-[#5B7A8C] border-[#D0E4EC]" },
+};
 
 function StatCard({ icon: Icon, label, value, accent }) {
   return (
@@ -128,6 +143,8 @@ export default function ProtocolosCompartidos() {
   const [error, setError]     = useState(null);
   const [tab, setTab]         = useState("enviados"); // enviados | borradores | plantillas
   const [filtro, setFiltro]   = useState("todos"); // todos | vendidos | pendientes
+  const [origen, setOrigen]   = useState("todos"); // todos | armador | puente | tienda
+  const [cuantos, setCuantos] = useState(40);      // filas visibles, crece con "ver más"
   const [busqueda, setBusqueda] = useState("");
 
   useEffect(() => {
@@ -138,8 +155,9 @@ export default function ProtocolosCompartidos() {
       .then(r => r.json())
       .then(d => {
         if (!d.success) throw new Error(d.message || "Error cargando protocolos");
-        // Analytics descarta `extra` al mapear; acá lo necesitamos para filtrar
-        setCarts((d.data || []).filter(c => esProtocolo(c.extra?.origen)));
+        // Antes se mostraban solo los del armador: para quien venía usando la
+        // tienda, la página aparecía vacía aunque tuviera cientos de carritos.
+        setCarts((d.data || []).map(c => ({ ...c, _origen: origenDe(c.extra?.origen) })));
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
@@ -176,10 +194,23 @@ export default function ProtocolosCompartidos() {
     let out = carts;
     if (filtro === "vendidos")   out = out.filter(c => c.has_sale);
     if (filtro === "pendientes") out = out.filter(c => !c.has_sale);
+    if (origen !== "todos")      out = out.filter(c => c._origen === origen);
     const q = busqueda.trim().toLowerCase();
-    if (q) out = out.filter(c => (c.client_name || "").toLowerCase().includes(q));
+    if (q) {
+      const digitos = soloDigitos(q);
+      out = out.filter(c =>
+        (c.client_name || "").toLowerCase().includes(q) ||
+        (digitos.length >= 3 && soloDigitos(c.phone).includes(digitos))
+      );
+    }
     return out;
-  }, [carts, filtro, busqueda]);
+  }, [carts, filtro, origen, busqueda]);
+
+  // Hay profesionales con más de 500 carritos: se muestran de a tandas para no
+  // renderizarlos todos de una.
+  const mostrados = visibles.slice(0, cuantos);
+
+  useEffect(() => { setCuantos(40); }, [filtro, origen, busqueda]);
 
   const PILLS = [
     { key: "todos",      label: "Todos",      n: carts.length },
@@ -254,12 +285,26 @@ export default function ProtocolosCompartidos() {
                 </button>
               ))}
             </div>
+            {/* De dónde salió el carrito: el armador, la tienda, o el puente
+                que los trae de la tienda a PRO */}
+            <select
+              value={origen}
+              onChange={e => setOrigen(e.target.value)}
+              className="bg-white border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs font-semibold
+                text-[#5B7A8C] focus:outline-none focus:border-[#1E8FA8]"
+            >
+              <option value="todos">Todos los orígenes</option>
+              <option value="armador">Armador ({carts.filter(c => c._origen === "armador").length})</option>
+              <option value="puente">Desde la tienda ({carts.filter(c => c._origen === "puente").length})</option>
+              <option value="tienda">Tienda ({carts.filter(c => c._origen === "tienda").length})</option>
+            </select>
+
             <div className="relative sm:ml-auto sm:w-64">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#B0C8D4]" />
               <input
                 value={busqueda}
                 onChange={e => setBusqueda(e.target.value)}
-                placeholder="Buscar por paciente…"
+                placeholder="Buscar por paciente o teléfono…"
                 className="w-full bg-white border border-[#D0E4EC] rounded-lg pl-9 pr-3 py-1.5 text-xs
                   text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]"
               />
@@ -270,8 +315,25 @@ export default function ProtocolosCompartidos() {
         {tab === "enviados" && (
           <>
             <div className="space-y-2">
-              {visibles.map(cart => <CartRow key={cart.token} cart={cart} />)}
+              {mostrados.map(cart => (
+                <div key={cart.token} className="relative">
+                  <span className={`absolute right-3 top-3 z-10 text-[9px] font-extrabold uppercase tracking-widest
+                    px-1.5 py-0.5 rounded border ${ETIQUETA_ORIGEN[cart._origen].clase}`}>
+                    {ETIQUETA_ORIGEN[cart._origen].label}
+                  </span>
+                  <CartRow cart={cart} />
+                </div>
+              ))}
             </div>
+
+            {visibles.length > mostrados.length && (
+              <button
+                onClick={() => setCuantos(c => c + 60)}
+                className="w-full border border-[#D0E4EC] bg-white text-[#1E8FA8] text-xs font-semibold py-2.5 rounded-xl hover:border-[#1E8FA8] transition-colors"
+              >
+                Ver más · quedan {visibles.length - mostrados.length}
+              </button>
+            )}
 
             {visibles.length === 0 && (
               <div className="bg-white border border-[#D0E4EC] rounded-2xl p-10 text-center">
