@@ -19,16 +19,32 @@ const drive  = google.drive({ version: 'v3', auth })
 const sheets = google.sheets({ version: 'v4', auth })
 
 // 1. ¿Vemos la carpeta?
+//
+// Preguntar por el contenido NO sirve como prueba de acceso: cuando la cuenta
+// de servicio no ve la carpeta, Drive devuelve una lista vacía en vez de un
+// error, y el chequeo decía "OK" con la carpeta sin compartir. El que no miente
+// es files.get sobre el ID.
 try {
+  const { data: carpeta } = await drive.files.get({
+    fileId: FOLDER_ID,
+    fields: 'id, name, mimeType, trashed, driveId, owners(emailAddress)',
+    supportsAllDrives: true,
+  })
+  console.log(`✓ Carpeta visible: "${carpeta.name}" · papelera: ${carpeta.trashed}` +
+    (carpeta.driveId ? ` · en unidad compartida ${carpeta.driveId}` : ` · dueño: ${carpeta.owners?.[0]?.emailAddress || '—'}`))
+
   const res = await drive.files.list({
     q: `'${FOLDER_ID}' in parents and trashed = false`,
     fields: 'files(id, name, mimeType)',
     pageSize: 50,
+    supportsAllDrives: true,
+    includeItemsFromAllDrives: true,
   })
-  console.log('✓ Acceso a carpeta Facturacion OK. Contenido:')
+  console.log(`  contenido: ${res.data.files.length} elementos`)
   for (const f of res.data.files) console.log(`  - ${f.name}`)
 } catch (e) {
   console.log('✗ Carpeta:', e.message)
+  console.log('  → compartirla como Editor con:', process.env.GOOGLE_CLIENT_EMAIL)
 }
 
 // 2. ¿Vemos la plantilla y sus tabs?

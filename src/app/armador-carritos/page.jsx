@@ -178,14 +178,23 @@ function carritoAComponentes(carrito) {
 function componentesACarrito(components) {
   return (components || []).flatMap(comp => {
     const it = comp.items?.[0];
-    if (!it?.variant_id) return [];
+    if (!it) return [];
+
+    // Dos formatos conviven. El del armador guarda la variante plana en el
+    // ítem; el del builder viejo guarda el producto arriba y las variantes
+    // anidadas en items[].variants[]. Leer solo el plano dejaba el carrito
+    // vacío al abrir una plantilla vieja: 33 protocolos de 8 profesionales.
+    const v = it.variants?.[0] || {};
+    const variantId = it.variant_id ?? v.variant_id;
+    if (!variantId) return [];
+
     return [{
-      variant_id:    it.variant_id,
+      variant_id:    variantId,
       product_id:    it.product_id ?? null,
-      title:         it.title || comp.label || "Producto",
-      variant_title: it.variant_title ?? null,
-      image:         it.image ?? null,
-      price:         it.price ?? 0,
+      title:         it.title || comp.label || comp.componente || "Producto",
+      variant_title: it.variant_title ?? v.variant_title ?? null,
+      image:         it.image ?? it.image_url ?? null,
+      price:         it.price ?? v.price ?? 0,
       quantity:      comp.quantity || 1,
       dosage:        comp.dosage || { amount: 1, unit: "cápsula", momentos: [], acompanamiento: "", nota: "", meta: null },
     }];
@@ -1299,10 +1308,15 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
       {/* Info — click abre detalle */}
       <div onClick={() => onClick(product)} className="px-3 pt-2.5 pb-2 flex flex-col flex-1 gap-1 cursor-pointer">
         <p className="text-xs font-bold text-[#1b3f7a] leading-snug line-clamp-2">{product.title}</p>
-        {/* brand/vendor oculto — vendor de Shopify no refleja la marca real; pendiente mapeo correcto */}
         {product.commission_percent > 0 && (
           <p data-tour={tourComision ? "comision-badge" : undefined}
             className="text-[10px] font-extrabold text-[#1E8FA8]">+{product.commission_percent}% comisión</p>
+        )}
+        {/* La marca sale de Supabase, no del vendor de Shopify: ese trae
+            distribuidores. Mismo cuerpo que la comisión pero sin negrita, para
+            que informe sin competirle al precio. */}
+        {product.brand && (
+          <p className="text-[10px] text-[#5B7A8C] truncate">{product.brand}</p>
         )}
         <p className="text-sm font-extrabold text-[#1b3f7a] tabular-nums mt-auto pt-1">
           {product.min_price ? (product.variants?.length > 1 ? `desde ${fmtMXN(product.min_price)}` : fmtMXN(product.min_price)) : "—"}
@@ -1551,8 +1565,12 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             {inCart && <span className="bg-emerald-50 text-emerald-600 text-xs font-extrabold px-2.5 py-1 rounded">✓ En protocolo</span>}
           </div>
           <div>
+            {product.brand && (
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-[#5B7A8C] mb-1">
+                {product.brand}
+              </p>
+            )}
             <h1 className="text-base sm:text-xl font-medium text-[#1b3f7a] leading-snug">{product.title}</h1>
-            {/* brand oculto — pendiente mapeo vendor→marca real */}
           </div>
           {product.variants?.length > 1 && (
             <div>
