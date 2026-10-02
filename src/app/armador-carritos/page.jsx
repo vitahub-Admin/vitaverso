@@ -744,7 +744,13 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          items: enConsulta.map(p => ({ variant_id: p.variant_id, quantity: p.quantity || 1 })),
+          // Se cobra el protocolo entero en un solo pago: lo que se entrega en
+          // la consulta y lo que se envía. Antes se partía en dos cobros.
+          items: carrito.map(p => ({
+            variant_id: p.variant_id,
+            quantity:   p.quantity || 1,
+            entrega:    enConsulta.some(e => e.variant_id === p.variant_id) ? "mano" : "envio",
+          })),
           patient_name:  patientData.nombre || null,
           patient_phone: patientData.telefono ? `+521${patientData.telefono}` : null,
         }),
@@ -849,7 +855,32 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
       });
       const data = await res.json();
       if (!data.ok) throw new Error(data.error || "Error generando checkout");
-      const url = data.checkoutUrl;
+
+      // Con cobro propio habilitado, el paciente paga en nuestra página y no en
+      // Shopify: un solo pago por el protocolo completo, con el envío incluido.
+      // El sharecart se crea igual, porque es lo que registra el protocolo y
+      // sostiene la atribución.
+      let url = data.checkoutUrl;
+      if (puedeCobrar) {
+        const rv = await fetch("/api/consignment/sale", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sharecart_token: data.token,
+            patient_name:  patientName || null,
+            patient_phone: patientPhone || null,
+            items: carrito.map(p => ({
+              variant_id: p.variant_id,
+              quantity:   p.quantity || 1,
+              entrega:    enConsulta.some(e => e.variant_id === p.variant_id) ? "mano" : "envio",
+            })),
+          }),
+        });
+        const dv = await rv.json();
+        if (!dv.ok) throw new Error(dv.error || "No se pudo generar el cobro");
+        url = `${window.location.origin}${dv.payment_url}`;
+        setVenta({ ...dv.venta, payment_url: dv.payment_url });
+      }
+
       setCheckoutUrl(url);
       // Componer y abrir WhatsApp automáticamente
       const saludo  = patientName ? `¡Hola ${patientName}!` : "¡Hola!";
@@ -1024,7 +1055,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                       onClick={cobrarEnConsultorio}
                       disabled={cobrando}
                       className="mt-3 w-full bg-[#1E8FA8] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#177a90] transition-colors disabled:opacity-50">
-                      {cobrando ? "Generando cobro…" : `Cobrar aquí · ${enConsulta.length} ${enConsulta.length === 1 ? "producto" : "productos"}`}
+                      {cobrando ? "Generando cobro…" : `Cobrar todo aquí · ${carrito.length} ${carrito.length === 1 ? "producto" : "productos"}`}
                     </button>
                   )
                 )}

@@ -40,7 +40,9 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
     return { ok: false, error: `La venta está ${venta.estado}` };
   }
 
-  const items = venta.items || [];
+  // Solo lo entregado en mano sale de la consignación del profesional. Lo que
+  // se envía lo descuenta BaseLinker con la orden, desde el depósito central.
+  const items = (venta.items || []).filter(i => i.entrega !== 'envio');
 
   // 1. Verificar que el stock siga estando. Entre que se armó el cobro y que
   //    el paciente pagó pudo venderse en otra consulta.

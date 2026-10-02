@@ -53,7 +53,7 @@ export async function GET(req) {
       total_unidades: items.reduce((a, i) => a + Math.max(0, i.disponible), 0),
       // Sin pasarela no tiene sentido ofrecer "Cobrar aquí": generaría una
       // venta que nadie puede pagar.
-      puede_cobrar: sePuedeCobrar(),
+      puede_cobrar: sePuedeCobrar(ownerId),
     })
   } catch (err) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })

@@ -2,14 +2,24 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { resolveCustomerId } from '@/lib/customerAppAuth'
 import { fetchVariantPrices } from '@/lib/shopifyPrices'
+import { pasarelaActiva } from '@/lib/pasarelaPago'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 )
 
-// Mientras no haya pasarela real, el cobro se simula en /cobro/<id>.
-const PASARELA = process.env.STRIPE_SECRET_KEY ? 'stripe' : 'mock'
+// Envío: gratis a partir del umbral, precio fijo debajo. Son las mismas reglas
+// de la tienda; si se vuelven más finas (por zona o peso), este es el lugar.
+// Solo se cobra si hay algo que enviar: si el profesional entrega todo en mano,
+// el envío no existe.
+const ENVIO_GRATIS_DESDE = 600
+const ENVIO_COSTO        = 99
+
+function calcularEnvio(subtotal, hayEnvio) {
+  if (!hayEnvio) return 0
+  return subtotal >= ENVIO_GRATIS_DESDE ? 0 : ENVIO_COSTO
+}
 
 /**
  * POST /api/consignment/sale
@@ -36,7 +46,10 @@ export async function POST(req) {
     const ownerId    = String(sesion)
     const variantIds = items.map(i => Number(i.variant_id)).filter(Boolean)
 
-    // 1. ¿Tiene ese stock en su consultorio?
+    // 1. Qué sale del consultorio y qué se envía.
+    //    Lo que el profesional tiene en consignación se entrega en mano; el
+    //    resto viaja desde el CEDIS. El paciente paga todo junto: un cobro, un
+    //    comprobante.
     const { data: saldos } = await supabase
       .from('consignment_stock')
       .select('variant_id, product_id, title, variant_title, disponible')
@@ -46,9 +59,11 @@ export async function POST(req) {
     const porVariante = Object.fromEntries((saldos || []).map(s => [String(s.variant_id), s]))
 
     for (const it of items) {
-      const saldo = porVariante[String(it.variant_id)]
       const pedido = Number(it.quantity) || 1
-      if (!saldo || saldo.disponible < pedido) {
+      const saldo  = porVariante[String(it.variant_id)]
+      // Solo se valida contra la consignación lo que se va a entregar en mano.
+      // Lo demás lo valida el stock general al armar el envío.
+      if (it.entrega === 'mano' && (!saldo || saldo.disponible < pedido)) {
         return NextResponse.json({
           ok: false,
           error: `No tienes ${pedido} de "${saldo?.title || it.variant_id}" en tu consultorio (hay ${saldo?.disponible ?? 0})`,
@@ -57,24 +72,31 @@ export async function POST(req) {
     }
 
     // 2. Precio vivo de Shopify y comisión vigente, congelados en la venta
-    const [precios, { data: comisiones }] = await Promise.all([
+    const [precios, { data: comisiones }, { data: catalogo }] = await Promise.all([
       fetchVariantPrices(variantIds),
       supabase
         .from('product_variant_commissions')
         .select('variant_id, commission_percent')
         .in('variant_id', variantIds)
         .eq('active', true),
+      supabase
+        .from('product_catalog')
+        .select('variant_id, product_id, title, variant_title, sku')
+        .in('variant_id', variantIds),
     ])
 
     const pctPorVariante = Object.fromEntries(
       (comisiones || []).map(c => [String(c.variant_id), Number(c.commission_percent)])
     )
+    const delCatalogo = Object.fromEntries((catalogo || []).map(c => [String(c.variant_id), c]))
 
     let subtotal = 0
     let comision = 0
     const itemsVenta = items.map(it => {
       const vid    = String(it.variant_id)
-      const saldo  = porVariante[vid]
+      // Los datos del producto salen de la consignación si está ahí; si no, del
+      // catálogo. Así una línea enviada tiene el mismo detalle que una local.
+      const info   = porVariante[vid] || delCatalogo[vid] || {}
       const qty    = Number(it.quantity) || 1
       const precio = Number(precios[vid] ?? 0)
       const pct    = pctPorVariante[vid] ?? 0
@@ -85,18 +107,26 @@ export async function POST(req) {
 
       return {
         variant_id:        Number(it.variant_id),
-        product_id:        saldo.product_id,
-        title:             saldo.title,
-        variant_title:     saldo.variant_title,
+        product_id:        info.product_id ?? null,
+        title:             info.title ?? null,
+        variant_title:     info.variant_title ?? null,
+        sku:               info.sku ?? null,
         quantity:          qty,
         price:             precio,
         commission_percent: pct,
+        // Define de qué depósito sale en BaseLinker y si hay que prepararlo
+        entrega:           it.entrega === 'mano' ? 'mano' : 'envio',
       }
     })
 
     if (subtotal <= 0) {
       return NextResponse.json({ ok: false, error: 'No se pudo obtener el precio' }, { status: 502 })
     }
+
+    // El envío se cobra sobre el subtotal del protocolo completo, no solo
+    // sobre lo que se envía: el paciente compró una vez.
+    const hayEnvio = itemsVenta.some(i => i.entrega === 'envio')
+    const envio    = calcularEnvio(subtotal, hayEnvio)
 
     const { data: venta, error } = await supabase
       .from('local_orders')
@@ -107,10 +137,11 @@ export async function POST(req) {
         patient_phone:   body.patient_phone || null,
         items:           itemsVenta,
         subtotal:        Number(subtotal.toFixed(2)),
-        total:           Number(subtotal.toFixed(2)),
+        envio:           envio,
+        total:           Number((subtotal + envio).toFixed(2)),
         comision:        Number(comision.toFixed(2)),
         estado:          'pendiente',
-        payment_provider: PASARELA,
+        payment_provider: pasarelaActiva(ownerId),
       }])
       .select()
       .single()
@@ -122,7 +153,7 @@ export async function POST(req) {
       venta,
       // Dónde paga el paciente. Con Stripe será la URL de la sesión de pago.
       payment_url: `/cobro/${venta.id}`,
-      simulado: PASARELA === 'mock',
+      simulado: pasarelaActiva(ownerId) === 'mock',
     }, { status: 201 })
 
   } catch (err) {
