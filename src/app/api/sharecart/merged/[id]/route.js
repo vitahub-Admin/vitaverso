@@ -33,9 +33,10 @@ export async function GET(request, { params }) {
       .eq('owner_id', customerId.toString())
       .order('updated_at', { ascending: false });
 
-    if (from && to) {
-      cartsQuery = cartsQuery.gte('created_at', from).lte('created_at', to);
-    }
+    // Antes exigía las dos fechas; con solo `from` alcanza para pedir "de 2026
+    // en adelante", que es lo que necesita Mis Protocolos.
+    if (from) cartsQuery = cartsQuery.gte('created_at', from);
+    if (to)   cartsQuery = cartsQuery.lte('created_at', to);
 
     const { data: carts, error: cartsError } = await cartsQuery;
     if (cartsError) throw cartsError;

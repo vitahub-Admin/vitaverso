@@ -37,6 +37,11 @@ const origenDe = (origen) =>
 // "+5215512345678" y no importa cómo lo haya escrito el profesional.
 const soloDigitos = (v) => String(v || "").replace(/\D/g, "");
 
+// Los carritos anteriores a 2026 son del método viejo: casi todos quedaron sin
+// ítems guardados (5.877 vacíos, todos de feb a dic 2025), así que no se pueden
+// regenerar ni sirven de historial. Se dejan fuera.
+const DESDE = "2026-01-01";
+
 const ETIQUETA_ORIGEN = {
   armador: { label: "Armador", clase: "bg-[#E6F4F8] text-[#1E8FA8] border-[#C2DFE8]" },
   puente:  { label: "Desde la tienda", clase: "bg-amber-50 text-amber-700 border-amber-200" },
@@ -151,13 +156,15 @@ export default function ProtocolosCompartidos() {
     const customerId = Cookies.get("customerId");
     if (!customerId) { setError("Sesión no encontrada"); setLoading(false); return; }
 
-    fetch(`/api/sharecart/merged/${customerId}`)
+    fetch(`/api/sharecart/merged/${customerId}?from=${DESDE}`)
       .then(r => r.json())
       .then(d => {
         if (!d.success) throw new Error(d.message || "Error cargando protocolos");
         // Antes se mostraban solo los del armador: para quien venía usando la
         // tienda, la página aparecía vacía aunque tuviera cientos de carritos.
-        setCarts((d.data || []).map(c => ({ ...c, _origen: origenDe(c.extra?.origen) })));
+        setCarts((d.data || [])
+          .filter(c => (c.created_at || "") >= DESDE)
+          .map(c => ({ ...c, _origen: origenDe(c.extra?.origen) })));
       })
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
