@@ -57,12 +57,12 @@ const NAV_GROUPS = [
 // en el armador mientras dure la migración de los carritos de la tienda a PRO.
 // Para moverlo, cambiar el href; para apagarlo, dejarlo en null.
 //
-// No se apaga al primer ingreso: en una campaña de migración, entrar una vez no
-// significa haber adoptado nada.
-// Se apaga después de VISITAS_PARA_APAGAR ingresos. En 0 queda siempre visible.
+// En 0 el marcador no se apaga nunca: la migración sigue abierta y entrar una
+// vez no significa haber adoptado nada. Con un número mayor se apaga después
+// de esa cantidad de ingresos.
 const NAV_NUEVO           = "/armador-carritos";
 const NAV_NUEVO_VISITAS   = "vh_nav_nuevo_visitas";
-const VISITAS_PARA_APAGAR = 5;
+const VISITAS_PARA_APAGAR = 0;
 
 // ── Nav admin — solo vitahuber ────────────────────────────────────────────────
 const ADMIN_ITEMS = [
