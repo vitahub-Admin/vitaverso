@@ -72,9 +72,11 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
           </View>
         </View>
 
-        {/* Orden + Fecha */}
-        <View style={S.meta}>
-          <Text style={S.metaText}>Orden #{orderNumber}</Text>
+        {/* Orden + Fecha. Un protocolo compartido antes de comprar no tiene
+            orden: mostrar "Orden #—" ahí no le dice nada al paciente, así que
+            en ese caso queda solo la fecha. */}
+        <View style={orderNumber ? S.meta : [S.meta, { justifyContent: "flex-end" }]}>
+          {orderNumber ? <Text style={S.metaText}>Orden #{orderNumber}</Text> : null}
           <Text style={S.metaText}>{date}</Text>
         </View>
 
@@ -137,14 +139,19 @@ export async function GET(req) {
     const dosisMap = cart.extra?.dosis_map || {};
 
     // 2. Datos del especialista
-    const { data: affiliate } = await supabase
+    // `display_name` vive en booking_affiliates, no acá: pedirlo hacía fallar
+    // la consulta entera y el PDF salía firmado "Tu especialista en Vitahub"
+    // en vez del nombre de quien lo armó. El error pasaba desapercibido porque
+    // maybeSingle() no lo lanza, solo devuelve data en null — por eso se mira.
+    const { data: affiliate, error: errAf } = await supabase
       .from("affiliates")
-      .select("display_name, first_name, last_name")
+      .select("first_name, last_name")
       .eq("shopify_customer_id", Number(cart.owner_id))
       .maybeSingle();
 
+    if (errAf) console.error("[protocolo-pdf] no se pudo leer el afiliado:", errAf.message);
+
     const affiliateName =
-      affiliate?.display_name ||
       [affiliate?.first_name, affiliate?.last_name].filter(Boolean).join(" ") ||
       "Tu especialista en Vitahub";
 
@@ -197,7 +204,7 @@ export async function GET(req) {
       <ProtocoloPDF
         affiliateName={affiliateName}
         patientName={patientName}
-        orderNumber={cart.extra?.order_number || "—"}
+        orderNumber={cart.extra?.order_number || null}
         date={date}
         lineItems={lineItems}
         protocolName={cart.extra?.protocol_name || null}
@@ -209,7 +216,12 @@ export async function GET(req) {
     return new Response(pdfBuffer, {
       headers: {
         "Content-Type":        "application/pdf",
-        "Content-Disposition": `attachment; filename="protocolo-vitahub-${safePatient}.pdf"`,
+        // `inline` y no `attachment`: este link se manda por WhatsApp y se abre
+        // en su navegador interno, que descarta las descargas sin avisar — el
+        // paciente toca el link y no pasa nada. Mostrado en el visor, se ve al
+        // instante y desde ahí puede guardarlo o compartirlo. El filename se
+        // sigue respetando cuando lo descarga.
+        "Content-Disposition": `inline; filename="protocolo-vitahub-${safePatient}.pdf"`,
         "Cache-Control":       "private, max-age=3600",
       },
     });

@@ -26,7 +26,12 @@ function buildRestockEmail({ specialistName, products }) {
     const comAmount = (precio * comPct / 100).toFixed(2);
     const precioFmt = precio.toLocaleString("es-MX", { style: "currency", currency: "MXN" });
     const comFmt    = Number(comAmount).toLocaleString("es-MX", { style: "currency", currency: "MXN" });
-    const productUrl = p.handle ? `https://vitahub.mx/products/${p.handle}` : null;
+    // A la ficha dentro de PRO, no a la tienda pública: el que abre esto es un
+    // profesional, y ahí ve su comisión, el dosaje y el botón para meterlo en
+    // un protocolo. En vitahub.mx no ve nada de eso.
+    const productUrl = p.product_id
+      ? `https://pro.vitahub.mx/armador-carritos?producto=${p.product_id}`
+      : null;
 
     const imgHtml = p.image_url
       ? `<img src="${p.image_url}" width="80" height="80" alt="${p.title}" style="border-radius:10px;object-fit:cover;display:block;">`
@@ -94,11 +99,11 @@ function buildRestockEmail({ specialistName, products }) {
 </table></td></tr></table></body></html>`;
 }
 
-// ── Shopify: imagen + handle por product_id ───────────────────────────────────
+// ── Shopify: imagen por product_id ────────────────────────────────────────────
 async function fetchProductData(productIds) {
   if (!productIds.length) return {};
   const aliases = productIds.map((pid, i) =>
-    `p${i}: node(id: "gid://shopify/Product/${pid}") { ... on Product { id handle featuredImage { url } } }`
+    `p${i}: node(id: "gid://shopify/Product/${pid}") { ... on Product { id featuredImage { url } } }`
   ).join("\n");
   const res  = await fetch(`https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/graphql.json`, {
     method: "POST",
@@ -110,7 +115,7 @@ async function fetchProductData(productIds) {
   const map = {};
   productIds.forEach((pid, i) => {
     const node = json.data[`p${i}`];
-    if (node) map[pid] = { image_url: node.featuredImage?.url || null, handle: node.handle || null };
+    if (node) map[pid] = { image_url: node.featuredImage?.url || null };
   });
   return map;
 }
@@ -214,7 +219,7 @@ export async function POST(req) {
         p.price             = cat.price  || null;
         p.commission_percent = commMap[p.variant_id] ?? null;
         p.image_url         = shopifyData[pid]?.image_url || null;
-        p.handle            = shopifyData[pid]?.handle    || null;
+        p.product_id        = pid || null;
       }
     }
 
