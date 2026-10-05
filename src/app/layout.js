@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "./components/Header";
 import { Suspense, useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
+import LoginModal from "./components/LoginModal";
 import Script from "next/script";
 import Cookies from "js-cookie";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
@@ -141,19 +142,14 @@ function AuthManager({ children }) {
     }
   };
 
-  const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-  const [loginLoading, setLoginLoading] = useState(false);
-
-  const handleLogin = async () => {
-    setLoginError("");
-    setLoginLoading(true);
+  // Devuelve { error } cuando falla: el modal muestra el mensaje y se queda
+  // abierto. Si sale bien no devuelve nada, porque ya navegó.
+  const handleLogin = async (email, password) => {
     try {
       const res = await fetch("/api/pro/auth", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+        body: JSON.stringify({ email, password }),
       });
       const data = await res.json();
       if (data.ok && data.customer?.id) {
@@ -162,13 +158,11 @@ function AuthManager({ children }) {
         setShowAuthModal(false);
         const redirect = searchParams.get("redirect");
         router.replace(esRutaInterna(redirect) ? redirect : destinoTrasLogin());
-      } else {
-        setLoginError(data.error || "Email o contraseña incorrectos");
+        return {};
       }
+      return { error: data.error || "Correo o contraseña incorrectos" };
     } catch {
-      setLoginError("Error de conexión");
-    } finally {
-      setLoginLoading(false);
+      return { error: "Error de conexión" };
     }
   };
 
@@ -233,60 +227,7 @@ function AuthManager({ children }) {
 
   // 🔐 Modal normal
   if (showAuthModal) {
-    return (
-      <div className="fixed inset-0 flex items-center justify-center z-50 p-4"
-        style={{ backgroundColor: "rgba(27, 63, 122, 0.8)" }}>
-        <div className="bg-white rounded-xl shadow-2xl max-w-md w-full mx-auto">
-          <div className="bg-[#1b3f7a] text-white p-6 rounded-t-xl text-center">
-            <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center mx-auto mb-4">
-              <span className="text-2xl">🔐</span>
-            </div>
-            <h2 className="text-2xl font-bold mb-2">Iniciar sesión</h2>
-            <p className="text-blue-100">Ingresa con tu cuenta de VitaHub</p>
-          </div>
-
-          <div className="p-6 space-y-4">
-            <div className="space-y-3">
-              <input
-                type="email"
-                placeholder="Email"
-                value={loginEmail}
-                onChange={(e) => setLoginEmail(e.target.value)}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
-              />
-              <input
-                type="password"
-                placeholder="Contraseña"
-                value={loginPassword}
-                onChange={(e) => setLoginPassword(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && handleLogin()}
-                className="w-full border border-gray-300 rounded-lg px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1b3f7a]"
-              />
-              {loginError && (
-                <p className="text-red-500 text-sm text-center">{loginError}</p>
-              )}
-              <button
-                onClick={handleLogin}
-                disabled={loginLoading}
-                className="w-full px-6 py-3 bg-[#1b3f7a] text-white rounded-lg hover:bg-[#2a5298] transition-colors font-medium disabled:opacity-60"
-              >
-                {loginLoading ? "Ingresando..." : "Ingresar"}
-              </button>
-            </div>
-
-            <div className="border-t pt-4 text-center">
-              <p className="text-sm text-gray-500 mb-3">¿No tienes cuenta?</p>
-              <button
-                onClick={redirectToAffiliateRegister}
-                className="w-full px-6 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors font-medium"
-              >
-                Registrarme como Afiliado
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
+    return <LoginModal onLogin={handleLogin} onRegister={redirectToAffiliateRegister} />;
   }
 
   // ✅ Autenticado
