@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { confirmarVenta } from '@/lib/ventaConsultorio'
 import { pasarelaActiva } from '@/lib/pasarelaPago'
+import { fetchVariantInfo } from '@/lib/shopifyPrices'
+import { calcularEnvio, unidadesEnMano, unidadesSeparadas } from '@/lib/envio'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -20,7 +22,7 @@ export async function GET(_req, { params }) {
     const { id } = await params
     const { data, error } = await supabase
       .from('local_orders')
-      .select('id, owner_id, patient_name, items, subtotal, total, estado, payment_provider, payment_fee, payment_neto, paid_at, created_at')
+      .select('id, owner_id, patient_name, items, subtotal, envio, total, estado, payment_provider, payment_fee, payment_neto, paid_at, created_at')
       .eq('id', id)
       .maybeSingle()
 
@@ -30,19 +32,124 @@ export async function GET(_req, { params }) {
     // El nombre del profesional, para que el paciente sepa a quién le paga
     const { data: af } = await supabase
       .from('affiliates')
-      .select('first_name, last_name')
+      .select('first_name, last_name, shopify_collection_id')
       .eq('shopify_customer_id', data.owner_id)
       .maybeSingle()
+
+    // La foto del profesional vive en la imagen de su colección de Shopify: es
+    // el único lugar donde la cargan. Solo ~1 de cada 4 la tiene, así que el
+    // checkout cae a las iniciales cuando no está.
+    let foto = null
+    if (af?.shopify_collection_id) {
+      try {
+        const r = await fetch(
+          `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/graphql.json`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN },
+            body: JSON.stringify({
+              query: `{ node(id: "gid://shopify/Collection/${af.shopify_collection_id}") { ... on Collection { image { url } } } }`,
+            }),
+          }
+        )
+        const j = await r.json()
+        foto = j?.data?.node?.image?.url || null
+      } catch {}
+    }
 
     return NextResponse.json({
       ok: true,
       venta: {
         ...data,
         profesional: af ? `${af.first_name || ''} ${af.last_name || ''}`.trim() : null,
+        profesional_foto: foto,
       },
       pasarela: pasarelaActiva(data.owner_id),
       simulado: pasarelaActiva(data.owner_id) === 'mock',
     })
+  } catch (err) {
+    return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
+  }
+}
+
+/**
+ * PATCH /api/consignment/sale/[id]  → { cantidades: { <variant_id>: n } }
+ *
+ * El paciente ajusta cantidades antes de pagar. Solo puede mover lo que el
+ * profesional le prescribió: no se agregan productos nuevos desde acá.
+ *
+ * Los totales se rehacen enteros en el servidor con el precio vivo. Nunca se
+ * acepta un total del navegador: sería decirle al comprador cuánto quiere pagar.
+ *
+ * Las unidades extra siempre se envían. La consignación cubre lo que el
+ * profesional decidió entregar en mano; si el paciente lleva más, eso sale del
+ * depósito central.
+ */
+export async function PATCH(req, { params }) {
+  try {
+    const { id } = await params
+    const { cantidades } = await req.json().catch(() => ({}))
+    if (!cantidades || typeof cantidades !== 'object') {
+      return NextResponse.json({ ok: false, error: 'Sin cantidades' }, { status: 400 })
+    }
+
+    const { data: venta } = await supabase
+      .from('local_orders').select('*').eq('id', id).maybeSingle()
+
+    if (!venta) return NextResponse.json({ ok: false, error: 'Venta no encontrada' }, { status: 404 })
+    if (venta.estado !== 'pendiente') {
+      return NextResponse.json({ ok: false, error: 'La venta ya no se puede modificar' }, { status: 400 })
+    }
+
+    const variantIds = (venta.items || []).map(i => Number(i.variant_id))
+    const precios = await fetchVariantInfo(variantIds)
+
+    let subtotal = 0
+    let comision = 0
+    const items = []
+
+    for (const it of venta.items || []) {
+      const pedida = Math.max(0, Math.floor(Number(cantidades[String(it.variant_id)] ?? it.quantity)))
+      const precio = Number(precios[String(it.variant_id)]?.price ?? it.price ?? 0)
+
+      // `mano_qty` no se recalcula: son las unidades que el profesional separó
+      // en su consultorio y eso no depende de lo que pida el paciente. Cuánto
+      // se le entrega en mano sale del mínimo entre las dos, al momento de usarlo.
+      const linea = { ...it, quantity: pedida, mano_qty: unidadesSeparadas(it), price: precio }
+      items.push(linea)
+
+      // Lo que el paciente saca del pedido queda en cero, no se borra: es parte
+      // del protocolo que le armaron y tiene que poder volver a agregarlo.
+      if (pedida === 0) continue
+
+      subtotal += precio * pedida
+      comision += precio * pedida * Number(it.commission_percent || 0) / 100
+    }
+
+    if (!items.some(i => i.quantity > 0)) {
+      return NextResponse.json({ ok: false, error: 'El pedido no puede quedar vacío' }, { status: 400 })
+    }
+
+    const hayEnvio = items.some(i => i.quantity > unidadesEnMano(i))
+    const envio    = calcularEnvio(subtotal, hayEnvio)
+
+    const { data: actualizada, error } = await supabase
+      .from('local_orders')
+      .update({
+        items,
+        subtotal:   Number(subtotal.toFixed(2)),
+        envio,
+        total:      Number((subtotal + envio).toFixed(2)),
+        comision:   Number(comision.toFixed(2)),
+        updated_at: new Date().toISOString(),
+      })
+      .eq('id', id)
+      .eq('estado', 'pendiente')
+      .select()
+      .single()
+
+    if (error) throw error
+    return NextResponse.json({ ok: true, venta: actualizada })
   } catch (err) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
   }

@@ -6,6 +6,8 @@
  * de un profesional sin que nadie haya pagado nada.
  */
 
+import { unidadesEnMano } from './envio';
+
 // Comisión de la pasarela, para ver el costo real de cada venta.
 // El simulador imita la tarifa mexicana de tarjeta: porcentaje + fijo + IVA.
 // Cuando entre Stripe, este número viene del balance_transaction y deja de
@@ -40,9 +42,19 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
     return { ok: false, error: `La venta está ${venta.estado}` };
   }
 
-  // Solo lo entregado en mano sale de la consignación del profesional. Lo que
-  // se envía lo descuenta BaseLinker con la orden, desde el depósito central.
-  const items = (venta.items || []).filter(i => i.entrega !== 'envio');
+  // Solo lo entregado en mano sale de la consignación del profesional; lo que
+  // se envía lo descuenta BaseLinker desde el depósito central. Se agrupa por
+  // variante: una misma línea puede haberse partido en mano + envío, y dos
+  // descuentos separados sobre el mismo saldo se pisarían entre sí.
+  const enMano = new Map();
+  for (const i of venta.items || []) {
+    const mano = unidadesEnMano(i);
+    if (mano <= 0) continue;
+    const previo = enMano.get(i.variant_id);
+    if (previo) previo.quantity += mano;
+    else enMano.set(i.variant_id, { ...i, quantity: mano });
+  }
+  const items = [...enMano.values()];
 
   // 1. Verificar que el stock siga estando. Entre que se armó el cobro y que
   //    el paciente pagó pudo venderse en otra consulta.
@@ -52,10 +64,10 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
     .eq('owner_id', venta.owner_id)
     .in('variant_id', items.map(i => i.variant_id));
 
-  const porVariante = Object.fromEntries((saldos || []).map(s => [String(s.variant_id), s]));
+  const saldoPorVariante = Object.fromEntries((saldos || []).map(s => [String(s.variant_id), s]));
 
   for (const it of items) {
-    const saldo = porVariante[String(it.variant_id)];
+    const saldo = saldoPorVariante[String(it.variant_id)];
     if (!saldo || saldo.disponible < it.quantity) {
       return {
         ok: false,
@@ -96,7 +108,7 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
 
   // 3. Descontar y dejar el movimiento
   for (const it of items) {
-    const saldo = porVariante[String(it.variant_id)];
+    const saldo = saldoPorVariante[String(it.variant_id)];
     await supabase
       .from('consignment_stock')
       .update({ vendido: Number(saldo.vendido) + it.quantity, updated_at: new Date().toISOString() })
@@ -119,7 +131,10 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
   //    consultorio suma en el wallet, en ganancias y en analytics sin que
   //    haya que tratarla como un caso aparte.
   if (Number(cerrada.comision) > 0) {
-    const breakdown = items.map(it => ({
+    // El desglose va sobre TODAS las líneas vendidas, no solo las de mano: la
+    // comisión se gana igual si el producto se entregó en consultorio o se
+    // envió desde el depósito central.
+    const breakdown = (cerrada.items || []).filter(it => it.quantity > 0).map(it => ({
       variant_id:         it.variant_id,
       quantity:           it.quantity,
       price:              it.price,

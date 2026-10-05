@@ -5,6 +5,7 @@ import { ShoppingCart, RotateCcw, Wallet, Bell, ChevronRight, TrendingUp, ArrowU
 import Link from "next/link";
 import Cookies from "js-cookie";
 import RutaProgreso from "../components/RutaProgreso";
+import AvisoPlataforma from "../components/AvisoPlataforma";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function saludo() {
@@ -254,6 +255,8 @@ export default function HomePage() {
   return (
     <div className="min-h-full bg-[#F7F9FB]">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 space-y-6">
+
+        <AvisoPlataforma />
 
         {/* Saludo */}
         <div>

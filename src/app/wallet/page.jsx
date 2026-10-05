@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useCustomer } from "../context/CustomerContext";
+import AvisoPlataforma from "../components/AvisoPlataforma";
 import axios from "axios";
 import {
   Banknote, ShoppingBag, TrendingUp, ArrowUpRight,
@@ -189,6 +190,8 @@ export default function WalletPage() {
 
       {/* ── Body ── */}
       <div className="max-w-[960px] mx-auto px-6 py-7 flex flex-col gap-5">
+
+        <AvisoPlataforma />
 
         {/* ══ FILA 1: Balance + Solicitud ══ */}
         <div className="grid grid-cols-1 md:grid-cols-[280px_1fr] gap-5 items-start">

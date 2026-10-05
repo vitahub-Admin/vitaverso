@@ -10,7 +10,12 @@
  */
 
 import { useEffect, useState, use } from "react";
-import { Check, X, Loader2, ShieldCheck, CreditCard } from "lucide-react";
+import { Check, X, Loader2, ShieldCheck, CreditCard, Package, Minus, Plus, Trash2 } from "lucide-react";
+import { unidadesEnMano } from "@/lib/envio";
+
+// Tope por línea: nadie se lleva 40 frascos del mismo producto desde el
+// consultorio, y sin tope un dedo apoyado en el "+" arma un pedido absurdo.
+const MAX_POR_LINEA = 12;
 
 const fmtMXN = (n) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", minimumFractionDigits: 2 })
@@ -22,6 +27,7 @@ export default function CobroPage({ params }) {
   const [pasarela, setPasarela] = useState(null);   // stripe | mock | no-disponible
   const [error, setError]   = useState(null);
   const [pagando, setPagando] = useState(false);
+  const [ajustando, setAjustando] = useState(null);  // variant_id en vuelo
 
   // Datos del comprador. El correo es el único que se guarda: sirve para
   // mandarle su compra y las indicaciones de toma. Los de la tarjeta son
@@ -44,6 +50,41 @@ export default function CobroPage({ params }) {
   };
 
   useEffect(() => { cargar(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /**
+   * Ajusta la cantidad de una línea. Solo se mueve lo que la especialista
+   * prescribió: no hay manera de agregar un producto que no esté en el
+   * protocolo, y eso lo vuelve a verificar el servidor.
+   *
+   * Los totales los rehace el servidor con el precio vivo: acá no se calcula
+   * nada, solo se pide el cambio y se muestra lo que vuelve.
+   */
+  const cambiarCantidad = async (variantId, nueva) => {
+    const items = venta?.items || [];
+    const cantidades = {};
+    for (const it of items) {
+      cantidades[String(it.variant_id)] =
+        String(it.variant_id) === String(variantId) ? nueva : it.quantity;
+    }
+
+    setAjustando(variantId);
+    setError(null);
+    try {
+      const r = await fetch(`/api/consignment/sale/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cantidades }),
+      });
+      const d = await r.json();
+      if (!d.ok) { setError(d.error); return; }
+      // El PATCH devuelve la fila, no el profesional ni su foto: se conservan.
+      setVenta(v => ({ ...v, ...d.venta }));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setAjustando(null);
+    }
+  };
 
   const accion = async (accion) => {
     setPagando(true);
@@ -84,26 +125,31 @@ export default function CobroPage({ params }) {
     );
   }
 
-  // Hay envío si alguna línea no se entrega en mano
-  const hayEnvio  = (venta.items || []).some(i => i.entrega === "envio");
+  // Hay envío si alguna línea lleva más unidades de las que la especialista
+  // tiene en el consultorio. Las unidades extra siempre se envían.
+  const hayEnvio  = (venta.items || []).some(i => i.quantity > unidadesEnMano(i));
   const pagado    = venta.estado === "pagado";
   const cancelado = venta.estado === "cancelado";
+  const editable  = !pagado && !cancelado;
+  const activos   = (venta.items || []).filter(i => i.quantity > 0).length;
 
   return (
     <div className="min-h-screen bg-[#F7F9FB] py-8 px-4">
-      <div className="max-w-md mx-auto space-y-4">
+      <div className="max-w-5xl mx-auto">
 
         {/* Encabezado */}
-        <div className="text-center">
+        <div className="text-center mb-6">
           {/* Texto hasta que haya un logo propio para el paciente: el de PRO
               dice "Profesionales" y esta página no es para ellos. */}
-          <p className="text-2xl font-extrabold tracking-tight text-[#1b3f7a] mb-3">vitahub</p>
-          {venta.profesional && (
-            <p className="text-sm text-[#5B7A8C]">
-              Tu compra con <span className="font-bold text-[#1b3f7a]">{venta.profesional}</span>
-            </p>
-          )}
+          <p className="text-2xl font-extrabold tracking-tight text-[#1b3f7a]">vitahub</p>
         </div>
+
+        {/* En escritorio, dos columnas: a la izquierda se completa y se paga,
+            a la derecha el pedido, con lugar para que las fotos se vean. En
+            mobile se apilan, con el pedido primero. */}
+        <div className="lg:grid lg:grid-cols-[1fr_380px] lg:gap-6 lg:items-start space-y-4 lg:space-y-0">
+
+        <div className="space-y-4 order-2 lg:order-1">
 
         {/* Estado */}
         {pagado && (
@@ -124,50 +170,6 @@ export default function CobroPage({ params }) {
             <p className="text-xs text-red-600 mt-1">Pídele a tu especialista que genere uno nuevo.</p>
           </div>
         )}
-
-        {/* Productos */}
-        <div className="bg-white border border-[#D0E4EC] rounded-2xl overflow-hidden">
-          <div className="px-5 py-3 border-b border-[#EEF3F7]">
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">
-              Tu pedido
-            </p>
-          </div>
-          <div className="divide-y divide-[#EEF3F7]">
-            {(venta.items || []).map((it) => (
-              <div key={it.variant_id} className="px-5 py-3 flex gap-3">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-[#1b3f7a] leading-snug">{it.title}</p>
-                  <p className="text-[11px] text-[#8AAAB8] mt-0.5">
-                    {it.variant_title ? `${it.variant_title} · ` : ""}{it.quantity} ×  {fmtMXN(it.price)}
-                  </p>
-                </div>
-                <p className="text-sm font-bold text-[#1b3f7a] tabular-nums shrink-0">
-                  {fmtMXN(it.price * it.quantity)}
-                </p>
-              </div>
-            ))}
-          </div>
-          <div className="px-5 py-4 bg-[#F7F9FB] space-y-1.5">
-            {hayEnvio && (
-              <>
-                <div className="flex items-center justify-between text-xs text-[#5B7A8C]">
-                  <span>Productos</span>
-                  <span className="tabular-nums">{fmtMXN(venta.subtotal)}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-[#5B7A8C]">
-                  <span>Envío</span>
-                  <span className={`tabular-nums ${Number(venta.envio) === 0 ? "text-emerald-600 font-semibold" : ""}`}>
-                    {Number(venta.envio) === 0 ? "Gratis" : fmtMXN(venta.envio)}
-                  </span>
-                </div>
-              </>
-            )}
-            <div className="flex items-center justify-between pt-1">
-              <span className="text-sm font-bold text-[#5B7A8C]">Total</span>
-              <span className="text-xl font-extrabold text-[#1b3f7a] tabular-nums">{fmtMXN(venta.total)}</span>
-            </div>
-          </div>
-        </div>
 
         {/* Pago */}
         {!pagado && !cancelado && pasarela === 'no-disponible' && (
@@ -267,6 +269,162 @@ export default function CobroPage({ params }) {
         )}
 
         {/* Detalle del cobro, solo en prueba: sirve para ver el costo real */}
+        </div>
+
+        <div className="order-1 lg:order-2 space-y-4">
+          {venta.profesional && (
+            <div className="flex items-center gap-3 px-1">
+              {/* La foto sale de la colección del profesional. Solo una de cada
+                  cuatro la tiene cargada, así que el resto va con iniciales. */}
+              {venta.profesional_foto ? (
+                <img src={venta.profesional_foto} alt={venta.profesional}
+                  className="w-14 h-14 rounded-full object-cover border border-[#D0E4EC] shrink-0" />
+              ) : (
+                <span className="w-14 h-14 rounded-full bg-[#1b3f7a] text-white flex items-center justify-center text-lg font-bold shrink-0">
+                  {venta.profesional.charAt(0).toUpperCase()}
+                </span>
+              )}
+              <p className="text-base italic text-[#5B7A8C] leading-snug">
+                Tu protocolo armado por<br />
+                <span className="font-semibold text-[#1b3f7a] not-italic">{venta.profesional}</span>
+              </p>
+            </div>
+          )}
+
+        {/* Productos */}
+        <div className="bg-white border border-[#D0E4EC] rounded-2xl overflow-hidden">
+          <div className="px-5 py-3 border-b border-[#EEF3F7] flex items-center justify-between gap-2">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">
+              Tu pedido
+            </p>
+            {editable && (
+              <span className="text-[10px] text-[#B0C8D4]">Puedes ajustar las cantidades</span>
+            )}
+          </div>
+          {error && venta && (
+            <p className="mx-5 mt-3 text-[11px] text-red-500 bg-red-50 border border-red-200 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+          <div className="divide-y divide-[#EEF3F7]">
+            {(venta.items || []).map((it) => {
+              const mano    = unidadesEnMano(it);
+              const enviar  = Math.max(0, it.quantity - mano);
+              const ocupado = String(ajustando) === String(it.variant_id);
+              const fuera   = it.quantity === 0;
+
+              // Una línea en cero sigue siendo parte del protocolo: se muestra
+              // apagada para que el paciente pueda volver a sumarla. Si ya pagó
+              // o se canceló, no tiene sentido mostrarla.
+              if (fuera && !editable) return null;
+
+              return (
+              <div key={it.variant_id} className={`px-5 py-3 flex gap-3 ${ocupado ? "opacity-50" : ""}`}>
+                {it.image ? (
+                  <img src={it.image} alt="" className={`w-14 h-14 rounded-lg object-contain bg-[#F7F9FB] border border-[#D0E4EC] shrink-0 ${fuera ? "grayscale opacity-50" : ""}`} />
+                ) : (
+                  <div className="w-14 h-14 rounded-lg bg-[#F7F9FB] border border-[#D0E4EC] shrink-0 flex items-center justify-center text-[#B0C8D4]">
+                    <Package size={18} />
+                  </div>
+                )}
+                <div className="flex-1 min-w-0">
+                  <p className={`text-sm font-semibold leading-snug ${fuera ? "text-[#8AAAB8]" : "text-[#1b3f7a]"}`}>
+                    {it.title}
+                  </p>
+                  <p className="text-[11px] text-[#8AAAB8] mt-0.5">
+                    {it.variant_title ? `${it.variant_title} · ` : ""}{fmtMXN(it.price)} c/u
+                  </p>
+
+                  {/* De dónde sale cada unidad: lo que la especialista ya tiene
+                      se entrega ahí mismo, el resto se envía. */}
+                  {mano > 0 && enviar > 0 && (
+                    <p className="text-[10px] text-[#8AAAB8] mt-0.5">
+                      {mano} en el consultorio · {enviar} por envío
+                    </p>
+                  )}
+
+                  {!editable ? (
+                    <p className="text-[11px] text-[#8AAAB8] mt-0.5 tabular-nums">{it.quantity} unidades</p>
+                  ) : fuera ? (
+                    <button
+                      onClick={() => cambiarCantidad(it.variant_id, 1)}
+                      disabled={!!ajustando}
+                      className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-[#1E8FA8] hover:text-[#1b3f7a] disabled:opacity-40"
+                    >
+                      <Plus size={12} /> Volver a agregar
+                    </button>
+                  ) : (
+                    <div className="flex items-center gap-1.5 mt-1.5">
+                      <div className="flex items-center border border-[#D0E4EC] rounded-lg overflow-hidden">
+                        <button
+                          onClick={() => cambiarCantidad(it.variant_id, it.quantity - 1)}
+                          disabled={!!ajustando || it.quantity <= 1}
+                          className="px-2 py-1 text-[#5B7A8C] hover:bg-[#F7F9FB] disabled:opacity-30 disabled:hover:bg-transparent"
+                          aria-label="Quitar una unidad"
+                        >
+                          <Minus size={13} />
+                        </button>
+                        <span className="px-2.5 text-sm font-bold text-[#1b3f7a] tabular-nums min-w-[1.5rem] text-center">
+                          {it.quantity}
+                        </span>
+                        <button
+                          onClick={() => cambiarCantidad(it.variant_id, it.quantity + 1)}
+                          disabled={!!ajustando || it.quantity >= MAX_POR_LINEA}
+                          className="px-2 py-1 text-[#5B7A8C] hover:bg-[#F7F9FB] disabled:opacity-30 disabled:hover:bg-transparent"
+                          aria-label="Agregar una unidad"
+                        >
+                          <Plus size={13} />
+                        </button>
+                      </div>
+
+                      {/* El pedido no puede quedar vacío */}
+                      {activos > 1 && (
+                        <button
+                          onClick={() => cambiarCantidad(it.variant_id, 0)}
+                          disabled={!!ajustando}
+                          className="p-1.5 text-[#B0C8D4] hover:text-red-500 disabled:opacity-30"
+                          aria-label="Quitar del pedido"
+                        >
+                          <Trash2 size={13} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                </div>
+                {!fuera && (
+                  <p className="text-sm font-bold text-[#1b3f7a] tabular-nums shrink-0">
+                    {fmtMXN(it.price * it.quantity)}
+                  </p>
+                )}
+              </div>
+              );
+            })}
+          </div>
+          <div className="px-5 py-4 bg-[#F7F9FB] space-y-1.5">
+            {hayEnvio && (
+              <>
+                <div className="flex items-center justify-between text-xs text-[#5B7A8C]">
+                  <span>Productos</span>
+                  <span className="tabular-nums">{fmtMXN(venta.subtotal)}</span>
+                </div>
+                <div className="flex items-center justify-between text-xs text-[#5B7A8C]">
+                  <span>Envío</span>
+                  <span className={`tabular-nums ${Number(venta.envio) === 0 ? "text-emerald-600 font-semibold" : ""}`}>
+                    {Number(venta.envio) === 0 ? "Gratis" : fmtMXN(venta.envio)}
+                  </span>
+                </div>
+              </>
+            )}
+            <div className="flex items-center justify-between pt-1">
+              <span className="text-sm font-bold text-[#5B7A8C]">Total</span>
+              <span className="text-xl font-extrabold text-[#1b3f7a] tabular-nums">{fmtMXN(venta.total)}</span>
+            </div>
+          </div>
+        </div>
+
+        </div>
+        </div>
+
         {pagado && pasarela === 'mock' && venta.payment_fee != null && (
           <div className="bg-white border border-[#D0E4EC] rounded-2xl p-4 text-xs text-[#5B7A8C] space-y-1">
             <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1">

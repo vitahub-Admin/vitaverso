@@ -1,25 +1,16 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { resolveCustomerId } from '@/lib/customerAppAuth'
-import { fetchVariantPrices } from '@/lib/shopifyPrices'
+import { fetchVariantInfo } from '@/lib/shopifyPrices'
 import { pasarelaActiva } from '@/lib/pasarelaPago'
+import { calcularEnvio } from '@/lib/envio'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 )
 
-// Envío: gratis a partir del umbral, precio fijo debajo. Son las mismas reglas
-// de la tienda; si se vuelven más finas (por zona o peso), este es el lugar.
-// Solo se cobra si hay algo que enviar: si el profesional entrega todo en mano,
-// el envío no existe.
-const ENVIO_GRATIS_DESDE = 600
-const ENVIO_COSTO        = 99
 
-function calcularEnvio(subtotal, hayEnvio) {
-  if (!hayEnvio) return 0
-  return subtotal >= ENVIO_GRATIS_DESDE ? 0 : ENVIO_COSTO
-}
 
 /**
  * POST /api/consignment/sale
@@ -72,8 +63,8 @@ export async function POST(req) {
     }
 
     // 2. Precio vivo de Shopify y comisión vigente, congelados en la venta
-    const [precios, { data: comisiones }, { data: catalogo }] = await Promise.all([
-      fetchVariantPrices(variantIds),
+    const [infoShopify, { data: comisiones }, { data: catalogo }] = await Promise.all([
+      fetchVariantInfo(variantIds),
       supabase
         .from('product_variant_commissions')
         .select('variant_id, commission_percent')
@@ -98,7 +89,8 @@ export async function POST(req) {
       // catálogo. Así una línea enviada tiene el mismo detalle que una local.
       const info   = porVariante[vid] || delCatalogo[vid] || {}
       const qty    = Number(it.quantity) || 1
-      const precio = Number(precios[vid] ?? 0)
+      const shop   = infoShopify[vid] || {}
+      const precio = Number(shop.price ?? 0)
       const pct    = pctPorVariante[vid] ?? 0
       const linea  = precio * qty
 
@@ -108,14 +100,19 @@ export async function POST(req) {
       return {
         variant_id:        Number(it.variant_id),
         product_id:        info.product_id ?? null,
-        title:             info.title ?? null,
-        variant_title:     info.variant_title ?? null,
+        title:             info.title ?? shop.title ?? null,
+        variant_title:     info.variant_title ?? shop.variant_title ?? null,
         sku:               info.sku ?? null,
+        // La foto se guarda en la venta: el checkout no debería depender de
+        // volver a consultarle a Shopify para mostrarla.
+        image:             shop.image ?? null,
         quantity:          qty,
         price:             precio,
         commission_percent: pct,
-        // Define de qué depósito sale en BaseLinker y si hay que prepararlo
-        entrega:           it.entrega === 'mano' ? 'mano' : 'envio',
+        // Cuántas de esas unidades se entregan en mano. El resto viaja desde
+        // el CEDIS. Lo que el paciente agregue después siempre se envía: la
+        // consignación cubre lo que el profesional decidió entregar, no más.
+        mano_qty:          it.entrega === 'mano' ? qty : 0,
       }
     })
 
@@ -125,7 +122,7 @@ export async function POST(req) {
 
     // El envío se cobra sobre el subtotal del protocolo completo, no solo
     // sobre lo que se envía: el paciente compró una vez.
-    const hayEnvio = itemsVenta.some(i => i.entrega === 'envio')
+    const hayEnvio = itemsVenta.some(i => i.quantity > Number(i.mano_qty || 0))
     const envio    = calcularEnvio(subtotal, hayEnvio)
 
     const { data: venta, error } = await supabase
