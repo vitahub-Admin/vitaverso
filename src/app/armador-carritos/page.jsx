@@ -8,6 +8,7 @@ import {
   Plus, Minus, Heart, Pencil, MessageCircle,
   Sun, FlaskConical, Zap, Droplets,
   Save, FileClock, Bookmark, CalendarDays, Check, Sparkles,
+  Link2 as LinkIcon,
 } from "lucide-react";
 
 const DOSE_UNITS = ["cápsula", "tableta", "softgel", "gota", "ml", "mg", "g", "sobre", "cucharada", "probiótico", "unidad"];
@@ -1498,19 +1499,39 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
            : onAdd(product, selectedVariant, dosage, quantity, bundlePlan);
   };
 
+  const [linkCopiado, setLinkCopiado] = useState(false);
+  const copiarLink = () => {
+    const url = `${window.location.origin}/armador-carritos?producto=${product.product_id}`;
+    navigator.clipboard?.writeText(url);
+    setLinkCopiado(true);
+    setTimeout(() => setLinkCopiado(false), 2200);
+  };
+
   return (
     <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6">
       <div className="flex items-center justify-between mb-6">
         <button onClick={onBack} className="flex items-center gap-2 text-[#5B7A8C] hover:text-[#1b3f7a] text-sm font-semibold transition-colors group">
           <ArrowLeft size={20} className="transition-transform group-hover:-translate-x-0.5" /> {backLabel || "Volver"}
         </button>
-        <button
-          onClick={() => onFavorite(product)}
-          className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${isFavorite(product.product_id) ? "bg-red-50 border-red-200 text-red-500" : "border-[#D0E4EC] text-[#5B7A8C] hover:text-red-400 hover:border-red-200"}`}
-        >
-          <Heart size={12} fill={isFavorite(product.product_id) ? "currentColor" : "none"} />
-          {isFavorite(product.product_id) ? "Quitar de favoritos" : "Agregar a favoritos"}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Link a esta misma ficha dentro de PRO. Para pasarle un producto a
+              otro profesional sin mandarlo a la tienda pública, donde no ve ni
+              su comisión ni el armador. */}
+          <button
+            onClick={copiarLink}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[#D0E4EC] text-[#5B7A8C] hover:text-[#1E8FA8] hover:border-[#1E8FA8] transition-all"
+          >
+            {linkCopiado ? <Check size={12} /> : <LinkIcon size={12} />}
+            {linkCopiado ? "¡Copiado!" : "Copiar link"}
+          </button>
+          <button
+            onClick={() => onFavorite(product)}
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${isFavorite(product.product_id) ? "bg-red-50 border-red-200 text-red-500" : "border-[#D0E4EC] text-[#5B7A8C] hover:text-red-400 hover:border-red-200"}`}
+          >
+            <Heart size={12} fill={isFavorite(product.product_id) ? "currentColor" : "none"} />
+            {isFavorite(product.product_id) ? "Quitar de favoritos" : "Agregar a favoritos"}
+          </button>
+        </div>
       </div>
 
       {/* Breadcrumb de categorías — solo si el producto tiene niveles */}
@@ -2340,6 +2361,23 @@ function ArmadorCarritosInner() {
     setView("product");
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  // ?producto=<product_id> abre la ficha directo. Es lo que se copia desde la
+  // ficha para pasarle un producto a otro profesional por WhatsApp: cae acá
+  // adentro de PRO, con su precio y su comisión, y no en la tienda pública.
+  const productoParam = searchParams?.get("producto") || null;
+  useEffect(() => {
+    if (!productoParam) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/product-catalog?product=${productoParam}`);
+        const d = await r.json();
+        if (!cancelado && d.ok && d.item) handleProductClick(d.item);
+      } catch {}
+    })();
+    return () => { cancelado = true; };
+  }, [productoParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Abre la ficha de un producto que ya está en el carrito. El ítem guardado
   // solo tiene el ID, así que el producto completo se pide al catálogo.

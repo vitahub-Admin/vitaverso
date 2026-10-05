@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { resolveCustomerId } from '@/lib/customerAppAuth'
 import { fetchVariantInfo } from '@/lib/shopifyPrices'
 import { pasarelaActiva } from '@/lib/pasarelaPago'
-import { calcularEnvio } from '@/lib/envio'
+import { totalesDe } from '@/lib/totalesVenta'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -81,8 +81,6 @@ export async function POST(req) {
     )
     const delCatalogo = Object.fromEntries((catalogo || []).map(c => [String(c.variant_id), c]))
 
-    let subtotal = 0
-    let comision = 0
     const itemsVenta = items.map(it => {
       const vid    = String(it.variant_id)
       // Los datos del producto salen de la consignación si está ahí; si no, del
@@ -92,10 +90,6 @@ export async function POST(req) {
       const shop   = infoShopify[vid] || {}
       const precio = Number(shop.price ?? 0)
       const pct    = pctPorVariante[vid] ?? 0
-      const linea  = precio * qty
-
-      subtotal += linea
-      comision += linea * pct / 100
 
       return {
         variant_id:        Number(it.variant_id),
@@ -116,14 +110,13 @@ export async function POST(req) {
       }
     })
 
-    if (subtotal <= 0) {
-      return NextResponse.json({ ok: false, error: 'No se pudo obtener el precio' }, { status: 502 })
-    }
-
     // El envío se cobra sobre el subtotal del protocolo completo, no solo
     // sobre lo que se envía: el paciente compró una vez.
-    const hayEnvio = itemsVenta.some(i => i.quantity > Number(i.mano_qty || 0))
-    const envio    = calcularEnvio(subtotal, hayEnvio)
+    const totales = totalesDe(itemsVenta)
+
+    if (totales.subtotal <= 0) {
+      return NextResponse.json({ ok: false, error: 'No se pudo obtener el precio' }, { status: 502 })
+    }
 
     const { data: venta, error } = await supabase
       .from('local_orders')
@@ -133,10 +126,7 @@ export async function POST(req) {
         patient_name:    body.patient_name || null,
         patient_phone:   body.patient_phone || null,
         items:           itemsVenta,
-        subtotal:        Number(subtotal.toFixed(2)),
-        envio:           envio,
-        total:           Number((subtotal + envio).toFixed(2)),
-        comision:        Number(comision.toFixed(2)),
+        ...totales,
         estado:          'pendiente',
         payment_provider: pasarelaActiva(ownerId),
       }])

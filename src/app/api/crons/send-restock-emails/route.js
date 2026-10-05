@@ -247,6 +247,7 @@ export async function POST(req) {
           to:      aff.email,
           subject,
           html:    buildRestockEmail({ specialistName: name, products }),
+          tags:    [{ name: 'flujo', value: 'restock' }],
         });
         if (error) throw new Error(error.message);
         successOwnerSkus[ownerId] = new Set(products.map(p => p.sku));

@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useState, use } from "react";
-import { Check, X, Loader2, ShieldCheck, CreditCard, Package, Minus, Plus, Trash2 } from "lucide-react";
+import { Check, X, Loader2, ShieldCheck, CreditCard, Package, Minus, Plus, Trash2, Tag } from "lucide-react";
 import { unidadesEnMano } from "@/lib/envio";
 
 // Tope por línea: nadie se lleva 40 frascos del mismo producto desde el
@@ -28,6 +28,9 @@ export default function CobroPage({ params }) {
   const [error, setError]   = useState(null);
   const [pagando, setPagando] = useState(false);
   const [ajustando, setAjustando] = useState(null);  // variant_id en vuelo
+  const [cupon, setCupon]         = useState("");
+  const [cuponMsg, setCuponMsg]   = useState(null);  // { tipo, texto }
+  const [cuponEnVuelo, setCuponEnVuelo] = useState(false);
 
   // Datos del comprador. El correo es el único que se guarda: sirve para
   // mandarle su compra y las indicaciones de toma. Los de la tarjeta son
@@ -79,10 +82,40 @@ export default function CobroPage({ params }) {
       if (!d.ok) { setError(d.error); return; }
       // El PATCH devuelve la fila, no el profesional ni su foto: se conservan.
       setVenta(v => ({ ...v, ...d.venta }));
+      // Un cupón con mínimo de compra deja de aplicar si el pedido baja: hay
+      // que decirlo, si no el total sube solo y parece un error.
+      if (d.descuento_caido) {
+        setCuponMsg({ tipo: "error", texto: "Tu código dejó de aplicar con este pedido" });
+      }
     } catch (e) {
       setError(e.message);
     } finally {
       setAjustando(null);
+    }
+  };
+
+  /** Aplica o quita el código de descuento. El monto lo decide el servidor. */
+  const moverCupon = async (accion) => {
+    setCuponEnVuelo(true);
+    setCuponMsg(null);
+    try {
+      const r = await fetch(`/api/consignment/sale/${id}/descuento`, {
+        method: accion === "quitar" ? "DELETE" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: accion === "quitar" ? undefined : JSON.stringify({ codigo: cupon }),
+      });
+      const d = await r.json();
+      if (!d.ok) { setCuponMsg({ tipo: "error", texto: d.error }); return; }
+
+      setVenta(v => ({ ...v, ...d.venta }));
+      setCupon("");
+      setCuponMsg(accion === "quitar"
+        ? null
+        : { tipo: "ok", texto: d.sobreEnvio ? "Envío gratis aplicado" : "Código aplicado" });
+    } catch (e) {
+      setCuponMsg({ tipo: "error", texto: e.message });
+    } finally {
+      setCuponEnVuelo(false);
     }
   };
 
@@ -132,6 +165,7 @@ export default function CobroPage({ params }) {
   const cancelado = venta.estado === "cancelado";
   const editable  = !pagado && !cancelado;
   const activos   = (venta.items || []).filter(i => i.quantity > 0).length;
+  const descuento = Number(venta.descuento || 0);
 
   return (
     <div className="min-h-screen bg-[#F7F9FB] py-8 px-4">
@@ -400,20 +434,68 @@ export default function CobroPage({ params }) {
               );
             })}
           </div>
-          <div className="px-5 py-4 bg-[#F7F9FB] space-y-1.5">
-            {hayEnvio && (
-              <>
-                <div className="flex items-center justify-between text-xs text-[#5B7A8C]">
-                  <span>Productos</span>
-                  <span className="tabular-nums">{fmtMXN(venta.subtotal)}</span>
-                </div>
-                <div className="flex items-center justify-between text-xs text-[#5B7A8C]">
-                  <span>Envío</span>
-                  <span className={`tabular-nums ${Number(venta.envio) === 0 ? "text-emerald-600 font-semibold" : ""}`}>
-                    {Number(venta.envio) === 0 ? "Gratis" : fmtMXN(venta.envio)}
+          {/* Código de descuento */}
+          {editable && (
+            <div className="px-5 py-3 border-t border-[#EEF3F7]">
+              {venta.descuento_codigo ? (
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex items-center gap-1.5 text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-lg px-2.5 py-1.5">
+                    <Tag size={12} /> {venta.descuento_codigo}
                   </span>
+                  <button
+                    onClick={() => moverCupon("quitar")}
+                    disabled={cuponEnVuelo}
+                    className="text-[11px] text-[#B0C8D4] hover:text-red-500 disabled:opacity-40"
+                  >
+                    Quitar
+                  </button>
                 </div>
-              </>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    value={cupon}
+                    onChange={(e) => setCupon(e.target.value.toUpperCase())}
+                    onKeyDown={(e) => e.key === "Enter" && cupon && moverCupon("aplicar")}
+                    placeholder="Código de descuento"
+                    className="flex-1 min-w-0 border border-[#D0E4EC] rounded-lg px-3 py-2 text-[13px] uppercase tracking-wider text-[#1b3f7a] placeholder:text-[#B0C8D4] placeholder:normal-case placeholder:tracking-normal focus:outline-none focus:border-[#1E8FA8]"
+                  />
+                  <button
+                    onClick={() => moverCupon("aplicar")}
+                    disabled={!cupon || cuponEnVuelo}
+                    className="px-3 py-2 rounded-lg border border-[#D0E4EC] text-[12px] font-semibold text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#1E8FA8] disabled:opacity-40 shrink-0"
+                  >
+                    {cuponEnVuelo ? <Loader2 size={13} className="animate-spin" /> : "Aplicar"}
+                  </button>
+                </div>
+              )}
+              {cuponMsg && (
+                <p className={`text-[11px] mt-1.5 ${cuponMsg.tipo === "ok" ? "text-emerald-600" : "text-red-500"}`}>
+                  {cuponMsg.texto}
+                </p>
+              )}
+            </div>
+          )}
+
+          <div className="px-5 py-4 bg-[#F7F9FB] space-y-1.5">
+            {(hayEnvio || descuento > 0) && (
+              <div className="flex items-center justify-between text-xs text-[#5B7A8C]">
+                <span>Productos</span>
+                <span className="tabular-nums">{fmtMXN(venta.subtotal)}</span>
+              </div>
+            )}
+            {hayEnvio && (
+              <div className="flex items-center justify-between text-xs text-[#5B7A8C]">
+                <span>Envío</span>
+                <span className={`tabular-nums ${Number(venta.envio) === 0 ? "text-emerald-600 font-semibold" : ""}`}>
+                  {Number(venta.envio) === 0 ? "Gratis" : fmtMXN(venta.envio)}
+                </span>
+              </div>
+            )}
+            {descuento > 0 && (
+              <div className="flex items-center justify-between text-xs text-emerald-600 font-semibold">
+                <span>Descuento {venta.descuento_codigo ? `· ${venta.descuento_codigo}` : ""}</span>
+                <span className="tabular-nums">−{fmtMXN(descuento)}</span>
+              </div>
             )}
             <div className="flex items-center justify-between pt-1">
               <span className="text-sm font-bold text-[#5B7A8C]">Total</span>

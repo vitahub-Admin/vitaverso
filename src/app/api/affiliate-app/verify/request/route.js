@@ -48,9 +48,12 @@ export async function POST(req) {
           <div style="background:#1b3f7a;color:#fff;font-size:32px;font-weight:bold;letter-spacing:8px;text-align:center;padding:20px;border-radius:10px">
             ${code}
           </div>
-          <p style="color:#999;font-size:12px;margin-top:24px">Este código expira en 15 minutos. Si no solicitaste esto, ignorá este mensaje.</p>
+          <p style="color:#999;font-size:12px;margin-top:24px">Este código expira en 15 minutos. Si no solicitaste esto, ignora este mensaje.</p>
         </div>
       `,
+      // Para poder separar las métricas por tipo de envío: sin esto, en Resend
+      // los tres flujos se ven como un solo montón.
+      tags: [{ name: 'flujo', value: 'verificacion' }],
     });
 
     return NextResponse.json({ ok: true, message: 'Código enviado al email registrado' });

@@ -7,6 +7,8 @@
  */
 
 import { unidadesEnMano } from './envio';
+import { vencerCupon } from './descuentoShopify';
+import { marcarCuponUsado } from './storeCredit';
 
 // Comisión de la pasarela, para ver el costo real de cada venta.
 // El simulador imita la tarifa mexicana de tarjeta: porcentaje + fijo + IVA.
@@ -167,6 +169,21 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
     // La venta ya está cobrada y el stock descontado: si falla la comisión no
     // se revierte nada, se deja rastro para repararlo a mano.
     if (txErr) console.error('[venta consultorio] no se pudo acreditar la comisión:', txErr.message)
+  }
+
+  // 5. Gastar el cupón, si hubo.
+  //    La orden nunca pasa por Shopify, así que su contador de usos no sube
+  //    solo: sin esto, un cupón de un solo uso se podría volver a gastar en la
+  //    tienda. En una venta simulada no se toca nada — el cobro no fue real y
+  //    el cupón tiene que seguir sirviendo.
+  if (cerrada.descuento_codigo && !datosPago.simulado) {
+    await marcarCuponUsado(supabase, cerrada.descuento_codigo, {
+      usedAt:    cerrada.paid_at,
+      orderName: `Consultorio ${String(cerrada.id).slice(0, 8)}`,
+    });
+
+    // vencerCupon decide sola: solo toca los de un uso.
+    await vencerCupon(cerrada.descuento_price_rule_id);
   }
 
   return { ok: true, order: cerrada };

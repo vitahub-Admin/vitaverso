@@ -215,6 +215,7 @@ async function sendProtocolEmail(payload, shareCartToken) {
       to: customerEmail,
       subject: "Tu protocolo de suplementación — Vitahub Pro",
       html,
+      tags: [{ name: "flujo", value: "protocolo" }],
     });
 
     console.log(`[webhook] Prescripción enviada → ${customerEmail} (orden #${payload.order_number})`);

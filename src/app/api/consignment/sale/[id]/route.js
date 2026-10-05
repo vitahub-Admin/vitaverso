@@ -3,7 +3,9 @@ import { createClient } from '@supabase/supabase-js'
 import { confirmarVenta } from '@/lib/ventaConsultorio'
 import { pasarelaActiva } from '@/lib/pasarelaPago'
 import { fetchVariantInfo } from '@/lib/shopifyPrices'
-import { calcularEnvio, unidadesEnMano, unidadesSeparadas } from '@/lib/envio'
+import { unidadesSeparadas } from '@/lib/envio'
+import { validarDescuento } from '@/lib/descuentoShopify'
+import { totalesDe } from '@/lib/totalesVenta'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -22,7 +24,7 @@ export async function GET(_req, { params }) {
     const { id } = await params
     const { data, error } = await supabase
       .from('local_orders')
-      .select('id, owner_id, patient_name, items, subtotal, envio, total, estado, payment_provider, payment_fee, payment_neto, paid_at, created_at')
+      .select('id, owner_id, patient_name, items, subtotal, envio, descuento, descuento_codigo, total, estado, payment_provider, payment_fee, payment_neto, paid_at, created_at')
       .eq('id', id)
       .maybeSingle()
 
@@ -104,8 +106,6 @@ export async function PATCH(req, { params }) {
     const variantIds = (venta.items || []).map(i => Number(i.variant_id))
     const precios = await fetchVariantInfo(variantIds)
 
-    let subtotal = 0
-    let comision = 0
     const items = []
 
     for (const it of venta.items || []) {
@@ -115,33 +115,38 @@ export async function PATCH(req, { params }) {
       // `mano_qty` no se recalcula: son las unidades que el profesional separó
       // en su consultorio y eso no depende de lo que pida el paciente. Cuánto
       // se le entrega en mano sale del mínimo entre las dos, al momento de usarlo.
-      const linea = { ...it, quantity: pedida, mano_qty: unidadesSeparadas(it), price: precio }
-      items.push(linea)
-
       // Lo que el paciente saca del pedido queda en cero, no se borra: es parte
       // del protocolo que le armaron y tiene que poder volver a agregarlo.
-      if (pedida === 0) continue
-
-      subtotal += precio * pedida
-      comision += precio * pedida * Number(it.commission_percent || 0) / 100
+      items.push({ ...it, quantity: pedida, mano_qty: unidadesSeparadas(it), price: precio })
     }
 
     if (!items.some(i => i.quantity > 0)) {
       return NextResponse.json({ ok: false, error: 'El pedido no puede quedar vacío' }, { status: 400 })
     }
 
-    const hayEnvio = items.some(i => i.quantity > unidadesEnMano(i))
-    const envio    = calcularEnvio(subtotal, hayEnvio)
+    // Si había un cupón, hay que volver a validarlo contra el pedido nuevo: un
+    // cupón con mínimo de compra tiene que caerse solo cuando el paciente baja
+    // el pedido por debajo de ese mínimo. Sin esto, alcanzaba con aplicarlo
+    // caro y después sacar productos.
+    let descuento = null
+    let codigo    = venta.descuento_codigo || null
+    let priceRule = venta.descuento_price_rule_id || null
+
+    if (codigo) {
+      const base = totalesDe(items)
+      const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: base.envio })
+      if (r.ok) descuento = { monto: r.monto, sobreEnvio: r.sobreEnvio }
+      else { codigo = null; priceRule = null }   // dejó de aplicar
+    }
 
     const { data: actualizada, error } = await supabase
       .from('local_orders')
       .update({
         items,
-        subtotal:   Number(subtotal.toFixed(2)),
-        envio,
-        total:      Number((subtotal + envio).toFixed(2)),
-        comision:   Number(comision.toFixed(2)),
-        updated_at: new Date().toISOString(),
+        ...totalesDe(items, descuento),
+        descuento_codigo:        codigo,
+        descuento_price_rule_id: priceRule,
+        updated_at:              new Date().toISOString(),
       })
       .eq('id', id)
       .eq('estado', 'pendiente')
@@ -149,7 +154,12 @@ export async function PATCH(req, { params }) {
       .single()
 
     if (error) throw error
-    return NextResponse.json({ ok: true, venta: actualizada })
+    return NextResponse.json({
+      ok: true,
+      venta: actualizada,
+      // Para avisarle al paciente por qué le desapareció el descuento
+      descuento_caido: Boolean(venta.descuento_codigo && !codigo),
+    })
   } catch (err) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
   }
@@ -205,7 +215,11 @@ export async function POST(req, { params }) {
         .eq('id', id)
     }
 
-    const r = await confirmarVenta(supabase, id, { payment_id: `mock_${Date.now()}` })
+    // `simulado` evita que un pago de mentira gaste un cupón de verdad.
+    const r = await confirmarVenta(supabase, id, {
+      payment_id: `mock_${Date.now()}`,
+      simulado:   true,
+    })
     if (!r.ok) return NextResponse.json({ ok: false, error: r.error }, { status: 400 })
 
     return NextResponse.json({ ok: true, venta: r.order })
