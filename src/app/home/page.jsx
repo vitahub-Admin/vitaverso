@@ -126,8 +126,19 @@ function NotifFeed({ notificaciones }) {
         )}
         {notificaciones.map(n => {
           const { icon: Icon, color, bg } = notifIcon(n.data);
+          // La notificación puede traer adónde lleva. En la app se abre con
+          // Linking.openURL; acá era texto muerto, así que la misma
+          // notificación servía en el teléfono y no hacía nada en la web.
+          const url = typeof n.data?.url === "string" && /^https?:\/\//.test(n.data.url)
+            ? n.data.url
+            : null;
+          const Fila = url ? "a" : "div";
           return (
-            <div key={n.id} className="flex items-start gap-3 px-4 py-3 hover:bg-[#F7F9FB] transition-colors">
+            <Fila
+              key={n.id}
+              {...(url ? { href: url, target: "_blank", rel: "noopener noreferrer" } : {})}
+              className={`flex items-start gap-3 px-4 py-3 transition-colors ${url ? "hover:bg-[#EEF6F9] cursor-pointer" : "hover:bg-[#F7F9FB]"}`}
+            >
               <div className={`w-8 h-8 rounded-full ${bg} flex items-center justify-center shrink-0 mt-0.5`}>
                 <Icon size={14} className={color} />
               </div>
@@ -136,7 +147,7 @@ function NotifFeed({ notificaciones }) {
                 <p className="text-[11px] text-[#5B7A8C] mt-0.5 leading-snug">{n.body}</p>
               </div>
               <span className="text-[10px] text-[#B0C8D4] shrink-0 mt-0.5">{fmtRelative(n.created_at)}</span>
-            </div>
+            </Fila>
           );
         })}
       </div>

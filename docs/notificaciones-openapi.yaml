@@ -1,0 +1,276 @@
+openapi: 3.1.0
+
+info:
+  title: Notificaciones push — Vitahub Pro
+  version: "1.0.0"
+  description: |
+    Dispara una notificación push a uno o varios profesionales de Vitahub Pro.
+
+    La notificación llega al teléfono (si el profesional tiene la app instalada)
+    y SIEMPRE queda guardada en su panel dentro de la plataforma web, así que
+    también la ve quien entra desde la computadora.
+
+    Pensada para automatizaciones: una plataforma externa escucha un evento y
+    pega acá. Por eso la respuesta informa a cuántos llegó realmente, y los
+    reintentos no duplican mientras se mande `event_id`.
+
+servers:
+  - url: https://pro.vitahub.mx
+    description: Producción
+
+security:
+  - bearerAuth: []
+
+paths:
+  /api/webhooks/notificar:
+    post:
+      summary: Enviar una notificación push
+      operationId: enviarNotificacion
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Notificacion"
+            examples:
+              aUnProfesionalPorCorreo:
+                summary: A un profesional, identificado por su correo
+                value:
+                  title: Tu paciente agendó una consulta
+                  body: Ana Pérez reservó para el jueves a las 10:00
+                  target: paola@ejemplo.com
+                  url: https://pro.vitahub.mx/mis-citas
+                  evento: booking.creado
+                  event_id: bk_8821
+              aVarios:
+                summary: A varios a la vez, mezclando correos e identificadores
+                value:
+                  title: Cambio en el catálogo
+                  body: Tres productos de tus protocolos cambiaron de presentación
+                  target: ["ana@ejemplo.com", 8203251581249]
+                  event_id: cat_2026_10_05
+              aTodos:
+                summary: A toda la base de profesionales
+                value:
+                  title: Nueva función disponible
+                  body: Ya puedes cobrar desde el armador de protocolos
+                  target: all
+                  url: https://pro.vitahub.mx/armador-carritos
+                  event_id: release_1_3_0
+      responses:
+        "200":
+          description: |
+            Procesado. Puede ser un envío real (`Resumen`) o un evento que ya se
+            había notificado antes y se descartó (`Duplicado`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/Resumen"
+                  - $ref: "#/components/schemas/Duplicado"
+              examples:
+                enviado:
+                  summary: Envío real
+                  value:
+                    ok: true
+                    destinatarios: 12
+                    enviados: 9
+                    sin_token: 3
+                    fallidos: 0
+                    errores: []
+                duplicado:
+                  summary: Mismo event_id que un envío anterior
+                  value:
+                    ok: true
+                    duplicado: true
+                    mensaje: Ese evento ya se había notificado
+        "400":
+          description: |
+            Falta `title` o `body`, el cuerpo no es JSON válido, o `url` no
+            empieza con http:// ni https://
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                ok: false
+                error: title y body son requeridos
+        "401":
+          description: Falta el header Authorization o el secreto no coincide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                ok: false
+                error: No autorizado
+        "404":
+          description: |
+            Ningún correo o identificador de `target` corresponde a un
+            profesional registrado. El mensaje nombra cuáles fallaron.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+              example:
+                ok: false
+                error: "No hay afiliados con esos correos: nadie@ejemplo.com"
+        "500":
+          description: |
+            Error interno. Reintentar es seguro SIEMPRE QUE se haya mandado
+            `event_id`: el reintento se descarta como duplicado en vez de
+            mandar la notificación dos veces.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Secreto compartido, entregado por el equipo de Vitahub.
+        Header: `Authorization: Bearer <secreto>`.
+        Se compara en tiempo constante: probar valores parciales no da ninguna
+        pista sobre el secreto correcto.
+
+  schemas:
+    Notificacion:
+      type: object
+      required: [title, body]
+      additionalProperties: false
+      properties:
+        title:
+          type: string
+          minLength: 1
+          description: Título de la notificación.
+          example: Tu paciente agendó una consulta
+        body:
+          type: string
+          minLength: 1
+          description: Cuerpo del mensaje.
+          example: Ana Pérez reservó para el jueves a las 10:00
+        target:
+          description: |
+            A quién le llega. Si se omite, va a TODOS los profesionales con la
+            app instalada.
+
+            Acepta cuatro formas:
+              - "all"                        → todos
+              - "paola@ejemplo.com"          → por correo (lo habitual)
+              - 8203251581249                → por shopify_customer_id
+              - ["ana@ejemplo.com", 820325…] → lista, mezclando ambos
+
+            Usar el correo es lo normal: la plataforma de origen suele conocer
+            al profesional por su correo y no por su identificador interno.
+          default: all
+          oneOf:
+            - type: string
+              description: '"all", un correo, o un shopify_customer_id'
+            - type: integer
+              format: int64
+              description: shopify_customer_id
+            - type: array
+              minItems: 1
+              items:
+                oneOf:
+                  - type: string
+                  - type: integer
+                    format: int64
+          examples:
+            - all
+            - paola@ejemplo.com
+            - 8203251581249
+            - ["ana@ejemplo.com", 8203251581249]
+        url:
+          type: string
+          format: uri
+          pattern: "^https?://"
+          description: |
+            Adónde lleva la notificación al tocarla. Solo http:// o https://;
+            cualquier otro esquema se rechaza con 400.
+
+            Puede apuntar a una ficha de producto dentro de la plataforma, con
+            el identificador de producto: el profesional la abre con su
+            comisión y su dosificación a la vista, en lugar de caer en la
+            tienda pública.
+          example: https://pro.vitahub.mx/armador-carritos?producto=9606654722369
+        evento:
+          type: string
+          maxLength: 60
+          description: |
+            Nombre del evento de origen. Queda guardado junto a la
+            notificación, para poder rastrear después de dónde salió.
+          example: booking.creado
+        event_id:
+          type: string
+          maxLength: 120
+          description: |
+            Identificador único del evento. MANDARLO SIEMPRE.
+
+            Las plataformas reintentan ante un timeout o un 500, y sin esto la
+            misma notificación le llega dos veces al teléfono del profesional.
+            Con esto, el segundo intento responde {"ok":true,"duplicado":true}
+            y no envía nada.
+
+            Conviene usar el identificador que el evento ya tiene en la
+            plataforma de origen: el id de la reserva, del pago, del ticket.
+          example: bk_8821
+
+    Resumen:
+      type: object
+      description: Qué pasó con cada destinatario.
+      properties:
+        ok:
+          type: boolean
+          const: true
+        destinatarios:
+          type: integer
+          description: Profesionales encontrados para ese `target`.
+        enviados:
+          type: integer
+          description: Notificaciones que la plataforma de push aceptó.
+        sin_token:
+          type: integer
+          description: |
+            No tienen la app instalada. NO es un error: igual les queda la
+            notificación en su panel dentro de la plataforma web.
+        fallidos:
+          type: integer
+          description: La plataforma de push las rechazó.
+        errores:
+          type: array
+          items:
+            type: string
+          description: |
+            Motivos únicos de los rechazos. El más frecuente es
+            "DeviceNotRegistered": el profesional desinstaló la app o cambió de
+            teléfono. No es un problema de la integración y no hay que
+            reintentar.
+
+    Duplicado:
+      type: object
+      description: El `event_id` ya se había notificado; no se envió nada.
+      properties:
+        ok:
+          type: boolean
+          const: true
+        duplicado:
+          type: boolean
+          const: true
+        mensaje:
+          type: string
+
+    Error:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: false
+        error:
+          type: string
+          description: Qué falló, en texto legible.
