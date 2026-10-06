@@ -242,9 +242,14 @@ export async function POST(req) {
 
       const products = Object.values(ownerProducts[ownerId]);
       const name     = `${aff.first_name || ""} ${aff.last_name || ""}`.trim() || "Especialista";
+      // El motivo va primero: los títulos del catálogo son larguísimos
+      // ("Ultra Omega-3, Concentrado de Aceite de Pescado con 500 mg de EPA
+      // y 250 mg de DHA de NOW Foods | Apoyo Cardiovascular…") y la bandeja
+      // de entrada corta a unos 50 caracteres, así que "volvió al stock"
+      // nunca llegaba a verse y el asunto no decía nada.
       const subject  = products.length === 1
-        ? `🎉 "${products[0].title}" volvió al stock`
-        : `🎉 ${products.length} productos volvieron al stock`;
+        ? `Volvió al stock: ${products[0].title}`
+        : `Volvieron al stock: ${products.length} productos`;
 
       try {
         const { error } = await resend.emails.send({

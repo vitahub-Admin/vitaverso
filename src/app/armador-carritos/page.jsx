@@ -1442,7 +1442,10 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
   const [quantity, setQuantity] = useState(cartItem?.quantity ?? 1);
   const [descHtml,      setDescHtml]      = useState("");
   const [descLoading,   setDescLoading]   = useState(false);
-  const [descTableOpen, setDescTableOpen] = useState(false);
+  const [modoDeUso,     setModoDeUso]     = useState(null);
+  // La tabla nutricional y el modo de uso son lo primero que se consulta al
+  // prescribir: la card arranca abierta, no escondida detrás de un clic.
+  const [descTableOpen, setDescTableOpen] = useState(true);
   const [descTextOpen,  setDescTextOpen]  = useState(false);
   const [instrOpen,     setInstrOpen]     = useState(true);
   const [images,      setImages]      = useState([]);
@@ -1466,6 +1469,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
       .then(r => r.json())
       .then(d => {
         setDescHtml(d.descriptionHtml || "<p>Sin descripción disponible.</p>");
+        setModoDeUso(d.modoDeUso || null);
         if (d.images?.length > 1) { setImages(d.images); setMainImg(d.images[0]); }
         if (d.variantMeta) setVariantMeta(d.variantMeta);
         if (d.bundlePlan)  setBundlePlan(d.bundlePlan);
@@ -1882,7 +1886,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             return (
               <>
                 {/* Card A — Tabla nutricional */}
-                {(descLoading || tableHtml) && (() => {
+                {(descLoading || tableHtml || modoDeUso) && (() => {
                   const meta = variantMeta[String(selectedVariant?.variant_id)];
                   const porcionStr = meta?.dosis != null && meta?.tipo_dosis
                     ? `${meta.dosis} ${meta.tipo_dosis}`
@@ -1910,8 +1914,22 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                         <div className="px-4 pb-4 pt-2 border-t border-[#EEF3F7] bg-white overflow-x-auto">
                           {descLoading
                             ? <p className="text-xs text-[#B0C8D4] text-center py-4">Cargando…</p>
-                            : <div className="[&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2.5 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:bg-[#F0F5F8] [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#5B7A8C] [&_td]:text-[#1b3f7a]"
-                                dangerouslySetInnerHTML={{ __html: tableHtml }} />}
+                            : <>
+                                {tableHtml && (
+                                  <div className="[&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2.5 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:bg-[#F0F5F8] [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#5B7A8C] [&_td]:text-[#1b3f7a]"
+                                    dangerouslySetInnerHTML={{ __html: tableHtml }} />
+                                )}
+                                {/* Lo que dice el fabricante, tal cual: no es la posología
+                                    que prescribe el profesional, que se arma arriba. */}
+                                {modoDeUso && (
+                                  <div className={`${tableHtml ? "mt-3 pt-3 border-t border-[#EEF3F7]" : ""}`}>
+                                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1">
+                                      Modo de uso del fabricante
+                                    </p>
+                                    <p className="text-xs text-[#1b3f7a] leading-relaxed">{modoDeUso}</p>
+                                  </div>
+                                )}
+                              </>}
                         </div>
                       )}
                     </div>

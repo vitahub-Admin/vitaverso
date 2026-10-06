@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { extraerModoDeUso } from '@/lib/modoDeUso'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -558,10 +559,27 @@ export async function GET(req) {
         } catch (_) {}
       }
 
+      // Modo de uso: la columna del catálogo manda; si ese producto todavía no
+      // la tiene cargada (o la columna aún no existe) se saca de la descripción
+      // que ya tenemos en la mano. Se consulta aparte y no en CATALOG_SELECT:
+      // si la columna faltara, no puede romper el listado de todo el catálogo.
+      let modoDeUso = null
+      try {
+        const { data, error } = await supabase
+          .from('product_catalog')
+          .select('modo_de_uso')
+          .eq('product_id', Number(descriptionId))
+          .not('modo_de_uso', 'is', null)
+          .limit(1)
+        if (!error) modoDeUso = data?.[0]?.modo_de_uso || null
+      } catch (_) {}
+      if (!modoDeUso) modoDeUso = extraerModoDeUso(node?.descriptionHtml)
+
       return NextResponse.json({
         ok:              true,
         title:           node?.title           ?? '',
         descriptionHtml: node?.descriptionHtml ?? '',
+        modoDeUso,
         images,
         variantMeta,  // { variant_id: { tipo_dosis, dosis, total_unidades, total_dosis } }
         bundlePlan,   // { label, rules: [{qty, pct}] } | null

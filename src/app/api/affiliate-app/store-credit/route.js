@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { resolveCustomerId, unauthorized } from '@/lib/customerAppAuth';
 import { sendPushToAffiliate } from '@/lib/affiliateNotifications';
+import { crearCuponDeCredito } from '@/lib/storeCredit';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -23,20 +24,6 @@ function randomCode(len = 8) {
     code += chars[Math.floor(Math.random() * chars.length)];
   }
   return `VH-${code}`;
-}
-
-async function shopifyPost(path, body) {
-  const res = await fetch(`${SHOPIFY_BASE}${path}`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Shopify-Access-Token': SHOPIFY_TOKEN,
-    },
-    body: JSON.stringify(body),
-  });
-  const json = await res.json();
-  if (!res.ok) throw new Error(JSON.stringify(json.errors ?? json));
-  return json;
 }
 
 /**
@@ -174,7 +161,7 @@ export async function POST(req) {
       .limit(1);
 
     if (pending?.length > 0) {
-      return NextResponse.json({ ok: false, error: 'Ya tenés una solicitud pendiente' }, { status: 400 });
+      return NextResponse.json({ ok: false, error: 'Ya tienes una solicitud pendiente' }, { status: 400 });
     }
 
     // Check balance
@@ -224,30 +211,12 @@ export async function POST(req) {
     const bonusAmount  = +(amount * bonusRate).toFixed(2);
     const code = randomCode();
 
-    // 2. Create Shopify price rule
-    const { price_rule } = await shopifyPost('/price_rules.json', {
-      price_rule: {
-        title: `Crédito afiliado ${code}`,
-        target_type: 'line_item',
-        target_selection: 'all',
-        allocation_method: 'across',
-        value_type: 'fixed_amount',
-        value: `-${creditAmount}`,
-        customer_selection: 'all',
-        once_per_customer: true,
-        usage_limit: 1,
-        starts_at: new Date().toISOString(),
-        combines_with: {
-          order_discounts: true,
-          product_discounts: true,
-          shipping_discounts: true,
-        },
-      },
-    });
-
-    // 3. Create Shopify discount code
-    await shopifyPost(`/price_rules/${price_rule.id}/discount_codes.json`, {
-      discount_code: { code },
+    // 2-3. Cupón en Shopify. Misma función que el regalo del admin: así los dos
+    //      caminos dan cupones idénticos (transferibles y combinables).
+    const { priceRuleId } = await crearCuponDeCredito({
+      monto:  creditAmount,
+      titulo: `Crédito afiliado ${code}`,
+      code,
     });
 
     // 4. Approve exchange and save metadata
@@ -261,7 +230,7 @@ export async function POST(req) {
           source: 'affiliate_app',
           request_type: 'store_credit',
           discount_code: code,
-          price_rule_id: price_rule.id,
+          price_rule_id: priceRuleId,
           credit_amount: creditAmount,
           bonus_rate: bonusRate,
           bonus_amount: bonusAmount,
