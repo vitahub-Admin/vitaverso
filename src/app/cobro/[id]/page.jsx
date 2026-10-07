@@ -24,7 +24,9 @@ const fmtMXN = (n) =>
 export default function CobroPage({ params }) {
   const { id } = use(params);
   const [venta, setVenta]   = useState(null);
-  const [pasarela, setPasarela] = useState(null);   // stripe | mock | no-disponible
+  const [pasarela, setPasarela] = useState(null);   // shopify | mock | no-disponible
+  const [montoACobrar, setMontoACobrar] = useState(0);
+  const [modoPrueba, setModoPrueba]     = useState(false);
   const [error, setError]   = useState(null);
   const [pagando, setPagando] = useState(false);
   const [ajustando, setAjustando] = useState(null);  // variant_id en vuelo
@@ -49,10 +51,21 @@ export default function CobroPage({ params }) {
       if (!d.ok) { setError(d.error); return; }
       setVenta(d.venta);
       setPasarela(d.pasarela);
+      setMontoACobrar(d.monto_a_cobrar ?? d.venta?.total ?? 0);
+      setModoPrueba(Boolean(d.modo_prueba));
     } catch (e) { setError(e.message); }
   };
 
   useEffect(() => { cargar(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Si el paciente vuelve con "atrás" desde el checkout de Shopify, el navegador
+  // restaura esta página tal como se fue —con el botón en "Abriendo el pago…"—.
+  // Se destraba y se vuelve a leer el estado: puede que ya haya pagado.
+  useEffect(() => {
+    const alVolver = (e) => { if (e.persisted) { setPagando(false); cargar(); } };
+    window.addEventListener("pageshow", alVolver);
+    return () => window.removeEventListener("pageshow", alVolver);
+  }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /**
    * Ajusta la cantidad de una línea. Solo se mueve lo que la especialista
@@ -116,6 +129,39 @@ export default function CobroPage({ params }) {
       setCuponMsg({ tipo: "error", texto: e.message });
     } finally {
       setCuponEnVuelo(false);
+    }
+  };
+
+  /**
+   * Arma el cobro en Shopify y manda al paciente a su checkout. Lo que se cobra
+   * lo decide el servidor: acá solo se mandan los datos del paciente.
+   */
+  const pagarEnShopify = async () => {
+    setPagando(true);
+    setError(null);
+    try {
+      const r = await fetch(`/api/consignment/sale/${id}/pagar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email:  datos.email,
+          nombre: datos.nombre,
+          direccion: hayEnvio
+            ? { calle: datos.calle, colonia: datos.colonia, cp: datos.cp, ciudad: datos.ciudad, estado: datos.estado }
+            : null,
+        }),
+      });
+      const d = await r.json();
+      if (!d.ok) { setError(d.error); setPagando(false); return; }
+
+      // Ya estaba pagado (el paciente pagó y volvió antes de que llegara el aviso)
+      if (d.pagado) { await cargar(); setPagando(false); return; }
+
+      // Se queda "Abriendo el pago…" mientras el navegador cambia de página
+      window.location.href = d.url;
+    } catch (e) {
+      setError(e.message);
+      setPagando(false);
     }
   };
 
@@ -215,7 +261,7 @@ export default function CobroPage({ params }) {
           </div>
         )}
 
-        {!pagado && !cancelado && pasarela === 'mock' && (
+        {!pagado && !cancelado && (pasarela === 'mock' || pasarela === 'shopify') && (
           <div className="bg-white border border-[#D0E4EC] rounded-2xl p-5 space-y-4">
             <div>
               <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Tus datos</p>
@@ -250,21 +296,53 @@ export default function CobroPage({ params }) {
               </div>
             )}
 
-            <div>
-              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 flex items-center gap-1.5">
-                <CreditCard size={12} /> Tarjeta
-              </p>
-              <div className="space-y-2">
-                <input value={datos.tarjeta} onChange={set("tarjeta")} inputMode="numeric" placeholder="1234 1234 1234 1234"
-                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
-                <div className="grid grid-cols-2 gap-2">
-                  <input value={datos.vence} onChange={set("vence")} placeholder="MM / AA"
-                    className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
-                  <input value={datos.cvc} onChange={set("cvc")} placeholder="CVC"
-                    className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+            {/* Los datos de tarjeta solo existen en el simulador. Con Shopify se
+                piden en su checkout: nunca pasan por nuestra página. */}
+            {pasarela === 'mock' && (
+              <div>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 flex items-center gap-1.5">
+                  <CreditCard size={12} /> Tarjeta
+                </p>
+                <div className="space-y-2">
+                  <input value={datos.tarjeta} onChange={set("tarjeta")} inputMode="numeric" placeholder="1234 1234 1234 1234"
+                    className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                  <div className="grid grid-cols-2 gap-2">
+                    <input value={datos.vence} onChange={set("vence")} placeholder="MM / AA"
+                      className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                    <input value={datos.cvc} onChange={set("cvc")} placeholder="CVC"
+                      className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
+          </div>
+        )}
+
+        {/* Pago por Shopify: el botón lleva al checkout de Shopify, donde el
+            paciente elige cómo pagar (tarjeta, Google Pay, PayPal, Mercado Pago…) */}
+        {!pagado && !cancelado && pasarela === 'shopify' && (
+          <div className="bg-white border border-[#D0E4EC] rounded-2xl p-5 space-y-3">
+            {modoPrueba && (
+              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
+                Modo de prueba: el cobro es <strong>real</strong> pero de solo{" "}
+                <strong>{fmtMXN(montoACobrar)}</strong>, sin importar el total del pedido.
+              </p>
+            )}
+
+            {error && <p className="text-xs text-red-500">{error}</p>}
+
+            <button
+              onClick={pagarEnShopify}
+              disabled={pagando}
+              className="w-full bg-[#1b3f7a] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-[#162d60] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+            >
+              {pagando ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
+              {pagando ? "Abriendo el pago…" : `Pagar ${fmtMXN(montoACobrar)}`}
+            </button>
+
+            <p className="text-[10px] text-[#B0C8D4] text-center leading-relaxed">
+              Pagas en el checkout seguro de Shopify. Tus datos de tarjeta no pasan por esta página.
+            </p>
           </div>
         )}
 
@@ -296,9 +374,6 @@ export default function CobroPage({ params }) {
               Simular pago rechazado
             </button>
 
-            <p className="text-[10px] text-[#B0C8D4] text-center leading-relaxed">
-              Con Stripe acá van a aparecer tarjeta y transferencia SPEI.
-            </p>
           </div>
         )}
 

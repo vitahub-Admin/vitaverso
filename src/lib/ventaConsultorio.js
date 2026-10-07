@@ -56,7 +56,7 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
     if (previo) previo.quantity += mano;
     else enMano.set(i.variant_id, { ...i, quantity: mano });
   }
-  const items = [...enMano.values()];
+  let items = [...enMano.values()];
 
   // 1. Verificar que el stock siga estando. Entre que se armó el cobro y que
   //    el paciente pagó pudo venderse en otra consulta.
@@ -68,22 +68,39 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
 
   const saldoPorVariante = Object.fromEntries((saldos || []).map(s => [String(s.variant_id), s]));
 
+  // Con un pago que ya entró (Shopify) no se puede rechazar la venta por falta
+  // de stock: el paciente pagó y su dinero está en la cuenta. Se registra la
+  // venta, se descuenta lo que haya y queda el aviso para resolverlo a mano.
+  const yaCobrado = Boolean(datosPago.pagoYaCobrado);
+
   for (const it of items) {
     const saldo = saldoPorVariante[String(it.variant_id)];
-    if (!saldo || saldo.disponible < it.quantity) {
+    const hay   = Number(saldo?.disponible ?? 0);
+    if (hay >= it.quantity) continue;
+
+    if (!yaCobrado) {
       return {
         ok: false,
-        error: `Sin stock suficiente de "${it.title}" (hay ${saldo?.disponible ?? 0}, se vendieron ${it.quantity})`,
+        error: `Sin stock suficiente de "${it.title}" (hay ${hay}, se vendieron ${it.quantity})`,
       };
     }
+    console.error(`[venta consultorio] PAGO COBRADO SIN STOCK: venta ${venta.id}, "${it.title}" — había ${hay}, se vendieron ${it.quantity}. Revisar a mano.`);
+    it.quantity = Math.max(0, hay);
   }
+  items = items.filter(it => it.quantity > 0);
 
   // 2. Cerrar la venta ANTES de mover nada. Este update es el candado: si dos
   //    procesos confirman el mismo pago a la vez, solo uno se lleva la fila y
   //    el otro sale sin descontar stock ni pagar la comisión dos veces.
-  const { fee, neto } = datosPago.fee != null
-    ? { fee: datosPago.fee, neto: Number((venta.total - datosPago.fee).toFixed(2)) }
-    : feeSimulado(venta.total)
+  //
+  //    El fee de Shopify no viene en la orden, así que queda sin registrar en
+  //    lugar de estimado; el del simulador sí se estima.
+  const esShopify = datosPago.proveedor === 'shopify'
+  const { fee, neto } = esShopify
+    ? { fee: null, neto: null }
+    : datosPago.fee != null
+      ? { fee: datosPago.fee, neto: Number((venta.total - datosPago.fee).toFixed(2)) }
+      : feeSimulado(venta.total)
 
   const { data: cerrada, error: upErr } = await supabase
     .from('local_orders')
@@ -93,6 +110,7 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
       payment_id:   datosPago.payment_id || `mock_${venta.id}`,
       payment_fee:  fee,
       payment_neto: neto,
+      ...(esShopify ? { payment_provider: 'shopify' } : {}),
       updated_at:   new Date().toISOString(),
     })
     .eq('id', venta.id)
@@ -132,7 +150,17 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
   //    categoría "earning" con el desglose congelado. Así la ganancia de
   //    consultorio suma en el wallet, en ganancias y en analytics sin que
   //    haya que tratarla como un caso aparte.
-  if (Number(cerrada.comision) > 0) {
+  //
+  //    En pruebas se cobra un monto chico sin importar el total del pedido; la
+  //    comisión se acredita en la misma proporción para que el wallet (que es
+  //    retirable) nunca reciba más de lo que entró de verdad.
+  const cobrado = cerrada.monto_cobrado != null ? Number(cerrada.monto_cobrado) : null
+  const escala  = cobrado != null && Number(cerrada.total) > 0
+    ? Math.min(1, cobrado / Number(cerrada.total))
+    : 1
+  const puntos  = Number((Number(cerrada.comision) * escala).toFixed(2))
+
+  if (puntos > 0) {
     // El desglose va sobre TODAS las líneas vendidas, no solo las de mano: la
     // comisión se gana igual si el producto se entregó en consultorio o se
     // envió desde el depósito central.
@@ -149,7 +177,7 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
       .from('point_transactions')
       .insert([{
         customer_id:    venta.owner_id,
-        points:         Number(cerrada.comision),
+        points:         puntos,
         direction:      'IN',
         category:       'earning',
         status:         'confirmed',
@@ -162,6 +190,7 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
           origen:         'consultorio',
           patient_name:   venta.patient_name || null,
           total:          Number(cerrada.total),
+          ...(escala < 1 ? { monto_cobrado: cobrado, escala: Number(escala.toFixed(4)) } : {}),
           breakdown,
         },
       }])

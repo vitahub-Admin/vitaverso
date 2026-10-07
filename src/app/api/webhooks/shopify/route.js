@@ -3,6 +3,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPushToAffiliate } from "@/lib/affiliateNotifications";
 import { marcarCuponUsado } from "@/lib/storeCredit";
+import { interpretarOrdenShopify } from "@/lib/cobroShopify";
+import { confirmarVenta } from "@/lib/ventaConsultorio";
 import { createCalendarEvent } from "@/lib/bookingCalendar";
 import { Resend } from "resend";
 
@@ -440,6 +442,24 @@ export async function POST(req) {
     }
 
     const payload = JSON.parse(rawBody);
+
+    // Cobros de consultorio: Shopify solo cobró. Esta orden no es una compra de
+    // tienda — no se atribuye a ningún especialista, no entra a la tabla de
+    // órdenes y no genera comisión por línea (la línea es libre, sin variante).
+    // Se cierra nuestra venta y se termina acá, en cualquier tema del webhook
+    // (orders/create, orders/paid, orders/updated…) y esté pagada o no.
+    const cobro = interpretarOrdenShopify(payload);
+    if (cobro.esCobro) {
+      if (cobro.pagado && cobro.ventaId) {
+        const r = await confirmarVenta(supabase, cobro.ventaId, {
+          payment_id:    `shopify_${cobro.orderId}`,
+          proveedor:     "shopify",
+          pagoYaCobrado: true,
+        });
+        if (!r.ok) console.error("[webhook cobro-vitahub] no se pudo cerrar la venta:", cobro.ventaId, r.error);
+      }
+      return NextResponse.json({ success: true, type: "cobro-vitahub" }, { status: 200 });
+    }
 
     if (payload.financial_status !== "paid") {
       return NextResponse.json({ message: "Not paid" }, { status: 200 });

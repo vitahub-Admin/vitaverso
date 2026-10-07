@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { confirmarVenta } from '@/lib/ventaConsultorio'
-import { pasarelaActiva } from '@/lib/pasarelaPago'
+import { pasarelaActiva, montoACobrar, esModoPrueba } from '@/lib/pasarelaPago'
 import { fetchVariantInfo } from '@/lib/shopifyPrices'
 import { unidadesSeparadas } from '@/lib/envio'
 import { validarDescuento } from '@/lib/descuentoShopify'
@@ -68,6 +68,10 @@ export async function GET(_req, { params }) {
       },
       pasarela: pasarelaActiva(data.owner_id),
       simulado: pasarelaActiva(data.owner_id) === 'mock',
+      // En pruebas se cobra un monto fijo chico: la página lo dice, para que
+      // nadie crea que se le cobra el total del pedido.
+      monto_a_cobrar: montoACobrar(data.owner_id, data.total),
+      modo_prueba:    esModoPrueba(data.owner_id),
     })
   } catch (err) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
