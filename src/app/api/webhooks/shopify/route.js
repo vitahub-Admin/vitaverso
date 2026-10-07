@@ -5,6 +5,7 @@ import { sendPushToAffiliate } from "@/lib/affiliateNotifications";
 import { marcarCuponUsado } from "@/lib/storeCredit";
 import { interpretarOrdenShopify } from "@/lib/cobroShopify";
 import { confirmarVenta, revertirVenta } from "@/lib/ventaConsultorio";
+import { cancelarOrdenEnBaseLinker } from "@/lib/baselinker";
 import { createCalendarEvent } from "@/lib/bookingCalendar";
 import { Resend } from "resend";
 
@@ -457,13 +458,29 @@ export async function POST(req) {
           motivo: payload.financial_status === "refunded" ? "Reembolsada en Shopify" : "Cancelada en Shopify",
         });
         if (!r.ok) {
-          console.error("[webhook cobro-vitahub] no se pudo revertir la venta:", cobro.ventaId, r.error);
+          console.error("[webhook vitahub-pro] no se pudo revertir la venta:", cobro.ventaId, r.error);
           // 500: Shopify reintenta. Es seguro repetir, revertirVenta es idempotente.
           return NextResponse.json({ error: r.error }, { status: 500 });
         }
-        return NextResponse.json({ success: true, type: "cobro-vitahub", accion: r.yaRevertida ? "ya-revertida" : r.estadoFinal }, { status: 200 });
+
+        // BaseLinker importa la orden pero no sigue su cancelación: sin esto el
+        // operario la sigue viendo como pedido por preparar. Se intenta también
+        // cuando la venta ya estaba revertida: si en el primer aviso BaseLinker
+        // todavía no la había importado, el siguiente aviso lo reintenta. Si falla
+        // no se hace fallar al webhook; ya se deshizo lo nuestro y el aviso a
+        // BaseLinker es el único que se perdería.
+        let enBaseLinker = null;
+        try {
+          enBaseLinker = await cancelarOrdenEnBaseLinker(payload.order_number, payload.financial_status === "refunded" ? "Reembolsada en Shopify" : "Cancelada en Shopify");
+          if (!enBaseLinker.ok) console.warn("[webhook vitahub-pro] BaseLinker:", enBaseLinker.motivo, "orden", payload.order_number);
+        } catch (e) {
+          enBaseLinker = { ok: false, error: e.message };
+          console.error("[webhook vitahub-pro] no se pudo cancelar en BaseLinker:", payload.order_number, e.message);
+        }
+
+        return NextResponse.json({ success: true, type: "vitahub-pro", accion: r.yaRevertida ? "ya-revertida" : r.estadoFinal, baselinker: enBaseLinker }, { status: 200 });
       }
-      if (cobro.parcial) console.warn("[webhook cobro-vitahub] reembolso parcial, no se revierte solo:", cobro.ventaId);
+      if (cobro.parcial) console.warn("[webhook vitahub-pro] reembolso parcial, no se revierte solo:", cobro.ventaId);
 
       if (cobro.pagado && cobro.ventaId) {
         const r = await confirmarVenta(supabase, cobro.ventaId, {
@@ -471,9 +488,9 @@ export async function POST(req) {
           proveedor:     "shopify",
           pagoYaCobrado: true,
         });
-        if (!r.ok) console.error("[webhook cobro-vitahub] no se pudo cerrar la venta:", cobro.ventaId, r.error);
+        if (!r.ok) console.error("[webhook vitahub-pro] no se pudo cerrar la venta:", cobro.ventaId, r.error);
       }
-      return NextResponse.json({ success: true, type: "cobro-vitahub" }, { status: 200 });
+      return NextResponse.json({ success: true, type: "vitahub-pro" }, { status: 200 });
     }
 
     if (payload.financial_status !== "paid") {

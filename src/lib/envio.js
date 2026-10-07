@@ -34,3 +34,16 @@ export function unidadesSeparadas(item) {
 export function unidadesEnMano(item) {
   return Math.min(Number(item?.quantity) || 0, unidadesSeparadas(item));
 }
+
+/**
+ * Valor de lo que se envía: las unidades que no se entregan en mano, a su precio.
+ * Es la base sobre la que se mide el envío gratis.
+ */
+export function subtotalAEnviar(items = []) {
+  return items.reduce((suma, it) => {
+    const qty = Number(it?.quantity) || 0;
+    if (qty <= 0) return suma;
+    const aEnviar = Math.max(0, qty - unidadesEnMano(it));
+    return suma + aEnviar * Number(it.price || 0);
+  }, 0);
+}

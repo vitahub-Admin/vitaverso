@@ -4,6 +4,9 @@ import { pasarelaActiva, montoACobrar } from '@/lib/pasarelaPago'
 import { crearBorrador, estadoBorrador, borrarBorrador } from '@/lib/cobroShopify'
 import { confirmarVenta } from '@/lib/ventaConsultorio'
 import { unidadesEnMano } from '@/lib/envio'
+import { fetchVariantInfo } from '@/lib/shopifyPrices'
+import { validarDescuento } from '@/lib/descuentoShopify'
+import { totalesDe } from '@/lib/totalesVenta'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -19,9 +22,11 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
  *
  * Sin sesión, como el resto del cobro: lo usa el paciente desde su enlace.
  *
- * El total NO viene del navegador. La venta ya tiene sus totales calculados en
- * el servidor (precios vivos, descuento, envío); acá solo se decide cuánto de
- * eso se cobra y se arma el borrador.
+ * El total NO viene del navegador. Pero tampoco se confía en el que quedó guardado
+ * cuando se armó el pedido: el paciente puede abrir su enlace días después y los
+ * precios de Shopify cambian (en una semana se movieron 305). Se recalcula con el
+ * precio y el stock de AHORA; si el total ya no es el que vio, se le avisa y se
+ * actualiza la página en vez de cobrarle otra cosa.
  */
 export async function POST(req, { params }) {
   try {
@@ -82,6 +87,60 @@ export async function POST(req, { params }) {
       if (previo) await borrarBorrador(venta.shopify_draft_id)
     }
 
+    // ── Precios y existencias de ahora ──────────────────────────────────────
+    const info = await fetchVariantInfo(activos.map(i => Number(i.variant_id)))
+    const items = (venta.items || []).map(it => ({
+      ...it,
+      price: Number(info[String(it.variant_id)]?.price ?? it.price),
+    }))
+
+    // Lo que viaja es producto real en Shopify: con política DENY, Shopify bloquea
+    // el pago si no hay existencias. Mejor decirlo acá, antes de que el paciente
+    // llegue a su checkout y se encuentre con un error.
+    const sinStock = items
+      .filter(it => Number(it.quantity) > 0)
+      .filter(it => {
+        const aEnviar = Number(it.quantity) - unidadesEnMano(it)
+        const v = info[String(it.variant_id)]
+        return aEnviar > 0 && v?.politica === 'DENY' && v.stock != null && v.stock < aEnviar
+      })
+      .map(it => it.title)
+    if (sinStock.length) {
+      return NextResponse.json({
+        ok: false, sinStock: true,
+        error: `Ya no hay existencias suficientes para enviar: ${sinStock.join(', ')}. Ajusta las cantidades de tu pedido.`,
+      }, { status: 409 })
+    }
+
+    // El cupón también se revalida: pudo agotarse o vencer desde que se aplicó
+    let descuento = null
+    let codigo    = venta.descuento_codigo || null
+    let priceRule = venta.descuento_price_rule_id || null
+    if (codigo) {
+      const base = totalesDe(items)
+      const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: base.envio })
+      if (r.ok) descuento = { monto: r.monto, sobreEnvio: r.sobreEnvio }
+      else { codigo = null; priceRule = null }
+    }
+
+    const nuevos = totalesDe(items, descuento)
+    const cuponCaido = Boolean(venta.descuento_codigo && !codigo)
+    const cambioTotal = Math.abs(nuevos.total - Number(venta.total)) > 0.009 || cuponCaido
+
+    if (cambioTotal || items.some((it, k) => it.price !== Number(venta.items[k]?.price))) {
+      await supabase.from('local_orders')
+        .update({ items, ...nuevos, descuento_codigo: codigo, descuento_price_rule_id: priceRule, updated_at: new Date().toISOString() })
+        .eq('id', venta.id).eq('estado', 'pendiente')
+    }
+    if (cambioTotal) {
+      return NextResponse.json({
+        ok: false, cambio: true,
+        error: cuponCaido
+          ? 'Tu código de descuento dejó de aplicar y el total cambió. Revisa el pedido antes de pagar.'
+          : 'Los precios se actualizaron y el total cambió. Revisa el pedido antes de pagar.',
+      }, { status: 409 })
+    }
+
     // ── Quién arma el protocolo ─────────────────────────────────────────────
     const { data: af } = await supabase
       .from('affiliates')
@@ -90,7 +149,29 @@ export async function POST(req, { params }) {
       .maybeSingle()
     const profesional = [af?.first_name, af?.last_name].filter(Boolean).join(' ')
 
-    const monto = montoACobrar(venta.owner_id, venta.total)
+    const monto = montoACobrar(venta.owner_id, nuevos.total)
+
+    // Qué se envía (producto real) y qué se entrega en el consultorio (línea libre
+    // con su título y su valor).
+    const lineas = items.filter(i => Number(i.quantity) > 0).map(i => {
+      const mano = unidadesEnMano(i)
+      return {
+        variantId: i.variant_id,
+        titulo:    [i.title, i.variant_title].filter(Boolean).join(' · '),
+        sku:       i.sku,
+        precio:    i.price,
+        enviar:    Number(i.quantity) - mano,
+        mano,
+      }
+    })
+
+    // Lo que se le descuenta al paciente en total: el cupón y, en pruebas, lo que
+    // falta para llegar al monto fijo de prueba. Por eso sale de restar, y no de
+    // sumar piezas: así el borrador siempre cuadra con lo que se va a cobrar.
+    const aDescontar = nuevos.subtotal + nuevos.envio - monto
+    const partes = []
+    if (codigo) partes.push(`Código ${codigo}`)
+    if (monto < nuevos.total - 0.009) partes.push('ajuste de prueba')
 
     const borrador = await crearBorrador({
       ventaId:    venta.id,
@@ -99,6 +180,9 @@ export async function POST(req, { params }) {
       email,
       nombre,
       direccion:  hayEnvio ? d : null,
+      lineas,
+      costoEnvio: nuevos.envio,
+      descuento:  { monto: aDescontar, titulo: partes.join(' + ') || 'Descuento' },
     })
 
     await supabase

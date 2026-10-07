@@ -152,7 +152,14 @@ export default function CobroPage({ params }) {
         }),
       });
       const d = await r.json();
-      if (!d.ok) { setError(d.error); setPagando(false); return; }
+      if (!d.ok) {
+        setError(d.error);
+        setPagando(false);
+        // Cambiaron los precios o se agotó algo: el servidor ya dejó el pedido al día,
+        // hay que mostrarle al paciente los totales nuevos junto con el aviso.
+        if (d.cambio || d.sinStock) await cargar();
+        return;
+      }
 
       // Ya estaba pagado (el paciente pagó y volvió antes de que llegara el aviso)
       if (d.pagado) { await cargar(); setPagando(false); return; }

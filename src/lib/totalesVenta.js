@@ -7,7 +7,7 @@
  * otra. Acá se calculan una vez y los tres piden el resultado.
  */
 
-import { calcularEnvio, unidadesEnMano } from './envio';
+import { calcularEnvio, unidadesEnMano, subtotalAEnviar } from './envio';
 
 /**
  * @param {Array}  items      líneas de la venta (las de cantidad 0 no suman)
@@ -29,7 +29,8 @@ export function totalesDe(items = [], descuento = null) {
   }
 
   const hayEnvio = items.some(i => Number(i.quantity) > unidadesEnMano(i));
-  const envio    = calcularEnvio(subtotal, hayEnvio);
+  // El envío gratis se mide sobre lo que viaja: lo entregado en consultorio no cuenta
+  const envio    = calcularEnvio(subtotalAEnviar(items), hayEnvio);
 
   // Un cupón de envío gratis descuenta exactamente lo que costaba el envío: si
   // el envío cambió de precio desde que se aplicó, el descuento lo sigue.

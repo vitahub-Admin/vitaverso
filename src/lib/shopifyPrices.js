@@ -18,7 +18,7 @@ export async function fetchVariantInfo(variantIds = []) {
 
   const aliases = ids.map((id, i) =>
     `v${i}: node(id: "gid://shopify/ProductVariant/${id}") { ... on ProductVariant {
-       price title
+       price title inventoryQuantity inventoryPolicy
        image { url }
        product { title featuredImage { url } }
      } }`
@@ -46,6 +46,10 @@ export async function fetchVariantInfo(variantIds = []) {
       image:         v.image?.url || v.product?.featuredImage?.url || null,
       title:         v.product?.title || null,
       variant_title: v.title === 'Default Title' ? null : v.title,
+      // Para no ofrecer un envío de algo que Shopify va a negar al pagar: con
+      // política DENY el checkout bloquea la compra si no hay existencias.
+      stock:         v.inventoryQuantity ?? null,
+      politica:      v.inventoryPolicy || null,
     };
   });
   return info;
