@@ -148,3 +148,31 @@ export async function vencerCupon(priceRuleId) {
     return false;
   }
 }
+
+/**
+ * Deshace `vencerCupon`: la venta que gastó el cupón se canceló, y el paciente
+ * (o el profesional que lo canjeó) no debe perder su crédito por eso.
+ *
+ * Solo toca los de un uso, igual que al vencerlos. Un cupón de campaña abierta
+ * nunca se venció, así que no hay nada que reactivar.
+ */
+export async function reactivarCupon(priceRuleId) {
+  if (!priceRuleId) return false;
+  try {
+    const { json } = await shopifyGet(`/price_rules/${priceRuleId}.json`);
+    if (Number(json?.price_rule?.usage_limit) !== 1) return false;
+    if (!json.price_rule.ends_at) return true;   // ya estaba vigente
+
+    const res = await fetch(`${SHOPIFY_BASE}/price_rules/${priceRuleId}.json`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN,
+      },
+      body: JSON.stringify({ price_rule: { id: priceRuleId, ends_at: null } }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}

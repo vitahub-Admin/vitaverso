@@ -7,8 +7,8 @@
  */
 
 import { unidadesEnMano } from './envio';
-import { vencerCupon } from './descuentoShopify';
-import { marcarCuponUsado } from './storeCredit';
+import { vencerCupon, reactivarCupon } from './descuentoShopify';
+import { marcarCuponUsado, desmarcarCuponUsado } from './storeCredit';
 
 // Comisión de la pasarela, para ver el costo real de cada venta.
 // El simulador imita la tarifa mexicana de tarjeta: porcentaje + fijo + IVA.
@@ -216,4 +216,136 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
   }
 
   return { ok: true, order: cerrada };
+}
+
+/**
+ * Deshace una venta de consultorio que Shopify canceló o reembolsó.
+ *
+ * Shopify solo cobró: no sabe de nuestro stock de consignación ni de la comisión
+ * del profesional, así que al cancelar la orden no deshace nada de eso. Lo deshace
+ * esto, cuando el webhook avisa la cancelación.
+ *
+ *   · pendiente → cancelado     sin efectos; solo cierra la venta para que un aviso
+ *                               de pago que llegue tarde no la reviva
+ *   · pagado    → reembolsado   devuelve las unidades, anula la comisión y libera el cupón
+ *
+ * Es idempotente: Shopify manda varios avisos por una misma cancelación
+ * (orders/cancelled, orders/updated…) y solo el primero hace algo.
+ *
+ * Las unidades vuelven como un `ajuste` positivo y no restándole a `vendido`: así
+ * el libro de movimientos sigue sumando exacto contra el saldo, y queda a la vista
+ * que hubo una venta y se canceló. La columna `ajuste` ya admite esto.
+ *
+ * La comisión se marca `cancelled` en vez de restarse con un movimiento OUT: el
+ * wallet cuenta todo OUT como "retirado" y le mostraría al profesional un retiro
+ * que nunca hizo. Todo lector de point_transactions filtra por `confirmed`, así que
+ * saldo, total ganado e historial la ignoran a la vez, y la fila queda como rastro.
+ * Si el profesional ya había retirado esa comisión, el saldo puede quedar negativo:
+ * se deja registrado y se resuelve a mano.
+ *
+ * @param {object}  [opts]
+ * @param {boolean} [opts.simulacro]  true: solo calcula qué haría, no escribe
+ * @returns {{ ok: boolean, yaRevertida?: boolean, estadoFinal?: string, plan?: object, error?: string }}
+ */
+export async function revertirVenta(supabase, ventaId, { motivo = 'Cancelada en Shopify', simulacro = false } = {}) {
+  const { data: venta, error } = await supabase
+    .from('local_orders').select('*').eq('id', ventaId).maybeSingle();
+  if (error) throw error;
+  if (!venta) return { ok: false, error: 'Venta no encontrada' };
+
+  if (venta.estado === 'reembolsado' || venta.estado === 'cancelado') {
+    return { ok: true, yaRevertida: true };
+  }
+
+  const ahora = new Date().toISOString();
+
+  // Nunca se cobró: no hay nada que deshacer, solo cerrarla
+  if (venta.estado === 'pendiente') {
+    if (!simulacro) {
+      await supabase.from('local_orders')
+        .update({ estado: 'cancelado', updated_at: ahora })
+        .eq('id', venta.id).eq('estado', 'pendiente');
+    }
+    return { ok: true, estadoFinal: 'cancelado', plan: { efectos: 'ninguno: la venta no estaba pagada' } };
+  }
+  if (venta.estado !== 'pagado') return { ok: false, error: `La venta está ${venta.estado}` };
+
+  // Lo que se movió al cerrarla. El libro es la fuente de verdad —no se recalcula
+  // desde los items— porque al cerrar con un pago ya cobrado se descuenta solo lo
+  // que había, y lo deshecho tiene que ser exactamente eso.
+  const { data: movs } = await supabase
+    .from('consignment_movements')
+    .select('variant_id, cantidad')
+    .eq('local_order_id', venta.id).eq('tipo', 'venta');
+
+  const { data: comisiones } = await supabase
+    .from('point_transactions')
+    .select('id, points, metadata')
+    .eq('reference_type', 'local_order').eq('reference_id', String(venta.id)).eq('status', 'confirmed');
+
+  const plan = {
+    unidades:   (movs || []).map(m => ({ variant_id: m.variant_id, cantidad: m.cantidad })),
+    comisiones: (comisiones || []).map(c => ({ id: c.id, monto: Number(c.points) })),
+    cupon:      venta.descuento_codigo || null,
+  };
+  if (simulacro) return { ok: true, simulacro: true, plan };
+
+  // Candado: solo un aviso se lleva la fila; los demás salen sin hacer nada
+  const { data: bloqueada } = await supabase
+    .from('local_orders')
+    .update({ estado: 'reembolsado', updated_at: ahora })
+    .eq('id', venta.id).eq('estado', 'pagado')
+    .select().maybeSingle();
+  if (!bloqueada) return { ok: true, yaRevertida: true };
+
+  const soltarCandado = () => supabase.from('local_orders')
+    .update({ estado: 'pagado', updated_at: new Date().toISOString() })
+    .eq('id', venta.id).eq('estado', 'reembolsado');
+
+  // 1. La comisión primero: es lo único que depende de un valor que la base podría
+  //    rechazar. Si falla se suelta el candado y no se toca nada más, así el aviso
+  //    de Shopify se puede reintentar entero en lugar de dejar la venta a medias.
+  for (const c of comisiones || []) {
+    const { error: txErr } = await supabase
+      .from('point_transactions')
+      .update({
+        status: 'cancelled',
+        metadata: { ...(c.metadata || {}), revertida_at: ahora, revertida_motivo: motivo, monto_revertido: Number(c.points) },
+      })
+      .eq('id', c.id);
+    if (txErr) {
+      await soltarCandado();
+      console.error('[revertir venta] no se pudo anular la comisión:', txErr.message);
+      return { ok: false, error: `No se pudo anular la comisión: ${txErr.message}` };
+    }
+  }
+
+  // 2. Las unidades vuelven al consultorio
+  for (const m of movs || []) {
+    const { data: saldo } = await supabase
+      .from('consignment_stock').select('ajuste')
+      .eq('owner_id', venta.owner_id).eq('variant_id', m.variant_id).maybeSingle();
+    if (!saldo) { console.error('[revertir venta] sin saldo de consignación para la variante', m.variant_id); continue; }
+
+    await supabase.from('consignment_stock')
+      .update({ ajuste: Number(saldo.ajuste) + Number(m.cantidad), updated_at: new Date().toISOString() })
+      .eq('owner_id', venta.owner_id).eq('variant_id', m.variant_id);
+
+    await supabase.from('consignment_movements').insert([{
+      owner_id:       venta.owner_id,
+      variant_id:     m.variant_id,
+      tipo:           'ajuste',
+      cantidad:       m.cantidad,
+      motivo:         `${motivo} · venta ${String(venta.id).slice(0, 8)}`,
+      local_order_id: venta.id,
+    }]);
+  }
+
+  // 3. El cupón que esa venta gastó vuelve a servir
+  if (venta.descuento_codigo) {
+    await reactivarCupon(venta.descuento_price_rule_id);
+    await desmarcarCuponUsado(supabase, venta.descuento_codigo);
+  }
+
+  return { ok: true, estadoFinal: 'reembolsado', plan };
 }

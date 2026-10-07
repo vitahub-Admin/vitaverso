@@ -110,3 +110,30 @@ export async function marcarCuponUsado(supabase, code, datos = {}) {
 
   return !error;
 }
+
+/**
+ * Deshace `marcarCuponUsado`: si la venta que gastó el cupón se canceló, vuelve a
+ * aparecerle al afiliado en su lista de créditos disponibles.
+ *
+ * @returns {boolean} true si lo desmarcó ahora
+ */
+export async function desmarcarCuponUsado(supabase, code) {
+  if (!code) return false;
+
+  const { data: fila } = await supabase
+    .from('point_exchanges')
+    .select('id, metadata')
+    .eq('exchange_type', 'store_credit')
+    .filter('metadata->>discount_code', 'eq', code)
+    .maybeSingle();
+
+  if (!fila || !fila.metadata?.used_at) return false;
+
+  const { used_at, used_order, ...resto } = fila.metadata;
+  const { error } = await supabase
+    .from('point_exchanges')
+    .update({ metadata: resto })
+    .eq('id', fila.id);
+
+  return !error;
+}

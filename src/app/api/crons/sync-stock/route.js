@@ -13,6 +13,13 @@ const BL_URL      = "https://api.baselinker.com/connector.php";
 const BL_INV_ID   = 50176;
 const BL_DELAY_MS = 700;
 
+// Almacenes cuyo stock NO cuenta como disponible en tienda. "Consultorios"
+// (76352) guarda lo que está en consignación con profesionales: ya salió del
+// depósito y la tienda no lo vende (Shopify solo cuenta el almacén central).
+// Si se sumara, un producto agotado en tienda pero con unidades en un consultorio
+// figuraría "con stock", y el correo de restock avisaría de más o de menos.
+const ALMACENES_NO_VENDIBLES = new Set(["bl_76352"]);
+
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
@@ -44,7 +51,9 @@ async function fetchAllStock() {
     const count = Object.keys(products).length;
     if (count === 0) break;
     for (const [pid, data] of Object.entries(products)) {
-      const total = Object.values(data.stock || {}).reduce((s, q) => s + (Number(q) || 0), 0);
+      const total = Object.entries(data.stock || {})
+        .filter(([almacen]) => !ALMACENES_NO_VENDIBLES.has(almacen))
+        .reduce((s, [, q]) => s + (Number(q) || 0), 0);
       stockMap[Number(pid)] = total;
     }
     if (count < 1000) break;

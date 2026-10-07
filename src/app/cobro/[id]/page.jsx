@@ -208,7 +208,10 @@ export default function CobroPage({ params }) {
   // tiene en el consultorio. Las unidades extra siempre se envían.
   const hayEnvio  = (venta.items || []).some(i => i.quantity > unidadesEnMano(i));
   const pagado    = venta.estado === "pagado";
-  const cancelado = venta.estado === "cancelado";
+  // Una venta reembolsada queda cerrada igual que una cancelada: el enlace no debe
+  // volver a ofrecer el formulario de pago. Solo cambia lo que se le dice al paciente.
+  const reembolsado = venta.estado === "reembolsado";
+  const cancelado   = venta.estado === "cancelado" || reembolsado;
   const editable  = !pagado && !cancelado;
   const activos   = (venta.items || []).filter(i => i.quantity > 0).length;
   const descuento = Number(venta.descuento || 0);
@@ -246,8 +249,12 @@ export default function CobroPage({ params }) {
 
         {cancelado && (
           <div className="bg-red-50 border border-red-200 rounded-2xl p-5 text-center">
-            <p className="text-base font-bold text-red-700">Pago cancelado</p>
-            <p className="text-xs text-red-600 mt-1">Pídele a tu especialista que genere uno nuevo.</p>
+            <p className="text-base font-bold text-red-700">{reembolsado ? "Pago reembolsado" : "Pago cancelado"}</p>
+            <p className="text-xs text-red-600 mt-1">
+              {reembolsado
+                ? "Esta compra se canceló y tu pago se devolvió. Si quieres volver a comprar, pídele a tu especialista un enlace nuevo."
+                : "Pídele a tu especialista que genere uno nuevo."}
+            </p>
           </div>
         )}
 

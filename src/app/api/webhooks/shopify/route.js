@@ -4,7 +4,7 @@ import { createClient } from "@supabase/supabase-js";
 import { sendPushToAffiliate } from "@/lib/affiliateNotifications";
 import { marcarCuponUsado } from "@/lib/storeCredit";
 import { interpretarOrdenShopify } from "@/lib/cobroShopify";
-import { confirmarVenta } from "@/lib/ventaConsultorio";
+import { confirmarVenta, revertirVenta } from "@/lib/ventaConsultorio";
 import { createCalendarEvent } from "@/lib/bookingCalendar";
 import { Resend } from "resend";
 
@@ -450,6 +450,21 @@ export async function POST(req) {
     // (orders/create, orders/paid, orders/updated…) y esté pagada o no.
     const cobro = interpretarOrdenShopify(payload);
     if (cobro.esCobro) {
+      // Cancelación o reembolso total: Shopify solo cobró, así que no deshace
+      // nuestro stock de consignación ni la comisión. Eso lo hace revertirVenta.
+      if (cobro.cancelada && cobro.ventaId) {
+        const r = await revertirVenta(supabase, cobro.ventaId, {
+          motivo: payload.financial_status === "refunded" ? "Reembolsada en Shopify" : "Cancelada en Shopify",
+        });
+        if (!r.ok) {
+          console.error("[webhook cobro-vitahub] no se pudo revertir la venta:", cobro.ventaId, r.error);
+          // 500: Shopify reintenta. Es seguro repetir, revertirVenta es idempotente.
+          return NextResponse.json({ error: r.error }, { status: 500 });
+        }
+        return NextResponse.json({ success: true, type: "cobro-vitahub", accion: r.yaRevertida ? "ya-revertida" : r.estadoFinal }, { status: 200 });
+      }
+      if (cobro.parcial) console.warn("[webhook cobro-vitahub] reembolso parcial, no se revierte solo:", cobro.ventaId);
+
       if (cobro.pagado && cobro.ventaId) {
         const r = await confirmarVenta(supabase, cobro.ventaId, {
           payment_id:    `shopify_${cobro.orderId}`,

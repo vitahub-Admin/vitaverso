@@ -133,10 +133,22 @@ export function interpretarOrdenShopify(payload) {
   const attr = (n) => payload?.note_attributes?.find(a => a.name === n)?.value || null;
 
   const esCobro = tags.includes(ETIQUETA_COBRO) || attr('origen') === 'cobro-vitahub';
+
+  // Cancelada en Shopify, o reembolsada por completo. Un reembolso PARCIAL no
+  // cuenta: la venta sigue en pie y no hay forma de saber a qué productos
+  // corresponde, así que se deja pasar y se resuelve a mano.
+  const cancelada =
+    Boolean(payload?.cancelled_at) ||
+    ['refunded', 'voided'].includes(payload?.financial_status);
+
   return {
     esCobro,
-    ventaId: esCobro ? attr('local_order_id') : null,
-    orderId: payload?.id ? String(payload.id) : null,
-    pagado:  payload?.financial_status === 'paid',
+    ventaId:  esCobro ? attr('local_order_id') : null,
+    orderId:  payload?.id ? String(payload.id) : null,
+    cancelada,
+    // Una orden cancelada puede seguir diciendo "paid" si se canceló sin reembolsar:
+    // no es un pago que haya que cerrar.
+    pagado:   payload?.financial_status === 'paid' && !cancelada,
+    parcial:  payload?.financial_status === 'partially_refunded',
   };
 }
