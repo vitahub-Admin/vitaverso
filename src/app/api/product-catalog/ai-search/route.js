@@ -126,13 +126,26 @@ export async function POST(req) {
       .map(t => `componente.ilike.%${t}%,title.ilike.%${t}%`)
       .join(",");
 
-    // Más rows porque hay una por variante y deduplicamos por product_id
-    const { data: rows, error: dbError } = await supabase
-      .from("product_catalog")
-      .select("product_id, title, brand, componente, primary_ingredient, is_professional, price, level_1, level_2, level_3")
-      .or(orConditions)
-      .order("is_professional", { ascending: false })
-      .limit(200);
+    // Más rows porque hay una por variante y deduplicamos por product_id.
+    //
+    // Solo productos que se venden: el catálogo guarda también los archivados,
+    // borradores y sin listar (35% de las filas), y como el límite de 200 corta
+    // antes de deduplicar, esos le quitaban lugar a los activos.
+    // `status is null` se deja pasar: son filas que el sync todavía no llenó, y
+    // esconderlas haría desaparecer productos buenos mientras tanto.
+    const consultar = (soloVendibles) => {
+      let q = supabase
+        .from("product_catalog")
+        .select("product_id, title, brand, componente, primary_ingredient, is_professional, price, level_1, level_2, level_3")
+        .or(orConditions);
+      if (soloVendibles) q = q.or("status.eq.ACTIVE,status.is.null");
+      return q.order("is_professional", { ascending: false }).limit(200);
+    };
+
+    let { data: rows, error: dbError } = await consultar(true);
+    // Si la columna `status` aún no existe (SQL sin correr) se busca sin filtrar,
+    // en vez de dejar al buscador roto.
+    if (dbError && /status/i.test(dbError.message)) ({ data: rows, error: dbError } = await consultar(false));
 
     if (dbError) throw new Error(dbError.message);
 

@@ -4,7 +4,6 @@ import { useCustomer } from "../context/CustomerContext";
 import { ShoppingCart, RotateCcw, Wallet, Bell, ChevronRight, TrendingUp, ArrowUpRight, Smartphone } from "lucide-react";
 import Link from "next/link";
 import Cookies from "js-cookie";
-import RutaProgreso from "../components/RutaProgreso";
 import AvisoPlataforma from "../components/AvisoPlataforma";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -276,9 +275,6 @@ export default function HomePage() {
             {saludo()}, {nombre} 👋
           </h1>
         </div>
-
-        {/* Ruta de primeros pasos — se oculta sola al completarse */}
-        <RutaProgreso />
 
         {/* Accesos rápidos */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1fr_auto]">
