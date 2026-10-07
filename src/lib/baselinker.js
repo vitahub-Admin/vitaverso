@@ -45,11 +45,24 @@ async function estadoCancelado() {
 }
 
 /**
- * Pasa la orden de BaseLinker a "Cancelado" y deja el motivo en sus comentarios.
- * Es idempotente: si ya estaba cancelada no hace nada.
+ * Cancela la orden de BaseLinker y libera el stock que tenía reservado.
+ *
+ *   1. La pasa a "Cancelado" y deja el motivo en sus comentarios.
+ *   2. Retira las líneas ligadas a un producto del catálogo.
+ *
+ * El paso 2 es lo que de verdad devuelve el stock. Cancelar una orden en
+ * BaseLinker NO suelta su reserva: se comprobó con una orden de prueba, que siguió
+ * descontando 1 unidad del central estando en "Cancelado", y como BaseLinker manda
+ * sobre Shopify, el stock que Shopify recuperaba al cancelar con "restock" se lo
+ * volvía a pisar. Al quitar la línea la reserva se libera (central 7 → 8) y Shopify
+ * lo sigue en ~1 minuto. Las líneas libres (lo entregado en consultorio) no reservan
+ * nada y se dejan como constancia. Lo retirado queda anotado en los comentarios.
+ *
+ * Es idempotente y reintentable: si un aviso anterior cambió el estado pero no llegó
+ * a quitar las líneas, el siguiente las quita.
  *
  * @param {number|string} numeroShopify  `order_number` de la orden de Shopify
- * @returns {{ ok: boolean, orderId?: number, yaCancelada?: boolean, motivo?: string }}
+ * @returns {{ ok: boolean, orderId?: number, yaCancelada?: boolean, lineasRetiradas?: number, motivo?: string }}
  *          `motivo: 'no-importada'` si BaseLinker todavía no la trae (tarda ~1 minuto en
  *          importarla); el siguiente aviso de Shopify lo reintenta.
  */
@@ -57,19 +70,31 @@ export async function cancelarOrdenEnBaseLinker(numeroShopify, motivo = 'Cancela
   const orden = await buscarOrdenPorNumeroShopify(numeroShopify);
   if (!orden) return { ok: false, motivo: 'no-importada' };
 
-  const cancelado = await estadoCancelado();
-  if (Number(orden.order_status_id) === Number(cancelado)) {
-    return { ok: true, orderId: orden.order_id, yaCancelada: true };
+  const cancelado   = await estadoCancelado();
+  const yaCancelada = Number(orden.order_status_id) === Number(cancelado);
+  const ligadas     = (orden.products || []).filter(p => p.product_id && String(p.product_id) !== '0');
+
+  if (yaCancelada && !ligadas.length) {
+    return { ok: true, orderId: orden.order_id, yaCancelada: true, lineasRetiradas: 0 };
   }
 
-  await bl('setOrderStatus', { order_id: orden.order_id, status_id: cancelado });
+  if (!yaCancelada) await bl('setOrderStatus', { order_id: orden.order_id, status_id: cancelado });
 
-  // El comentario se suma al que ya hubiera: no se pisa lo que escribió una persona
+  // El comentario se suma al que ya hubiera: no se pisa lo que escribió una persona.
+  // Va ANTES de quitar las líneas, así queda dicho qué se retiró aunque algo falle después.
+  const detalle = ligadas.map(p => `${p.quantity}× ${p.sku || p.name}`).join(', ');
+  const nuevo = [
+    yaCancelada ? null : `${motivo} (Vitahub Pro)`,
+    ligadas.length ? `Líneas retiradas para liberar el stock reservado: ${detalle}` : null,
+  ].filter(Boolean).join('\n');
   const previo = String(orden.admin_comments || '').trim();
-  await bl('setOrderFields', {
-    order_id: orden.order_id,
-    admin_comments: [previo, `${motivo} (Vitahub Pro)`].filter(Boolean).join('\n'),
-  });
+  if (nuevo) {
+    await bl('setOrderFields', { order_id: orden.order_id, admin_comments: [previo, nuevo].filter(Boolean).join('\n') });
+  }
 
-  return { ok: true, orderId: orden.order_id };
+  for (const p of ligadas) {
+    await bl('deleteOrderProduct', { order_id: orden.order_id, order_product_id: p.order_product_id });
+  }
+
+  return { ok: true, orderId: orden.order_id, lineasRetiradas: ligadas.length };
 }
