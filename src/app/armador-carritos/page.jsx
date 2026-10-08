@@ -1424,6 +1424,8 @@ function SmartSuggestions({ componente, excludeId, onProductClick, isFavorite, o
 
 // ── Product Detail View ───────────────────────────────────────────────────────
 function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartItem, isFavorite, onFavorite, onProductClick, onBreadcrumb }) {
+  const { customer: clienteActual } = useCustomer() || {};
+  const esVitahuber = (clienteActual?.tags || "").split(",").some(t => t.trim().toLowerCase() === "vitahuber");
   const inCart = !!cartItem;
   const inStockVariants = (product.variants || []).filter(v => v.stock === null || v.stock > 0);
   const [selectedVariant, setSelectedVariant] = useState(
@@ -1518,16 +1520,16 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
           <ArrowLeft size={20} className="transition-transform group-hover:-translate-x-0.5" /> {backLabel || "Volver"}
         </button>
         <div className="flex items-center gap-2">
-          {/* Link a esta misma ficha dentro de PRO. Para pasarle un producto a
-              otro profesional sin mandarlo a la tienda pública, donde no ve ni
-              su comisión ni el armador. */}
-          <button
+          {/* Link a esta misma ficha dentro de PRO. Es una herramienta interna del
+              equipo (solo abre con sesión de especialista), por eso solo lo ven
+              los vitahubers. */}
+          {esVitahuber && <button
             onClick={copiarLink}
             className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[#D0E4EC] text-[#5B7A8C] hover:text-[#1E8FA8] hover:border-[#1E8FA8] transition-all"
           >
             {linkCopiado ? <Check size={12} /> : <LinkIcon size={12} />}
             {linkCopiado ? "¡Copiado!" : "Copiar link"}
-          </button>
+          </button>}
           <button
             onClick={() => onFavorite(product)}
             className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${isFavorite(product.product_id) ? "bg-red-50 border-red-200 text-red-500" : "border-[#D0E4EC] text-[#5B7A8C] hover:text-red-400 hover:border-red-200"}`}
@@ -2366,11 +2368,17 @@ function ArmadorCarritosInner() {
   // ?tab=<handle> abre una colección directo, sin pasar por la vista home.
   // Sirve para linkear una categoría desde afuera y es lo que usa el tour para
   // que sus pasos de producto tengan una grilla donde apoyarse.
-  const tabParam = searchParams?.get("tab") || null;
+  //
+  // ?coleccion=<handle> hace lo mismo con CUALQUIER colección de la tienda, no solo
+  // las de la barra (ej. ?coleccion=vitadeals, el handle de vitahub.mx/collections/vitadeals).
+  // El título lo trae el catálogo; si la colección no existe se muestra vacía.
+  const tabParam = searchParams?.get("tab") || searchParams?.get("coleccion") || null;
   useEffect(() => {
     if (!tabParam) return;
-    const tab = NAV_TABS.find(t => t.handle === tabParam);
-    if (tab) handleCollection(tab);
+    const handle = tabParam.trim().toLowerCase();
+    if (!/^[a-z0-9-]+$/.test(handle)) return;
+    const tab = NAV_TABS.find(t => t.handle === handle);
+    handleCollection(tab || { handle, label: handle });
   }, [tabParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleProductClick = (product) => {
