@@ -100,6 +100,10 @@ export async function GET(req) {
         return {
           id: ex.id,
           amount: Number(ex.metadata?.credit_amount ?? ex.points_requested),
+          // Un cupón del agente puede ser por porcentaje: ahí `amount` es 0 y manda `percent`
+          tipo:    ex.metadata?.discount_percent ? 'porcentaje' : 'monto',
+          percent: ex.metadata?.discount_percent ? Number(ex.metadata.discount_percent) : null,
+          note:    ex.metadata?.nota || null,
           code: ex.metadata.discount_code,
           url: `${STORE_FRONT_URL}/${ex.metadata.discount_code}`,
           requested_at: ex.requested_at,

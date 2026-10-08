@@ -1,8 +1,8 @@
 openapi: 3.1.0
 
 info:
-  title: Notificaciones push — Vitahub Pro
-  version: "1.0.0"
+  title: Notificaciones y cupones — Vitahub Pro
+  version: "1.1.0"
   description: |
     Dispara una notificación push a uno o varios profesionales de Vitahub Pro.
 
@@ -13,6 +13,10 @@ info:
     Pensada para automatizaciones: una plataforma externa escucha un evento y
     pega acá. Por eso la respuesta informa a cuántos llegó realmente, y los
     reintentos no duplican mientras se mande `event_id`.
+
+    Además, el agente puede regalarle a un profesional un cupón de Shopify de un
+    solo uso (por monto o por porcentaje): le aparece en su wallet y le llega un
+    aviso al teléfono. Mismo secreto, mismas reglas de reintento.
 
 servers:
   - url: https://pro.vitahub.mx
@@ -127,6 +131,91 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/webhooks/cupon:
+    post:
+      summary: Crear un cupón de un solo uso y asignarlo a un profesional
+      operationId: crearCupon
+      description: |
+        Crea el cupón en Shopify (de un solo uso, combinable con otros descuentos)
+        y lo deja en la wallet del profesional, junto con un aviso a su teléfono.
+
+        Un cupón por llamada y por persona. Para regalarle a varios, llamar una vez
+        por profesional, cada una con su propio `event_id`.
+
+        Topes: monto de $1 a $2,000; porcentaje entero de 1 a 30.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Cupon"
+            examples:
+              porMonto:
+                summary: $200 de crédito
+                value:
+                  target: paola@ejemplo.com
+                  tipo: monto
+                  valor: 200
+                  nota: Por tu reseña del producto
+                  event_id: resena_5521
+              porPorcentaje:
+                summary: 10% de descuento, vence en 30 días
+                value:
+                  target: paola@ejemplo.com
+                  tipo: porcentaje
+                  valor: 10
+                  vence_en_dias: 30
+                  nota: Bienvenida
+                  event_id: bienvenida_paola
+                  title: ¡Felicidades! 🎉
+                  body: Ganaste un {descuento} de bienvenida. Usa el código {codigo} en tu próxima compra.
+      responses:
+        "201":
+          description: Cupón creado y asignado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CuponCreado"
+        "200":
+          description: |
+            Ese `event_id` ya había generado un cupón: no se creó otro, se devuelve
+            el código del primero.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CuponDuplicado"
+        "400":
+          description: |
+            Falta o es inválido `tipo`, `valor`, `target` o `vence_en_dias`, o el valor
+            pasa el tope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Falta el header Authorization o el secreto no coincide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: No hay un profesional con ese correo o identificador.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: |
+            Error interno. Reintentar es seguro SIEMPRE QUE se haya mandado
+            `event_id`. Si el error dice que el cupón se creó pero no se pudo asignar,
+            la respuesta trae el `code`: avisar al equipo, no reintentar sin `event_id`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -220,6 +309,118 @@ components:
             Conviene usar el identificador que el evento ya tiene en la
             plataforma de origen: el id de la reserva, del pago, del ticket.
           example: bk_8821
+
+    Cupon:
+      type: object
+      required: [target, tipo, valor]
+      additionalProperties: false
+      properties:
+        target:
+          description: |
+            El profesional que recibe el cupón: su correo o su shopify_customer_id.
+            Uno solo (no admite listas ni "all").
+          oneOf:
+            - type: string
+            - type: integer
+              format: int64
+          example: paola@ejemplo.com
+        tipo:
+          type: string
+          enum: [monto, porcentaje]
+          description: |
+            "monto": descuenta una cantidad fija en pesos sobre el pedido.
+            "porcentaje": descuenta un porcentaje del pedido.
+        valor:
+          type: number
+          description: |
+            Con tipo "monto": pesos, de 1 a 2000.
+            Con tipo "porcentaje": entero de 1 a 30.
+          example: 200
+        nota:
+          type: string
+          maxLength: 120
+          description: Texto corto que el profesional ve junto al cupón en su wallet.
+          example: Por tu reseña del producto
+        vence_en_dias:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: Días de vigencia desde hoy. Sin este campo, no vence.
+        event_id:
+          type: string
+          maxLength: 120
+          description: |
+            Identificador único del evento. MANDARLO SIEMPRE: un reintento con el
+            mismo `event_id` no crea un segundo cupón.
+          example: resena_5521
+        avisar:
+          type: boolean
+          default: true
+          description: |
+            Con false no se manda el aviso al teléfono (igual queda en la wallet). Útil si
+            el agente prefiere redactar su propio mensaje con /api/webhooks/notificar.
+        title:
+          type: string
+          maxLength: 100
+          description: |
+            Título del aviso. Va junto con `body`: los dos o ninguno. Sin ellos se usa el
+            mensaje estándar. Admite los huecos `{codigo}`, `{descuento}`, `{valor}` y `{nota}`.
+          example: ¡Felicidades! 🎉
+        body:
+          type: string
+          maxLength: 300
+          description: |
+            Cuerpo del aviso. Se llena con el cupón recién creado, así el agente no necesita
+            conocer el código antes: `{codigo}` es el código, `{descuento}` es por ejemplo
+            "10% de descuento" o "$200 MXN de crédito", `{valor}` el número y `{nota}` la nota.
+          example: Ganaste un {descuento} por tu reseña. Usa el código {codigo} en tu próxima compra.
+
+    CuponCreado:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        code:
+          type: string
+          description: El código del cupón.
+          example: VH-K7M2PQ9X
+        url:
+          type: string
+          format: uri
+          description: Enlace que aplica el cupón al abrir la tienda.
+        tipo:
+          type: string
+          enum: [monto, porcentaje]
+        valor:
+          type: number
+        profesional:
+          type: object
+          properties:
+            id:
+              type: integer
+              format: int64
+            nombre:
+              type: string
+        exchange_id:
+          description: Identificador del registro en la wallet del profesional.
+
+    CuponDuplicado:
+      type: object
+      properties:
+        ok:
+          type: boolean
+          const: true
+        duplicado:
+          type: boolean
+          const: true
+        code:
+          type: string
+        url:
+          type: string
+          format: uri
+        mensaje:
+          type: string
 
     Resumen:
       type: object

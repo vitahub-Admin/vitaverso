@@ -29,12 +29,19 @@ export function codigoAleatorio(largo = 8) {
  * `combines_with`: los cupones salían siempre con las tres combinaciones en
  * false, y Shopify dejaba aplicar solo uno por pedido sin avisar.
  *
- * @param {number} monto   valor del cupón en MXN
+ * @param {number} [monto]       valor del cupón en MXN (monto fijo)
+ * @param {number} [porcentaje]  alternativa a `monto`: 1–100, sobre el pedido (ej. 10 = 10%)
+ * @param {number} [venceEnDias] días de vigencia; sin esto no vence
  * @param {string} titulo  cómo se ve en el admin de Shopify
  * @param {string} [code]  código a usar; si no se manda, se genera uno
  * @returns {{ code: string, priceRuleId: number }}
  */
-export async function crearCuponDeCredito({ monto, titulo, code = codigoAleatorio() }) {
+export async function crearCuponDeCredito({ monto, porcentaje, venceEnDias, titulo, code = codigoAleatorio() }) {
+  if (!porcentaje && !(Number(monto) > 0)) throw new Error('El cupón necesita un monto o un porcentaje');
+  const valor = porcentaje
+    ? { percentage: Number(porcentaje) / 100 }
+    : { discountAmount: { amount: Number(monto).toFixed(2), appliesOnEachItem: false } };
+
   const res = await fetch(`https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/graphql.json`, {
     method: 'POST',
     headers: {
@@ -53,11 +60,12 @@ export async function crearCuponDeCredito({ monto, titulo, code = codigoAleatori
           title:               titulo,
           code,
           startsAt:            new Date().toISOString(),
+          ...(venceEnDias ? { endsAt: new Date(Date.now() + Number(venceEnDias) * 86400000).toISOString() } : {}),
           usageLimit:          1,
           appliesOncePerCustomer: true,
           customerSelection:   { all: true },
           customerGets: {
-            value: { discountAmount: { amount: Number(monto).toFixed(2), appliesOnEachItem: false } },
+            value: valor,
             items: { all: true },
           },
           combinesWith: { orderDiscounts: true, productDiscounts: true, shippingDiscounts: true },

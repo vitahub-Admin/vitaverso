@@ -403,7 +403,8 @@ export default function WalletPage() {
                       {item.code}
                     </p>
                     <p className="text-xs text-gray-500 mt-0.5">
-                      ${fmt(item.amount)} MXN de crédito
+                      {item.tipo === "porcentaje" ? `${item.percent}% de descuento` : `$${fmt(item.amount)} MXN de crédito`}
+                      {item.note && ` · ${item.note}`}
                       {item.used && item.used_order && ` · usado en ${item.used_order}`}
                     </p>
                   </div>
