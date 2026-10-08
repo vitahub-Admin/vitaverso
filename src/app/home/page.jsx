@@ -4,7 +4,7 @@ import { useCustomer } from "../context/CustomerContext";
 import { ShoppingCart, RotateCcw, Wallet, Bell, ChevronRight, TrendingUp, ArrowUpRight, Smartphone } from "lucide-react";
 import Link from "next/link";
 import Cookies from "js-cookie";
-import AvisoPlataforma from "../components/AvisoPlataforma";
+import RutaProgreso from "../components/RutaProgreso";
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 function saludo() {
@@ -266,8 +266,6 @@ export default function HomePage() {
     <div className="min-h-full bg-[#F7F9FB]">
       <div className="max-w-[1200px] mx-auto px-4 sm:px-6 py-6 space-y-6">
 
-        <AvisoPlataforma />
-
         {/* Saludo */}
         <div>
           <p className="text-xs text-[#5B7A8C] capitalize">{fecha}</p>
@@ -275,6 +273,9 @@ export default function HomePage() {
             {saludo()}, {nombre} 👋
           </h1>
         </div>
+
+        {/* Ruta de primeros pasos */}
+        <RutaProgreso />
 
         {/* Accesos rápidos */}
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-[1fr_auto]">
