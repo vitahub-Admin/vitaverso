@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { validarDescuento } from '@/lib/descuentoShopify'
 import { totalesDe } from '@/lib/totalesVenta'
+import { envioPendiente } from '@/lib/envio'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -37,11 +38,13 @@ export async function POST(req, { params }) {
 
     // Se valida contra los totales SIN descuento: los mínimos de compra miran
     // lo que vale el pedido, no lo que quedaría después de descontar.
-    const base = totalesDe(venta.items || [])
-    const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: base.envio })
+    const tarifa = venta.envio_tarifa || null
+    const base = totalesDe(venta.items || [], null, tarifa)
+    // Con el envío todavía sin elegir, su costo es desconocido (null), no cero
+    const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: envioPendiente(venta.items, tarifa) ? null : base.envio })
     if (!r.ok) return NextResponse.json({ ok: false, error: r.motivo }, { status: 400 })
 
-    const totales = totalesDe(venta.items || [], { monto: r.monto, sobreEnvio: r.sobreEnvio })
+    const totales = totalesDe(venta.items || [], { monto: r.monto, sobreEnvio: r.sobreEnvio }, tarifa)
 
     const { data, error } = await supabase
       .from('local_orders')
@@ -76,7 +79,7 @@ export async function DELETE(_req, { params }) {
     const { data, error } = await supabase
       .from('local_orders')
       .update({
-        ...totalesDe(venta.items || []),
+        ...totalesDe(venta.items || [], null, venta.envio_tarifa || null),
         descuento_codigo:        null,
         descuento_price_rule_id: null,
         updated_at:              new Date().toISOString(),

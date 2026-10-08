@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { confirmarVenta } from '@/lib/ventaConsultorio'
 import { pasarelaActiva, montoACobrar, esModoPrueba } from '@/lib/pasarelaPago'
 import { fetchVariantInfo } from '@/lib/shopifyPrices'
-import { unidadesSeparadas } from '@/lib/envio'
+import { unidadesSeparadas, unidadesEnMano, hayEnvio, envioPendiente } from '@/lib/envio'
 import { validarDescuento } from '@/lib/descuentoShopify'
 import { totalesDe } from '@/lib/totalesVenta'
 
@@ -24,7 +24,7 @@ export async function GET(_req, { params }) {
     const { id } = await params
     const { data, error } = await supabase
       .from('local_orders')
-      .select('id, owner_id, patient_name, items, subtotal, envio, descuento, descuento_codigo, total, estado, payment_provider, payment_fee, payment_neto, paid_at, created_at')
+      .select('id, owner_id, patient_name, items, subtotal, envio, envio_tarifa, descuento, descuento_codigo, total, estado, payment_provider, payment_fee, payment_neto, paid_at, created_at')
       .eq('id', id)
       .maybeSingle()
 
@@ -132,13 +132,26 @@ export async function PATCH(req, { params }) {
     // cupón con mínimo de compra tiene que caerse solo cuando el paciente baja
     // el pedido por debajo de ese mínimo. Sin esto, alcanzaba con aplicarlo
     // caro y después sacar productos.
+    // La tarifa de envío que había elegido el paciente se conserva solo si lo que
+    // viaja no cambió. Shopify la calculó con esas unidades: con otras (por ejemplo
+    // al cruzar los $599 del envío gratis) puede ser otra, y la tiene que volver a
+    // elegir con el pedido nuevo.
+    const firmaEnvio = (its) => its
+      .map(i => `${i.variant_id}:${Math.max(0, Number(i.quantity) - unidadesEnMano(i))}`)
+      .filter(s => !s.endsWith(':0'))
+      .sort()
+      .join(',')
+    const tarifa = hayEnvio(items) && firmaEnvio(items) === firmaEnvio(venta.items || [])
+      ? (venta.envio_tarifa || null)
+      : null
+
     let descuento = null
     let codigo    = venta.descuento_codigo || null
     let priceRule = venta.descuento_price_rule_id || null
 
     if (codigo) {
-      const base = totalesDe(items)
-      const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: base.envio })
+      const base = totalesDe(items, null, tarifa)
+      const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: envioPendiente(items, tarifa) ? null : base.envio })
       if (r.ok) descuento = { monto: r.monto, sobreEnvio: r.sobreEnvio }
       else { codigo = null; priceRule = null }   // dejó de aplicar
     }
@@ -147,7 +160,8 @@ export async function PATCH(req, { params }) {
       .from('local_orders')
       .update({
         items,
-        ...totalesDe(items, descuento),
+        ...totalesDe(items, descuento, tarifa),
+        envio_tarifa:            tarifa,
         descuento_codigo:        codigo,
         descuento_price_rule_id: priceRule,
         updated_at:              new Date().toISOString(),

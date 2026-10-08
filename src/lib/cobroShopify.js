@@ -60,10 +60,11 @@ const redondo = (n) => Number(Number(n).toFixed(2));
  * @param {Array}  p.lineas        [{ variantId, titulo, sku, precio, enviar, mano }]
  *                                 `enviar` unidades viajan (producto real); `mano` se entregan en consultorio
  * @param {number} [p.costoEnvio]  lo que cuesta el envío antes de descuentos
+ * @param {string} [p.tituloEnvio] nombre de la tarifa de envío que eligió el paciente
  * @param {object} [p.descuento]   { monto, titulo } descuento total a mostrar (cupón y/o ajuste de prueba)
  * @returns {{ id: string, invoiceUrl: string, resumen: object }}
  */
-export async function crearBorrador({ ventaId, profesional, monto, email, nombre, direccion, lineas = [], costoEnvio = 0, descuento = null }) {
+export async function crearBorrador({ ventaId, profesional, monto, email, nombre, direccion, lineas = [], costoEnvio = 0, tituloEnvio = null, descuento = null }) {
   const [firstName, ...resto] = String(nombre || '').trim().split(/\s+/);
 
   const mano  = lineas.reduce((a, l) => a + Number(l.mano  || 0), 0);
@@ -142,7 +143,9 @@ export async function crearBorrador({ ventaId, profesional, monto, email, nombre
   // "gratis"). Así Shopify no vuelve a cotizar tarifas en su checkout y cambia el
   // monto, y la orden figura como envío para poder darle seguimiento.
   if (hayEnvio) {
-    input.shippingLine = { title: envioNeto > 0 ? 'Envío' : 'Envío gratis', price: envioNeto.toFixed(2) };
+    // Con el nombre de la tarifa que eligió el paciente ("Envío Nacional", "DHL
+    // Express Priority"…): así el pedido queda con el servicio que pidió.
+    input.shippingLine = { title: tituloEnvio || (envioNeto > 0 ? 'Envío' : 'Envío gratis'), price: envioNeto.toFixed(2) };
   }
 
   if (descProductos > 0) {

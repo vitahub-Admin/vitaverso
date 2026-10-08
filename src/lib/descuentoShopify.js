@@ -94,6 +94,10 @@ export async function validarDescuento(codigo, { subtotal, envio }) {
   // Envío gratis: descuenta el envío, no los productos. Si el envío ya era
   // gratis por monto, el cupón no suma nada y conviene decirlo.
   if (regla.target_type === 'shipping_line') {
+    // `envio === null` es "todavía no se sabe": el paciente no ha elegido cómo
+    // recibir su pedido. Un código de envío gratis no se puede validar hasta
+    // entonces, y decirle "tu envío ya es gratis" sería mentirle.
+    if (envio === null) return rechazo('Elige primero cómo quieres recibir tu pedido para poder usar este código');
     if (!envio) return rechazo('Tu envío ya es gratis, no hace falta el código');
     return { ...base, monto: Number(envio.toFixed(2)), sobreEnvio: true };
   }

@@ -1,19 +1,11 @@
 /**
- * Costo de envío del protocolo.
+ * Qué se entrega en el consultorio y qué viaja.
  *
- * Mismas reglas que la tienda: gratis a partir del umbral, precio fijo debajo.
- * Si se vuelven más finas —por zona o por peso— este es el único lugar a tocar.
- * Solo se cobra si hay algo que enviar: si el profesional entrega todo en mano,
- * el envío no existe.
+ * El costo del envío ya no se calcula acá: lo deciden las tarifas de Shopify
+ * (ver envioShopify.js), que el paciente elige con su dirección. Antes había una
+ * regla fija de $99 y envío gratis desde $600; no coincidía con las tarifas reales
+ * (CDMX cuesta $85, el umbral es $599, existe DHL Express).
  */
-
-export const ENVIO_GRATIS_DESDE = 600;
-export const ENVIO_COSTO        = 99;
-
-export function calcularEnvio(subtotal, hayEnvio) {
-  if (!hayEnvio) return 0;
-  return Number(subtotal) >= ENVIO_GRATIS_DESDE ? 0 : ENVIO_COSTO;
-}
 
 /**
  * Unidades de una línea que salen del consultorio.
@@ -35,15 +27,15 @@ export function unidadesEnMano(item) {
   return Math.min(Number(item?.quantity) || 0, unidadesSeparadas(item));
 }
 
+/** ¿Hay algo que enviar? Si todo se entrega en el consultorio no hay envío ni dirección. */
+export function hayEnvio(items = []) {
+  return items.some(i => Number(i?.quantity) > unidadesEnMano(i));
+}
+
 /**
- * Valor de lo que se envía: las unidades que no se entregan en mano, a su precio.
- * Es la base sobre la que se mide el envío gratis.
+ * Hay algo que enviar pero el paciente todavía no eligió cómo. Mientras esté así
+ * el total no incluye envío y no se puede pagar.
  */
-export function subtotalAEnviar(items = []) {
-  return items.reduce((suma, it) => {
-    const qty = Number(it?.quantity) || 0;
-    if (qty <= 0) return suma;
-    const aEnviar = Math.max(0, qty - unidadesEnMano(it));
-    return suma + aEnviar * Number(it.price || 0);
-  }, 0);
+export function envioPendiente(items = [], tarifa = null) {
+  return hayEnvio(items) && !tarifa;
 }
