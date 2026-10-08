@@ -7,6 +7,7 @@
  */
 
 import { unidadesEnMano } from './envio';
+import { moverStockConsultorios } from './baselinker';
 import { vencerCupon, reactivarCupon } from './descuentoShopify';
 import { marcarCuponUsado, desmarcarCuponUsado } from './storeCredit';
 
@@ -149,6 +150,16 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
       local_order_id: venta.id,
     }]);
   }
+
+  // 3b. Lo entregado en mano sale del almacén Consultorios de BaseLinker (lo que se
+  //     envía lo descuenta la propia orden de Shopify desde el central). Si BaseLinker
+  //     falla, la venta ya está cobrada y cerrada: solo se deja el aviso.
+  const salida = await moverStockConsultorios(
+    'venta',
+    items.map(i => ({ product_id: i.product_id, sku: i.sku, cantidad: i.quantity })),
+    `venta ${String(venta.id).slice(0, 8)}`,
+  );
+  if (!salida.ok) console.error(`[venta consultorio] BaseLinker no registró la salida de la venta ${venta.id}: ${salida.motivo}`);
 
   // 4. Acreditarle la comisión, igual que una venta de Shopify.
   //    Mismo formato que el webhook de órdenes: una transacción IN de
@@ -344,6 +355,18 @@ export async function revertirVenta(supabase, ventaId, { motivo = 'Cancelada en 
       motivo:         `${motivo} · venta ${String(venta.id).slice(0, 8)}`,
       local_order_id: venta.id,
     }]);
+  }
+
+  // 2b. Y vuelven también al almacén Consultorios de BaseLinker, de donde salieron.
+  //     La orden de Shopify ya la cierra cancelarOrdenEnBaseLinker (lo que se envió).
+  if ((movs || []).length) {
+    const datosDe = Object.fromEntries((venta.items || []).map(i => [String(i.variant_id), i]));
+    const entrada = await moverStockConsultorios(
+      'reversa',
+      movs.map(m => ({ product_id: datosDe[String(m.variant_id)]?.product_id, sku: datosDe[String(m.variant_id)]?.sku, cantidad: m.cantidad })),
+      `venta ${String(venta.id).slice(0, 8)} cancelada`,
+    );
+    if (!entrada.ok) console.error(`[revertir venta] BaseLinker no registró la entrada de la venta ${venta.id}: ${entrada.motivo}`);
   }
 
   // 3. El cupón que esa venta gastó vuelve a servir

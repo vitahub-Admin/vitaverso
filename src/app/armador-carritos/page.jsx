@@ -862,7 +862,9 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
       // El sharecart se crea igual, porque es lo que registra el protocolo y
       // sostiene la atribución.
       let url = data.checkoutUrl;
-      if (puedeCobrar) {
+      // Solo cuando el protocolo lleva algo que se entrega en el consultorio. Un
+      // protocolo que se envía todo sigue el flujo de siempre (carrito de Shopify).
+      if (puedeCobrar && enConsulta.length > 0) {
         const rv = await fetch("/api/consignment/sale", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({

@@ -98,3 +98,112 @@ export async function cancelarOrdenEnBaseLinker(numeroShopify, motivo = 'Cancela
 
   return { ok: true, orderId: orden.order_id, lineasRetiradas: ligadas.length };
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Stock del almacén "Consultorios"
+//
+// El inventario que los profesionales tienen en consignación vive en su propio
+// almacén de BaseLinker, excluido de todas las integraciones (Shopify no lo cuenta
+// como disponible). Cada movimiento es un DOCUMENTO de inventario: suma o resta de
+// forma atómica, a diferencia de updateInventoryProductsStock, que fija el valor
+// absoluto y se pisaría con otro cambio simultáneo.
+//
+//   entrega      → traspaso central → Consultorios
+//   devolucion   → traspaso Consultorios → central
+//   venta        → salida (GI) de Consultorios por lo entregado en mano
+//   reversa      → entrada (GR) a Consultorios cuando se cancela esa venta
+//
+// Nada de esto frena el negocio: si BaseLinker falla, el libro de consignación (que
+// es lo que ve el profesional) ya quedó bien y esto devuelve { ok:false } para que
+// quien llama lo registre. `scripts/reconciliar_consultorios.mjs` encuentra la
+// diferencia si algo quedó sin reflejarse.
+// ─────────────────────────────────────────────────────────────────────────────
+
+const INVENTARIO   = Number(process.env.BASELINKER_INVENTORY_ID || 50176);
+const CENTRAL      = Number(process.env.BASELINKER_ALMACEN_CENTRAL || 59011);
+const CONSULTORIOS = Number(process.env.BASELINKER_ALMACEN_CONSULTORIOS || 76352);
+
+// Los almacenes llevan ubicaciones (WMS): cada unidad vive en una, y un documento tiene
+// que decir de cuál sale y a cuál entra. Se usa la ubicación asignada al producto en
+// cada almacén; en Consultorios, si el producto aún no tiene una, la de recepción.
+const UBICACION_CONSULTORIOS = process.env.BASELINKER_UBICACION_CONSULTORIOS || 'Admisiones';
+
+// 0 GR (entrada) · 2 GI (salida) · 4 traspaso entre almacenes
+const DOC = { entrada: 0, salida: 2, traspaso: 4 };
+
+let _series = null;
+async function serieDe(almacen, tipo) {
+  if (!_series) _series = (await bl('getInventoryDocumentSeries')).document_series || [];
+  return _series.find(s => s.warehouse_id === almacen && s.document_type === tipo)?.document_series_id;
+}
+
+/** El producto de BaseLinker (hijo si tiene variantes) de una variante de Shopify. */
+export async function productoBL({ product_id, sku }) {
+  const l = await bl('getInventoryProductsList', { inventory_id: INVENTARIO, filter_sku: String(product_id) });
+  const padre = Object.values(l.products || {})[0];
+  if (!padre) return null;
+  const d = (await bl('getInventoryProductsData', { inventory_id: INVENTARIO, products: [padre.id] })).products?.[padre.id];
+  const hijo = Object.entries(d?.variants || {}).find(([, v]) => v.sku === sku);
+  return hijo ? Number(hijo[0]) : padre.id;
+}
+
+async function documento({ tipo, almacen, destino = null, items, notas }) {
+  const serie = await serieDe(almacen, tipo);
+  const doc = await bl('addInventoryDocument', {
+    warehouse_id: almacen,
+    ...(destino ? { target_warehouse_id: destino } : {}),
+    document_type: tipo,
+    ...(serie ? { document_series_id: serie } : {}),
+    notes: String(notas || '').slice(0, 500),
+  });
+  try {
+    await bl('addInventoryDocumentItems', { document_id: doc.document_id, items });
+    await bl('setInventoryDocumentStatusConfirmed', { document_id: doc.document_id });
+  } catch (e) {
+    throw new Error(`${e.message} (queda el borrador ${doc.document_id} sin confirmar)`);
+  }
+  return doc.document_id;
+}
+
+/**
+ * @param {'entrega'|'devolucion'|'venta'|'reversa'} sentido
+ * @param {Array<{product_id, sku, cantidad}>} lineas  variantes de Shopify
+ * @param {string} nota  queda en el documento de BaseLinker, para rastrearlo
+ * @returns {{ ok: boolean, documento?: number, motivo?: string }}
+ */
+export async function moverStockConsultorios(sentido, lineas = [], nota = '') {
+  try {
+    const items = [];
+    for (const l of lineas) {
+      const cantidad = Number(l.cantidad);
+      if (!(cantidad > 0)) continue;
+      const id = await productoBL(l);
+      if (!id) return { ok: false, motivo: `producto ${l.sku || l.product_id} no encontrado en BaseLinker` };
+      const ub = (await bl('getInventoryProductsData', { inventory_id: INVENTARIO, products: [id] })).products?.[id]?.locations || {};
+      const enCentral      = ub[`bl_${CENTRAL}`] ?? '';
+      const enConsultorios = ub[`bl_${CONSULTORIOS}`] || UBICACION_CONSULTORIOS;
+      const ubicaciones = {
+        entrega:    { location_name: enCentral,      target_location_name: enConsultorios },
+        devolucion: { location_name: enConsultorios, target_location_name: enCentral },
+        venta:      { location_name: enConsultorios },
+        reversa:    { location_name: enConsultorios },
+      }[sentido];
+      items.push({ product_id: id, quantity: cantidad, ...ubicaciones });
+    }
+    if (!items.length) return { ok: true, documento: null };
+
+    const nota500 = `Vitahub Pro · ${sentido}${nota ? ` · ${nota}` : ''}`;
+    const args = {
+      entrega:    { tipo: DOC.traspaso, almacen: CENTRAL,      destino: CONSULTORIOS },
+      devolucion: { tipo: DOC.traspaso, almacen: CONSULTORIOS, destino: CENTRAL },
+      venta:      { tipo: DOC.salida,   almacen: CONSULTORIOS },
+      reversa:    { tipo: DOC.entrada,  almacen: CONSULTORIOS },
+    }[sentido];
+    if (!args) return { ok: false, motivo: `movimiento desconocido: ${sentido}` };
+
+    return { ok: true, documento: await documento({ ...args, items, notas: nota500 }) };
+  } catch (e) {
+    console.error('[baselinker consultorios]', sentido, e.message);
+    return { ok: false, motivo: e.message };
+  }
+}

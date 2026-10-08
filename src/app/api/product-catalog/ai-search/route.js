@@ -242,7 +242,6 @@ export async function POST(req) {
             nodes(ids: $ids) {
               ... on Product {
                 id
-                vendor
                 featuredImage { url }
                 variants(first: 15) {
                   edges { node {
@@ -269,7 +268,6 @@ export async function POST(req) {
           const prices = variants.map(v => v.price).filter(Boolean);
           shopifyMap[pid] = {
             image_url: node.featuredImage?.url ?? null,
-            brand:     node.vendor || null,
             variants,
             min_price: prices.length ? Math.min(...prices) : null,
           };
@@ -285,7 +283,9 @@ export async function POST(req) {
       return {
         ...item,
         image_url:        sh?.image_url  ?? null,
-        brand:            sh?.brand      ?? item.brand,
+        // La marca es la de nuestro catálogo. El vendor de Shopify es el distribuidor
+        // (ej. "OLSEGO GROUP" para NOW Foods), así que no se usa de respaldo.
+        brand:            item.brand ?? null,
         min_price:        sh?.min_price  ?? item.min_price,
         variants:         sh?.variants   ?? [],
         all_out_of_stock: sh?.variants?.length

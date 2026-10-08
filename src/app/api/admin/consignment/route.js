@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { resolveCustomerId } from '@/lib/customerAppAuth'
+import { moverStockConsultorios } from '@/lib/baselinker'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -94,7 +95,7 @@ export async function POST(req) {
     // Datos del producto, para mostrarlos sin joinear después
     const { data: prod } = await supabase
       .from('product_catalog')
-      .select('product_id, title, variant_title')
+      .select('product_id, title, variant_title, sku')
       .eq('variant_id', variantId)
       .maybeSingle()
 
@@ -159,7 +160,19 @@ export async function POST(req) {
 
     if (movErr) throw movErr
 
-    return NextResponse.json({ ok: true, stock: guardado })
+    // El libro ya quedó bien; el almacén Consultorios de BaseLinker se mueve igual. Si
+    // BaseLinker falla no se revierte nada: se avisa para corregirlo a mano. El ajuste
+    // no se refleja allá a propósito (puede ser un conteo, no un movimiento físico).
+    let baselinker = null
+    if (tipo === 'entrega' || tipo === 'devolucion') {
+      baselinker = await moverStockConsultorios(
+        tipo,
+        [{ product_id: prod.product_id, sku: prod.sku, cantidad }],
+        `${motivo || 'sin motivo'} · profesional ${ownerId}`,
+      )
+    }
+
+    return NextResponse.json({ ok: true, stock: guardado, baselinker })
   } catch (err) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
   }
