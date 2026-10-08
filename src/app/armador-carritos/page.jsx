@@ -2976,6 +2976,11 @@ function ArmadorCarritosInner() {
               </nav>
             )}
 
+            {/* Título de la colección (o de la búsqueda) que se está viendo */}
+            {collLabel && !levelCtx?.trail?.length && (
+              <h2 className="text-lg font-extrabold text-[#1b3f7a] leading-tight mb-1">{collLabel}</h2>
+            )}
+
             {/* Conteo */}
             <p className="text-xs text-[#5B7A8C] font-medium mb-4">
               {filteredProductos.length} producto{filteredProductos.length !== 1 ? "s" : ""}
