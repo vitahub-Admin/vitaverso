@@ -5,7 +5,7 @@
  * DHL Express…) y cambian ahí sin tocar código. Acá solo se le pregunta qué
  * tarifas aplican para una dirección.
  *
- * Se le pregunta con ÚNICAMENTE las líneas que viajan. Shopify mide el envío gratis
+ * Se le pregunta (Storefront API, carrito con la dirección) con ÚNICAMENTE las líneas que viajan. Shopify mide el envío gratis
  * (a partir de $599) sobre el subtotal COMPLETO del pedido, incluidas las líneas
  * marcadas "no requiere envío": un pedido de $515 por enviar más $1,030 entregados
  * en el consultorio salía con envío gratis. Si se le pregunta solo con lo que
@@ -14,12 +14,14 @@
 
 import { provinciaShopify } from './estadosMx.js';
 
-const GQL = () => `https://${process.env.SHOPIFY_STORE}/admin/api/2025-01/graphql.json`;
+// La Storefront API es la única que devuelve TODAS las tarifas, incluida la entrega
+// local por código postal (Local Delivery), que la Admin API no calcula.
+const SF = () => `https://${process.env.SHOPIFY_STORE}/api/2025-01/graphql.json`;
 
-const CALCULAR = `mutation($input: DraftOrderInput!) {
-  draftOrderCalculate(input: $input) {
-    calculatedDraftOrder { availableShippingRates { handle title price { amount } } }
-    userErrors { field message }
+const CARRITO = `mutation($input: CartInput!) {
+  cartCreate(input: $input) {
+    cart { deliveryGroups(first: 5) { nodes { deliveryOptions { handle title deliveryMethodType estimatedCost { amount } } } } }
+    userErrors { message }
   }
 }`;
 
@@ -34,37 +36,41 @@ export function limpiarTitulo(t) {
     .replace(/\s+/g, ' ')
     .trim()
     // Sin \b: JavaScript no cuenta la "ó" como letra y el límite de palabra falla
-    .replace(/^Envi[óo](?=\s|$)/i, 'Envío');
+    .replace(/^Envi[óo](?=\s|$)/i, 'Envío')
+    .replace(/^Local Delivery$/i, 'Entrega local');
 }
 
 /**
  * @param {object} p
  * @param {Array}  p.lineas      [{ variantId, quantity }] SOLO lo que se envía
  * @param {object} p.direccion   { calle, colonia, cp, ciudad, estado }
- * @returns {Array<{ handle: string, titulo: string, precio: number, expres: boolean }>}
+ * @returns {Array<{ handle: string, titulo: string, precio: number, expres: boolean, local: boolean }>}
  *          más barata primero. Vacío si no hay nada que enviar.
  */
 export async function tarifasDeEnvio({ lineas = [], direccion = {} }) {
   const aEnviar = lineas.filter(l => Number(l.quantity) > 0);
   if (!aEnviar.length) return [];
 
-  const res = await fetch(GQL(), {
+  const res = await fetch(SF(), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-Shopify-Access-Token': process.env.SHOPIFY_ACCESS_TOKEN },
+    headers: { 'Content-Type': 'application/json', 'X-Shopify-Storefront-Access-Token': process.env.SHOPIFY_STOREFRONT_TOKEN },
     body: JSON.stringify({
-      query: CALCULAR,
+      query: CARRITO,
       variables: {
         input: {
-          email: 'tarifas@vitahub.mx',
-          taxExempt: true,
-          lineItems: aEnviar.map(l => ({ variantId: `gid://shopify/ProductVariant/${l.variantId}`, quantity: Number(l.quantity) })),
-          shippingAddress: {
-            address1:    direccion.calle || 'Calle',
-            address2:    direccion.colonia || undefined,
-            city:        direccion.ciudad || 'Ciudad',
-            province:    provinciaShopify(direccion.estado),
-            zip:         direccion.cp,
+          lines: aEnviar.map(l => ({ merchandiseId: `gid://shopify/ProductVariant/${l.variantId}`, quantity: Number(l.quantity) })),
+          buyerIdentity: {
             countryCode: 'MX',
+            deliveryAddressPreferences: [{
+              deliveryAddress: {
+                address1: direccion.calle || 'Calle',
+                address2: direccion.colonia || undefined,
+                city:     direccion.ciudad || 'Ciudad',
+                province: provinciaShopify(direccion.estado),
+                zip:      direccion.cp,
+                country:  'Mexico',
+              },
+            }],
           },
         },
       },
@@ -73,15 +79,17 @@ export async function tarifasDeEnvio({ lineas = [], direccion = {} }) {
 
   const json = await res.json();
   if (json.errors?.length) throw new Error(json.errors.map(e => e.message).join(' | '));
-  const calc = json.data?.draftOrderCalculate;
+  const calc = json.data?.cartCreate;
   if (calc?.userErrors?.length) throw new Error(calc.userErrors.map(e => e.message).join(' | '));
 
-  return (calc?.calculatedDraftOrder?.availableShippingRates || [])
+  const opciones = (calc?.cart?.deliveryGroups?.nodes || []).flatMap(g => g.deliveryOptions || []);
+  return opciones
     .map(t => ({
       handle: t.handle,
       titulo: limpiarTitulo(t.title),
-      precio: Number(t.price.amount),
+      precio: Number(t.estimatedCost.amount),
       expres: /dhl|express/i.test(t.title),
+      local: t.deliveryMethodType === 'LOCAL',
     }))
     .sort((a, b) => a.precio - b.precio);
 }
