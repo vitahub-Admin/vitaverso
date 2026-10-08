@@ -227,8 +227,6 @@ export default function CobroPage({ params }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email:  datos.email,
-          nombre: datos.nombre,
           direccion: hayEnvio
             ? { calle: datos.calle, colonia: datos.colonia, cp: datos.cp, ciudad: datos.ciudad, estado: datos.estado }
             : null,
@@ -360,7 +358,9 @@ export default function CobroPage({ params }) {
 
         {!pagado && !cancelado && (pasarela === 'mock' || pasarela === 'shopify') && (
           <div className="bg-white border border-[#D0E4EC] rounded-2xl p-5 space-y-4">
-            <div>
+            {/* Nombre y correo solo en la simulación: con Shopify los escribe el
+                paciente en su checkout y el webhook de pago los guarda. */}
+            {pasarela === 'mock' && <div>
               <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Tus datos</p>
               <div className="space-y-2">
                 <input value={datos.nombre} onChange={set("nombre")} placeholder="Nombre completo"
@@ -369,7 +369,7 @@ export default function CobroPage({ params }) {
                   className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
                 <p className="text-[10px] text-[#B0C8D4]">Ahí te llega tu compra y las indicaciones de toma.</p>
               </div>
-            </div>
+            </div>}
 
             {hayEnvio && (
               <div>
@@ -462,13 +462,6 @@ export default function CobroPage({ params }) {
             paciente elige cómo pagar (tarjeta, Google Pay, PayPal, Mercado Pago…) */}
         {!pagado && !cancelado && pasarela === 'shopify' && (
           <div className="bg-white border border-[#D0E4EC] rounded-2xl p-5 space-y-3">
-            {modoPrueba && (
-              <p className="text-[11px] text-amber-700 bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 leading-relaxed">
-                Modo de prueba: el cobro es <strong>real</strong> pero de solo{" "}
-                <strong>{fmtMXN(montoACobrar)}</strong>, sin importar el total del pedido.
-              </p>
-            )}
-
             {error && <p className="text-xs text-red-500">{error}</p>}
 
             <button
@@ -477,17 +470,12 @@ export default function CobroPage({ params }) {
               className="w-full bg-[#1b3f7a] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-[#162d60] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {pagando ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
-              {pagando ? "Abriendo el pago…" : `Pagar ${fmtMXN(montoACobrar)}`}
+              {pagando ? "Abriendo el pago…" : `Continuar al pago · ${fmtMXN(montoACobrar)}`}
             </button>
 
-            {hayEnvio && !venta.envio_tarifa && (
-              <p className="text-[11px] text-[#8AAAB8] text-center leading-snug">
-                Completa tu dirección y elige cómo quieres recibir tu pedido para continuar.
-              </p>
-            )}
-
             <p className="text-[10px] text-[#B0C8D4] text-center leading-relaxed">
-              Pagas en el checkout seguro de Shopify. Tus datos de tarjeta no pasan por esta página.
+              Ahí escribes tu nombre y correo y pagas en el checkout seguro de Shopify.
+              Tus datos de tarjeta no pasan por esta página.
             </p>
           </div>
         )}

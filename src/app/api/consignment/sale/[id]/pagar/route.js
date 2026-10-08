@@ -19,7 +19,7 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 /**
  * POST /api/consignment/sale/[id]/pagar
- *   body: { email, nombre, direccion?: { calle, colonia, cp, ciudad, estado } }
+ *   body: { email?, nombre?, direccion?: { calle, colonia, cp, ciudad, estado } }
  *   →     { ok, url }  el enlace de pago de Shopify, al que se manda al paciente
  *
  * Sin sesión, como el resto del cobro: lo usa el paciente desde su enlace.
@@ -47,14 +47,11 @@ export async function POST(req, { params }) {
     }
 
     // ── Datos del paciente ──────────────────────────────────────────────────
-    const email  = String(body.email || '').trim().toLowerCase()
-    const nombre = String(body.nombre || '').trim()
-    if (!EMAIL.test(email)) {
-      return NextResponse.json({ ok: false, error: 'Escribe un correo válido' }, { status: 400 })
-    }
-    if (!nombre) {
-      return NextResponse.json({ ok: false, error: 'Escribe tu nombre' }, { status: 400 })
-    }
+    // Nombre y correo ya no se piden aquí: el paciente los escribe en el checkout
+    // de Shopify y el webhook de pago los guarda. Si llegan, se usan.
+    const emailIn = String(body.email || '').trim().toLowerCase()
+    const email   = EMAIL.test(emailIn) ? emailIn : undefined
+    const nombre  = String(body.nombre || '').trim() || undefined
 
     const activos  = (venta.items || []).filter(i => Number(i.quantity) > 0)
     if (!activos.length) {

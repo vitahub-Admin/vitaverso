@@ -487,6 +487,11 @@ export async function POST(req) {
           payment_id:    `shopify_${cobro.orderId}`,
           proveedor:     "shopify",
           pagoYaCobrado: true,
+          paciente: {
+            email:  String(payload.email || payload.customer?.email || "").trim().toLowerCase() || null,
+            nombre: [payload.customer?.first_name, payload.customer?.last_name].filter(Boolean).join(" ").trim()
+                    || payload.shipping_address?.name || payload.billing_address?.name || null,
+          },
         });
         if (!r.ok) console.error("[webhook vitahub-pro] no se pudo cerrar la venta:", cobro.ventaId, r.error);
       }
