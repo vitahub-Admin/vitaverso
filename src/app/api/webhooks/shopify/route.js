@@ -487,6 +487,10 @@ export async function POST(req) {
           payment_id:    `shopify_${cobro.orderId}`,
           proveedor:     "shopify",
           pagoYaCobrado: true,
+          // El envío que cotizó y cobró el checkout de Shopify (no lo conocemos antes de pagar)
+          envioCobrado: payload.shipping_lines?.[0]
+            ? { titulo: payload.shipping_lines[0].title, precio: Number(payload.shipping_lines[0].price) }
+            : null,
           paciente: {
             email:  String(payload.email || payload.customer?.email || "").trim().toLowerCase() || null,
             nombre: [payload.customer?.first_name, payload.customer?.last_name].filter(Boolean).join(" ").trim()

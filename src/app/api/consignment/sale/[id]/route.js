@@ -132,13 +132,13 @@ export async function PATCH(req, { params }) {
     // cupón con mínimo de compra tiene que caerse solo cuando el paciente baja
     // el pedido por debajo de ese mínimo. Sin esto, alcanzaba con aplicarlo
     // caro y después sacar productos.
-    // La tarifa de envío que había elegido el paciente se conserva solo si lo que
-    // viaja no cambió. Shopify la calculó con esas unidades: con otras (por ejemplo
-    // al cruzar los $599 del envío gratis) puede ser otra, y la tiene que volver a
-    // elegir con el pedido nuevo.
+    // La tarifa de envío que había elegido el paciente se conserva solo si el pedido
+    // no cambió. Shopify la cotizó con el pedido completo: con otras cantidades (por
+    // ejemplo al cruzar los $599 del envío gratis) puede ser otra, y la tiene que
+    // volver a elegir con el pedido nuevo.
     const firmaEnvio = (its) => its
-      .map(i => `${i.variant_id}:${Math.max(0, Number(i.quantity) - unidadesEnMano(i))}`)
-      .filter(s => !s.endsWith(':0'))
+      .filter(i => Number(i.quantity) > 0)
+      .map(i => `${i.variant_id}:${Number(i.quantity)}`)
       .sort()
       .join(',')
     const tarifa = hayEnvio(items) && firmaEnvio(items) === firmaEnvio(venta.items || [])

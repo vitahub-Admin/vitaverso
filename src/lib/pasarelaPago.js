@@ -46,7 +46,8 @@ export function pasarelaActiva(ownerId) {
 export const sePuedeCobrar = (ownerId) => pasarelaActiva(ownerId) !== 'no-disponible';
 
 /** Cuánto se cobra de verdad en pruebas. Dinero real, pero de monto mínimo. */
-const MONTO_PRUEBA = Number(process.env.COBRO_SANDBOX_MONTO || 50);
+// Sin COBRO_SANDBOX_MONTO se cobra el total real; con él, un monto fijo chico para probar.
+const MONTO_PRUEBA = Number(process.env.COBRO_SANDBOX_MONTO || 0);
 
 /**
  * Lo que se le cobra al paciente.
@@ -56,7 +57,7 @@ const MONTO_PRUEBA = Number(process.env.COBRO_SANDBOX_MONTO || 50);
  * con pagos reales sin mover cantidades reales. Nunca más que el total.
  */
 export function montoACobrar(ownerId, total) {
-  const enPrueba = esSandbox(ownerId) || !enProduccion();
+  const enPrueba = MONTO_PRUEBA > 0 && (esSandbox(ownerId) || !enProduccion());
   return enPrueba ? Math.min(MONTO_PRUEBA, Number(total)) : Number(total);
 }
 

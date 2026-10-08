@@ -5,11 +5,10 @@
  * DHL Express…) y cambian ahí sin tocar código. Acá solo se le pregunta qué
  * tarifas aplican para una dirección.
  *
- * Se le pregunta (Storefront API, carrito con la dirección) con ÚNICAMENTE las líneas que viajan. Shopify mide el envío gratis
- * (a partir de $599) sobre el subtotal COMPLETO del pedido, incluidas las líneas
- * marcadas "no requiere envío": un pedido de $515 por enviar más $1,030 entregados
- * en el consultorio salía con envío gratis. Si se le pregunta solo con lo que
- * realmente viaja, lo entregado en consultorio no cuenta.
+ * Se le pregunta (Storefront API, carrito con la dirección) con el pedido COMPLETO,
+ * también lo que se entrega en el consultorio: el envío gratis (a partir de $599) se
+ * mide sobre todo el carrito, y un pedido que lo supera va gratis aunque lo que viaje
+ * sea poco. Las tarifas son fijas por zona, no por peso, así que no hay otro efecto.
  */
 
 import { provinciaShopify } from './estadosMx.js';
@@ -42,7 +41,7 @@ export function limpiarTitulo(t) {
 
 /**
  * @param {object} p
- * @param {Array}  p.lineas      [{ variantId, quantity }] SOLO lo que se envía
+ * @param {Array}  p.lineas      [{ variantId, quantity }] el pedido completo
  * @param {object} p.direccion   { calle, colonia, cp, ciudad, estado }
  * @returns {Array<{ handle: string, titulo: string, precio: number, expres: boolean, local: boolean }>}
  *          más barata primero. Vacío si no hay nada que enviar.

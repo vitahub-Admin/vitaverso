@@ -5,8 +5,6 @@ import { crearBorrador, estadoBorrador, borrarBorrador } from '@/lib/cobroShopif
 import { confirmarVenta } from '@/lib/ventaConsultorio'
 import { unidadesEnMano } from '@/lib/envio'
 import { fetchVariantInfo } from '@/lib/shopifyPrices'
-import { tarifasDeEnvio } from '@/lib/envioShopify'
-import { ESTADOS_MX } from '@/lib/estadosMx'
 import { validarDescuento } from '@/lib/descuentoShopify'
 import { totalesDe } from '@/lib/totalesVenta'
 
@@ -58,15 +56,9 @@ export async function POST(req, { params }) {
       return NextResponse.json({ ok: false, error: 'El pedido está vacío' }, { status: 400 })
     }
 
-    // Con envío hace falta a dónde mandarlo: el operario no puede despachar sin dirección
+    // El envío lo cotiza y lo cobra el checkout de Shopify (dirección, tarifa, entrega
+    // local, DHL): aquí no se pide ni se calcula nada de eso.
     const hayEnvio = activos.some(i => Number(i.quantity) > unidadesEnMano(i))
-    const d = body.direccion || {}
-    if (hayEnvio && !(d.calle?.trim() && /^\d{5}$/.test(String(d.cp || '').trim()) && d.ciudad?.trim() && ESTADOS_MX.includes(d.estado))) {
-      return NextResponse.json(
-        { ok: false, error: 'Completa la dirección de envío: calle, código postal de 5 dígitos, ciudad y estado' },
-        { status: 400 }
-      )
-    }
 
     // ── Un borrador anterior ────────────────────────────────────────────────
     // Si el paciente ya lo pagó y el aviso de Shopify todavía no llegó, crear
@@ -111,36 +103,7 @@ export async function POST(req, { params }) {
       }, { status: 409 })
     }
 
-    // ── Envío: la tarifa que eligió el paciente, confirmada con Shopify ahora ──
-    // Con algo que enviar el paciente tiene que haber elegido cómo recibirlo, y esa
-    // tarifa se vuelve a consultar: entre que la eligió y que paga pudo cambiar
-    // (por ejemplo, otra zona o un precio nuevo). Si ya no es la misma no se cobra:
-    // se le avisa y se descarta, igual que con un precio de producto que cambió.
-    let tarifa = null
-    if (hayEnvio) {
-      const elegida = venta.envio_tarifa
-      if (!elegida) {
-        return NextResponse.json({ ok: false, error: 'Elige cómo quieres recibir tu pedido antes de pagar' }, { status: 400 })
-      }
-      const opciones = await tarifasDeEnvio({
-        lineas: items
-          .filter(i => Number(i.quantity) > 0)
-          .map(i => ({ variantId: i.variant_id, quantity: Number(i.quantity) - unidadesEnMano(i) }))
-          .filter(l => l.quantity > 0),
-        direccion: d,
-      })
-      const viva = opciones.find(o => o.handle === elegida.handle)
-      if (!viva || Math.abs(viva.precio - Number(elegida.precio)) > 0.009) {
-        await supabase.from('local_orders')
-          .update({ items, ...totalesDe(items, null, null), envio_tarifa: null, descuento_codigo: null, descuento_price_rule_id: null, updated_at: new Date().toISOString() })
-          .eq('id', venta.id).eq('estado', 'pendiente')
-        return NextResponse.json({
-          ok: false, cambio: true,
-          error: 'Las tarifas de envío cambiaron. Elige de nuevo cómo quieres recibir tu pedido.',
-        }, { status: 409 })
-      }
-      tarifa = { handle: viva.handle, titulo: viva.titulo, precio: viva.precio, expres: viva.expres }
-    }
+    const tarifa = null
 
     // El cupón también se revalida: pudo agotarse o vencer desde que se aplicó
     let descuento = null
@@ -148,7 +111,7 @@ export async function POST(req, { params }) {
     let priceRule = venta.descuento_price_rule_id || null
     if (codigo) {
       const base = totalesDe(items, null, tarifa)
-      const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: hayEnvio ? base.envio : 0 })
+      const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: 0 })
       if (r.ok) descuento = { monto: r.monto, sobreEnvio: r.sobreEnvio }
       else { codigo = null; priceRule = null }
     }
@@ -209,10 +172,8 @@ export async function POST(req, { params }) {
       monto,
       email,
       nombre,
-      direccion:  hayEnvio ? d : null,
       lineas,
       costoEnvio: nuevos.envio,
-      tituloEnvio: tarifa?.titulo,
       descuento:  { monto: aDescontar, titulo: partes.join(' + ') || 'Descuento' },
     })
 

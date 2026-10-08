@@ -37,5 +37,6 @@ export function hayEnvio(items = []) {
  * el total no incluye envío y no se puede pagar.
  */
 export function envioPendiente(items = [], tarifa = null) {
-  return hayEnvio(items) && !tarifa;
+  // Ya no hay tarifa que elegir en PRO: el envío se cotiza en el checkout de Shopify.
+  return false;
 }

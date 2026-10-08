@@ -31,8 +31,8 @@ export function totalesDe(items = [], descuento = null, tarifaEnvio = null) {
     comision += linea * Number(it.commission_percent || 0) / 100;
   }
 
-  // El costo lo fija la tarifa que eligió el paciente (de Shopify, calculada solo con
-  // lo que viaja). Si todo se entrega en el consultorio no hay envío.
+  // El costo lo fija la tarifa que eligió el paciente (de Shopify, cotizada con el
+  // pedido completo). Si todo se entrega en el consultorio no hay envío.
   const envio = hayEnvio(items) ? Number(tarifaEnvio?.precio || 0) : 0;
 
   // Un cupón de envío gratis descuenta exactamente lo que costaba el envío: si

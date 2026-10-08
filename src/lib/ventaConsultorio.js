@@ -113,6 +113,7 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
       ...(esShopify ? { payment_provider: 'shopify' } : {}),
       // El paciente pone su nombre y correo en el checkout de Shopify: de ahí
       // salen, y no se pisa un nombre que el especialista ya había capturado.
+      ...(datosPago.envioCobrado ? { envio_tarifa: datosPago.envioCobrado } : {}),
       ...(datosPago.paciente?.email ? { patient_email: datosPago.paciente.email } : {}),
       ...(!venta.patient_name && datosPago.paciente?.nombre ? { patient_name: datosPago.paciente.nombre } : {}),
       updated_at:   new Date().toISOString(),

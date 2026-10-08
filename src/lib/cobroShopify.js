@@ -139,14 +139,9 @@ export async function crearBorrador({ ventaId, profesional, monto, email, nombre
     lineItems,
   };
 
-  // Con algo que enviar el pedido lleva su línea de envío, con el costo real (o
-  // "gratis"). Así Shopify no vuelve a cotizar tarifas en su checkout y cambia el
-  // monto, y la orden figura como envío para poder darle seguimiento.
-  if (hayEnvio) {
-    // Con el nombre de la tarifa que eligió el paciente ("Envío Nacional", "DHL
-    // Express Priority"…): así el pedido queda con el servicio que pidió.
-    input.shippingLine = { title: tituloEnvio || (envioNeto > 0 ? 'Envío' : 'Envío gratis'), price: envioNeto.toFixed(2) };
-  }
+  // Sin línea de envío a propósito: el checkout de Shopify pide la dirección del
+  // paciente y cotiza las tarifas de la tienda (estándar, entrega local, DHL). Lo
+  // entregado en el consultorio cuenta para el envío gratis.
 
   if (descProductos > 0) {
     input.appliedDiscount = {

@@ -10,9 +10,8 @@
  */
 
 import { useEffect, useState, use } from "react";
-import { Check, X, Loader2, ShieldCheck, CreditCard, Package, Minus, Plus, Trash2, Tag, Zap } from "lucide-react";
+import { Check, X, Loader2, ShieldCheck, CreditCard, Package, Minus, Plus, Trash2, Tag } from "lucide-react";
 import { unidadesEnMano } from "@/lib/envio";
-import { ESTADOS_MX } from "@/lib/estadosMx";
 
 // Tope por línea: nadie se lleva 40 frascos del mismo producto desde el
 // consultorio, y sin tope un dedo apoyado en el "+" arma un pedido absurdo.
@@ -36,17 +35,13 @@ export default function CobroPage({ params }) {
   const [cuponEnVuelo, setCuponEnVuelo] = useState(false);
 
   // Opciones de envío que ofrece Shopify para la dirección que puso el paciente
-  const [opciones, setOpciones]               = useState([]);
-  const [cargandoOpciones, setCargandoOpciones] = useState(false);
-  const [errorEnvio, setErrorEnvio]           = useState(null);
-  const [eligiendo, setEligiendo]             = useState(false);
 
   // Datos del comprador. El correo es el único que se guarda: sirve para
   // mandarle su compra y las indicaciones de toma. Los de la tarjeta son
   // decorativos — nunca salen del navegador, y cuando entre Stripe los pide
   // su checkout, que es quien puede recibirlos.
   const [datos, setDatos] = useState({
-    nombre: "", email: "", calle: "", colonia: "", cp: "", ciudad: "", estado: "",
+    nombre: "", email: "",
     tarjeta: "", vence: "", cvc: "",
   });
   const set = (k) => (e) => setDatos(d => ({ ...d, [k]: e.target.value }));
@@ -65,81 +60,8 @@ export default function CobroPage({ params }) {
 
   useEffect(() => { cargar(); }, [id]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Envío ───────────────────────────────────────────────────────────────────
-  // Todo esto va antes de los `return` de la página: los hooks no pueden ir después.
-  const hayEnvioV   = Boolean(venta) && (venta.items || []).some(i => i.quantity > unidadesEnMano(i));
-  const abierta     = Boolean(venta) && venta.estado === "pendiente";
-  const direccion   = { calle: datos.calle, colonia: datos.colonia, cp: datos.cp, ciudad: datos.ciudad, estado: datos.estado };
-  const direccionLista = Boolean(datos.calle.trim()) && /^\d{5}$/.test(datos.cp.trim()) && Boolean(datos.ciudad.trim()) && ESTADOS_MX.includes(datos.estado);
-
-  // Lo que viaja, por variante. Si cambia (el paciente sacó o agregó algo) las
-  // tarifas pueden ser otras: el servidor ya descartó la elegida y hay que volver a pedirlas.
-  const firmaEnvio = venta
-    ? (venta.items || []).map(i => `${i.variant_id}:${Math.max(0, i.quantity - unidadesEnMano(i))}`).join(",")
-    : "";
-
-  /** El paciente elige una opción. El precio lo vuelve a consultar el servidor. */
-  const elegirEnvio = async (handle) => {
-    setEligiendo(true);
-    setErrorEnvio(null);
-    try {
-      const r = await fetch(`/api/consignment/sale/${id}/envio`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ direccion, handle }),
-      });
-      const d = await r.json();
-      if (!d.ok) {
-        setErrorEnvio(d.error);
-        if (d.opciones) setOpciones(d.opciones);
-        return;
-      }
-      setVenta(v => ({ ...v, ...d.venta }));
-      if (d.descuento_caido) setCuponMsg({ tipo: "error", texto: "Tu código dejó de aplicar con este envío" });
-    } catch (e) {
-      setErrorEnvio(e.message);
-    } finally {
-      setEligiendo(false);
-    }
-  };
-
-  // Cuando la dirección está completa, o cambia lo que viaja, se piden las opciones a
-  // Shopify. Se espera un momento tras la última tecla para no consultar en cada letra.
-  useEffect(() => {
-    if (!abierta || !hayEnvioV || !direccionLista) { setOpciones([]); return; }
-
-    let cancelado = false;
-    const espera = setTimeout(async () => {
-      setCargandoOpciones(true);
-      setErrorEnvio(null);
-      try {
-        const r = await fetch(`/api/consignment/sale/${id}/envio`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ direccion }),
-        });
-        const d = await r.json();
-        if (cancelado) return;
-        if (!d.ok) { setOpciones([]); setErrorEnvio(d.error); return; }
-        setOpciones(d.opciones);
-
-        // Si todavía no hay una elegida, o la que había ya no existe para esta
-        // dirección, se propone el mismo servicio si sigue disponible, y si no la más
-        // barata. Queda a la vista y se puede cambiar.
-        const actual = venta?.envio_tarifa;
-        if (!d.opciones.some(o => o.handle === actual?.handle)) {
-          const mismoServicio = d.opciones.find(o => actual && o.titulo === actual.titulo);
-          await elegirEnvio((mismoServicio || d.opciones[0]).handle);
-        }
-      } catch (e) {
-        if (!cancelado) { setOpciones([]); setErrorEnvio("No pudimos consultar las opciones de envío. Intenta de nuevo."); }
-      } finally {
-        if (!cancelado) setCargandoOpciones(false);
-      }
-    }, 600);
-
-    return () => { cancelado = true; clearTimeout(espera); };
-  }, [abierta, hayEnvioV, direccionLista, datos.calle, datos.cp, datos.ciudad, datos.estado, firmaEnvio]); // eslint-disable-line react-hooks/exhaustive-deps
+  // El envío (dirección, tarifa, entrega local, DHL) lo calcula el checkout de Shopify.
+  const hayEnvioV = Boolean(venta) && (venta.items || []).some(i => i.quantity > unidadesEnMano(i));
 
   // Si el paciente vuelve con "atrás" desde el checkout de Shopify, el navegador
   // restaura esta página tal como se fue —con el botón en "Abriendo el pago…"—.
@@ -226,11 +148,7 @@ export default function CobroPage({ params }) {
       const r = await fetch(`/api/consignment/sale/${id}/pagar`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          direccion: hayEnvio
-            ? { calle: datos.calle, colonia: datos.colonia, cp: datos.cp, ciudad: datos.ciudad, estado: datos.estado }
-            : null,
-        }),
+        body: JSON.stringify({}),
       });
       const d = await r.json();
       if (!d.ok) {
@@ -371,71 +289,6 @@ export default function CobroPage({ params }) {
               </div>
             </div>}
 
-            {hayEnvio && (
-              <div>
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Dirección de envío</p>
-                <div className="space-y-2">
-                  <input value={datos.calle} onChange={set("calle")} placeholder="Calle y número"
-                    className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
-                  <div className="grid grid-cols-2 gap-2">
-                    <input value={datos.colonia} onChange={set("colonia")} placeholder="Colonia"
-                      className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
-                    <input value={datos.cp} onChange={set("cp")} inputMode="numeric" placeholder="Código postal"
-                      className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input value={datos.ciudad} onChange={set("ciudad")} placeholder="Ciudad"
-                      className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
-                    {/* Lista y no texto libre: de ahí sale la zona de envío. Con "CDMX",
-                        "DF" o un error de dedo, el paciente vería tarifas equivocadas. */}
-                    <select value={datos.estado} onChange={set("estado")}
-                      className={`border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm bg-white focus:outline-none focus:border-[#1E8FA8] ${datos.estado ? "text-[#1b3f7a]" : "text-[#B0C8D4]"}`}>
-                      <option value="">Estado</option>
-                      {ESTADOS_MX.map(e => <option key={e} value={e}>{e}</option>)}
-                    </select>
-                  </div>
-                </div>
-
-                {/* Cómo recibirlo: las tarifas son las de Shopify, calculadas solo con lo
-                    que viaja. Lo que se entrega en el consultorio no cuenta. */}
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mt-4 mb-2">Cómo quieres recibirlo</p>
-                {!direccionLista ? (
-                  <p className="text-[11px] text-[#8AAAB8]">Completa tu dirección para ver las opciones de envío.</p>
-                ) : cargandoOpciones && !opciones.length ? (
-                  <p className="text-[11px] text-[#8AAAB8] flex items-center gap-1.5"><Loader2 size={12} className="animate-spin" /> Consultando opciones…</p>
-                ) : errorEnvio && !opciones.length ? (
-                  <p className="text-[11px] text-red-500 leading-snug">{errorEnvio}</p>
-                ) : (
-                  <div className="space-y-1.5">
-                    {opciones.map(o => {
-                      const elegida = venta.envio_tarifa?.handle === o.handle;
-                      return (
-                        <button
-                          key={o.handle}
-                          type="button"
-                          onClick={() => !elegida && elegirEnvio(o.handle)}
-                          disabled={eligiendo}
-                          className={`w-full flex items-center gap-3 text-left border rounded-lg px-3 py-2.5 transition-colors disabled:opacity-60 ${elegida ? "border-[#1E8FA8] bg-[#F4FAFB]" : "border-[#D0E4EC] hover:border-[#1E8FA8]"}`}
-                        >
-                          <span className={`w-4 h-4 rounded-full border-2 shrink-0 flex items-center justify-center ${elegida ? "border-[#1E8FA8]" : "border-[#D0E4EC]"}`}>
-                            {elegida && <span className="w-2 h-2 rounded-full bg-[#1E8FA8]" />}
-                          </span>
-                          <span className="flex-1 min-w-0 text-sm text-[#1b3f7a] flex items-center gap-1.5">
-                            {o.expres && <Zap size={13} className="text-amber-500 shrink-0" />}
-                            <span className="truncate">{o.titulo}</span>
-                          </span>
-                          <span className={`text-sm font-bold tabular-nums shrink-0 ${o.precio === 0 ? "text-emerald-600" : "text-[#1b3f7a]"}`}>
-                            {o.precio === 0 ? "Gratis" : fmtMXN(o.precio)}
-                          </span>
-                        </button>
-                      );
-                    })}
-                    {errorEnvio && <p className="text-[11px] text-red-500 leading-snug">{errorEnvio}</p>}
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Los datos de tarjeta solo existen en el simulador. Con Shopify se
                 piden en su checkout: nunca pasan por nuestra página. */}
             {pasarela === 'mock' && (
@@ -466,7 +319,7 @@ export default function CobroPage({ params }) {
 
             <button
               onClick={pagarEnShopify}
-              disabled={pagando || eligiendo || cargandoOpciones || (hayEnvio && !venta.envio_tarifa)}
+              disabled={pagando}
               className="w-full bg-[#1b3f7a] text-white py-3.5 rounded-xl font-bold text-sm hover:bg-[#162d60] transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
             >
               {pagando ? <Loader2 size={16} className="animate-spin" /> : <ShieldCheck size={16} />}
@@ -474,7 +327,7 @@ export default function CobroPage({ params }) {
             </button>
 
             <p className="text-[10px] text-[#B0C8D4] text-center leading-relaxed">
-              Ahí escribes tu nombre y correo y pagas en el checkout seguro de Shopify.
+              Ahí pones tu dirección, eliges cómo recibirlo, y pagas en el checkout seguro de Shopify.
               Tus datos de tarjeta no pasan por esta página.
             </p>
           </div>
@@ -694,15 +547,9 @@ export default function CobroPage({ params }) {
             )}
             {hayEnvio && (
               <div className="flex items-center justify-between text-xs text-[#5B7A8C]">
-                <span>Envío{venta.envio_tarifa ? ` · ${venta.envio_tarifa.titulo}` : ""}</span>
-                {venta.envio_tarifa ? (
-                  <span className={`tabular-nums ${Number(venta.envio) === 0 ? "text-emerald-600 font-semibold" : ""}`}>
-                    {Number(venta.envio) === 0 ? "Gratis" : fmtMXN(venta.envio)}
-                  </span>
-                ) : (
-                  // Hasta que elija, el envío no se conoce: no es "gratis", y el total no lo incluye todavía
-                  <span className="italic text-[#8AAAB8]">Se calcula con tu dirección</span>
-                )}
+                <span>Envío</span>
+                {/* Lo cotiza el checkout de Shopify con la dirección del paciente: el total de aquí no lo incluye */}
+                <span className="italic text-[#8AAAB8]">Se calcula en el checkout</span>
               </div>
             )}
             {descuento > 0 && (

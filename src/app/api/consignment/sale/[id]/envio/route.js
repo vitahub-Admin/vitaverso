@@ -19,12 +19,13 @@ async function ventaPendiente(id) {
   return { venta: data }
 }
 
-/** Solo lo que viaja: lo que se entrega en el consultorio no cuenta para el envío. */
+// Para cotizar se manda el pedido COMPLETO, también lo que se entrega en el consultorio:
+// el envío gratis se mide sobre todo el carrito, y un pedido que supera el mínimo va
+// gratis aunque lo que viaje sea poco. (Las tarifas son fijas por zona, no por peso.)
 function lineasQueViajan(venta) {
   return (venta.items || [])
     .filter(i => Number(i.quantity) > 0)
-    .map(i => ({ variantId: i.variant_id, quantity: Number(i.quantity) - unidadesEnMano(i) }))
-    .filter(l => l.quantity > 0)
+    .map(i => ({ variantId: i.variant_id, quantity: Number(i.quantity) }))
 }
 
 function direccionValida(d = {}) {
