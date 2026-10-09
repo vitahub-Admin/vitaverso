@@ -335,7 +335,7 @@ export async function buildStack(user, { persist = true } = {}) {
       seen.add(order.shareCart);
       protocols.push({
         token: order.shareCart,
-        name: p.name || "Protocolo de tu especialista",
+        name: p.name || "Protocolo de tu profesional",
         orderDate: order.createdAt,
         pdfUrl: `${PRO_URL}/api/protocolo-pdf?token=${encodeURIComponent(order.shareCart)}`,
       });

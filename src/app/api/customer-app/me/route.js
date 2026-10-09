@@ -7,12 +7,15 @@ import { ensureShopifyLink } from "@/lib/customerAppAccount";
 
 const PRO_URL = "https://pro.vitahub.mx";
 
-// wa.me necesita solo dígitos con código de país; los números de 10 dígitos son de México
+// wa.me necesita solo dígitos con código de país. En affiliates.phone casi todos vienen
+// como 521XXXXXXXXXX (13 dígitos, con el "1" viejo de celular): lo normalizamos a 52 + 10.
 function whatsappUrl(phone) {
   const digits = String(phone ?? "").replace(/\D/g, "");
-  if (digits.length < 10) return null;
-  const full = digits.length === 10 ? `52${digits}` : digits;
-  return `https://wa.me/${full}`;
+  let full = null;
+  if (digits.length === 10) full = `52${digits}`;
+  else if (digits.length === 13 && digits.startsWith("521")) full = `52${digits.slice(3)}`;
+  else if (digits.length >= 11) full = digits;
+  return full ? `https://wa.me/${full}` : null;
 }
 
 // social_media a veces es "@usuario" o un dominio sin protocolo
