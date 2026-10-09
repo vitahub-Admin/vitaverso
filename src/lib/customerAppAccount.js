@@ -51,7 +51,8 @@ export function isDemoLogin(email, code) {
 }
 
 export async function sendLoginCode(email, code) {
-  await resend.emails.send({
+  // Resend no lanza excepción: devuelve { error }. Hay que revisarlo a mano.
+  const { error } = await resend.emails.send({
     from: "Vitahub <noreply@pro.vitahub.mx>",
     to: email,
     subject: `${code} es tu código para entrar a Vitahub`,
@@ -71,6 +72,7 @@ export async function sendLoginCode(email, code) {
     text: `Tu código para entrar a Vitahub es ${code}. Vence en ${CODE_TTL_MIN} minutos.`,
     tags: [{ name: "flujo", value: "login_clientes" }],
   });
+  if (error) throw new Error(`Resend: ${error.message ?? JSON.stringify(error)}`);
 }
 
 // ── Vinculación con Shopify ───────────────────────────────────────────────────
