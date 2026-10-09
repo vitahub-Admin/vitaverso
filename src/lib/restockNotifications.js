@@ -60,26 +60,18 @@ async function sendExpo(messages) {
 export async function sendRestockNotifications() {
   const today = mxDate();
 
-  // Candidatos: activos que terminan en la próxima semana (o terminaron ayer/hoy),
-  // o cuyo aviso pospuesto vence hoy
-  const { data: rows, error } = await supabase
-    .from("supplement_tracking")
-    .select("user_id")
-    .eq("active", true)
-    .or(
-      `and(end_date.gte.${addDays(today, -1)},end_date.lte.${addDays(today, Math.max(...UMBRALES))}),` +
-      `snoozed_until.lte.${today}`
-    );
+  // Se recalcula el stack de TODOS los clientes con push: así los pedidos que se
+  // entregaron (paquetería o consultorio) arrancan su seguimiento solos aunque el
+  // cliente no haya abierto la app. Con pocos miles de usuarios entra en el límite
+  // del cron; si crece, partir en lotes por día o disparar desde los webhooks.
+  const { data: users, error } = await supabase
+    .from("customer_app_users")
+    .select("id, email, shopify_customer_id, push_token")
+    .not("push_token", "is", null);
   if (error) throw new Error(error.message);
 
-  const userIds = [...new Set((rows ?? []).map((r) => r.user_id))];
+  const userIds = (users ?? []).map((u) => u.id);
   if (!userIds.length) return { candidatos: 0, enviados: 0 };
-
-  const { data: users } = await supabase
-    .from("customer_app_users")
-    .select("id, shopify_customer_id, push_token")
-    .in("id", userIds)
-    .not("push_token", "is", null);
 
   const messages = [];
   const marks = []; // { trackingId, bucket, clearSnooze, userId }

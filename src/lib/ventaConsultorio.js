@@ -10,6 +10,7 @@ import { unidadesEnMano } from './envio';
 import { moverStockConsultorios } from './baselinker';
 import { vencerCupon, reactivarCupon } from './descuentoShopify';
 import { marcarCuponUsado, desmarcarCuponUsado } from './storeCredit';
+import { syncClienteTrasVentaLocal, quitarSeguimientoDeVentaLocal } from './customerAppAccount';
 
 // Comisión de la pasarela, para ver el costo real de cada venta.
 // El simulador imita la tarifa mexicana de tarjeta: porcentaje + fijo + IVA.
@@ -231,6 +232,13 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
     await vencerCupon(cerrada.descuento_price_rule_id);
   }
 
+  // 6. App de clientes: lo que se llevó en mano arranca ya en su seguimiento, con la
+  //    dosis del protocolo (si el paciente tiene la app con ese correo). No bloquea.
+  if (!datosPago.simulado && (cerrada.patient_email || venta.patient_email)) {
+    const sync = await syncClienteTrasVentaLocal(cerrada.patient_email || venta.patient_email);
+    if (!sync.ok) console.log(`[venta consultorio] app de clientes: ${sync.motivo}`);
+  }
+
   return { ok: true, order: cerrada };
 }
 
@@ -374,6 +382,9 @@ export async function revertirVenta(supabase, ventaId, { motivo = 'Cancelada en 
     await reactivarCupon(venta.descuento_price_rule_id);
     await desmarcarCuponUsado(supabase, venta.descuento_codigo);
   }
+
+  // 4. App de clientes: deja de seguir lo que había arrancado solo por esta venta
+  await quitarSeguimientoDeVentaLocal(venta.id);
 
   return { ok: true, estadoFinal: 'reembolsado', plan };
 }

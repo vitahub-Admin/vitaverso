@@ -12,6 +12,7 @@
 // Fechas: siempre días calendario de México (America/Mexico_City).
 
 import { createClient } from "@supabase/supabase-js";
+import { unidadesEnMano } from "@/lib/envio";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
@@ -21,6 +22,8 @@ const TZ = "America/Mexico_City";
 
 // Variantes compradas hace más de esto y sin seguimiento no se sugieren
 const SUGERIR_COMPRAS_DE_LOS_ULTIMOS_DIAS = 120;
+// Ventas de consultorio que se consideran para el stack
+const CONSULTORIO_ULTIMOS_DIAS = 180;
 const ORDENES_A_REVISAR = 10;
 
 export const supabase = createClient(
@@ -157,6 +160,7 @@ async function fetchRecentOrders(shopifyCustomerId) {
           edges { node {
             id createdAt cancelledAt
             customAttributes { key value }
+            fulfillments(first: 5) { deliveredAt }
             lineItems(first: 30) { edges { node {
               title quantity
               variant { ${VARIANT_FIELDS} }
@@ -174,7 +178,13 @@ async function fetchRecentOrders(shopifyCustomerId) {
     .map((o) => ({
       id: o.id.split("/").pop(),
       createdAt: o.createdAt,
+      // Primera entrega confirmada por la paquetería (si llegó en partes, la primera)
+      deliveredAt: (o.fulfillments ?? []).map((f) => f.deliveredAt).filter(Boolean).sort()[0] ?? null,
       shareCart: o.customAttributes?.find((a) => a.key === "share_cart")?.value ?? null,
+      // Parte enviada de una venta de consultorio: la receta está en local_orders
+      localOrderId: o.customAttributes?.find((a) => a.key === "local_order_id")?.value ?? null,
+      // Lo entregado en consultorio viene como línea libre (sin variante): se filtra aquí
+      // y entra por fetchLocalPurchases()
       items: o.lineItems.edges
         .map(({ node }) => node)
         .filter((li) => li.variant?.id)
@@ -188,6 +198,78 @@ async function fetchRecentOrders(shopifyCustomerId) {
     }));
 }
 
+// Metafields de varias variantes sueltas (para lo entregado en consultorio, que no
+// trae la variante en el pedido de Shopify)
+async function fetchVariantsMeta(variantIds) {
+  if (!variantIds.length) return {};
+  const data = await shopifyAdmin(
+    `query variantsMeta($ids: [ID!]!) {
+      nodes(ids: $ids) { ... on ProductVariant { ${VARIANT_FIELDS} product { title handle featuredImage { url } } } }
+    }`,
+    { ids: variantIds.map((id) => `gid://shopify/ProductVariant/${id}`) }
+  );
+  const out = {};
+  for (const n of data?.nodes ?? []) {
+    if (!n?.id) continue;
+    out[n.id.split("/").pop()] = { meta: variantMeta(n), title: n.product?.title ?? null, variantTitle: n.title ?? "" };
+  }
+  return out;
+}
+
+/**
+ * Productos que el paciente se llevó EN MANO en una venta de consultorio pagada.
+ * Esas ventas no generan línea con variante en Shopify (y nunca hay paquetería):
+ * se entregan al pagar, así que la fecha de pago es la de entrega.
+ * Se identifica al paciente por el correo verificado de su cuenta (patient_email
+ * lo pone él mismo en el checkout).
+ * Devuelve "órdenes" con la misma forma que fetchRecentOrders().
+ */
+async function fetchLocalPurchases(user) {
+  if (!user.email) return [];
+  const desde = new Date(Date.now() - CONSULTORIO_ULTIMOS_DIAS * 86400000).toISOString();
+  const { data: ventas, error } = await supabase
+    .from("local_orders")
+    .select("id, paid_at, sharecart_token, items")
+    .eq("estado", "pagado")
+    .ilike("patient_email", user.email.trim())
+    .gte("paid_at", desde)
+    .order("paid_at", { ascending: false });
+  if (error) {
+    console.error("[customerSupplements] local_orders:", error.message);
+    return [];
+  }
+  if (!ventas?.length) return [];
+
+  const vids = [...new Set(ventas.flatMap((v) => (v.items ?? []).filter((i) => unidadesEnMano(i) > 0).map((i) => String(i.variant_id))))];
+  const metaByVariant = await fetchVariantsMeta(vids).catch((err) => {
+    console.error("[customerSupplements] metafields de consultorio:", err.message);
+    return {};
+  });
+
+  return ventas
+    .map((v) => ({
+      id: `local_${v.id}`,
+      createdAt: v.paid_at,
+      deliveredAt: v.paid_at,
+      shareCart: v.sharecart_token ?? null,
+      local: true,
+      items: (v.items ?? [])
+        .map((i) => ({ i, mano: unidadesEnMano(i) }))
+        .filter(({ mano }) => mano > 0)
+        .map(({ i, mano }) => {
+          const m = metaByVariant[String(i.variant_id)] ?? {};
+          return {
+            variantId: String(i.variant_id),
+            title: m.title ?? i.title,
+            variantTitle: m.variantTitle ?? i.variant_title ?? "",
+            quantity: mano,
+            meta: m.meta ?? { image: i.image ?? null, unitsPerBottle: parseUnits(i.variant_title) },
+          };
+        }),
+    }))
+    .filter((o) => o.items.length);
+}
+
 // ── Dosis desde la receta (sharecart) ─────────────────────────────────────────
 // Dos formatos conviven:
 //   · protocolos del armador: extra.dosis_map[variantId] = { dosis_amount, dosis_unit, momentos[], instruccion }
@@ -196,8 +278,24 @@ async function fetchRecentOrders(shopifyCustomerId) {
 async function loadPrescriptions(orders) {
   const tokens = [...new Set(orders.map((o) => o.shareCart).filter(Boolean))];
 
+  // Parte enviada de una venta de consultorio: la receta es la de esa venta
+  const conVenta = orders.filter((o) => !o.shareCart && o.localOrderId);
+  if (conVenta.length) {
+    const { data } = await supabase
+      .from("local_orders")
+      .select("id, sharecart_token")
+      .in("id", conVenta.map((o) => o.localOrderId))
+      .not("sharecart_token", "is", null);
+    for (const row of data ?? []) {
+      for (const o of conVenta.filter((x) => String(x.localOrderId) === String(row.id))) {
+        o.shareCart = row.sharecart_token;
+        tokens.push(row.sharecart_token);
+      }
+    }
+  }
+
   // Respaldo: el webhook guarda share_cart en la tabla orders aunque el atributo no venga
-  const sinToken = orders.filter((o) => !o.shareCart).map((o) => Number(o.id));
+  const sinToken = orders.filter((o) => !o.shareCart && !o.local).map((o) => Number(o.id));
   if (sinToken.length) {
     const { data } = await supabase
       .from("orders")
@@ -285,7 +383,8 @@ function computeCycle(row, purchases, perBottle) {
   if (perBottle) {
     for (const p of purchases) {
       if (watermark && new Date(p.createdAt) <= new Date(watermark)) continue;
-      const pDate = mxDate(p.createdAt);
+      // Si ya se entregó, el ciclo nuevo cuenta desde la entrega (no desde la compra)
+      const pDate = mxDate(p.deliveredAt ?? p.createdAt);
       if (pDate > end) {
         // Se le había terminado: ciclo nuevo desde la compra
         start = pDate;
@@ -323,8 +422,12 @@ export async function buildStack(user, { persist = true } = {}) {
   const purchasesByVariant = {};
   const latestByVariant = {};
   const protocols = [];
-  if (user.shopify_customer_id) {
-    const orders = await fetchRecentOrders(user.shopify_customer_id);
+  const [shopifyOrders, localOrders] = await Promise.all([
+    user.shopify_customer_id ? fetchRecentOrders(user.shopify_customer_id) : [],
+    fetchLocalPurchases(user),
+  ]);
+  const orders = [...shopifyOrders, ...localOrders].sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
+  if (orders.length) {
     const { byToken: prescriptions, protocols: protocolCarts } = await loadPrescriptions(orders);
 
     // Recetas del armador que llegaron como pedido (más reciente primero): PDF descargable
@@ -345,13 +448,15 @@ export async function buildStack(user, { persist = true } = {}) {
       const rxByVariant = order.shareCart ? prescriptions[order.shareCart] ?? {} : {};
       for (const it of order.items) {
         (purchasesByVariant[it.variantId] ??= []).push({
-          orderId: order.id, createdAt: order.createdAt, quantity: it.quantity,
+          orderId: order.id, createdAt: order.createdAt, deliveredAt: order.deliveredAt ?? null, quantity: it.quantity,
         });
         const prev = latestByVariant[it.variantId];
         latestByVariant[it.variantId] = {
           ...it,
           orderId: order.id,
           orderDate: order.createdAt,
+          deliveredAt: order.deliveredAt ?? null,
+          local: !!order.local,
           // la receta más reciente que tenga dosis para esta variante
           rx: rxByVariant[it.variantId] ?? prev?.rx ?? null,
         };
@@ -364,7 +469,7 @@ export async function buildStack(user, { persist = true } = {}) {
   const variantIds = new Set([...Object.keys(trackingByVariant), ...Object.keys(latestByVariant)]);
 
   for (const vid of variantIds) {
-    const row = trackingByVariant[vid] ?? null;
+    let row = trackingByVariant[vid] ?? null;
     const latest = latestByVariant[vid] ?? null;
     const purchases = purchasesByVariant[vid] ?? [];
     const lastPurchase = purchases[purchases.length - 1] ?? null;
@@ -374,7 +479,7 @@ export async function buildStack(user, { persist = true } = {}) {
     const reboughtAfterRemoval = removed && lastPurchase && new Date(lastPurchase.createdAt) > new Date(row.updated_at);
     if (removed && !reboughtAfterRemoval) continue;
 
-    const tracked = row && row.active && row.start_date;
+    let tracked = row && row.active && row.start_date;
 
     // Sin seguimiento: solo sugerimos compras recientes
     if (!tracked && (!lastPurchase || diffDays(mxDate(lastPurchase.createdAt), today) > SUGERIR_COMPRAS_DE_LOS_ULTIMOS_DIAS)) {
@@ -408,9 +513,57 @@ export async function buildStack(user, { persist = true } = {}) {
       source: latest ? "order" : "manual",
     };
 
+    // Arranque automático: si ya le llegó (paquetería o entregado en consultorio) y la
+    // receta trae dosis, el seguimiento empieza solo el día de la entrega. Sin dosis de
+    // receta no adivinamos: queda "por configurar" con la fecha de entrega propuesta.
+    if (!tracked && persist) {
+      const perBottle = perBottleDays(rxUnitsPerDay, meta);
+      const deliveredAt = latest?.deliveredAt ?? null;
+      if (deliveredAt && rxUnitsPerDay && perBottle) {
+        const startDate = mxDate(deliveredAt);
+        const qty = lastPurchase?.quantity ?? 1;
+        const { data: started, error: startErr } = await supabase
+          .from("supplement_tracking")
+          .upsert(
+            {
+              user_id: user.id,
+              shopify_customer_id: user.shopify_customer_id ?? null,
+              shopify_variant_id: Number(vid),
+              product_title: latest.title ?? "",
+              variant_title: latest.variantTitle ?? "",
+              product_handle: meta.handle ?? null,
+              order_id: String(latest.orderId),
+              start_date: startDate,
+              daily_dose: rxUnitsPerDay,
+              duration_days: perBottle,
+              quantity: qty,
+              end_date: addDays(startDate, perBottle * qty),
+              last_order_at: lastPurchase?.createdAt ?? deliveredAt,
+              active: true,
+              source: latest.local ? "auto_consultorio" : "auto_entrega",
+              restock_notified_days: null,
+              restock_notified_at: null,
+              snoozed_until: null,
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: "user_id,shopify_variant_id" }
+          )
+          .select()
+          .single();
+        if (startErr) {
+          console.error(`[customerSupplements] arranque automático ${vid}:`, startErr.message);
+        } else {
+          row = started;
+          tracked = true;
+        }
+      }
+    }
+
     if (!tracked) {
       const perBottle = perBottleDays(dailyDose, meta);
       supplements.push({
+        // Ya entregado: proponemos esa fecha como inicio al configurar
+        suggestedStartDate: latest?.deliveredAt ? mxDate(latest.deliveredAt) : null,
         ...base,
         durationDays: perBottle ? perBottle * (lastPurchase?.quantity ?? 1) : null,
         perBottleDays: perBottle,

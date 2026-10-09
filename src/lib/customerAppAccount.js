@@ -8,7 +8,7 @@
 
 import crypto from "crypto";
 import { Resend } from "resend";
-import { supabase, shopifyAdmin } from "@/lib/customerSupplements";
+import { supabase, shopifyAdmin, buildStack } from "@/lib/customerSupplements";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const SECRET = process.env.SHOPIFY_TOKEN_SECRET;
@@ -140,4 +140,42 @@ export async function ensureShopifyLink(user) {
     .eq("user_id", user.id);
 
   return { ...user, ...fields };
+}
+
+// ── Venta de consultorio → app de clientes ────────────────────────────────────
+
+/**
+ * Al confirmarse el pago de una venta de consultorio: si el paciente tiene la app
+ * (mismo correo), recalcula su stack para que lo que se llevó en mano arranque ya,
+ * con la dosis del protocolo. No lanza: la venta no depende de esto.
+ */
+export async function syncClienteTrasVentaLocal(patientEmail) {
+  const email = normalizeEmail(patientEmail);
+  if (!email) return { ok: false, motivo: "sin correo" };
+  try {
+    const { data: user } = await supabase
+      .from("customer_app_users")
+      .select("id, email, first_name, last_name, phone, shopify_customer_id")
+      .eq("email", email)
+      .maybeSingle();
+    if (!user) return { ok: false, motivo: "el paciente no tiene la app" };
+    await buildStack(await ensureShopifyLink(user));
+    return { ok: true };
+  } catch (err) {
+    console.error("[app clientes] no se pudo sincronizar la venta local:", err.message);
+    return { ok: false, motivo: err.message };
+  }
+}
+
+/**
+ * Venta de consultorio reembolsada/cancelada: quita del stack lo que arrancó solo
+ * por esa venta (si el cliente lo había configurado a mano, se respeta).
+ */
+export async function quitarSeguimientoDeVentaLocal(ventaId) {
+  const { error } = await supabase
+    .from("supplement_tracking")
+    .update({ active: false, reminder_times: [], updated_at: new Date().toISOString() })
+    .eq("order_id", `local_${ventaId}`)
+    .eq("source", "auto_consultorio");
+  if (error) console.error("[app clientes] no se pudo quitar el seguimiento de la venta", ventaId, error.message);
 }
