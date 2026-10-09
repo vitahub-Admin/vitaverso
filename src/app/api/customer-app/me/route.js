@@ -1,7 +1,7 @@
 // GET /api/customer-app/me
 // Perfil del cliente + su especialista (metafield de cliente custom.referido → affiliates)
 import { NextResponse } from "next/server";
-import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
+import { verifyAppCustomerToken, unauthorized, signAppCustomerToken, shouldRenewAppToken } from "@/lib/customerAppAuth";
 import { supabase, shopifyAdmin, getAppUser } from "@/lib/customerSupplements";
 import { ensureShopifyLink } from "@/lib/customerAppAccount";
 
@@ -29,7 +29,7 @@ async function loadSpecialist(specialistShopifyId) {
   const [{ data: aff }, { data: booking }] = await Promise.all([
     supabase
       .from("affiliates")
-      .select("id, first_name, last_name, email, phone, profession, social_media")
+      .select("id, first_name, last_name, email, phone, profession, social_media, shopify_collection_id")
       .eq("shopify_customer_id", specialistShopifyId)
       .maybeSingle(),
     supabase
@@ -39,6 +39,22 @@ async function loadSpecialist(specialistShopifyId) {
       .maybeSingle(),
   ]);
   if (!aff) return null;
+
+  // Foto y tienda: la colección de Shopify del especialista (la misma de "Mi Tienda" en Vitahub Pro)
+  let collection = null;
+  if (aff.shopify_collection_id) {
+    try {
+      const data = await shopifyAdmin(
+        `query specialistCollection($id: ID!) {
+          collection(id: $id) { handle image { url } }
+        }`,
+        { id: `gid://shopify/Collection/${aff.shopify_collection_id}` }
+      );
+      collection = data?.collection ?? null;
+    } catch (err) {
+      console.error("customer-app/me colección del especialista:", err.message);
+    }
+  }
 
   const bookingActive = booking?.is_active && booking?.slug;
   return {
@@ -51,7 +67,8 @@ async function loadSpecialist(specialistShopifyId) {
     whatsappUrl: whatsappUrl(aff.phone),
     profession: booking?.specialty || aff.profession || null,
     bio: booking?.bio || null,
-    photoUrl: booking?.photo_url || null,
+    photoUrl: collection?.image?.url || booking?.photo_url || null,
+    storeUrl: collection?.handle ? `https://vitahub.mx/collections/${collection.handle}` : null,
     socialUrl: socialUrl(aff.social_media),
     bookingUrl: bookingActive ? `${PRO_URL}/book/${booking.slug}` : null,
   };
@@ -116,7 +133,12 @@ export async function GET(req) {
 
     const specialist = specialistShopifyId ? await loadSpecialist(specialistShopifyId) : null;
 
-    return NextResponse.json({ ok: true, customer, specialist });
+    // Sesión renovable: token nuevo cuando el actual ya pasó la mitad de su vida útil
+    const token = shouldRenewAppToken(payload)
+      ? signAppCustomerToken(appUser.id, appUser.email ?? payload.email, appUser.shopify_customer_id)
+      : undefined;
+
+    return NextResponse.json({ ok: true, customer, specialist, ...(token ? { token } : {}) });
   } catch (err) {
     console.error("customer-app/me error:", err);
     return NextResponse.json({ ok: false, error: "Error del servidor" }, { status: 500 });

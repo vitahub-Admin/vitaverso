@@ -34,6 +34,16 @@ export function verifyCustomerToken(req) {
 // Mismo secreto, pero con typ: "customer" para que no se pueda usar un token de
 // paciente en rutas de profesional (ni al revés).
 // payload: { typ: "customer", userId (customer_app_users.id), email, shopifyCustomerId|null }
+// Dura 90 días y se renueva sola: /me entrega uno nuevo cuando le quedan menos de 60
+// (o sea, si tiene más de 30 días). Mientras abra la app cada 3 meses, nunca pide código.
+export const APP_TOKEN_DAYS = 90;
+export const APP_TOKEN_RENEW_AFTER_DAYS = 30;
+
+export function shouldRenewAppToken(payload) {
+  if (!payload?.iat) return true;
+  return Date.now() / 1000 - payload.iat > APP_TOKEN_RENEW_AFTER_DAYS * 86400;
+}
+
 export function signAppCustomerToken(userId, email, shopifyCustomerId = null) {
   return jwt.sign(
     {
@@ -43,7 +53,7 @@ export function signAppCustomerToken(userId, email, shopifyCustomerId = null) {
       shopifyCustomerId: shopifyCustomerId ? String(shopifyCustomerId) : null,
     },
     SECRET,
-    { expiresIn: "30d" }
+    { expiresIn: `${APP_TOKEN_DAYS}d` }
   );
 }
 
