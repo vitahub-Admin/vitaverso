@@ -1,109 +1,159 @@
-// Chequea supplement_tracking y manda push cuando quedan 5 o 3 días
-import { createClient } from "@supabase/supabase-js";
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY
-);
+// Avisos push de "se te está acabando" para la app de clientes.
+// Corre una vez al día (/api/crons/customer-restock).
+//
+// Reglas:
+//   · Umbrales: quedan 7 días (tiempo para que llegue el envío), 3 días y se terminó (0).
+//   · Un solo push por umbral: supplement_tracking.restock_notified_days guarda el último enviado.
+//   · Si el cliente pospuso (snoozed_until), se calla hasta esa fecha y ese día recibe un recordatorio.
+//   · Antes de avisar se recalcula el stack con buildStack(): si ya recompró, el fin se movió
+//     y no se avisa.
+import { supabase, buildStack, mxDate, addDays } from "@/lib/customerSupplements";
 
 const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
-const STORE_URL = "https://vitahub.mx/products";
+const UMBRALES = [7, 3, 0];
 
-function daysRemaining(startDate, durationDays) {
-  if (!startDate || !durationDays) return null;
-  const elapsed = Math.floor((Date.now() - new Date(startDate)) / (1000 * 60 * 60 * 24));
-  return Math.max(0, durationDays - elapsed);
+function bucketFor(daysRemaining) {
+  if (daysRemaining == null) return null;
+  return [...UMBRALES].reverse().find((u) => daysRemaining <= u) ?? null; // 0, 3 o 7
 }
 
-/**
- * Datos del aviso, con la misma forma que usan los recordatorios locales de la
- * app de clientes. La app decide qué hacer al tocarlo mirando `productHandle`
- * (abre /restock-detail); con solo `url`, tocar un aviso enviado desde el
- * servidor no hacía nada.
- */
-function restockData(row) {
+function mensaje(bucket, item, esRecordatorio) {
+  const nombre = item.productTitle.split("|")[0].trim();
+  if (esRecordatorio) {
+    return {
+      title: "¿Ya reabasteciste tu suplemento?",
+      body: `Te recordamos tu ${nombre}. Pídelo para no interrumpir tu protocolo.`,
+    };
+  }
+  if (bucket === 0) {
+    return {
+      title: "Se terminó tu suplemento",
+      body: `Tu ${nombre} ya se terminó. Pídelo de nuevo para continuar tu protocolo.`,
+    };
+  }
+  if (bucket === 3) {
+    return {
+      title: "Te quedan 3 días",
+      body: `Tu ${nombre} está por terminarse. Pídelo hoy para no quedarte sin él.`,
+    };
+  }
   return {
-    url: row.product_handle ? `${STORE_URL}/${row.product_handle}` : STORE_URL,
-    productHandle: row.product_handle ?? null,
-    productTitle:  row.product_title ?? null,
+    title: "Te queda una semana de suplemento",
+    body: `Tu ${nombre} se termina en unos 7 días. Pídelo ahora y te llega a tiempo.`,
   };
 }
 
-async function sendPush(tokens, title, body, data) {
-  if (!tokens.length) return;
-  const messages = tokens.map((token) => ({
-    to: token,
-    title,
-    body,
-    data,
-    sound: "default",
-  }));
-
-  await fetch(EXPO_PUSH_URL, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(messages),
-  });
+async function sendExpo(messages) {
+  const tickets = [];
+  for (let i = 0; i < messages.length; i += 100) {
+    const res = await fetch(EXPO_PUSH_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: JSON.stringify(messages.slice(i, i + 100)),
+    });
+    const json = await res.json().catch(() => ({}));
+    tickets.push(...(json.data ?? messages.slice(i, i + 100).map(() => ({ status: "error" }))));
+  }
+  return tickets;
 }
 
 export async function sendRestockNotifications() {
-  // Traer todos los trackings activos con start_date y duration_days
+  const today = mxDate();
+
+  // Candidatos: activos que terminan en la próxima semana (o terminaron ayer/hoy),
+  // o cuyo aviso pospuesto vence hoy
   const { data: rows, error } = await supabase
     .from("supplement_tracking")
-    .select("shopify_customer_id, product_title, product_handle, start_date, duration_days")
-    .not("start_date", "is", null)
-    .not("duration_days", "is", null);
-
+    .select("user_id")
+    .eq("active", true)
+    .or(
+      `and(end_date.gte.${addDays(today, -1)},end_date.lte.${addDays(today, Math.max(...UMBRALES))}),` +
+      `snoozed_until.lte.${today}`
+    );
   if (error) throw new Error(error.message);
 
-  // Agrupar por días restantes
-  const at5 = [];
-  const at3 = [];
+  const userIds = [...new Set((rows ?? []).map((r) => r.user_id))];
+  if (!userIds.length) return { candidatos: 0, enviados: 0 };
 
-  for (const row of rows ?? []) {
-    const days = daysRemaining(row.start_date, row.duration_days);
-    if (days === 5) at5.push(row);
-    else if (days === 3) at3.push(row);
-  }
-
-  if (!at5.length && !at3.length) return { sent: 0 };
-
-  // Obtener push tokens de los clientes afectados
-  const customerIds = [...new Set([...at5, ...at3].map((r) => r.shopify_customer_id))];
   const { data: users } = await supabase
     .from("customer_app_users")
-    .select("shopify_customer_id, push_token")
-    .in("shopify_customer_id", customerIds)
+    .select("id, shopify_customer_id, push_token")
+    .in("id", userIds)
     .not("push_token", "is", null);
 
-  const tokenByCustomer = {};
-  for (const u of users ?? []) {
-    tokenByCustomer[u.shopify_customer_id] = u.push_token;
+  const messages = [];
+  const marks = []; // { trackingId, bucket, clearSnooze, userId }
+
+  for (const user of users ?? []) {
+    let stack;
+    try {
+      ({ supplements: stack } = await buildStack(user));
+    } catch (err) {
+      console.error(`[restock] no se pudo recalcular el stack de ${user.id}:`, err.message);
+      continue;
+    }
+
+    for (const item of stack) {
+      if (item.needsOnboarding || !item.trackingId || item.daysRemaining == null) continue;
+
+      const snoozed = item.snoozedUntil && item.snoozedUntil > today;
+      if (snoozed) continue;
+      const esRecordatorio = !!item.snoozedUntil && item.snoozedUntil <= today;
+
+      const bucket = bucketFor(item.daysRemaining);
+      if (bucket == null && !esRecordatorio) continue;
+
+      // Ya avisamos este umbral (o uno más urgente)
+      const yaAvisado = item.restockNotifiedDays != null && bucket != null && item.restockNotifiedDays <= bucket;
+      if (yaAvisado && !esRecordatorio) continue;
+      // Terminó hace más de un día y ya le avisamos que se terminó: no insistir
+      if (item.daysRemaining === 0 && item.endDate < addDays(today, -1) && !esRecordatorio) continue;
+
+      const { title, body } = mensaje(bucket, item, esRecordatorio);
+      messages.push({
+        to: user.push_token,
+        title,
+        body,
+        sound: "default",
+        channelId: "default",
+        data: {
+          type: "restock",
+          variantId: item.variantId,
+          productTitle: item.productTitle,
+          productHandle: item.productHandle,
+          url: item.buyUrl,
+        },
+      });
+      marks.push({ trackingId: item.trackingId, bucket: bucket ?? item.restockNotifiedDays, clearSnooze: esRecordatorio, userId: user.id });
+    }
   }
 
-  let sent = 0;
+  if (!messages.length) return { candidatos: userIds.length, enviados: 0 };
 
-  for (const row of at5) {
-    const token = tokenByCustomer[row.shopify_customer_id];
-    if (!token) continue;
-    await sendPush([token],
-      "Te quedan 5 días de suplemento",
-      `Tu ${row.product_title} se acaba pronto. ¡Reabastécete!`,
-      restockData(row)
-    );
-    sent++;
+  const tickets = await sendExpo(messages);
+  let enviados = 0;
+  const tokensMuertos = new Set();
+
+  await Promise.all(
+    marks.map((m, i) => {
+      const t = tickets[i];
+      if (t?.status === "ok") enviados++;
+      if (t?.details?.error === "DeviceNotRegistered") tokensMuertos.add(m.userId);
+      // Marcamos aunque falle para no reintentar cada día con un token roto
+      return supabase
+        .from("supplement_tracking")
+        .update({
+          restock_notified_days: m.bucket,
+          restock_notified_at: new Date().toISOString(),
+          ...(m.clearSnooze ? { snoozed_until: null } : {}),
+        })
+        .eq("id", m.trackingId);
+    })
+  );
+
+  if (tokensMuertos.size) {
+    await supabase.from("customer_app_users").update({ push_token: null }).in("id", [...tokensMuertos]);
   }
 
-  for (const row of at3) {
-    const token = tokenByCustomer[row.shopify_customer_id];
-    if (!token) continue;
-    await sendPush([token],
-      "Te quedan solo 3 días",
-      `Tu ${row.product_title} está por terminarse. Compra antes de que se agote.`,
-      restockData(row)
-    );
-    sent++;
-  }
-
-  return { sent, at5: at5.length, at3: at3.length };
+  return { candidatos: userIds.length, mensajes: messages.length, enviados, tokensBorrados: tokensMuertos.size };
 }

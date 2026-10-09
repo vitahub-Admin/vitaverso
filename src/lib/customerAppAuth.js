@@ -12,7 +12,7 @@ export function signCustomerToken(userId, email, shopifyCustomerId = null) {
   );
 }
 
-export function verifyCustomerToken(req) {
+function decodeBearer(req) {
   const authHeader = req.headers.get("authorization") ?? "";
   if (!authHeader.startsWith("Bearer ")) return null;
   const token = authHeader.slice(7);
@@ -21,6 +21,36 @@ export function verifyCustomerToken(req) {
   } catch {
     return null;
   }
+}
+
+// Token de profesionales (app Vitahub Pro / web). Rechaza los de la app de clientes.
+export function verifyCustomerToken(req) {
+  const decoded = decodeBearer(req);
+  if (!decoded || decoded.typ === "customer") return null;
+  return decoded;
+}
+
+// ── App de clientes ───────────────────────────────────────────────────────────
+// Mismo secreto, pero con typ: "customer" para que no se pueda usar un token de
+// paciente en rutas de profesional (ni al revés).
+// payload: { typ: "customer", userId (customer_app_users.id), email, shopifyCustomerId|null }
+export function signAppCustomerToken(userId, email, shopifyCustomerId = null) {
+  return jwt.sign(
+    {
+      typ: "customer",
+      userId: String(userId),
+      email,
+      shopifyCustomerId: shopifyCustomerId ? String(shopifyCustomerId) : null,
+    },
+    SECRET,
+    { expiresIn: "30d" }
+  );
+}
+
+export function verifyAppCustomerToken(req) {
+  const decoded = decodeBearer(req);
+  if (!decoded || decoded.typ !== "customer" || !decoded.userId) return null;
+  return decoded;
 }
 
 export function unauthorized() {

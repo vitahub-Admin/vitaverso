@@ -2,7 +2,7 @@
 // Login nativo de la app via Supabase Auth
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { signCustomerToken } from "@/lib/customerAppAuth";
+import { signAppCustomerToken } from "@/lib/customerAppAuth";
 
 // Cliente con anon key para signInWithPassword
 const supabaseAuth = createClient(
@@ -57,7 +57,7 @@ export async function POST(req) {
       .update({ last_login_at: new Date().toISOString(), platform: platform ?? null })
       .eq("id", userData.id);
 
-    const token = signCustomerToken(userData.id, userData.email, userData.shopify_customer_id);
+    const token = signAppCustomerToken(userData.id, userData.email, userData.shopify_customer_id);
 
     return NextResponse.json({
       ok: true,

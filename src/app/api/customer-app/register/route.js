@@ -2,7 +2,7 @@
 // Crea cuenta nativa de la app (independiente de Shopify)
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { signCustomerToken } from "@/lib/customerAppAuth";
+import { signAppCustomerToken } from "@/lib/customerAppAuth";
 
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -64,7 +64,7 @@ export async function POST(req) {
       return NextResponse.json({ ok: false, error: "Error al crear la cuenta" }, { status: 500 });
     }
 
-    const token = signCustomerToken(userData.id, email.trim().toLowerCase());
+    const token = signAppCustomerToken(userData.id, email.trim().toLowerCase());
 
     return NextResponse.json({
       ok: true,

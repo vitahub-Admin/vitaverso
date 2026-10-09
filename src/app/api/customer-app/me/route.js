@@ -1,107 +1,116 @@
 // GET /api/customer-app/me
-// Perfil del cliente + info del especialista vinculado via metafield "referido"
+// Perfil del cliente + su especialista (metafield de cliente custom.referido → affiliates)
 import { NextResponse } from "next/server";
-import { verifyCustomerToken, unauthorized } from "@/lib/customerAppAuth";
-import { createClient } from "@supabase/supabase-js";
+import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
+import { supabase, shopifyAdmin, getAppUser } from "@/lib/customerSupplements";
 
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
-const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+const PRO_URL = "https://pro.vitahub.mx";
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY
-);
+// wa.me necesita solo dígitos con código de país; los números de 10 dígitos son de México
+function whatsappUrl(phone) {
+  const digits = String(phone ?? "").replace(/\D/g, "");
+  if (digits.length < 10) return null;
+  const full = digits.length === 10 ? `52${digits}` : digits;
+  return `https://wa.me/${full}`;
+}
+
+// social_media a veces es "@usuario" o un dominio sin protocolo
+function socialUrl(value) {
+  const v = String(value ?? "").trim();
+  if (!v) return null;
+  if (/^https?:\/\//i.test(v)) return v;
+  if (v.startsWith("@")) return `https://instagram.com/${v.slice(1)}`;
+  if (/^[\w.-]+\.[a-z]{2,}(\/.*)?$/i.test(v)) return `https://${v}`;
+  return null;
+}
+
+async function loadSpecialist(specialistShopifyId) {
+  const [{ data: aff }, { data: booking }] = await Promise.all([
+    supabase
+      .from("affiliates")
+      .select("id, first_name, last_name, email, phone, profession, social_media")
+      .eq("shopify_customer_id", specialistShopifyId)
+      .maybeSingle(),
+    supabase
+      .from("booking_affiliates")
+      .select("slug, display_name, photo_url, bio, specialty, is_active")
+      .eq("shopify_customer_id", specialistShopifyId)
+      .maybeSingle(),
+  ]);
+  if (!aff) return null;
+
+  const bookingActive = booking?.is_active && booking?.slug;
+  return {
+    id: aff.id,
+    firstName: aff.first_name,
+    lastName: aff.last_name,
+    displayName: booking?.display_name || [aff.first_name, aff.last_name].filter(Boolean).join(" "),
+    email: aff.email || null,
+    phone: aff.phone || null,
+    whatsappUrl: whatsappUrl(aff.phone),
+    profession: booking?.specialty || aff.profession || null,
+    bio: booking?.bio || null,
+    photoUrl: booking?.photo_url || null,
+    socialUrl: socialUrl(aff.social_media),
+    bookingUrl: bookingActive ? `${PRO_URL}/book/${booking.slug}` : null,
+  };
+}
 
 export async function GET(req) {
-  const payload = verifyCustomerToken(req);
+  const payload = verifyAppCustomerToken(req);
   if (!payload) return unauthorized();
 
-  const { userId, email, shopifyCustomerId } = payload;
-
   try {
-    // 1. Datos base desde customer_app_users
-    const { data: appUser } = await supabase
-      .from("customer_app_users")
-      .select("id, first_name, last_name, email, phone, shopify_customer_id")
-      .eq("id", userId)
-      .maybeSingle();
+    const appUser = await getAppUser(payload.userId);
+    if (!appUser) return unauthorized();
 
     let customer = {
-      id: userId,
-      firstName: appUser?.first_name ?? null,
-      lastName: appUser?.last_name ?? null,
-      email: appUser?.email ?? email,
-      phone: appUser?.phone ?? null,
-      shopifyLinked: !!shopifyCustomerId,
+      id: appUser.id,
+      firstName: appUser.first_name ?? null,
+      lastName: appUser.last_name ?? null,
+      email: appUser.email ?? payload.email,
+      phone: appUser.phone ?? null,
+      shopifyLinked: !!appUser.shopify_customer_id,
     };
 
-    let specialist = null;
+    let specialistShopifyId = appUser.specialist_shopify_id ?? null;
 
-    // 2. Si tiene cuenta Shopify linkeada, enriquecemos con datos de Shopify
-    if (shopifyCustomerId) {
-      const gid = `gid://shopify/Customer/${shopifyCustomerId}`;
-      const res = await fetch(
-        `https://${SHOPIFY_STORE}/admin/api/2024-04/graphql.json`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-          },
-          body: JSON.stringify({
-            query: `query getCustomerMe($id: ID!) {
-              customer(id: $id) {
-                firstName lastName email phone
-                referido: metafield(namespace: "custom", key: "referido") { value }
-              }
-            }`,
-            variables: { id: gid },
-          }),
-        }
-      );
-
-      const data = await res.json();
-      const shopifyCustomer = data?.data?.customer;
-
-      if (shopifyCustomer) {
-        customer = {
-          ...customer,
-          firstName: shopifyCustomer.firstName,
-          lastName: shopifyCustomer.lastName,
-          email: shopifyCustomer.email,
-          phone: shopifyCustomer.phone,
-        };
-
-        const specialistRef = shopifyCustomer.referido?.value;
-        if (specialistRef) {
-          const specialistShopifyId = Number(specialistRef);
-
-          // Persistir specialist_shopify_id en customer_app_users
-          await supabase
-            .from("customer_app_users")
-            .update({ specialist_shopify_id: specialistShopifyId })
-            .eq("id", userId);
-
-          const { data: affiliateData } = await supabase
-            .from("affiliates")
-            .select("id, first_name, last_name, email, phone, profession, social_media")
-            .eq("shopify_customer_id", specialistShopifyId)
-            .maybeSingle();
-
-          if (affiliateData) {
-            specialist = {
-              id: affiliateData.id,
-              firstName: affiliateData.first_name,
-              lastName: affiliateData.last_name,
-              email: affiliateData.email,
-              phone: affiliateData.phone,
-              profession: affiliateData.profession,
-              socialMedia: affiliateData.social_media,
-            };
+    if (appUser.shopify_customer_id) {
+      try {
+        const data = await shopifyAdmin(
+          `query customerMe($id: ID!) {
+            customer(id: $id) {
+              firstName lastName email phone
+              referido: metafield(namespace: "custom", key: "referido") { value }
+            }
+          }`,
+          { id: `gid://shopify/Customer/${appUser.shopify_customer_id}` }
+        );
+        const sc = data?.customer;
+        if (sc) {
+          customer = {
+            ...customer,
+            firstName: sc.firstName ?? customer.firstName,
+            lastName: sc.lastName ?? customer.lastName,
+            email: sc.email ?? customer.email,
+            phone: sc.phone ?? customer.phone,
+          };
+          const ref = Number(sc.referido?.value);
+          if (ref && ref !== Number(appUser.specialist_shopify_id)) {
+            specialistShopifyId = ref;
+            await supabase
+              .from("customer_app_users")
+              .update({ specialist_shopify_id: ref })
+              .eq("id", appUser.id);
           }
         }
+      } catch (err) {
+        // Si Shopify falla seguimos con lo guardado en Supabase
+        console.error("customer-app/me shopify error:", err.message);
       }
     }
+
+    const specialist = specialistShopifyId ? await loadSpecialist(specialistShopifyId) : null;
 
     return NextResponse.json({ ok: true, customer, specialist });
   } catch (err) {

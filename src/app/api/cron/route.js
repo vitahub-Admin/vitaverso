@@ -4,7 +4,6 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { syncCalendarEvents, syncCalendlyInvitees } from '@/app/services/googleCalendarService';
 import { syncInviteesMatch } from '@/lib/syncInviteesMatch';
-import { sendRestockNotifications } from '@/lib/restockNotifications';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -132,13 +131,7 @@ export async function GET(req) {
     results.inviteesMatch = { error: err.message };
   }
 
-  // ── Restock notifications ──────────────────────────
-  try {
-    results.restockNotifications = await sendRestockNotifications();
-  } catch (err) {
-    console.error('❌ Restock notifications failed:', err);
-    results.restockNotifications = { error: err.message };
-  }
+  // Restock de la app de clientes: corre una vez al día en /api/crons/customer-restock
 
   // ── Sync comisiones de variantes ───────────────────
   try {

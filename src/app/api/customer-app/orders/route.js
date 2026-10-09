@@ -1,100 +1,96 @@
 // GET /api/customer-app/orders
-// Últimas órdenes del cliente con productos e imágenes
+// Últimas órdenes del cliente con productos, estado de pago y de envío (guías de paquetería)
 import { NextResponse } from "next/server";
-import { verifyCustomerToken, unauthorized } from "@/lib/customerAppAuth";
+import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
+import { shopifyAdmin, buyUrl } from "@/lib/customerSupplements";
 
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
-const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
+// Estado de envío que ve el cliente, del más avanzado al menos
+function shippingStatus(order) {
+  if (order.cancelledAt) return "cancelled";
+  const states = (order.fulfillments ?? [])
+    .map((f) => f.displayStatus)
+    .filter((s) => s && s !== "CANCELED");
+  if (!states.length) return order.displayFinancialStatus === "PENDING" ? "pending_payment" : "preparing";
+  if (states.every((s) => s === "DELIVERED")) return "delivered";
+  if (states.includes("OUT_FOR_DELIVERY")) return "out_for_delivery";
+  if (states.includes("FAILURE")) return "problem";
+  return "shipped";
+}
 
 export async function GET(req) {
-  const payload = verifyCustomerToken(req);
+  const payload = verifyAppCustomerToken(req);
   if (!payload) return unauthorized();
 
-  const { customerId } = payload;
-  const gid = `gid://shopify/Customer/${customerId}`;
+  const { shopifyCustomerId } = payload;
+  // Cuenta sin Shopify vinculado: no tiene órdenes
+  if (!shopifyCustomerId) return NextResponse.json({ ok: true, orders: [] });
 
   try {
-    const res = await fetch(
-      `https://${SHOPIFY_STORE}/admin/api/2024-04/graphql.json`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-        },
-        body: JSON.stringify({
-          query: `query getCustomerOrders($id: ID!) {
-            customer(id: $id) {
-              orders(first: 10, sortKey: CREATED_AT, reverse: true) {
-                edges {
-                  node {
-                    id
-                    name
-                    createdAt
-                    financialStatus
-                    totalPriceSet {
-                      shopMoney { amount currencyCode }
-                    }
-                    noteAttributes {
-                      name
-                      value
-                    }
-                    lineItems(first: 20) {
-                      edges {
-                        node {
-                          title
-                          quantity
-                          variant {
-                            id
-                            title
-                            price { amount currencyCode }
-                            image { url altText }
-                          }
-                        }
-                      }
-                    }
-                  }
-                }
+    const data = await shopifyAdmin(
+      `query customerOrders($id: ID!) {
+        customer(id: $id) {
+          orders(first: 15, sortKey: CREATED_AT, reverse: true) {
+            edges { node {
+              id name createdAt cancelledAt
+              displayFinancialStatus displayFulfillmentStatus
+              totalPriceSet { shopMoney { amount currencyCode } }
+              fulfillments(first: 5) {
+                displayStatus createdAt inTransitAt deliveredAt estimatedDeliveryAt
+                trackingInfo(first: 3) { company number url }
               }
-            }
-          }`,
-          variables: { id: gid },
-        }),
-      }
+              lineItems(first: 30) { edges { node {
+                title quantity
+                image { url }
+                originalUnitPriceSet { shopMoney { amount } }
+                variant { id title product { handle } }
+              } } }
+            } }
+          }
+        }
+      }`,
+      { id: `gid://shopify/Customer/${shopifyCustomerId}` }
     );
 
-    const data = await res.json();
-    const rawOrders = data?.data?.customer?.orders?.edges ?? [];
-
-    const orders = rawOrders.map(({ node }) => {
-      const sharecartToken = node.noteAttributes
-        ?.find((a) => a.name === "shared-cart-id")?.value ?? null;
+    const orders = (data?.customer?.orders?.edges ?? []).map(({ node }) => {
+      const tracking = (node.fulfillments ?? []).flatMap((f) =>
+        (f.trackingInfo ?? [])
+          .filter((t) => t.number || t.url)
+          .map((t) => ({ company: t.company ?? null, number: t.number ?? null, url: t.url ?? null }))
+      );
+      const lastFulfillment = (node.fulfillments ?? [])[0] ?? null;
 
       return {
         id: node.id.split("/").pop(),
         name: node.name,
         createdAt: node.createdAt,
-        financialStatus: node.financialStatus,
-        total: node.totalPriceSet?.shopMoney?.amount,
-        currency: node.totalPriceSet?.shopMoney?.currencyCode,
-        sharecartToken,
-        lineItems: node.lineItems.edges.map(({ node: item }) => ({
-          title: item.title,
-          variantId: item.variant?.id?.split("/").pop() ?? null,
-          variantTitle: item.variant?.title ?? "",
-          quantity: item.quantity,
-          price: item.variant?.price?.amount,
-          image: item.variant?.image?.url ?? null,
-        })),
+        financialStatus: (node.displayFinancialStatus ?? "").toLowerCase(),
+        fulfillmentStatus: (node.displayFulfillmentStatus ?? "").toLowerCase(),
+        shippingStatus: shippingStatus(node),
+        shippedAt: lastFulfillment?.inTransitAt ?? lastFulfillment?.createdAt ?? null,
+        deliveredAt: lastFulfillment?.deliveredAt ?? null,
+        estimatedDeliveryAt: lastFulfillment?.estimatedDeliveryAt ?? null,
+        tracking,
+        total: node.totalPriceSet?.shopMoney?.amount ?? null,
+        currency: node.totalPriceSet?.shopMoney?.currencyCode ?? "MXN",
+        lineItems: node.lineItems.edges.map(({ node: item }) => {
+          const handle = item.variant?.product?.handle ?? null;
+          return {
+            title: item.title,
+            variantId: item.variant?.id?.split("/").pop() ?? null,
+            variantTitle: item.variant?.title ?? "",
+            quantity: item.quantity,
+            price: item.originalUnitPriceSet?.shopMoney?.amount ?? null,
+            image: item.image?.url ?? null,
+            productHandle: handle,
+            buyUrl: handle ? buyUrl(handle) : null,
+          };
+        }),
       };
     });
 
     return NextResponse.json({ ok: true, orders });
   } catch (err) {
     console.error("customer-app/orders error:", err);
-    return NextResponse.json(
-      { ok: false, error: "Error del servidor" },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, error: "No se pudieron cargar tus pedidos" }, { status: 500 });
   }
 }

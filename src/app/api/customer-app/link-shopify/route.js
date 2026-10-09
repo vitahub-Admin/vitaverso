@@ -2,7 +2,7 @@
 // Linkea una cuenta de Shopify a la cuenta nativa de la app
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { verifyCustomerToken, unauthorized, signCustomerToken } from "@/lib/customerAppAuth";
+import { verifyAppCustomerToken, unauthorized, signAppCustomerToken } from "@/lib/customerAppAuth";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const STOREFRONT_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN;
@@ -13,7 +13,7 @@ const supabase = createClient(
 );
 
 export async function POST(req) {
-  const payload = verifyCustomerToken(req);
+  const payload = verifyAppCustomerToken(req);
   if (!payload) return unauthorized();
 
   const { userId, email } = payload;
@@ -74,7 +74,8 @@ export async function POST(req) {
           "X-Shopify-Storefront-Access-Token": STOREFRONT_TOKEN,
         },
         body: JSON.stringify({
-          query: `query { customer(customerAccessToken: "${shopifyToken}") { id firstName lastName email phone } }`,
+          query: `query getCustomer($token: String!) { customer(customerAccessToken: $token) { id firstName lastName email phone } }`,
+          variables: { token: shopifyToken },
         }),
       }
     );
@@ -102,6 +103,11 @@ export async function POST(req) {
     }
 
     // 4. Linkear: actualizar customer_app_users con los datos de Shopify
+    //    y pasar sus suplementos al nuevo id de Shopify
+    await supabase
+      .from("supplement_tracking")
+      .update({ shopify_customer_id: shopifyCustomerId })
+      .eq("user_id", userId);
     await supabase
       .from("customer_app_users")
       .update({
@@ -113,7 +119,7 @@ export async function POST(req) {
       .eq("id", userId);
 
     // 5. Emitir nuevo JWT con shopifyCustomerId incluido
-    const newToken = signCustomerToken(userId, email, shopifyCustomerId);
+    const newToken = signAppCustomerToken(userId, email, shopifyCustomerId);
 
     return NextResponse.json({
       ok: true,

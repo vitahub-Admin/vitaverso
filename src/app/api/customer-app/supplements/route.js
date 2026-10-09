@@ -1,226 +1,155 @@
-// GET /api/customer-app/supplements
-// Stack de suplementos: cruza orden + sharecart + metafields + tracking manual
+// /api/customer-app/supplements
+//   GET    → stack del cliente (órdenes + receta + seguimiento). Ver src/lib/customerSupplements.js
+//   PATCH  → configurar / editar un suplemento, horarios de recordatorio o posponer el aviso de restock
+//   DELETE → ?variantId=  quitar del stack (baja lógica: active = false)
 import { NextResponse } from "next/server";
-import { verifyCustomerToken, unauthorized } from "@/lib/customerAppAuth";
-import { createClient } from "@supabase/supabase-js";
+import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
+import { supabase, buildStack, getAppUser, mxDate, addDays } from "@/lib/customerSupplements";
 
-const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
-const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
-
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SECRET_KEY
-);
-
-function parseCapsuleCount(variantTitle) {
-  const match = variantTitle?.match(/(\d+)\s*(cápsulas?|caps?|ml|comprimidos?|gummies?|softgels?|tabletas?)/i);
-  return match ? parseInt(match[1]) : null;
-}
-
-async function shopifyAdmin(query, variables = {}) {
-  const res = await fetch(`https://${SHOPIFY_STORE}/admin/api/2024-04/graphql.json`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-Shopify-Access-Token": SHOPIFY_ACCESS_TOKEN,
-    },
-    body: JSON.stringify({ query, variables }),
-  });
-  return res.json();
-}
-
-function buildSupplementEntry({ variantId, title, variantTitle, orderId, orderDate, sharecartDose, tracking, metafieldDuration }) {
-  const dailyDose = tracking?.daily_dose
-    ?? (sharecartDose?.dosis ? parseFloat(sharecartDose.dosis) : null);
-
-  const capsuleCount = parseCapsuleCount(variantTitle);
-  const calculatedDuration = dailyDose && capsuleCount ? Math.floor(capsuleCount / dailyDose) : null;
-  const durationDays = tracking?.duration_days ?? metafieldDuration ?? calculatedDuration ?? null;
-
-  const startDate = tracking?.start_date ?? null;
-  let daysRemaining = null;
-  if (startDate && durationDays) {
-    const elapsed = Math.floor((Date.now() - new Date(startDate)) / (1000 * 60 * 60 * 24));
-    daysRemaining = Math.max(0, durationDays - elapsed);
-  }
-
-  return {
-    variantId,
-    productTitle: title,
-    variantTitle,
-    orderId,
-    orderDate,
-    dailyDose,
-    momentos: sharecartDose?.momentos ?? null,
-    durationDays,
-    startDate,
-    daysRemaining,
-    needsOnboarding: !startDate,
-    takenToday: false,
-  };
-}
+const HORA = /^([01]\d|2[0-3]):[0-5]\d$/;
+const FECHA = /^\d{4}-\d{2}-\d{2}$/;
 
 export async function GET(req) {
-  const payload = verifyCustomerToken(req);
+  const payload = verifyAppCustomerToken(req);
   if (!payload) return unauthorized();
 
-  const { shopifyCustomerId, userId } = payload;
-  const numericCustomerId = Number(shopifyCustomerId);
-
   try {
-    // Siempre traemos el tracking guardado de este cliente
-    const { data: trackingRows } = await supabase
-      .from("supplement_tracking")
-      .select("*")
-      .eq("shopify_customer_id", numericCustomerId);
+    const user = await getAppUser(payload.userId);
+    if (!user) return unauthorized();
 
-    const trackingByVariant = {};
-    for (const row of trackingRows ?? []) {
-      const key = String(row.shopify_variant_id);
-      // Quedarse con el tracking más reciente por variante
-      if (!trackingByVariant[key] || row.updated_at > trackingByVariant[key].updated_at) {
-        trackingByVariant[key] = row;
-      }
-    }
-
-    const supplements = [];
-    const variantIdsSeen = new Set();
-
-    // 1. Suplementos desde órdenes de Shopify (solo si tiene shopifyCustomerId)
-    if (shopifyCustomerId) {
-      const gid = `gid://shopify/Customer/${shopifyCustomerId}`;
-      const ordersData = await shopifyAdmin(
-        `query getOrders($id: ID!) {
-          customer(id: $id) {
-            orders(first: 5, sortKey: CREATED_AT, reverse: true) {
-              edges {
-                node {
-                  id createdAt
-                  noteAttributes { name value }
-                  lineItems(first: 20) {
-                    edges {
-                      node {
-                        title
-                        variant {
-                          id title
-                          duracion: metafield(namespace: "custom", key: "duraci_n_del_producto") { value }
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            }
-          }
-        }`,
-        { id: gid }
-      );
-
-      const orders = ordersData?.data?.customer?.orders?.edges ?? [];
-
-      if (orders.length > 0) {
-        const latestOrder = orders[0].node;
-        const orderId = latestOrder.id.split("/").pop();
-        const sharecartToken = latestOrder.noteAttributes?.find((a) => a.name === "shared-cart-id")?.value ?? null;
-
-        let doseByVariantId = {};
-        if (sharecartToken) {
-          const { data: cart } = await supabase
-            .from("sharecarts")
-            .select("extra")
-            .eq("token", sharecartToken)
-            .maybeSingle();
-
-          if (cart?.extra?.products_detail) {
-            for (const p of cart.extra.products_detail) {
-              doseByVariantId[String(p.variant_id)] = {
-                dosis: p.custom_fields?.dosis ?? null,
-                momentos: p.custom_fields?.momentos ?? null,
-              };
-            }
-          }
-        }
-
-        for (const { node: item } of latestOrder.lineItems.edges) {
-          const variantId = item.variant?.id?.split("/").pop() ?? null;
-          if (!variantId) continue;
-          variantIdsSeen.add(variantId);
-
-          supplements.push(buildSupplementEntry({
-            variantId,
-            title: item.title,
-            variantTitle: item.variant?.title ?? "",
-            orderId,
-            orderDate: latestOrder.createdAt,
-            sharecartDose: doseByVariantId[variantId] ?? null,
-            tracking: trackingByVariant[variantId] ?? null,
-            metafieldDuration: item.variant?.duracion?.value ? parseInt(item.variant.duracion.value) : null,
-          }));
-        }
-      }
-    }
-
-    // 2. Suplementos agregados manualmente (order_id = 'manual') no presentes en órdenes
-    for (const row of trackingRows ?? []) {
-      const vid = String(row.shopify_variant_id);
-      if (variantIdsSeen.has(vid)) continue; // ya está incluido desde la orden
-      if (row.order_id !== "manual") continue;
-
-      supplements.push(buildSupplementEntry({
-        variantId: vid,
-        title: row.product_title,
-        variantTitle: row.variant_title,
-        orderId: "manual",
-        orderDate: null,
-        sharecartDose: null,
-        tracking: row,
-        metafieldDuration: null,
-      }));
-    }
-
-    return NextResponse.json({ ok: true, supplements });
+    const { supplements, today } = await buildStack(user);
+    return NextResponse.json({ ok: true, today, supplements });
   } catch (err) {
-    console.error("customer-app/supplements error:", err);
-    return NextResponse.json({ ok: false, error: "Error del servidor" }, { status: 500 });
+    console.error("customer-app/supplements GET error:", err);
+    return NextResponse.json({ ok: false, error: "No se pudieron cargar tus suplementos" }, { status: 500 });
   }
 }
 
-// PATCH /api/customer-app/supplements
+// Body (todo opcional salvo variantId):
+// { variantId, productTitle, productHandle, variantTitle, orderId, orderDate, quantity,
+//   startDate, dailyDose, durationDays (días por frasco), reminderTimes: ["08:00"], snoozeDays }
 export async function PATCH(req) {
-  const payload = verifyCustomerToken(req);
+  const payload = verifyAppCustomerToken(req);
   if (!payload) return unauthorized();
 
-  const { shopifyCustomerId } = payload;
-
   try {
-    const { variantId, productTitle, productHandle, variantTitle, orderId, startDate, dailyDose, durationDays } =
-      await req.json();
+    const user = await getAppUser(payload.userId);
+    if (!user) return unauthorized();
 
-    if (!variantId || !startDate) {
-      return NextResponse.json({ ok: false, error: "variantId y startDate requeridos" }, { status: 400 });
+    const body = await req.json();
+    const variantId = Number(body.variantId);
+    if (!variantId) {
+      return NextResponse.json({ ok: false, error: "Falta el suplemento" }, { status: 400 });
     }
 
-    const resolvedOrderId = orderId ?? "manual";
+    const { data: existing } = await supabase
+      .from("supplement_tracking")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("shopify_variant_id", variantId)
+      .maybeSingle();
 
-    const { error } = await supabase.from("supplement_tracking").upsert(
-      {
-        shopify_customer_id: Number(shopifyCustomerId),
-        shopify_variant_id: Number(variantId),
-        product_title: productTitle,
-        product_handle: productHandle ?? null,
-        variant_title: variantTitle,
-        order_id: resolvedOrderId,
-        start_date: startDate,
-        daily_dose: dailyDose ? Number(dailyDose) : null,
-        duration_days: durationDays ? Number(durationDays) : null,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "shopify_customer_id,shopify_variant_id,order_id" }
-    );
+    const today = mxDate();
+    const fields = { updated_at: new Date().toISOString() };
+
+    // Posponer aviso de restock
+    if (body.snoozeDays != null) {
+      const days = Number(body.snoozeDays);
+      if (!existing || !Number.isInteger(days) || days < 1 || days > 90) {
+        return NextResponse.json({ ok: false, error: "No se pudo posponer el aviso" }, { status: 400 });
+      }
+      fields.snoozed_until = addDays(today, days);
+    }
+
+    // Horarios de recordatorio
+    if (body.reminderTimes !== undefined) {
+      const times = Array.isArray(body.reminderTimes) ? [...new Set(body.reminderTimes)] : [];
+      if (times.length > 6 || !times.every((t) => HORA.test(t))) {
+        return NextResponse.json({ ok: false, error: "Horario inválido, usa el formato 08:00" }, { status: 400 });
+      }
+      fields.reminder_times = times.sort();
+    }
+
+    // Configuración del seguimiento
+    if (body.startDate !== undefined) {
+      if (!FECHA.test(body.startDate) || body.startDate > addDays(today, 1)) {
+        return NextResponse.json({ ok: false, error: "Fecha de inicio inválida" }, { status: 400 });
+      }
+      fields.start_date = body.startDate;
+    }
+    if (body.dailyDose !== undefined) {
+      const d = body.dailyDose == null ? null : Number(body.dailyDose);
+      if (d != null && !(d > 0 && d <= 100)) {
+        return NextResponse.json({ ok: false, error: "Dosis inválida" }, { status: 400 });
+      }
+      fields.daily_dose = d;
+    }
+    if (body.durationDays !== undefined) {
+      const d = body.durationDays == null ? null : Math.round(Number(body.durationDays));
+      if (d != null && !(d >= 1 && d <= 730)) {
+        return NextResponse.json({ ok: false, error: "Duración inválida" }, { status: 400 });
+      }
+      fields.duration_days = d;
+    }
+    if (body.quantity !== undefined) {
+      const q = Math.round(Number(body.quantity));
+      if (!(q >= 1 && q <= 20)) {
+        return NextResponse.json({ ok: false, error: "Cantidad inválida" }, { status: 400 });
+      }
+      fields.quantity = q;
+    }
+    if (body.productTitle) fields.product_title = body.productTitle;
+    if (body.variantTitle !== undefined) fields.variant_title = body.variantTitle;
+    if (body.productHandle) fields.product_handle = body.productHandle;
+
+    const isSetup = body.startDate !== undefined && (!existing || !existing.active || !existing.start_date);
+
+    if (isSetup) {
+      // Alta (o re-alta tras quitarlo): ciclo nuevo
+      const fromOrder = body.orderId && body.orderId !== "manual";
+      Object.assign(fields, {
+        active: true,
+        order_id: fromOrder ? String(body.orderId) : "manual",
+        // Las compras posteriores a esta marca suman frascos
+        last_order_at: fromOrder && body.orderDate ? body.orderDate : new Date().toISOString(),
+        quantity: fields.quantity ?? 1,
+        restock_notified_days: null,
+        restock_notified_at: null,
+        snoozed_until: null,
+        source: fromOrder ? "order" : "manual",
+      });
+    } else if (!existing || !existing.active) {
+      return NextResponse.json({ ok: false, error: "Primero configura este suplemento" }, { status: 400 });
+    }
+
+    // Fecha de fin con lo que quede guardado
+    const merged = { ...(existing ?? {}), ...fields };
+    if (merged.start_date && merged.duration_days) {
+      const end = addDays(merged.start_date, merged.duration_days * (merged.quantity || 1));
+      if (end !== existing?.end_date) {
+        fields.end_date = end;
+        // Si el fin se movió, el aviso de restock vuelve a armarse
+        if (!isSetup && existing?.end_date && end > existing.end_date) {
+          fields.restock_notified_days = null;
+          fields.restock_notified_at = null;
+        }
+      }
+    }
+
+    const { error } = existing
+      ? await supabase.from("supplement_tracking").update(fields).eq("id", existing.id)
+      : await supabase.from("supplement_tracking").insert({
+          user_id: user.id,
+          shopify_customer_id: user.shopify_customer_id ?? null,
+          shopify_variant_id: variantId,
+          product_title: body.productTitle ?? "",
+          variant_title: body.variantTitle ?? "",
+          ...fields,
+        });
 
     if (error) {
-      console.error("supplement upsert error:", error);
-      return NextResponse.json({ ok: false, error: error.message }, { status: 500 });
+      console.error("supplement PATCH db error:", error);
+      return NextResponse.json({ ok: false, error: "No se pudo guardar" }, { status: 500 });
     }
 
     return NextResponse.json({ ok: true });
@@ -228,4 +157,26 @@ export async function PATCH(req) {
     console.error("customer-app/supplements PATCH error:", err);
     return NextResponse.json({ ok: false, error: "Error del servidor" }, { status: 500 });
   }
+}
+
+export async function DELETE(req) {
+  const payload = verifyAppCustomerToken(req);
+  if (!payload) return unauthorized();
+
+  const variantId = Number(new URL(req.url).searchParams.get("variantId"));
+  if (!variantId) {
+    return NextResponse.json({ ok: false, error: "Falta el suplemento" }, { status: 400 });
+  }
+
+  const { error } = await supabase
+    .from("supplement_tracking")
+    .update({ active: false, reminder_times: [], updated_at: new Date().toISOString() })
+    .eq("user_id", payload.userId)
+    .eq("shopify_variant_id", variantId);
+
+  if (error) {
+    console.error("supplement DELETE error:", error);
+    return NextResponse.json({ ok: false, error: "No se pudo quitar" }, { status: 500 });
+  }
+  return NextResponse.json({ ok: true });
 }

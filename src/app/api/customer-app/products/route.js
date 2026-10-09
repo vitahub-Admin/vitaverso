@@ -1,13 +1,14 @@
 // GET /api/customer-app/products?q=omega
 // Busca productos en el catálogo de Shopify para agregar suplementos manualmente
 import { NextResponse } from "next/server";
-import { verifyCustomerToken, unauthorized } from "@/lib/customerAppAuth";
+import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
+import { variantMeta } from "@/lib/customerSupplements";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 
 export async function GET(req) {
-  const payload = verifyCustomerToken(req);
+  const payload = verifyAppCustomerToken(req);
   if (!payload) return unauthorized();
 
   const { searchParams } = new URL(req.url);
@@ -41,9 +42,12 @@ export async function GET(req) {
                         title
                         price
                         image { url }
-                        duracion: metafield(namespace: "custom", key: "duraci_n_del_producto") {
-                          value
-                        }
+                        product { handle featuredImage { url } }
+                        duracion:       metafield(namespace: "custom", key: "duraci_n_del_producto") { value }
+                        tipo_dosis:     metafield(namespace: "custom", key: "tipo_dosis") { value }
+                        dosis:          metafield(namespace: "custom", key: "dosis") { value }
+                        total_unidades: metafield(namespace: "custom", key: "total_unidades") { value }
+                        total_dosis:    metafield(namespace: "custom", key: "total_dosis") { value }
                       }
                     }
                   }
@@ -54,7 +58,8 @@ export async function GET(req) {
               }
             }
           }`,
-          variables: { query: q },
+          // Solo productos publicados (no borradores ni archivados)
+          variables: { query: `${q} status:active` },
         }),
       }
     );
@@ -67,13 +72,18 @@ export async function GET(req) {
       title: node.title,
       handle: node.handle,
       image: node.images?.edges?.[0]?.node?.url ?? null,
-      variants: node.variants.edges.map(({ node: v }) => ({
-        id: v.id.split("/").pop(),
-        title: v.title,
-        price: v.price,
-        image: v.image?.url ?? null,
-        durationDays: v.duracion?.value ? parseInt(v.duracion.value) : null,
-      })),
+      variants: node.variants.edges.map(({ node: v }) => {
+        const meta = variantMeta(v);
+        return {
+          id: v.id.split("/").pop(),
+          title: v.title,
+          price: v.price,
+          image: meta.image,
+          durationDays: meta.metafieldDuration,
+          unitsPerBottle: meta.unitsPerBottle,
+          doseUnit: meta.tipoDosis?.toLowerCase() || null,
+        };
+      }),
     }));
 
     return NextResponse.json({ ok: true, products });

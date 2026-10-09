@@ -1,7 +1,7 @@
 // POST /api/customer-app/auth
 // Login para clientes regulares via Shopify Storefront API
 import { NextResponse } from "next/server";
-import { signCustomerToken } from "@/lib/customerAppAuth";
+import { signAppCustomerToken } from "@/lib/customerAppAuth";
 import { createClient } from "@supabase/supabase-js";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
@@ -94,7 +94,7 @@ export async function POST(req) {
     const numericId = Number(customer.id.split("/").pop());
 
     // 3. Upsert en Supabase y obtener el id interno
-    const { data: appUser } = await supabase
+    const { data: appUser, error: upsertError } = await supabase
       .from("customer_app_users")
       .upsert(
         {
@@ -111,8 +111,17 @@ export async function POST(req) {
       .select("id")
       .single();
 
-    const userId = appUser?.id ?? numericId;
-    const jwtToken = signCustomerToken(userId, customer.email, numericId);
+    // Sin fila no hay userId válido: nunca firmar con el id de Shopify como respaldo
+    if (upsertError || !appUser?.id) {
+      console.error("customer-app/auth upsert error:", upsertError);
+      return NextResponse.json(
+        { ok: false, error: "No pudimos iniciar tu sesión, intenta de nuevo" },
+        { status: 500 }
+      );
+    }
+
+    const userId = appUser.id;
+    const jwtToken = signAppCustomerToken(userId, customer.email, numericId);
 
     return NextResponse.json({
       ok: true,
