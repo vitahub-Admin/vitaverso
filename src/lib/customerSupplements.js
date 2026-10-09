@@ -16,6 +16,7 @@ import { createClient } from "@supabase/supabase-js";
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 const STORE_URL = "https://vitahub.mx";
+const PRO_URL = "https://pro.vitahub.mx";
 const TZ = "America/Mexico_City";
 
 // Variantes compradas hace más de esto y sin seguimiento no se sugieren
@@ -211,7 +212,7 @@ async function loadPrescriptions(orders) {
       }
     }
   }
-  if (!tokens.length) return {};
+  if (!tokens.length) return { byToken: {}, protocols: {} };
 
   const { data: carts } = await supabase
     .from("sharecarts")
@@ -219,7 +220,11 @@ async function loadPrescriptions(orders) {
     .in("token", [...new Set(tokens)]);
 
   const out = {};
+  const protocols = {};
   for (const cart of carts ?? []) {
+    if (cart.extra?.origen === "protocolo") {
+      protocols[cart.token] = { name: cart.extra?.protocol_name || null };
+    }
     const byVariant = {};
     const extra = cart.extra ?? {};
 
@@ -249,7 +254,7 @@ async function loadPrescriptions(orders) {
     }
     out[cart.token] = byVariant;
   }
-  return out;
+  return { byToken: out, protocols };
 }
 
 // Unidades al día según la receta y el metafield de dosis de la variante
@@ -317,9 +322,24 @@ export async function buildStack(user, { persist = true } = {}) {
   // Compras por variante (ascendente) + la info más reciente de producto y receta
   const purchasesByVariant = {};
   const latestByVariant = {};
+  const protocols = [];
   if (user.shopify_customer_id) {
     const orders = await fetchRecentOrders(user.shopify_customer_id);
-    const prescriptions = await loadPrescriptions(orders);
+    const { byToken: prescriptions, protocols: protocolCarts } = await loadPrescriptions(orders);
+
+    // Recetas del armador que llegaron como pedido (más reciente primero): PDF descargable
+    const seen = new Set();
+    for (const order of orders) {
+      const p = order.shareCart && protocolCarts[order.shareCart];
+      if (!p || seen.has(order.shareCart)) continue;
+      seen.add(order.shareCart);
+      protocols.push({
+        token: order.shareCart,
+        name: p.name || "Protocolo de tu especialista",
+        orderDate: order.createdAt,
+        pdfUrl: `${PRO_URL}/api/protocolo-pdf?token=${encodeURIComponent(order.shareCart)}`,
+      });
+    }
 
     for (const order of [...orders].reverse()) {
       const rxByVariant = order.shareCart ? prescriptions[order.shareCart] ?? {} : {};
@@ -456,5 +476,5 @@ export async function buildStack(user, { persist = true } = {}) {
     return (a.daysRemaining ?? 9999) - (b.daysRemaining ?? 9999);
   });
 
-  return { supplements, today };
+  return { supplements, protocols, today };
 }

@@ -123,6 +123,38 @@ export async function GET(req) {
   }
 }
 
+// DELETE /api/customer-app/me
+// Elimina la cuenta de la app (requisito de Apple y Google): perfil, seguimiento de
+// suplementos, horarios, push token y códigos de acceso. NO toca la cuenta ni los
+// pedidos en Shopify (la tienda los necesita para facturación y envíos).
+export async function DELETE(req) {
+  const payload = verifyAppCustomerToken(req);
+  if (!payload) return unauthorized();
+
+  try {
+    const user = await getAppUser(payload.userId);
+    if (!user) return NextResponse.json({ ok: true });
+
+    const steps = [
+      supabase.from("supplement_tracking").delete().eq("user_id", user.id),
+      user.email ? supabase.from("customer_app_login_codes").delete().eq("email", user.email) : null,
+    ].filter(Boolean);
+    for (const step of steps) {
+      const { error } = await step;
+      if (error) throw new Error(error.message);
+    }
+
+    const { error } = await supabase.from("customer_app_users").delete().eq("id", user.id);
+    if (error) throw new Error(error.message);
+
+    console.log(`[customer-app] cuenta eliminada ${user.id}`);
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("customer-app/me DELETE error:", err);
+    return NextResponse.json({ ok: false, error: "No se pudo eliminar la cuenta. Intenta de nuevo." }, { status: 500 });
+  }
+}
+
 // PATCH /api/customer-app/me  { firstName, lastName, phone }
 export async function PATCH(req) {
   const payload = verifyAppCustomerToken(req);

@@ -97,3 +97,34 @@ CREATE INDEX IF NOT EXISTS customer_app_users_email_idx
 
 -- Tabla interna: solo el backend (service role) la toca
 ALTER TABLE customer_app_login_codes ENABLE ROW LEVEL SECURITY;
+
+-- ── Aviso de actualización de la app de clientes ─────────────────────────────
+-- app_config id=1 es Vitahub Pro; id=2 es la app de clientes.
+-- Las URLs de tienda viven aquí para poder cambiarlas sin publicar versión.
+ALTER TABLE app_config
+  ADD COLUMN IF NOT EXISTS ios_store_url     TEXT,
+  ADD COLUMN IF NOT EXISTS android_store_url TEXT;
+
+INSERT INTO app_config (id, android_min_version, ios_min_version, forced, update_message, android_store_url)
+VALUES (
+  2, '1.0.0', '1.0.0', false,
+  'Hay una nueva versión de Vitahub con mejoras para tu seguimiento.',
+  'https://play.google.com/store/apps/details?id=mx.vitahub.cliente'
+)
+ON CONFLICT (id) DO NOTHING;
+
+-- ── Historial de tomas (adherencia) ──────────────────────────────────────────
+-- Una fila por (usuario, variante, día) marcado como tomado. El día es el de México.
+CREATE TABLE IF NOT EXISTS supplement_intake (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            UUID NOT NULL REFERENCES customer_app_users(id) ON DELETE CASCADE,
+  shopify_variant_id BIGINT NOT NULL,
+  taken_date         DATE NOT NULL,
+  created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+  UNIQUE (user_id, shopify_variant_id, taken_date)
+);
+
+CREATE INDEX IF NOT EXISTS supplement_intake_user_date_idx
+  ON supplement_intake (user_id, taken_date DESC);
+
+ALTER TABLE supplement_intake ENABLE ROW LEVEL SECURITY;
