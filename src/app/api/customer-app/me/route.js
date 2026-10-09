@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
 import { supabase, shopifyAdmin, getAppUser } from "@/lib/customerSupplements";
+import { ensureShopifyLink } from "@/lib/customerAppAccount";
 
 const PRO_URL = "https://pro.vitahub.mx";
 
@@ -61,8 +62,11 @@ export async function GET(req) {
   if (!payload) return unauthorized();
 
   try {
-    const appUser = await getAppUser(payload.userId);
+    let appUser = await getAppUser(payload.userId);
     if (!appUser) return unauthorized();
+
+    // Se registró antes de comprar: si ya aparece en Shopify con su correo, se vincula
+    appUser = await ensureShopifyLink(appUser);
 
     let customer = {
       id: appUser.id,
@@ -116,5 +120,36 @@ export async function GET(req) {
   } catch (err) {
     console.error("customer-app/me error:", err);
     return NextResponse.json({ ok: false, error: "Error del servidor" }, { status: 500 });
+  }
+}
+
+// PATCH /api/customer-app/me  { firstName, lastName, phone }
+export async function PATCH(req) {
+  const payload = verifyAppCustomerToken(req);
+  if (!payload) return unauthorized();
+
+  try {
+    const body = await req.json();
+    const clean = (v, max) => (typeof v === "string" ? v.trim().slice(0, max) : undefined);
+    const fields = {};
+    if (body.firstName !== undefined) fields.first_name = clean(body.firstName, 60) || null;
+    if (body.lastName !== undefined) fields.last_name = clean(body.lastName, 60) || null;
+    if (body.phone !== undefined) fields.phone = clean(body.phone, 20) || null;
+
+    if (fields.first_name === null) {
+      return NextResponse.json({ ok: false, error: "Escribe tu nombre" }, { status: 400 });
+    }
+    if (!Object.keys(fields).length) return NextResponse.json({ ok: true });
+
+    const { error } = await supabase
+      .from("customer_app_users")
+      .update({ ...fields, updated_at: new Date().toISOString() })
+      .eq("id", payload.userId);
+    if (error) throw new Error(error.message);
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    console.error("customer-app/me PATCH error:", err);
+    return NextResponse.json({ ok: false, error: "No se pudo guardar" }, { status: 500 });
   }
 }

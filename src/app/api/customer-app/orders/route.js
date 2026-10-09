@@ -2,7 +2,7 @@
 // Últimas órdenes del cliente con productos, estado de pago y de envío (guías de paquetería)
 import { NextResponse } from "next/server";
 import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
-import { shopifyAdmin, buyUrl } from "@/lib/customerSupplements";
+import { shopifyAdmin, buyUrl, getAppUser } from "@/lib/customerSupplements";
 
 // Estado de envío que ve el cliente, del más avanzado al menos
 function shippingStatus(order) {
@@ -21,11 +21,14 @@ export async function GET(req) {
   const payload = verifyAppCustomerToken(req);
   if (!payload) return unauthorized();
 
-  const { shopifyCustomerId } = payload;
-  // Cuenta sin Shopify vinculado: no tiene órdenes
-  if (!shopifyCustomerId) return NextResponse.json({ ok: true, orders: [] });
-
   try {
+    // Del usuario en la base, no del JWT: la cuenta puede vincularse después del login
+    const user = await getAppUser(payload.userId);
+    if (!user) return unauthorized();
+    const shopifyCustomerId = user.shopify_customer_id;
+    // Cuenta sin compras en Shopify todavía: no tiene órdenes
+    if (!shopifyCustomerId) return NextResponse.json({ ok: true, orders: [] });
+
     const data = await shopifyAdmin(
       `query customerOrders($id: ID!) {
         customer(id: $id) {

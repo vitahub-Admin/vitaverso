@@ -67,3 +67,33 @@ CREATE UNIQUE INDEX IF NOT EXISTS supplement_tracking_user_variant_uq
 CREATE INDEX IF NOT EXISTS supplement_tracking_active_end_idx
   ON supplement_tracking (end_date)
   WHERE active = TRUE;
+
+-- ── Login propio con código por email ────────────────────────────────────────
+-- Shopify deprecó las cuentas clásicas (feb-2026): la app ya no usa su login.
+-- El cliente entra con un código de 6 dígitos que le llega al correo (igual que la
+-- verificación de Vitahub Pro) y con ese correo verificado se hace el match con Shopify.
+
+CREATE TABLE IF NOT EXISTS customer_app_login_codes (
+  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email        TEXT NOT NULL,
+  code_hash    TEXT NOT NULL,          -- sha256, nunca el código en claro
+  expires_at   TIMESTAMPTZ NOT NULL,
+  attempts     INTEGER NOT NULL DEFAULT 0,
+  consumed_at  TIMESTAMPTZ,
+  ip           TEXT,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS customer_app_login_codes_email_idx
+  ON customer_app_login_codes (email, created_at DESC);
+CREATE INDEX IF NOT EXISTS customer_app_login_codes_ip_idx
+  ON customer_app_login_codes (ip, created_at DESC);
+
+-- Emails siempre en minúsculas para el match
+UPDATE customer_app_users SET email = lower(trim(email)) WHERE email IS NOT NULL AND email <> lower(trim(email));
+
+CREATE INDEX IF NOT EXISTS customer_app_users_email_idx
+  ON customer_app_users (email);
+
+-- Tabla interna: solo el backend (service role) la toca
+ALTER TABLE customer_app_login_codes ENABLE ROW LEVEL SECURITY;
