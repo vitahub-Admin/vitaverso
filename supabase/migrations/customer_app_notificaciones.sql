@@ -59,3 +59,9 @@ SELECT
 FROM customer_notification_campaigns c
 LEFT JOIN customer_notifications n ON n.campaign_id = c.id
 GROUP BY c.id;
+
+-- La vista se ejecuta con los permisos de QUIEN CONSULTA (no del dueño): así respeta el
+-- RLS de las tablas y la llave pública (anon) no puede leer campañas. Solo el backend
+-- (service role) la usa.
+ALTER VIEW customer_notification_campaign_stats SET (security_invoker = true);
+REVOKE ALL ON customer_notification_campaign_stats FROM anon, authenticated;
