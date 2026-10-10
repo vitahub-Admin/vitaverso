@@ -1,9 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { Bell, Send, Users, User, Smartphone } from "lucide-react";
+import { Bell, Send, Users, User, Smartphone, Stethoscope, HeartPulse } from "lucide-react";
+import ClientesNotificaciones from "./ClientesNotificaciones";
 
 export default function AdminNotificacionesPage() {
+  const [audiencia, setAudiencia] = useState("pros"); // "pros" | "clientes"
   const [title,    setTitle]    = useState("");
   const [body,     setBody]     = useState("");
   const [url,      setUrl]      = useState("");
@@ -97,12 +99,38 @@ export default function AdminNotificacionesPage() {
               Notificaciones
             </h1>
             <p className="text-sm text-gray-400 mt-0.5">
-              Envía mensajes push a tus profesionales
+              {audiencia === "pros"
+                ? "Envía mensajes push a tus profesionales (app Vitahub Pro)"
+                : "Envía mensajes push a tus clientes (app Mi Vitahub)"}
             </p>
           </div>
         </div>
+        <div className="max-w-[720px] mx-auto pb-4 flex gap-2">
+          {[
+            { key: "pros", label: "Profesionales", icon: Stethoscope },
+            { key: "clientes", label: "Clientes", icon: HeartPulse },
+          ].map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setAudiencia(key)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full text-sm font-bold border transition-colors ${
+                audiencia === key
+                  ? "bg-[#1b3f7a] text-white border-[#1b3f7a]"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-[#1b3f7a]/40"
+              }`}
+            >
+              <Icon size={15} />
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
+      {audiencia === "clientes" ? (
+        <div className="max-w-[720px] mx-auto px-6 py-8">
+          <ClientesNotificaciones />
+        </div>
+      ) : (
       <div className="max-w-[720px] mx-auto px-6 py-8 flex flex-col gap-6">
 
         {/* Selector de destinatario */}
@@ -270,6 +298,7 @@ export default function AdminNotificacionesPage() {
         </div>
 
       </div>
+      )}
     </div>
   );
 }

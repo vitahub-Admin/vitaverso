@@ -7,9 +7,10 @@
 //   · Si el cliente pospuso (snoozed_until), se calla hasta esa fecha y ese día recibe un recordatorio.
 //   · Antes de avisar se recalcula el stack con buildStack(): si ya recompró, el fin se movió
 //     y no se avisa.
+//   · Cada aviso queda en el historial del cliente (customer_notifications) y se mide su apertura.
 import { supabase, buildStack, mxDate, addDays } from "@/lib/customerSupplements";
+import { enviarNotificaciones } from "@/lib/customerNotifications";
 
-const EXPO_PUSH_URL = "https://exp.host/--/api/v2/push/send";
 const UMBRALES = [7, 3, 0];
 
 function bucketFor(daysRemaining) {
@@ -41,20 +42,6 @@ function mensaje(bucket, item, esRecordatorio) {
     title: "Te queda una semana de suplemento",
     body: `Tu ${nombre} se termina en unos 7 días. Pídelo ahora y te llega a tiempo.`,
   };
-}
-
-async function sendExpo(messages) {
-  const tickets = [];
-  for (let i = 0; i < messages.length; i += 100) {
-    const res = await fetch(EXPO_PUSH_URL, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify(messages.slice(i, i + 100)),
-    });
-    const json = await res.json().catch(() => ({}));
-    tickets.push(...(json.data ?? messages.slice(i, i + 100).map(() => ({ status: "error" }))));
-  }
-  return tickets;
 }
 
 export async function sendRestockNotifications() {
@@ -103,11 +90,9 @@ export async function sendRestockNotifications() {
 
       const { title, body } = mensaje(bucket, item, esRecordatorio);
       messages.push({
-        to: user.push_token,
+        userId: user.id,
         title,
         body,
-        sound: "default",
-        channelId: "default",
         data: {
           type: "restock",
           variantId: item.variantId,
@@ -122,16 +107,12 @@ export async function sendRestockNotifications() {
 
   if (!messages.length) return { candidatos: userIds.length, enviados: 0 };
 
-  const tickets = await sendExpo(messages);
-  let enviados = 0;
-  const tokensMuertos = new Set();
+  // Historial + push (los tokens muertos se limpian adentro)
+  const resumen = await enviarNotificaciones(messages);
 
+  // Marcamos aunque el push falle: el aviso ya quedó en su historial de la app
   await Promise.all(
-    marks.map((m, i) => {
-      const t = tickets[i];
-      if (t?.status === "ok") enviados++;
-      if (t?.details?.error === "DeviceNotRegistered") tokensMuertos.add(m.userId);
-      // Marcamos aunque falle para no reintentar cada día con un token roto
+    marks.map((m) => {
       return supabase
         .from("supplement_tracking")
         .update({
@@ -143,9 +124,11 @@ export async function sendRestockNotifications() {
     })
   );
 
-  if (tokensMuertos.size) {
-    await supabase.from("customer_app_users").update({ push_token: null }).in("id", [...tokensMuertos]);
-  }
-
-  return { candidatos: userIds.length, mensajes: messages.length, enviados, tokensBorrados: tokensMuertos.size };
+  return {
+    candidatos: userIds.length,
+    mensajes: messages.length,
+    enviados: resumen.enviados,
+    fallidos: resumen.fallidos,
+    errores: resumen.errores,
+  };
 }

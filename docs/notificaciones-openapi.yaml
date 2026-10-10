@@ -1,8 +1,8 @@
 openapi: 3.1.0
 
 info:
-  title: Notificaciones y cupones — Vitahub Pro
-  version: "1.1.0"
+  title: Notificaciones y cupones — Vitahub Pro y Mi Vitahub
+  version: "1.2.0"
   description: |
     Dispara una notificación push a uno o varios profesionales de Vitahub Pro.
 
@@ -17,6 +17,10 @@ info:
     Además, el agente puede regalarle a un profesional un cupón de Shopify de un
     solo uso (por monto o por porcentaje): le aparece en su wallet y le llega un
     aviso al teléfono. Mismo secreto, mismas reglas de reintento.
+
+    Desde la 1.2.0 también se puede notificar a los CLIENTES de la app Mi Vitahub
+    (`/api/webhooks/notificar-clientes`): ofertas, novedades, avisos. Cada envío
+    queda como campaña y se puede consultar cuántos la recibieron, leyeron y abrieron.
 
 servers:
   - url: https://pro.vitahub.mx
@@ -131,6 +135,98 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/webhooks/notificar-clientes:
+    post:
+      summary: Enviar una notificación a clientes de Mi Vitahub
+      description: |
+        Llega como push a quien tenga la app con notificaciones activas y SIEMPRE
+        queda en su historial dentro de la app. Cada llamada crea una campaña.
+      operationId: notificarClientes
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/NotificacionCliente"
+            examples:
+              oferta:
+                summary: Oferta a todos los clientes
+                value:
+                  title: 20% en Omega 3 este fin de semana
+                  body: Aprovecha y no interrumpas tu protocolo. Válido hasta el domingo.
+                  target: all
+                  url: https://vitahub.mx/collections/omega-3
+                  evento: oferta-omega3
+                  event_id: oferta_omega3_2026_10_12
+              pacientesDeUnProfesional:
+                summary: A los pacientes de un profesional
+                value:
+                  title: Tu profesional tiene nuevos horarios
+                  body: Ya puedes agendar tu consulta de seguimiento desde la app.
+                  target: { especialista: 8203251581249 }
+                  event_id: horarios_8203251581249_oct
+              porCorreo:
+                summary: A uno o varios clientes por correo
+                value:
+                  title: Tu pedido especial ya está listo
+                  body: Pasa por él o pídelo con envío desde vitahub.mx
+                  target: ["ana@ejemplo.com", "luis@ejemplo.com"]
+      responses:
+        "200":
+          description: Enviado (`ResumenCliente`) o descartado por `event_id` repetido (`Duplicado`).
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: "#/components/schemas/ResumenCliente"
+                  - $ref: "#/components/schemas/Duplicado"
+        "400":
+          description: Falta `title`/`body`, `url` no es https, o `target` no se reconoce
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Secreto inválido
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: Ningún cliente corresponde al `target` (incluye `faltan` con los correos sin cuenta)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      summary: Métricas de una campaña a clientes
+      operationId: metricasCampanaClientes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: event_id
+          in: query
+          schema: { type: string }
+          description: El `event_id` con que se mandó (o usar `campaign_id`)
+        - name: campaign_id
+          in: query
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Métricas
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EstadisticasCampana"
+        "404":
+          description: No existe esa campaña
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
   /api/webhooks/cupon:
     post:
       summary: Crear un cupón de un solo uso y asignarlo a un profesional
@@ -228,6 +324,56 @@ components:
         pista sobre el secreto correcto.
 
   schemas:
+    NotificacionCliente:
+      type: object
+      required: [title, body]
+      properties:
+        title: { type: string, maxLength: 65, description: Título del push }
+        body: { type: string, maxLength: 240, description: Texto del push }
+        target:
+          description: |
+            A quién. Por defecto "all".
+              · "all"        todos los clientes con cuenta (sin push, solo historial)
+              · "con_app"    solo los que tienen notificaciones activas
+              · correo o lista de correos
+              · { especialista: <shopify_customer_id del profesional> }  sus pacientes
+          oneOf:
+            - type: string
+            - type: array
+              items: { type: string, format: email }
+            - type: object
+              properties:
+                especialista: { type: integer }
+        url: { type: string, format: uri, description: Se abre al tocar la notificación (solo https) }
+        evento: { type: string, maxLength: 60, description: Etiqueta libre para agrupar campañas }
+        event_id: { type: string, maxLength: 120, description: Idempotencia; reintentos con el mismo id no duplican }
+    ResumenCliente:
+      type: object
+      properties:
+        ok: { type: boolean }
+        campaign_id: { type: string, format: uuid }
+        destinatarios: { type: integer }
+        enviados: { type: integer, description: Push aceptados por Expo }
+        sin_token: { type: integer, description: Sin notificaciones activas; lo ven solo en su historial }
+        fallidos: { type: integer }
+        errores: { type: array, items: { type: string } }
+        faltan: { type: array, items: { type: string }, description: Correos sin cuenta en la app }
+    EstadisticasCampana:
+      type: object
+      properties:
+        ok: { type: boolean }
+        id: { type: string, format: uuid }
+        title: { type: string }
+        evento: { type: string }
+        event_id: { type: string }
+        created_at: { type: string, format: date-time }
+        destinatarios: { type: integer }
+        enviados: { type: integer }
+        sin_token: { type: integer }
+        fallidos: { type: integer }
+        leidas: { type: integer, description: La vieron en su historial }
+        abiertas: { type: integer, description: La tocaron (push o historial) }
+        tasa_apertura: { type: number, description: abiertas / destinatarios }
     Notificacion:
       type: object
       required: [title, body]
