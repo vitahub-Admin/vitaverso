@@ -119,6 +119,9 @@ export async function crearBorrador({ ventaId, profesional, monto, email, nombre
     .map(l => `  ${l[campo]}× ${l.sku || ''} ${recorte(l.titulo)}`.trimEnd());
   const nota = [
     `Cobro de consultorio · venta ${ventaId}`,
+    // Marca fija para una regla de BaseLinker: con todo entregado en consultorio no hay
+    // nada que preparar y la orden debe pasar sola a "Locales Shopify".
+    !hayEnvio ? 'SIN ENVÍO · TODO ENTREGADO EN CONSULTORIO' : null,
     hayEnvio ? `ENVIAR (${envio} u.):\n${lista('enviar').join('\n')}` : null,
     mano > 0 ? `ENTREGADO EN CONSULTORIO, NO PREPARAR (${mano} u.):\n${lista('mano').join('\n')}` : null,
   ].filter(Boolean).join('\n');

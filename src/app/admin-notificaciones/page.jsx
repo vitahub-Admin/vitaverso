@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import { Bell, Send, Users, User, Smartphone, Stethoscope, HeartPulse } from "lucide-react";
 import ClientesNotificaciones from "./ClientesNotificaciones";
+import HistorialEnvios from "./HistorialEnvios";
 
 export default function AdminNotificacionesPage() {
   const [audiencia, setAudiencia] = useState("pros"); // "pros" | "clientes"
@@ -296,6 +297,8 @@ export default function AdminNotificacionesPage() {
             )}
           </button>
         </div>
+
+        <HistorialEnvios />
 
       </div>
       )}

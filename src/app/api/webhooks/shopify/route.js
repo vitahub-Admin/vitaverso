@@ -30,6 +30,11 @@ function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date,
       ? `<span style="display:inline-block;background:#1e8fa8;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:8px;">${dosisText}${item.quantity > 1 ? ` · ${item.quantity} frascos` : ''}</span>`
       : `<span style="display:inline-block;background:#1b3f7a;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:10px;">×${item.quantity}</span>`;
 
+    // Si el profesional no indicó cómo se toma, va el modo de uso del producto
+    const usoRow = item.modo_de_uso
+      ? `<tr><td style="font-size:12px;color:#1b3f7a;line-height:1.6;padding-top:6px;"><strong>Modo de uso:</strong> ${item.modo_de_uso.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td></tr>`
+      : '';
+
     const notaRow = item.nota
       ? `<tr><td style="font-size:12px;color:#9ca3af;font-style:italic;padding-top:4px;">📝 ${item.nota}</td></tr>`
       : '';
@@ -47,6 +52,7 @@ function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date,
           <tr>
             <td style="font-size:13px;color:#6b7280;line-height:1.65;">${item.desc}</td>
           </tr>
+          ${usoRow}
           ${notaRow}
         </table>
       </td>
@@ -157,7 +163,7 @@ async function sendProtocolEmail(payload, shareCartToken) {
       .filter(Boolean);
 
     const [{ data: catalogRows }, { data: compRows }] = await Promise.all([
-      supabase.from("product_catalog").select("product_id, componente").in("product_id", productIds),
+      supabase.from("product_catalog").select("product_id, componente, modo_de_uso").in("product_id", productIds),
       supabase.from("componentes").select("slug, descripcion"),
     ]);
 
@@ -165,6 +171,9 @@ async function sendProtocolEmail(payload, shareCartToken) {
     (catalogRows || []).forEach(r => {
       catalogMap[r.product_id] = (r.componente || "").trim().toLowerCase();
     });
+
+    const usoMap = {};
+    (catalogRows || []).forEach(r => { if (r.modo_de_uso) usoMap[r.product_id] = r.modo_de_uso; });
 
     const descMap = {};
     (compRows || []).forEach(r => {
@@ -178,7 +187,10 @@ async function sendProtocolEmail(payload, shareCartToken) {
       const desc = (slug && descMap[slug]) || FALLBACK;
       // Buscar dosis por variant_id del item (la clave en dosisMap es string)
       const dosis = dosisMap[String(item.variant_id)] || {};
+      // Sin ninguna indicación del profesional sobre cómo tomarlo
+      const sinIndicacion = !dosis.instruccion && !dosis.dosis_amount && !(dosis.momentos || []).length && !dosis.acompanamiento;
       return {
+        modo_de_uso:  sinIndicacion ? (usoMap[item.product_id] || null) : null,
         title:        item.title || "",
         quantity:     item.quantity,
         desc,
@@ -498,6 +510,20 @@ export async function POST(req) {
           },
         });
         if (!r.ok) console.error("[webhook vitahub-pro] no se pudo cerrar la venta:", cobro.ventaId, r.error);
+
+        // El correo del protocolo (prescripción con la dosis de cada producto) sale igual
+        // que en una compra normal. Esta orden se atiende aparte, así que se arma el
+        // pedido con lo que se vendió —también lo entregado en el consultorio, que en
+        // Shopify es una línea libre sin producto— y se manda una sola vez.
+        if (r.ok && r.recienCerrada && r.order?.sharecart_token) {
+          const pedidoParaCorreo = {
+            ...payload,
+            line_items: (r.order.items || [])
+              .filter(i => Number(i.quantity) > 0)
+              .map(i => ({ product_id: i.product_id, variant_id: i.variant_id, title: i.title, quantity: i.quantity })),
+          };
+          sendProtocolEmail(pedidoParaCorreo, r.order.sharecart_token).catch(() => {});
+        }
       }
       return NextResponse.json({ success: true, type: "vitahub-pro" }, { status: 200 });
     }

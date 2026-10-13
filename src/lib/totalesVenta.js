@@ -7,16 +7,14 @@
  * otra. Acá se calculan una vez y los tres piden el resultado.
  */
 
-import { hayEnvio } from './envio';
-
 /**
  * @param {Array}  items       líneas de la venta (las de cantidad 0 no suman)
  * @param {object} descuento   { monto, sobreEnvio } del cupón, si hay
- * @param {object} tarifaEnvio { precio } la tarifa de Shopify que eligió el paciente.
- *                             Sin ella, el envío cuenta como 0 y el pedido está
- *                             "pendiente de envío" (ver envioPendiente en envio.js).
+ *
+ * El envío no entra: lo cotiza y lo cobra el checkout de Shopify con la dirección del
+ * paciente, así que `envio` queda en 0 y el total es el de los productos.
  */
-export function totalesDe(items = [], descuento = null, tarifaEnvio = null) {
+export function totalesDe(items = [], descuento = null) {
   let subtotal = 0;
   let comision = 0;
 
@@ -31,9 +29,7 @@ export function totalesDe(items = [], descuento = null, tarifaEnvio = null) {
     comision += linea * Number(it.commission_percent || 0) / 100;
   }
 
-  // El costo lo fija la tarifa que eligió el paciente (de Shopify, cotizada con el
-  // pedido completo). Si todo se entrega en el consultorio no hay envío.
-  const envio = hayEnvio(items) ? Number(tarifaEnvio?.precio || 0) : 0;
+  const envio = 0;
 
   // Un cupón de envío gratis descuenta exactamente lo que costaba el envío: si
   // el envío cambió de precio desde que se aplicó, el descuento lo sigue.

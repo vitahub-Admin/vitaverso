@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { randomUUID } from 'crypto';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -6,6 +7,37 @@ const supabase = createClient(
 );
 
 const EXPO_PUSH_URL = 'https://exp.host/--/api/v2/push/send';
+
+/**
+ * Registro de quién mandó el aviso y a cuántos: se guarda en el `data` de cada fila
+ * de affiliate_notifications (no en el mensaje push, que lo ve el teléfono).
+ *
+ *   origen      'admin' | 'agente' | 'sistema'   quién lo originó. Sin indicar, 'sistema':
+ *                                                 los avisos automáticos de la plataforma.
+ *   enviado_por id de la persona del equipo (origen admin)
+ *   agente      nombre del agente que lo mandó (origen agente)
+ *   alcance     'masivo' (más de un destinatario) | 'personalizado' (uno solo)
+ *   envio_id    el mismo en todos los avisos de un mismo envío, para agruparlos
+ *   destinatarios cuántos recibieron ese envío
+ *
+ * A quién le llegó cada uno ya está en `customer_id` de la fila.
+ */
+function registroDeEnvio(data = {}, destinatarios = 1) {
+  return {
+    origen: 'sistema',
+    ...data,
+    alcance: destinatarios > 1 ? 'masivo' : 'personalizado',
+    destinatarios,
+    envio_id: data.envio_id || randomUUID(),
+  };
+}
+
+/** Lo que viaja al teléfono: sin los datos internos de quién lo mandó. */
+function datosPush(data = {}) {
+  // eslint-disable-next-line no-unused-vars
+  const { origen, enviado_por, agente, alcance, destinatarios, envio_id, ...resto } = data;
+  return resto;
+}
 
 async function sendBatch(messages) {
   const res = await fetch(EXPO_PUSH_URL, {
@@ -28,13 +60,13 @@ export async function sendPushToAffiliate(shopifyCustomerId, title, body, data =
       customer_id: shopifyCustomerId,
       title,
       body,
-      data,
+      data: registroDeEnvio(data, 1),
     }]);
   } catch {}
 
   if (!affiliate?.push_token) return null;
 
-  return sendBatch([{ to: affiliate.push_token, title, body, data, sound: 'default' }]);
+  return sendBatch([{ to: affiliate.push_token, title, body, data: datosPush(data), sound: 'default' }]);
 }
 
 /**
@@ -66,8 +98,9 @@ export async function notificarAfiliados({ customerIds, title, body, data = {} }
 
   if (encontrados.length) {
     try {
+      const registro = registroDeEnvio(data, encontrados.length);
       await supabase.from('affiliate_notifications').insert(
-        encontrados.map(a => ({ customer_id: a.shopify_customer_id, title, body, data }))
+        encontrados.map(a => ({ customer_id: a.shopify_customer_id, title, body, data: registro }))
       );
     } catch (e) {
       resumen.errores.push(`no se pudo guardar en el listado: ${e.message}`);
@@ -82,7 +115,7 @@ export async function notificarAfiliados({ customerIds, title, body, data = {} }
     const lote = conToken.slice(i, i + 100);
     try {
       const r = await sendBatch(lote.map(a => ({
-        to: a.push_token, title, body, data, sound: 'default',
+        to: a.push_token, title, body, data: datosPush(data), sound: 'default',
       })));
       for (const t of r?.data || []) {
         if (t.status === 'ok') resumen.enviados++;
@@ -110,11 +143,12 @@ export async function broadcastToAffiliates(title, body, data = {}) {
 
   if (!affiliates?.length) return null;
 
+  const registro = registroDeEnvio(data, affiliates.length);
   const notifRows = affiliates.map((a) => ({
     customer_id: a.shopify_customer_id,
     title,
     body,
-    data,
+    data: registro,
   }));
   try {
     await supabase.from('affiliate_notifications').insert(notifRows);
@@ -128,7 +162,7 @@ export async function broadcastToAffiliates(title, body, data = {}) {
       to,
       title,
       body,
-      data,
+      data: datosPush(data),
       sound: 'default',
     }));
     results.push(await sendBatch(batch));

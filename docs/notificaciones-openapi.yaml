@@ -441,6 +441,14 @@ components:
             Nombre del evento de origen. Queda guardado junto a la
             notificación, para poder rastrear después de dónde salió.
           example: booking.creado
+        agente:
+          type: string
+          maxLength: 60
+          description: |
+            Nombre del agente que manda esto. Queda en el registro del aviso, junto con
+            a cuántas personas llegó, para distinguir envíos de distintos agentes (el
+            secreto es compartido). Conviene mandarlo siempre.
+          example: resenas
         event_id:
           type: string
           maxLength: 120
@@ -492,6 +500,14 @@ components:
           minimum: 1
           maximum: 365
           description: Días de vigencia desde hoy. Sin este campo, no vence.
+        agente:
+          type: string
+          maxLength: 60
+          description: |
+            Nombre del agente que manda esto. Queda en el registro del aviso, junto con
+            a cuántas personas llegó, para distinguir envíos de distintos agentes (el
+            secreto es compartido). Conviene mandarlo siempre.
+          example: bienvenida
         event_id:
           type: string
           maxLength: 120

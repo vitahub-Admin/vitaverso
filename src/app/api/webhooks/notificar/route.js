@@ -64,6 +64,10 @@ export async function POST(req) {
       }
     }
 
+    // Qué agente lo manda: el secreto es compartido, así que esto es lo que distingue a
+    // uno de otro en el registro. Opcional, pero conviene mandarlo siempre.
+    const agente = body.agente ? String(body.agente).trim().slice(0, 60) : null;
+
     const evento  = body.evento ? String(body.evento).slice(0, 60) : null;
     const eventId = body.event_id ? String(body.event_id).slice(0, 120) : null;
 
@@ -127,6 +131,8 @@ export async function POST(req) {
 
     const data = {
       type: 'admin_message',          // la app ya sabe mostrar este tipo
+      origen: 'agente',
+      ...(agente  ? { agente } : {}),
       ...(url     ? { url } : {}),
       ...(evento  ? { evento } : {}),
       ...(eventId ? { event_id: eventId } : {}),

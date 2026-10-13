@@ -103,26 +103,24 @@ export async function POST(req, { params }) {
       }, { status: 409 })
     }
 
-    const tarifa = null
-
     // El cupón también se revalida: pudo agotarse o vencer desde que se aplicó
     let descuento = null
     let codigo    = venta.descuento_codigo || null
     let priceRule = venta.descuento_price_rule_id || null
     if (codigo) {
-      const base = totalesDe(items, null, tarifa)
+      const base = totalesDe(items)
       const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: 0 })
       if (r.ok) descuento = { monto: r.monto, sobreEnvio: r.sobreEnvio }
       else { codigo = null; priceRule = null }
     }
 
-    const nuevos = totalesDe(items, descuento, tarifa)
+    const nuevos = totalesDe(items, descuento)
     const cuponCaido = Boolean(venta.descuento_codigo && !codigo)
     const cambioTotal = Math.abs(nuevos.total - Number(venta.total)) > 0.009 || cuponCaido
 
     if (cambioTotal || items.some((it, k) => it.price !== Number(venta.items[k]?.price))) {
       await supabase.from('local_orders')
-        .update({ items, ...nuevos, envio_tarifa: tarifa, descuento_codigo: codigo, descuento_price_rule_id: priceRule, updated_at: new Date().toISOString() })
+        .update({ items, ...nuevos, descuento_codigo: codigo, descuento_price_rule_id: priceRule, updated_at: new Date().toISOString() })
         .eq('id', venta.id).eq('estado', 'pendiente')
     }
     if (cambioTotal) {

@@ -12,7 +12,7 @@
 import { AlertTriangle } from "lucide-react";
 
 export const AVISO = {
-  activo: true,
+  activo: false,
   texto:
     "Estamos resolviendo una falla en la plataforma de pagos. Los retiros pueden " +
     "tardar más de lo normal — tu saldo está seguro y no se pierde. " +

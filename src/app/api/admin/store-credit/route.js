@@ -99,7 +99,7 @@ export async function POST(req) {
       affiliateId,
       '¡Tienes crédito! 🎁',
       `Vitahub te regaló $${amount} MXN para tu próxima compra. Código: ${code}`,
-      { type: 'store_credit_ready', code, exchangeId: registro?.id }
+      { type: 'store_credit_ready', code, exchangeId: registro?.id, origen: 'admin', enviado_por: String(sesion) }
     ).catch(() => {});
 
     return NextResponse.json({

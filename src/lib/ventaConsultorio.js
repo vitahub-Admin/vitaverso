@@ -239,7 +239,9 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
     if (!sync.ok) console.log(`[venta consultorio] app de clientes: ${sync.motivo}`);
   }
 
-  return { ok: true, order: cerrada };
+  // recienCerrada: solo quien la cerró en ESTE llamado lo ve en true; sirve para hacer
+  // una sola vez lo que va con el pago (como el correo del protocolo).
+  return { ok: true, order: cerrada, recienCerrada: true };
 }
 
 /**

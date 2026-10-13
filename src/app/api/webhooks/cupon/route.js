@@ -19,6 +19,7 @@
  *   nota?:         texto corto que ve el profesional junto al cupón,
  *   vence_en_dias? entero 1–365; sin esto no vence,
  *   event_id?:     id del evento de origen, para que un reintento no cree otro cupón,
+ *   agente?:       nombre del agente que lo manda; queda en el registro del aviso,
  *   avisar?:       false para no mandar el aviso al teléfono (por defecto sí),
  *   title?, body?: texto del aviso. Admite {codigo}, {descuento}, {valor} y {nota},
  *                  que se llenan con el cupón recién creado. Sin esto, mensaje estándar.
@@ -90,6 +91,8 @@ export async function POST(req) {
     if (Boolean(tituloAviso) !== Boolean(mensajeAviso)) {
       return error('title y body van juntos: manda los dos o ninguno', 400);
     }
+
+    const agente = body.agente ? String(body.agente).trim().slice(0, 60) : null;
 
     const eventId = body.event_id ? String(body.event_id).slice(0, 120) : null;
 
@@ -186,7 +189,7 @@ export async function POST(req) {
         afiliado.shopify_customer_id,
         tituloAviso ? llenar(tituloAviso) : '¡Tienes un cupón! 🎁',
         tituloAviso ? llenar(mensajeAviso) : `Vitahub te regaló ${que}${nota ? ` (${nota})` : ''}. Código: ${code}`,
-        { type: 'store_credit_ready', code, exchangeId: registro?.id }
+        { type: 'store_credit_ready', code, exchangeId: registro?.id, origen: 'agente', evento: 'cupon', ...(agente ? { agente } : {}) }
       ).catch(() => {});
     }
 

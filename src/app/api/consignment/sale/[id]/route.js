@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js'
 import { confirmarVenta } from '@/lib/ventaConsultorio'
 import { pasarelaActiva, montoACobrar, esModoPrueba } from '@/lib/pasarelaPago'
 import { fetchVariantInfo } from '@/lib/shopifyPrices'
-import { unidadesSeparadas, unidadesEnMano, hayEnvio, envioPendiente } from '@/lib/envio'
+import { unidadesSeparadas, unidadesEnMano } from '@/lib/envio'
 import { validarDescuento } from '@/lib/descuentoShopify'
 import { totalesDe } from '@/lib/totalesVenta'
 
@@ -132,26 +132,13 @@ export async function PATCH(req, { params }) {
     // cupón con mínimo de compra tiene que caerse solo cuando el paciente baja
     // el pedido por debajo de ese mínimo. Sin esto, alcanzaba con aplicarlo
     // caro y después sacar productos.
-    // La tarifa de envío que había elegido el paciente se conserva solo si el pedido
-    // no cambió. Shopify la cotizó con el pedido completo: con otras cantidades (por
-    // ejemplo al cruzar los $599 del envío gratis) puede ser otra, y la tiene que
-    // volver a elegir con el pedido nuevo.
-    const firmaEnvio = (its) => its
-      .filter(i => Number(i.quantity) > 0)
-      .map(i => `${i.variant_id}:${Number(i.quantity)}`)
-      .sort()
-      .join(',')
-    const tarifa = hayEnvio(items) && firmaEnvio(items) === firmaEnvio(venta.items || [])
-      ? (venta.envio_tarifa || null)
-      : null
-
     let descuento = null
     let codigo    = venta.descuento_codigo || null
     let priceRule = venta.descuento_price_rule_id || null
 
     if (codigo) {
-      const base = totalesDe(items, null, tarifa)
-      const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: envioPendiente(items, tarifa) ? null : base.envio })
+      const base = totalesDe(items)
+      const r = await validarDescuento(codigo, { subtotal: base.subtotal, envio: base.envio })
       if (r.ok) descuento = { monto: r.monto, sobreEnvio: r.sobreEnvio }
       else { codigo = null; priceRule = null }   // dejó de aplicar
     }
@@ -160,8 +147,7 @@ export async function PATCH(req, { params }) {
       .from('local_orders')
       .update({
         items,
-        ...totalesDe(items, descuento, tarifa),
-        envio_tarifa:            tarifa,
+        ...totalesDe(items, descuento),
         descuento_codigo:        codigo,
         descuento_price_rule_id: priceRule,
         updated_at:              new Date().toISOString(),

@@ -41,6 +41,7 @@ const S = StyleSheet.create({
   itemTitle:   { color: "#1b3f7a", fontSize: 13, fontWeight: "bold", marginBottom: 5 },
   itemDesc:    { color: "#6b7280", fontSize: 10, lineHeight: 1.65 },
   itemNota:    { color: "#9ca3af", fontSize: 9, marginTop: 5 },
+  itemUso:     { color: "#1b3f7a", fontSize: 9, marginTop: 5 },
   footer:      { backgroundColor: "#f9fafb", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "20 40", alignItems: "center" },
   footerText:  { color: "#9ca3af", fontSize: 9, lineHeight: 1.9, textAlign: "center" },
 });
@@ -94,6 +95,7 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
               }
               <Text style={S.itemTitle}>{item.title}</Text>
               <Text style={S.itemDesc}>{item.desc}</Text>
+              {item.modo_de_uso ? <Text style={S.itemUso}>Modo de uso: {item.modo_de_uso}</Text> : null}
               {item.nota ? <Text style={S.itemNota}>Nota: {item.nota}</Text> : null}
             </View>
           ))}
@@ -163,7 +165,7 @@ export async function GET(req) {
 
     const [catalogResult, compResult] = await Promise.all([
       variantIds.length
-        ? supabase.from("product_catalog").select("variant_id, product_id, title, componente").in("variant_id", variantIds)
+        ? supabase.from("product_catalog").select("variant_id, product_id, title, componente, modo_de_uso").in("variant_id", variantIds)
         : Promise.resolve({ data: [] }),
       supabase.from("componentes").select("slug, descripcion"),
     ]);
@@ -184,8 +186,11 @@ export async function GET(req) {
       const slug  = (cat.componente || "").trim().toLowerCase();
       const desc  = (slug && descMap[slug]) || FALLBACK;
       const dosis = dosisMap[String(vid)] || {};
+      // Sin ninguna indicación del profesional sobre cómo tomarlo, va el modo de uso del producto
+      const sinIndicacion = !dosis.instruccion && !dosis.dosis_amount && !(dosis.momentos || []).length && !dosis.acompanamiento;
 
       return {
+        modo_de_uso:  sinIndicacion ? (cat.modo_de_uso || null) : null,
         title:        cat.title || item.title || `Variante ${vid}`,
         quantity:     item.quantity || 1,
         desc,
