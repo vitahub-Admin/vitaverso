@@ -1436,10 +1436,12 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
   // Unidades de una variante en el consultorio de ESTE profesional
   const enCons = (v) => (enConsultorio && v ? Number(enConsultorio(v.variant_id) || 0) : 0);
   const inStockVariants = (product.variants || []).filter(v => v.stock === null || v.stock > 0 || enCons(v) > 0);
+  // La presentación que más unidades tiene en su consultorio, si tiene alguna
+  const conUnidades = [...(product.variants || [])].filter(v => enCons(v) > 0).sort((a, b) => enCons(b) - enCons(a))[0];
   const [selectedVariant, setSelectedVariant] = useState(
     cartItem
       ? product.variants?.find(v => v.variant_id === cartItem.variant_id) || inStockVariants[0] || product.variants?.[0]
-      : inStockVariants[0] || product.variants?.[0]
+      : conUnidades || inStockVariants[0] || product.variants?.[0]
   );
   const smartUnit = detectUnit(product.title, selectedVariant?.variant_title || "");
   const [amount,   setAmount]   = useState(cartItem?.dosage?.amount ?? 1);
@@ -2514,8 +2516,13 @@ function ArmadorCarritosInner() {
   }, []);
 
   const agregarRapido = useCallback((product) => {
-    const variant = (product.variants || []).find(v => v.stock === null || v.stock > 0)
-      || (product.variants || []).find(v => consigna.enConsultorio(v.variant_id) > 0)
+    // Primero la presentación que tiene en su consultorio (la que más unidades tenga): si el
+    // producto tiene varias (sabores, tamaños) agregar la primera de la tienda le pondría una
+    // que no tiene y la entrega en mano no se armaría.
+    const variant = [...(product.variants || [])]
+        .filter(v => consigna.enConsultorio(v.variant_id) > 0)
+        .sort((a, b) => consigna.enConsultorio(b.variant_id) - consigna.enConsultorio(a.variant_id))[0]
+      || (product.variants || []).find(v => v.stock === null || v.stock > 0)
       || product.variants?.[0];
     if (!variant) return;
     const unit = detectUnit(product.title, variant.variant_title || "");
