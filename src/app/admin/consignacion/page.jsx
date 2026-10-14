@@ -50,6 +50,9 @@ export default function ConsignacionPage() {
   const [stock, setStock] = useState([]);
   const [cargandoStock, setCargandoStock] = useState(false);
 
+  // Resumen: quién tiene producto en su consultorio, para no tener que buscarlo
+  const [resumen, setResumen] = useState(null);
+
   const mostrar = (texto, error = false) => {
     setAviso({ texto, error });
     setTimeout(() => setAviso(null), 5000);
@@ -101,6 +104,32 @@ export default function ConsignacionPage() {
     if (profesional) cargarStock(profesional.shopify_customer_id);
     else setStock([]);
   }, [profesional]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Todos los que tienen o tuvieron consignación, con sus totales
+  const cargarResumen = async () => {
+    try {
+      const r = await fetch("/api/admin/consignment");
+      const d = await r.json();
+      if (!d.ok) { setResumen([]); return; }
+      const por = new Map();
+      for (const i of d.items) {
+        const g = por.get(i.owner_id) || {
+          id: i.owner_id, first_name: i.owner_first_name || i.owner_name || "", last_name: i.owner_last_name || "",
+          email: i.owner_email, productos: 0, disponible: 0, vendido: 0, entregado: 0, actualizado: null,
+        };
+        if ((i.disponible || 0) > 0) g.productos += 1;
+        g.disponible += Math.max(0, i.disponible || 0);
+        g.vendido    += i.vendido || 0;
+        g.entregado  += i.entregado || 0;
+        if (!g.actualizado || new Date(i.updated_at) > new Date(g.actualizado)) g.actualizado = i.updated_at;
+        por.set(i.owner_id, g);
+      }
+      setResumen([...por.values()].sort((a, b) => b.disponible - a.disponible));
+    } catch { setResumen([]); }
+  };
+
+  // Se vuelve a leer al entrar y cada vez que se regresa a la lista (después de un movimiento)
+  useEffect(() => { if (!profesional) cargarResumen(); }, [profesional]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const totalUnidades = useMemo(
     () => stock.reduce((a, s) => a + Math.max(0, s.disponible || 0), 0), [stock]);
@@ -211,6 +240,44 @@ export default function ConsignacionPage() {
             </div>
           )}
         </div>
+
+        {/* ── Quién tiene consignación ── */}
+        {!profesional && (
+          <div className="bg-white border border-[#D0E4EC] rounded-2xl p-5">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-3">
+              Profesionales con producto en su consultorio
+            </p>
+            {resumen === null && <p className="text-sm text-gray-400">Cargando…</p>}
+            {resumen && resumen.length === 0 && (
+              <p className="text-sm text-gray-400">Todavía nadie tiene consignación. Busca a un profesional arriba para registrar su primera entrega.</p>
+            )}
+            {resumen && resumen.length > 0 && (
+              <div className="divide-y divide-gray-100">
+                {resumen.map((g) => (
+                  <button key={g.id}
+                    onClick={() => setProfesional({ shopify_customer_id: g.id, first_name: g.first_name, last_name: g.last_name, email: g.email })}
+                    className="w-full text-left py-3 flex items-center gap-3 hover:bg-[#F7F9FB] rounded-lg px-2 -mx-2 transition-colors">
+                    <div className="w-9 h-9 rounded-full bg-[#1b3f7a] text-white flex items-center justify-center font-bold shrink-0">
+                      {(g.first_name || "?").charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-[#1b3f7a] truncate">{g.first_name} {g.last_name}</p>
+                      <p className="text-xs text-[#8AAAB8] truncate">{g.email || `ID ${g.id}`}</p>
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className={`text-sm font-extrabold tabular-nums ${g.disponible > 0 ? "text-[#1E8FA8]" : "text-[#B0C8D4]"}`}>
+                        {g.disponible} {g.disponible === 1 ? "unidad" : "unidades"}
+                      </p>
+                      <p className="text-[11px] text-[#8AAAB8] tabular-nums">
+                        {g.productos} {g.productos === 1 ? "producto" : "productos"} · {g.vendido} vendidas
+                      </p>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* ── Movimiento ── */}
         {profesional && (

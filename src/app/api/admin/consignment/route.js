@@ -37,20 +37,28 @@ export async function GET(req) {
     const items = data || []
     const ids = [...new Set(items.map(i => String(i.owner_id)))]
     let nombres = {}
+    let datos = {}
     if (ids.length) {
       const { data: afs } = await supabase
         .from('affiliates')
-        .select('shopify_customer_id, first_name, last_name')
+        .select('shopify_customer_id, first_name, last_name, email')
         .in('shopify_customer_id', ids)
       nombres = Object.fromEntries((afs || []).map(a => [
         String(a.shopify_customer_id),
         `${a.first_name || ''} ${a.last_name || ''}`.trim() || String(a.shopify_customer_id),
       ]))
+      datos = Object.fromEntries((afs || []).map(a => [String(a.shopify_customer_id), a]))
     }
 
     return NextResponse.json({
       ok: true,
-      items: items.map(i => ({ ...i, owner_name: nombres[String(i.owner_id)] || null })),
+      items: items.map(i => ({
+        ...i,
+        owner_name: nombres[String(i.owner_id)] || null,
+        owner_first_name: datos[String(i.owner_id)]?.first_name || null,
+        owner_last_name:  datos[String(i.owner_id)]?.last_name || null,
+        owner_email:      datos[String(i.owner_id)]?.email || null,
+      })),
     })
   } catch (err) {
     return NextResponse.json({ ok: false, error: err.message }, { status: 500 })
