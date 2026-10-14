@@ -12,10 +12,14 @@ export async function DELETE(req, { params }) {
     const customerId = await resolveCustomerId(req);
     if (!customerId) return unauthorized();
 
+    // Next 15+: params es una promesa. Con params.id directo llegaba undefined y no
+    // se borraba nada (respondía ok igual).
+    const { id } = await params;
+
     const { error } = await supabase
       .from('affiliate_notifications')
       .delete()
-      .eq('id', params.id)
+      .eq('id', id)
       .eq('customer_id', customerId);
 
     if (error) throw error;

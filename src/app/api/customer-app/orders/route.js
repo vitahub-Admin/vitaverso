@@ -5,8 +5,10 @@ import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
 import { shopifyAdmin, buyUrl, getAppUser } from "@/lib/customerSupplements";
 
 // Estado de envío que ve el cliente, del más avanzado al menos
-function shippingStatus(order) {
+function shippingStatus(order, entrega) {
   if (order.cancelledAt) return "cancelled";
+  // Venta de consultorio 100% entregada en mano: nunca tiene envío, ya la tiene el paciente
+  if (entrega === "mano") return order.displayFinancialStatus === "PENDING" ? "pending_payment" : "consultorio";
   const states = (order.fulfillments ?? [])
     .map((f) => f.displayStatus)
     .filter((s) => s && s !== "CANCELED");
@@ -36,13 +38,15 @@ export async function GET(req) {
             edges { node {
               id name createdAt cancelledAt
               displayFinancialStatus displayFulfillmentStatus
+              customAttributes { key value }
               totalPriceSet { shopMoney { amount currencyCode } }
               fulfillments(first: 5) {
                 displayStatus createdAt inTransitAt deliveredAt estimatedDeliveryAt
                 trackingInfo(first: 3) { company number url }
               }
               lineItems(first: 30) { edges { node {
-                title quantity
+                title quantity requiresShipping
+                customAttributes { key value }
                 image { url }
                 originalUnitPriceSet { shopMoney { amount } }
                 variant { id title product { handle } }
@@ -61,6 +65,9 @@ export async function GET(req) {
           .map((t) => ({ company: t.company ?? null, number: t.number ?? null, url: t.url ?? null }))
       );
       const lastFulfillment = (node.fulfillments ?? [])[0] ?? null;
+      // Ventas de consultorio (cobradas por borrador de Shopify): entrega mano | mixta | envio
+      const attr = (k) => node.customAttributes?.find((a) => a.key === k)?.value ?? null;
+      const entrega = attr("local_order_id") ? attr("entrega") : null;
 
       return {
         id: node.id.split("/").pop(),
@@ -68,7 +75,8 @@ export async function GET(req) {
         createdAt: node.createdAt,
         financialStatus: (node.displayFinancialStatus ?? "").toLowerCase(),
         fulfillmentStatus: (node.displayFulfillmentStatus ?? "").toLowerCase(),
-        shippingStatus: shippingStatus(node),
+        shippingStatus: shippingStatus(node, entrega),
+        consultorio: entrega === "mano" || entrega === "mixta",
         shippedAt: lastFulfillment?.inTransitAt ?? lastFulfillment?.createdAt ?? null,
         deliveredAt: lastFulfillment?.deliveredAt ?? null,
         estimatedDeliveryAt: lastFulfillment?.estimatedDeliveryAt ?? null,
@@ -86,6 +94,10 @@ export async function GET(req) {
             image: item.image?.url ?? null,
             productHandle: handle,
             buyUrl: handle ? buyUrl(handle) : null,
+            // Línea libre de una venta de consultorio: el paciente ya se la llevó
+            enConsultorio:
+              item.requiresShipping === false &&
+              (item.customAttributes ?? []).some((a) => a.key === "ENTREGA"),
           };
         }),
       };

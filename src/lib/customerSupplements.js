@@ -22,6 +22,8 @@ const TZ = "America/Mexico_City";
 
 // Variantes compradas hace más de esto y sin seguimiento no se sugieren
 const SUGERIR_COMPRAS_DE_LOS_ULTIMOS_DIAS = 120;
+// Compras sin receta (sin dosis del profesional): solo las muy recientes
+const SUGERIR_SIN_RECETA_DIAS = 45;
 // Ventas de consultorio que se consideran para el stack
 const CONSULTORIO_ULTIMOS_DIAS = 180;
 const ORDENES_A_REVISAR = 10;
@@ -481,9 +483,13 @@ export async function buildStack(user, { persist = true } = {}) {
 
     let tracked = row && row.active && row.start_date;
 
-    // Sin seguimiento: solo sugerimos compras recientes
-    if (!tracked && (!lastPurchase || diffDays(mxDate(lastPurchase.createdAt), today) > SUGERIR_COMPRAS_DE_LOS_ULTIMOS_DIAS)) {
-      continue;
+    // Sin seguimiento: solo sugerimos compras recientes. Con receta del profesional
+    // (dosis conocida) la ventana es larga; sin receta, solo lo muy reciente, para no
+    // llenar "por configurar" con cosas que no son suplementos (proteína, snacks...).
+    // El cliente puede descartar cualquiera con "No lo tomo" (DELETE → fila inactiva).
+    if (!tracked) {
+      const ventana = latest?.rx ? SUGERIR_COMPRAS_DE_LOS_ULTIMOS_DIAS : SUGERIR_SIN_RECETA_DIAS;
+      if (!lastPurchase || diffDays(mxDate(lastPurchase.createdAt), today) > ventana) continue;
     }
 
     const meta = latest?.meta ?? {};

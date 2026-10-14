@@ -168,11 +168,23 @@ export async function DELETE(req) {
     return NextResponse.json({ ok: false, error: "Falta el suplemento" }, { status: 400 });
   }
 
+  // Upsert: también sirve para descartar un "por configurar" que todavía no tiene
+  // fila ("No lo tomo"). Queda inactivo y solo vuelve si lo compra de nuevo.
+  const params = new URL(req.url).searchParams;
   const { error } = await supabase
     .from("supplement_tracking")
-    .update({ active: false, reminder_times: [], updated_at: new Date().toISOString() })
-    .eq("user_id", payload.userId)
-    .eq("shopify_variant_id", variantId);
+    .upsert(
+      {
+        user_id: payload.userId,
+        shopify_customer_id: payload.shopifyCustomerId ? Number(payload.shopifyCustomerId) : null,
+        shopify_variant_id: variantId,
+        product_title: (params.get("title") ?? "").slice(0, 300),
+        active: false,
+        reminder_times: [],
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "user_id,shopify_variant_id", ignoreDuplicates: false }
+    );
 
   if (error) {
     console.error("supplement DELETE error:", error);
