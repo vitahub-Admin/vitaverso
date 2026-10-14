@@ -1,0 +1,47 @@
+{
+ "nota": "Productos a los que se les AGREGÓ el tag vitadeals (los verdes de la hoja) y/o que se sumaron a la colección VITADEALS.",
+ "tag_agregado": [
+  {
+   "id": "gid://shopify/Product/9624351179073",
+   "title": "Extracto de Té Verde 725mg de Life Extension | Promueve la función Metabólica y Antioxidante | 100 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9602910683457",
+   "title": "Folato Optimizado 1700 mcg DFE de Life Extension  | Promueve el bienestar durante el embarazo | 100 cápsulas vegetarianas"
+  },
+  {
+   "id": "gid://shopify/Product/9602902524225",
+   "title": "Litio 1000 mcg de Life Extension | Apoyo de la función Cerebral y Cognitiva | 100 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9604897669441",
+   "title": "Minerales traza, Zinc, Manganeso, Molibdeno de Life Extension |  Fortalece el Sistema Inmunitario | 90 cápsulas vegetarianas"
+  },
+  {
+   "id": "gid://shopify/Product/9618726355265",
+   "title": "Aislado de Proteína de Suero con 25g de Proteína por Scoop | Apoyo Muscular, Sin Soya, Con BCAA de NOW Sport | 19 Servicios, 544g"
+  }
+ ],
+ "sumados_a_coleccion": [
+  {
+   "id": "gid://shopify/Product/9624351179073",
+   "title": "Extracto de Té Verde 725mg de Life Extension | Promueve la función Metabólica y Antioxidante | 100 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9602910683457",
+   "title": "Folato Optimizado 1700 mcg DFE de Life Extension  | Promueve el bienestar durante el embarazo | 100 cápsulas vegetarianas"
+  },
+  {
+   "id": "gid://shopify/Product/9602902524225",
+   "title": "Litio 1000 mcg de Life Extension | Apoyo de la función Cerebral y Cognitiva | 100 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9604897669441",
+   "title": "Minerales traza, Zinc, Manganeso, Molibdeno de Life Extension |  Fortalece el Sistema Inmunitario | 90 cápsulas vegetarianas"
+  },
+  {
+   "id": "gid://shopify/Product/9618726355265",
+   "title": "Aislado de Proteína de Suero con 25g de Proteína por Scoop | Apoyo Muscular, Sin Soya, Con BCAA de NOW Sport | 19 Servicios, 544g"
+  }
+ ]
+}

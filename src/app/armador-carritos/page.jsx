@@ -501,9 +501,10 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
     : null;
   const dur = duracionDias({ meta, amount, momentos, quantity: qty });
   // stock viene solo en protocolos recuperados; null = no se consultó
-  const sinStock = item.stock !== null && item.stock !== undefined && item.stock <= 0;
   // Unidades de este producto que el profesional ya tiene en su consultorio
   const enStock = enConsultorio ? enConsultorio(item.variant_id) : 0;
+  // Agotado en la tienda: solo cuenta si su consultorio tampoco alcanza para lo que pide
+  const sinStock = item.stock !== null && item.stock !== undefined && item.stock <= 0 && enStock < qty;
   return (
     <div className="bg-white border border-[#D0E4EC] rounded-xl overflow-hidden">
       {/* Fila principal */}
@@ -717,7 +718,8 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
   const sinDato = carrito.length - duraciones.length;
 
   // Agotados: solo se sabe en protocolos recuperados, donde se consultó el stock
-  const agotados = carrito.filter(p => p.stock !== null && p.stock !== undefined && p.stock <= 0);
+  const agotados = carrito.filter(p => p.stock !== null && p.stock !== undefined && p.stock <= 0
+    && !(enConsultorio && enConsultorio(p.variant_id) >= (p.quantity || 1)));
 
   // Qué parte del protocolo puede entregar hoy mismo en la consulta y qué
   // parte hay que enviar. Con el cobro local todavía sin construir, por ahora
@@ -1336,7 +1338,9 @@ function RestockButton({ product, variant = null, size = "sm", seccion = "listad
 
 // ── Product Card ──────────────────────────────────────────────────────────────
 function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQuickAdd, tourCard, tourComision, enConsultorio = 0 }) {
-  const outOfStock = product.all_out_of_stock;
+  // Agotado en la tienda pero con unidades en SU consultorio: para ella sigue disponible
+  const soloConsultorio = product.all_out_of_stock && enConsultorio > 0;
+  const outOfStock = product.all_out_of_stock && !soloConsultorio;
   return (
     <div data-tour={tourCard ? "producto-card" : undefined}
       className="bg-white rounded-xl border border-[#D0E4EC] overflow-hidden flex flex-col hover:shadow-md hover:border-[#1E8FA8]/40 transition-all group">
@@ -1352,7 +1356,7 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
             {/* Lo tiene en su consultorio: se lo puede entregar en la consulta */}
             {enConsultorio > 0 && (
               <span className="bg-[#1E8FA8] text-white text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">
-                En consultorio · {enConsultorio}
+                {soloConsultorio ? "Solo en consultorio" : "En consultorio"} · {enConsultorio}
               </span>
             )}
           </div>
@@ -1425,11 +1429,13 @@ function SmartSuggestions({ componente, excludeId, onProductClick, isFavorite, o
 }
 
 // ── Product Detail View ───────────────────────────────────────────────────────
-function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartItem, isFavorite, onFavorite, onProductClick, onBreadcrumb }) {
+function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartItem, isFavorite, onFavorite, onProductClick, onBreadcrumb, enConsultorio }) {
   const { customer: clienteActual } = useCustomer() || {};
   const esVitahuber = (clienteActual?.tags || "").split(",").some(t => t.trim().toLowerCase() === "vitahuber");
   const inCart = !!cartItem;
-  const inStockVariants = (product.variants || []).filter(v => v.stock === null || v.stock > 0);
+  // Unidades de una variante en el consultorio de ESTE profesional
+  const enCons = (v) => (enConsultorio && v ? Number(enConsultorio(v.variant_id) || 0) : 0);
+  const inStockVariants = (product.variants || []).filter(v => v.stock === null || v.stock > 0 || enCons(v) > 0);
   const [selectedVariant, setSelectedVariant] = useState(
     cartItem
       ? product.variants?.find(v => v.variant_id === cartItem.variant_id) || inStockVariants[0] || product.variants?.[0]
@@ -1494,7 +1500,12 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
     if (meta.tipo_dosis) setUnit(meta.tipo_dosis);
   }, [selectedVariant?.variant_id, variantMeta]); // eslint-disable-line
 
-  const outOfStock = selectedVariant?.stock !== null && selectedVariant?.stock <= 0;
+  const sinStockTienda  = selectedVariant?.stock !== null && selectedVariant?.stock <= 0;
+  const consultorioSel  = enCons(selectedVariant);
+  // Agotado en la tienda pero con unidades en su consultorio: se puede agregar, hasta esas unidades
+  const soloConsultorio = sinStockTienda && consultorioSel > 0;
+  const outOfStock      = sinStockTienda && !soloConsultorio;
+  const maxCantidad     = soloConsultorio ? consultorioSel : Infinity;
   const price      = selectedVariant?.price ?? product.min_price;
 
   const toggleMomento = (m) => setMomentos(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
@@ -1503,8 +1514,10 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
     if (!selectedVariant || outOfStock) return;
     const meta = variantMeta[String(selectedVariant.variant_id)] || null;
     const dosage = { amount, unit, momentos, acompanamiento: acomp, nota, meta };
-    inCart ? onUpdate(cartItem.variant_id, selectedVariant, dosage, quantity, bundlePlan)
-           : onAdd(product, selectedVariant, dosage, quantity, bundlePlan);
+    // Con stock solo en el consultorio no se puede pedir más de lo que hay allí
+    const cantidad = Math.min(quantity, maxCantidad);
+    inCart ? onUpdate(cartItem.variant_id, selectedVariant, dosage, cantidad, bundlePlan)
+           : onAdd(product, selectedVariant, dosage, cantidad, bundlePlan);
   };
 
   const [linkCopiado, setLinkCopiado] = useState(false);
@@ -1664,8 +1677,8 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                 onChange={e => setSelectedVariant(product.variants.find(v => v.variant_id === Number(e.target.value)))}
                 className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]">
                 {product.variants.map(v => (
-                  <option key={v.variant_id} value={v.variant_id} disabled={v.stock !== null && v.stock <= 0}>
-                    {v.variant_title || "Único"}{v.stock !== null && v.stock <= 0 ? " · sin stock" : ""}{v.price ? ` · ${fmtMXN(v.price)}` : ""}
+                  <option key={v.variant_id} value={v.variant_id} disabled={v.stock !== null && v.stock <= 0 && enCons(v) === 0}>
+                    {v.variant_title || "Único"}{v.stock !== null && v.stock <= 0 ? (enCons(v) > 0 ? " · solo en consultorio" : " · sin stock") : ""}{v.price ? ` · ${fmtMXN(v.price)}` : ""}
                   </option>
                 ))}
               </select>
@@ -1975,10 +1988,11 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                     <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
                       className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">−</button>
                     <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{quantity}</span>
-                    <button onClick={() => setQuantity(q => q + 1)}
+                    <button onClick={() => setQuantity(q => Math.min(q + 1, maxCantidad))}
                       className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">+</button>
                   </div>
                   <span className="text-xs text-[#5B7A8C]">{quantity === 1 ? "frasco" : "frascos"}</span>
+                  {soloConsultorio && <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8]">Solo en consultorio · máx. {consultorioSel}</span>}
                   {/* Cuánto dura lo que lleva: ayuda a decidir cuántos frascos mandar */}
                   {(() => {
                     const dur = duracionDias({
@@ -2500,11 +2514,13 @@ function ArmadorCarritosInner() {
   }, []);
 
   const agregarRapido = useCallback((product) => {
-    const variant = (product.variants || []).find(v => v.stock === null || v.stock > 0) || product.variants?.[0];
+    const variant = (product.variants || []).find(v => v.stock === null || v.stock > 0)
+      || (product.variants || []).find(v => consigna.enConsultorio(v.variant_id) > 0)
+      || product.variants?.[0];
     if (!variant) return;
     const unit = detectUnit(product.title, variant.variant_title || "");
     agregarAlProtocolo(product, variant, { amount: 1, unit, momentos: [], acompanamiento: "", nota: "" });
-  }, [agregarAlProtocolo]);
+  }, [agregarAlProtocolo, consigna.enConsultorio]);
 
   const quitarDelProtocolo  = useCallback(vid => setCarrito(p => p.filter(c => c.variant_id !== vid)), []);
   const limpiarProtocolo    = useCallback(() => setCarrito([]), []);
@@ -2579,7 +2595,7 @@ function ArmadorCarritosInner() {
     return true;
   });
 
-  const outOfStockCount = filteredProductos.filter(p => p.all_out_of_stock).length;
+  const outOfStockCount = filteredProductos.filter(p => p.all_out_of_stock && !(consigna.productoEnConsultorio(p) > 0)).length;
 
   // Anclas del tour: van en la primera tarjeta, y la de comisión en la primera
   // que efectivamente tenga una — si no, el paso apuntaría a un elemento que
@@ -2695,7 +2711,7 @@ function ArmadorCarritosInner() {
         {isHome && (
           <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 space-y-8">
             {/* Slider favoritos */}
-            {favoriteList.filter(p => !p.all_out_of_stock).length > 0 && (
+            {favoriteList.filter(p => !p.all_out_of_stock || consigna.productoEnConsultorio(p) > 0).length > 0 && (
               <section>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
@@ -2707,7 +2723,7 @@ function ArmadorCarritosInner() {
                   </button>
                 </div>
                 <div className="flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden -mx-4 sm:-mx-6 px-4 sm:px-6">
-                  {favoriteList.filter(p => !p.all_out_of_stock).map(p => (
+                  {favoriteList.filter(p => !p.all_out_of_stock || consigna.productoEnConsultorio(p) > 0).map(p => (
                     <div key={p.product_id} className="w-40 shrink-0">
                       <ProductCard product={p} onClick={handleProductClick}
                         inProtocol={p.variants?.some(v => cartVariantIds.has(v.variant_id)) || false}
@@ -2837,7 +2853,7 @@ function ArmadorCarritosInner() {
               </div>
             ) : (
               <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
-                {favoriteList.filter(p => !p.all_out_of_stock).map(p => (
+                {favoriteList.filter(p => !p.all_out_of_stock || consigna.productoEnConsultorio(p) > 0).map(p => (
                   <ProductCard key={p.product_id} product={p} onClick={handleProductClick}
                     inProtocol={p.variants?.some(v => cartVariantIds.has(v.variant_id)) || false}
                     isFavorite={isFavorite} onFavorite={toggleFavorite} onQuickAdd={agregarRapido}
@@ -2866,6 +2882,7 @@ function ArmadorCarritosInner() {
             onFavorite={toggleFavorite}
             onProductClick={handleProductClick}
             onBreadcrumb={handleBreadcrumb}
+            enConsultorio={consigna.enConsultorio}
           />
         )}
 

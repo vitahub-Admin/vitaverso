@@ -1,0 +1,95 @@
+{
+ "nota": "Carga inicial de consignación de Rosa Elizabeth Mota Ortega. Para deshacer en BaseLinker: traspasar de vuelta (Consultorios→central) lo de \"entrega\" y (central→Consultorios) lo de \"devolucion\". En el libro: ajustes negativos, sin borrar.",
+ "profesional": 9354844602689,
+ "documentos_baselinker": {
+  "devolucion_previa_whey_fresa": 3699264,
+  "borrador_fallido_sin_confirmar": 3699267,
+  "entrega": 3699347
+ },
+ "traspasos": {
+  "entrega": [
+   {
+    "product_id": 9942875046209,
+    "sku": "VHMX01951",
+    "cantidad": 2
+   },
+   {
+    "product_id": 9942875046209,
+    "sku": "VHMX01952",
+    "cantidad": 2
+   },
+   {
+    "product_id": 9640302412097,
+    "sku": "VHMX00941",
+    "cantidad": 4
+   },
+   {
+    "product_id": 9640249753921,
+    "sku": "VHMX00938",
+    "cantidad": 5
+   },
+   {
+    "product_id": 9990455132481,
+    "sku": "VHMX02121",
+    "cantidad": 4
+   },
+   {
+    "product_id": 10129052762433,
+    "sku": "VHMX02639",
+    "cantidad": 6
+   }
+  ],
+  "devolucion": []
+ },
+ "libro": [
+  {
+   "sku": "VHMX01949",
+   "variant_id": 50493804020033,
+   "entregado": 4,
+   "vendido": 2,
+   "disponible": 2
+  },
+  {
+   "sku": "VHMX01951",
+   "variant_id": 50493804085569,
+   "entregado": 4,
+   "vendido": 2,
+   "disponible": 2
+  },
+  {
+   "sku": "VHMX01952",
+   "variant_id": 50493803954497,
+   "entregado": 4,
+   "vendido": 2,
+   "disponible": 2
+  },
+  {
+   "sku": "VHMX00941",
+   "variant_id": 49836348932417,
+   "entregado": 10,
+   "vendido": 6,
+   "disponible": 4
+  },
+  {
+   "sku": "VHMX00938",
+   "variant_id": 49836348768577,
+   "entregado": 10,
+   "vendido": 5,
+   "disponible": 5
+  },
+  {
+   "sku": "VHMX02121",
+   "variant_id": 50702467203393,
+   "entregado": 6,
+   "vendido": 2,
+   "disponible": 4
+  },
+  {
+   "sku": "VHMX02639",
+   "variant_id": 51285024702785,
+   "entregado": 6,
+   "vendido": 0,
+   "disponible": 6
+  }
+ ]
+}

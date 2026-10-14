@@ -123,9 +123,11 @@ const INVENTARIO   = Number(process.env.BASELINKER_INVENTORY_ID || 50176);
 const CENTRAL      = Number(process.env.BASELINKER_ALMACEN_CENTRAL || 59011);
 const CONSULTORIOS = Number(process.env.BASELINKER_ALMACEN_CONSULTORIOS || 76352);
 
-// Los almacenes llevan ubicaciones (WMS): cada unidad vive en una, y un documento tiene
-// que decir de cuál sale y a cuál entra. Se usa la ubicación asignada al producto en
-// cada almacén; en Consultorios, si el producto aún no tiene una, la de recepción.
+// Los almacenes llevan ubicaciones (WMS): cada unidad se identifica por su ubicación, su
+// fecha de caducidad, su lote y su serie, y un documento tiene que nombrar la unidad
+// exacta que mueve. Por eso se leen las unidades del almacén de origen y se toman las
+// que caducan primero (FEFO). Un traspaso conserva la caducidad en el destino. En
+// Consultorios las unidades llegan a la ubicación de recepción.
 const UBICACION_CONSULTORIOS = process.env.BASELINKER_UBICACION_CONSULTORIOS || 'Admisiones';
 
 // 0 GR (entrada) · 2 GI (salida) · 4 traspaso entre almacenes
@@ -165,34 +167,37 @@ async function documento({ tipo, almacen, destino = null, items, notas }) {
   return doc.document_id;
 }
 
+/** Unidades (ubicación + caducidad + lote + serie) de un producto en un almacén, las que caducan antes primero. */
+async function unidadesDe(idProducto, almacen) {
+  const p = (await bl('getInventoryProductsData', { inventory_id: INVENTARIO, products: [idProducto], include_wms_units: true })).products?.[idProducto];
+  const unidades = (p?.stock_wms_units?.[`bl_${almacen}`] || []).filter(u => Number(u.quantity) > 0);
+  unidades.sort((x, y) => (x.expiry_date || '9999').localeCompare(y.expiry_date || '9999'));
+  return { unidades, ubicaciones: p?.locations || {} };
+}
+
+/** Reparte una cantidad entre las unidades disponibles. Falla si no alcanzan. */
+function repartir(unidades, cantidad) {
+  let falta = cantidad;
+  const partes = [];
+  for (const u of unidades) {
+    if (falta <= 0) break;
+    const toma = Math.min(falta, Number(u.quantity));
+    partes.push({ u, cantidad: toma });
+    falta -= toma;
+  }
+  if (falta > 0) throw new Error(`no alcanzan las unidades (faltan ${falta})`);
+  return partes;
+}
+
 /**
  * @param {'entrega'|'devolucion'|'venta'|'reversa'} sentido
  * @param {Array<{product_id, sku, cantidad}>} lineas  variantes de Shopify
  * @param {string} nota  queda en el documento de BaseLinker, para rastrearlo
- * @returns {{ ok: boolean, documento?: number, motivo?: string }}
+ * @param {{simular?: boolean}} [opciones]  con simular no crea nada: devuelve los renglones
+ * @returns {{ ok: boolean, documento?: number, renglones?: Array, motivo?: string }}
  */
-export async function moverStockConsultorios(sentido, lineas = [], nota = '') {
+export async function moverStockConsultorios(sentido, lineas = [], nota = '', { simular = false } = {}) {
   try {
-    const items = [];
-    for (const l of lineas) {
-      const cantidad = Number(l.cantidad);
-      if (!(cantidad > 0)) continue;
-      const id = await productoBL(l);
-      if (!id) return { ok: false, motivo: `producto ${l.sku || l.product_id} no encontrado en BaseLinker` };
-      const ub = (await bl('getInventoryProductsData', { inventory_id: INVENTARIO, products: [id] })).products?.[id]?.locations || {};
-      const enCentral      = ub[`bl_${CENTRAL}`] ?? '';
-      const enConsultorios = ub[`bl_${CONSULTORIOS}`] || UBICACION_CONSULTORIOS;
-      const ubicaciones = {
-        entrega:    { location_name: enCentral,      target_location_name: enConsultorios },
-        devolucion: { location_name: enConsultorios, target_location_name: enCentral },
-        venta:      { location_name: enConsultorios },
-        reversa:    { location_name: enConsultorios },
-      }[sentido];
-      items.push({ product_id: id, quantity: cantidad, ...ubicaciones });
-    }
-    if (!items.length) return { ok: true, documento: null };
-
-    const nota500 = `Vitahub Pro · ${sentido}${nota ? ` · ${nota}` : ''}`;
     const args = {
       entrega:    { tipo: DOC.traspaso, almacen: CENTRAL,      destino: CONSULTORIOS },
       devolucion: { tipo: DOC.traspaso, almacen: CONSULTORIOS, destino: CENTRAL },
@@ -201,6 +206,42 @@ export async function moverStockConsultorios(sentido, lineas = [], nota = '') {
     }[sentido];
     if (!args) return { ok: false, motivo: `movimiento desconocido: ${sentido}` };
 
+    const items = [];
+    for (const l of lineas) {
+      const cantidad = Number(l.cantidad);
+      if (!(cantidad > 0)) continue;
+      const id = await productoBL(l);
+      if (!id) return { ok: false, motivo: `producto ${l.sku || l.product_id} no encontrado en BaseLinker` };
+
+      const { ubicaciones } = await unidadesDe(id, args.almacen);
+      const enCentral      = ubicaciones[`bl_${CENTRAL}`] ?? '';
+      const enConsultorios = ubicaciones[`bl_${CONSULTORIOS}`] || UBICACION_CONSULTORIOS;
+
+      if (sentido === 'reversa') {
+        // Entra a Consultorios sin saber de qué lote venía: sin caducidad, en recepción
+        items.push({ product_id: id, quantity: cantidad, location_name: enConsultorios });
+        continue;
+      }
+
+      // Entrega, devolución y venta sacan unidades concretas del almacén de origen
+      const { unidades } = await unidadesDe(id, args.almacen);
+      for (const { u, cantidad: c } of repartir(unidades, cantidad)) {
+        items.push({
+          product_id: id,
+          quantity: c,
+          location_name: u.location,
+          expiry_date: u.expiry_date || '',
+          batch: u.batch || '',
+          serial_no: u.serial_no || '',
+          ...(sentido === 'entrega'    ? { target_location_name: enConsultorios } : {}),
+          ...(sentido === 'devolucion' ? { target_location_name: enCentral } : {}),
+        });
+      }
+    }
+    if (!items.length) return { ok: true, documento: null };
+    if (simular) return { ok: true, documento: null, renglones: items };
+
+    const nota500 = `Vitahub Pro · ${sentido}${nota ? ` · ${nota}` : ''}`;
     return { ok: true, documento: await documento({ ...args, items, notas: nota500 }) };
   } catch (e) {
     console.error('[baselinker consultorios]', sentido, e.message);

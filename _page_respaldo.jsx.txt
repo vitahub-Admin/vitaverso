@@ -1,0 +1,3032 @@
+"use client";
+import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import { useCustomer } from "@/app/context/CustomerContext";
+import {
+  X, ChevronDown, Package, Search,
+  ArrowLeft, ShoppingBag, Trash2, ChevronRight,
+  Plus, Minus, Heart, Pencil, MessageCircle,
+  Sun, FlaskConical, Zap, Droplets,
+  Save, FileClock, Bookmark, CalendarDays, Check, Sparkles,
+  Link2 as LinkIcon,
+} from "lucide-react";
+
+const DOSE_UNITS = ["cápsula", "tableta", "softgel", "gota", "ml", "mg", "g", "sobre", "cucharada", "probiótico", "unidad"];
+const MOMENTOS   = ["Mañana", "Mediodía", "Tarde", "Noche", "Con desayuno", "Con almuerzo", "Con cena", "Antes de dormir"];
+const ACOMP      = ["Con agua", "Con comida", "En ayunas"];
+
+// ── Helpers de posología ─────────────────────────────────────────────────────
+
+/** Normaliza la unidad de dosis para el texto de instrucción.
+ *  Puede venir de detectUnit (minúscula singular) o de un metafield de Shopify,
+ *  que las escribe capitalizadas y a veces ya en plural ("Cápsulas"), así que
+ *  hay que poder singularizar además de pluralizar. */
+function pluralUnit(u = "", n = 1) {
+  const unit = u.trim().toLowerCase();
+  if (!unit) return "";
+  if (["ml", "mg", "g"].includes(unit)) return unit; // invariables
+  const isPlural = unit.endsWith("s");
+  if (n === 1) return isPlural ? unit.replace(/s$/, "") : unit;
+  return isPlural ? unit : unit + "s";
+}
+
+/**
+ * Convierte lista de momentos a español natural.
+ * ["Mañana", "Tarde"] → "por la mañana y por la tarde"
+ */
+const MOMENTO_NATURAL = {
+  "Mañana":          "por la mañana",
+  "Mediodía":        "al mediodía",
+  "Tarde":           "por la tarde",
+  "Noche":           "por la noche",
+  "Con desayuno":    "con el desayuno",
+  "Con almuerzo":    "con el almuerzo",
+  "Con cena":        "con la cena",
+  "Antes de dormir": "antes de dormir",
+};
+
+const ACOMP_NATURAL = {
+  "Con agua":   "con agua",
+  "Con comida": "con comida",
+  "En ayunas":  "en ayunas",
+};
+
+function joinList(items) {
+  if (!items.length) return "";
+  if (items.length === 1) return items[0];
+  if (items.length === 2) return `${items[0]} y ${items[1]}`;
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
+
+/**
+ * Genera texto de instrucción natural estilo Fullscript.
+ * Resultado: "Tomar 5 Gotas por la mañana, al mediodía y por la tarde, con comida."
+ *
+ * @param {number}  amount   — número de dosis (o unidades si no hay meta)
+ * @param {string}  unit     — unidad clásica (fallback sin meta)
+ * @param {Array}   momentos — ["Mañana", "Tarde", ...]
+ * @param {string}  acomp    — "Con agua" | "Con comida" | "En ayunas"
+ * @param {object}  [meta]   — { dosis, tipo_dosis } desde metafield
+ */
+function buildInstruccion(amount, unit, momentos = [], acomp = "", meta = null) {
+  // — cantidad física a tomar —
+  let doseStr = "";
+  if (amount) {
+    if (meta?.tipo_dosis && meta?.dosis != null) {
+      const total = amount * meta.dosis;
+      doseStr = `${total} ${pluralUnit(meta.tipo_dosis, total)}`;
+    } else if (unit) {
+      doseStr = `${amount} ${pluralUnit(unit, amount)}`;
+    }
+  }
+
+  // — momentos → español natural —
+  const mNat = momentos.map(m => MOMENTO_NATURAL[m] ?? m.toLowerCase()).filter(Boolean);
+  const momentosStr = joinList(mNat);
+
+  // — acompañamiento —
+  const acompStr = ACOMP_NATURAL[acomp] ?? (acomp ? acomp.toLowerCase() : "");
+
+  // — ensamblar oración —
+  let sentence = "";
+  if (doseStr)     sentence  = `Tomar ${doseStr}`;
+  if (momentosStr) sentence += (sentence ? ` ${momentosStr}` : momentosStr);
+  if (acompStr)    sentence += (sentence ? `, ${acompStr}` : acompStr);
+  if (sentence && !sentence.endsWith(".")) sentence += ".";
+
+  return sentence;
+}
+
+// ── Smart unit detector ───────────────────────────────────────────────────────
+function detectUnit(title = "", variantTitle = "") {
+  const text = `${title} ${variantTitle}`.toLowerCase()
+    .normalize("NFD").replace(/[̀-ͯ]/g, ""); // strip accents
+  if (/c[a]psulas?/.test(text))        return "cápsula";
+  if (/tabletas?/.test(text))          return "tableta";
+  if (/softgels?/.test(text))          return "softgel";
+  if (/\bml\b/.test(text))             return "ml";
+  if (/gotas?/.test(text))             return "gota";
+  if (/\bmg\b/.test(text))             return "mg";
+  if (/cucharadas?/.test(text))        return "cucharada";
+  if (/\bsobres?\b/.test(text))        return "sobre";
+  if (/probi[o]ticos?/.test(text))     return "probiótico";
+  if (/unidades?/.test(text))          return "unidad";
+  if (/\b(gr?|gramos?)\b/.test(text))  return "g";
+  return "cápsula";
+}
+
+// ── Duración estimada ─────────────────────────────────────────────────────────
+// Cuántos días alcanza lo que se está prescribiendo:
+//   días = dosis por frasco ÷ (dosis por toma × tomas por día) × frascos
+// Solo se calcula con el metafield `total_dosis`. Las unidades sueltas
+// (cápsulas, ml) no sirven: una dosis puede ser 2 cápsulas o media cucharada,
+// y estimar con ellas da números equivocados. Sin ese dato, no mostramos nada.
+function duracionDias({ meta, amount = 1, momentos = [], quantity = 1 }) {
+  const porFrasco = Number(meta?.total_dosis);
+  if (!porFrasco || !Number.isFinite(porFrasco)) return null;
+
+  const porToma   = Number(amount) || 1;
+  const tomasDia  = momentos?.length || 1;
+  const porDia    = porToma * tomasDia;
+  if (porDia <= 0) return null;
+
+  const frascos = Math.max(1, Number(quantity) || 1);
+  const dias    = Math.floor((porFrasco * frascos) / porDia);
+  if (dias < 1) return null;
+
+  return { dias, porDia, frascos, porFrasco };
+}
+
+// "24 días" · "1 mes y 5 días" · "2 meses". Meses de 30 días: es una estimación
+// para el consultorio, no una cuenta de calendario.
+function textoDuracion(dias) {
+  if (!dias) return null;
+  if (dias < 45) return `${dias} día${dias === 1 ? "" : "s"}`;
+  const meses = Math.floor(dias / 30);
+  const resto = dias % 30;
+  const m = `${meses} mes${meses === 1 ? "" : "es"}`;
+  return resto >= 5 ? `${m} y ${resto} días` : m;
+}
+
+// Retorna el tier de descuento activo ({qty, pct}) para una cantidad dada
+function getBundleTier(rules, qty) {
+  if (!rules?.length || qty < 2) return null;
+  return [...rules].sort((a, b) => b.qty - a.qty).find(r => qty >= r.qty) || null;
+}
+
+// ── Protocolos guardados: borradores y plantillas ────────────────────────────
+// Se guardan en la tabla `protocols`, en el mismo formato de "componentes" que
+// ya usaba el builder: un paso por producto, con su dosis. Nunca se guardan los
+// datos del paciente: un borrador se retoma y una plantilla se reusa con otra
+// persona, así que esos datos no tienen por qué viajar.
+function carritoAComponentes(carrito) {
+  return (carrito || []).map(item => ({
+    type:     "libre",
+    label:    item.title,
+    quantity: item.quantity || 1,
+    dosage:   item.dosage || null,
+    items: [{
+      product_id:    item.product_id ?? null,
+      variant_id:    item.variant_id,
+      title:         item.title,
+      variant_title: item.variant_title ?? null,
+      image:         item.image ?? null,
+      price:         item.price ?? null,
+    }],
+  }));
+}
+
+function componentesACarrito(components) {
+  return (components || []).flatMap(comp => {
+    const it = comp.items?.[0];
+    if (!it) return [];
+
+    // Dos formatos conviven. El del armador guarda la variante plana en el
+    // ítem; el del builder viejo guarda el producto arriba y las variantes
+    // anidadas en items[].variants[]. Leer solo el plano dejaba el carrito
+    // vacío al abrir una plantilla vieja: 33 protocolos de 8 profesionales.
+    const v = it.variants?.[0] || {};
+    const variantId = it.variant_id ?? v.variant_id;
+    if (!variantId) return [];
+
+    return [{
+      variant_id:    variantId,
+      product_id:    it.product_id ?? null,
+      title:         it.title || comp.label || comp.componente || "Producto",
+      variant_title: it.variant_title ?? v.variant_title ?? null,
+      image:         it.image ?? it.image_url ?? null,
+      price:         it.price ?? v.price ?? 0,
+      quantity:      comp.quantity || 1,
+      dosage:        comp.dosage || { amount: 1, unit: "cápsula", momentos: [], acompanamiento: "", nota: "", meta: null },
+    }];
+  });
+}
+
+const FEATURED = [
+  { handle: "vitamina-d-en-mexico",     label: "Vitamina D3", desc: "Regulación del calcio, inmunidad y salud ósea",          icon: Sun,          from: "from-amber-400",   to: "to-orange-500"  },
+  { handle: "enzimas-digestivas",       label: "Enzimas",      desc: "Digestión eficiente y absorción óptima de nutrientes",   icon: FlaskConical, from: "from-emerald-500", to: "to-teal-700"    },
+  { handle: "suplementos-con-magnesio", label: "Magnesio",     desc: "Función muscular, sueño y sistema nervioso",             icon: Zap,          from: "from-[#1E8FA8]",   to: "to-blue-700"    },
+  { handle: "omega-3-en-mexico",        label: "Omega 3",      desc: "Salud cardiovascular, cerebro y control inflamatorio",   icon: Droplets,     from: "from-blue-500",    to: "to-indigo-600"  },
+];
+
+// Destino del banner "Marcas Profesionales". Va por handle y no por posición en
+// FEATURED: apuntaba a FEATURED[1], así que al reordenar las destacadas el
+// banner terminó abriendo Enzimas.
+const PRO_COLLECTION = { handle: "marcas-profesionales", label: "Marcas Profesionales" };
+
+// Destino del banner "Novedades". La colección se llama "novedades" en Shopify,
+// en minúscula; el label es el que ve el profesional en el encabezado.
+const NOVEDADES_COLLECTION = { handle: "novedades", label: "Novedades" };
+
+const NAV_TABS = [
+  ...FEATURED,
+  // Handles adicionales — sin duplicar los que ya están en FEATURED
+  { handle: "nad-suplemento",              label: "NAD+"           },
+  { handle: "proteinas",                   label: "Proteínas"      },
+  { handle: "vitaminas",                   label: "Vitaminas"      },
+  { handle: "inositol-en-mexico",          label: "Inositol"       },
+  { handle: "berberina-en-mexico",         label: "Berberina"      },
+  { handle: "melena-de-leon-o-lions-mane", label: "Melena de León" },
+  { handle: "mas-vendidos",               label: "Más Vendidos"   },
+];
+
+const fmtMXN = (n) =>
+  new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 }).format(Number(n) || 0);
+
+// ── useFavorites — Supabase (auth) + localStorage (fallback / no-auth) ────────
+// ── Stock en consignación ─────────────────────────────────────────────────────
+// Lo que el profesional tiene físicamente en su consultorio. Sirve para
+// marcarlo mientras arma el protocolo: lo que ya tiene ahí se le puede
+// entregar al paciente en la consulta, sin esperar envío.
+function useConsignacion(customerId) {
+  const [disponibles, setDisponibles] = useState({});   // variant_id → unidades
+  const [puedeCobrar, setPuedeCobrar] = useState(false); // ¿hay pasarela de pago?
+
+  useEffect(() => {
+    if (!customerId) return;
+    fetch("/api/consignment")
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) return;
+        setDisponibles(d.disponibles || {});
+        setPuedeCobrar(Boolean(d.puede_cobrar));
+      })
+      .catch(() => {});
+  }, [customerId]);
+
+  // Unidades disponibles de una variante (0 si no tiene)
+  const enConsultorio = useCallback(
+    (variantId) => Number(disponibles[String(variantId)] || 0), [disponibles]);
+
+  // ¿Alguna variante de este producto está en el consultorio?
+  const productoEnConsultorio = useCallback((product) =>
+    (product?.variants || []).reduce(
+      (max, v) => Math.max(max, Number(disponibles[String(v.variant_id)] || 0)), 0),
+    [disponibles]);
+
+  return { disponibles, enConsultorio, productoEnConsultorio, puedeCobrar,
+           tieneAlgo: Object.keys(disponibles).length > 0 };
+}
+
+function useFavorites(customerId) {
+  const [favorites, setFavorites] = useState({});
+
+  // Carga inicial + migración localStorage→Supabase
+  useEffect(() => {
+    const LOCAL_KEY = "vh_fav_products";
+
+    if (!customerId) {
+      // Sin sesión → usar solo localStorage
+      try {
+        const s = localStorage.getItem(LOCAL_KEY);
+        if (s) setFavorites(JSON.parse(s));
+      } catch {}
+      return;
+    }
+
+    // Con sesión → cargar desde Supabase
+    fetch("/api/favoritos")
+      .then(r => r.json())
+      .then(async d => {
+        if (!d.ok) throw new Error(d.error);
+
+        // Construir mapa product_id → product_data
+        const remote = {};
+        for (const f of d.favorites || []) remote[f.product_id] = f.product_data;
+
+        // Migrar favoritos que estaban en localStorage y no están en Supabase
+        try {
+          const local = JSON.parse(localStorage.getItem(LOCAL_KEY) || "{}");
+          const toMigrate = Object.entries(local).filter(([pid]) => !remote[pid]);
+          if (toMigrate.length > 0) {
+            const payload = toMigrate.map(([product_id, product_data]) => ({ product_id, product_data }));
+            const res = await fetch("/api/favoritos", {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            });
+            if ((await res.json()).ok) {
+              toMigrate.forEach(([pid, data]) => { remote[pid] = data; });
+              localStorage.removeItem(LOCAL_KEY); // localStorage ya no necesario
+            }
+          } else if (Object.keys(local).length > 0) {
+            localStorage.removeItem(LOCAL_KEY); // limpiar igual si todo ya estaba en remoto
+          }
+        } catch {}
+
+        setFavorites(remote);
+      })
+      .catch(() => {
+        // Supabase no disponible → caer en localStorage
+        try {
+          const s = localStorage.getItem(LOCAL_KEY);
+          if (s) setFavorites(JSON.parse(s));
+        } catch {}
+      });
+  }, [customerId]);
+
+  const toggleFavorite = useCallback((product) => {
+    const snapshot = {
+      product_id: product.product_id, title: product.title,
+      image_url: product.image_url || null, brand: product.brand || null,
+      min_price: product.min_price || null, is_professional: product.is_professional || false,
+      commission_percent: product.commission_percent || 0,
+      componente: product.componente || null, variants: product.variants || [],
+      all_out_of_stock: product.all_out_of_stock || false,
+      level_1: product.level_1 || null, level_2: product.level_2 || null, level_3: product.level_3 || null,
+    };
+
+    setFavorites(prev => {
+      const next = { ...prev };
+      const isNowFav = !next[product.product_id];
+
+      if (isNowFav) {
+        next[product.product_id] = snapshot;
+      } else {
+        delete next[product.product_id];
+      }
+
+      // Persistir
+      if (customerId) {
+        if (isNowFav) {
+          fetch("/api/favoritos", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ product_id: product.product_id, product_data: snapshot }),
+          }).catch(() => {});
+        } else {
+          fetch(`/api/favoritos?product_id=${product.product_id}`, { method: "DELETE" }).catch(() => {});
+        }
+      } else {
+        try { localStorage.setItem("vh_fav_products", JSON.stringify(next)); } catch {}
+      }
+
+      return next;
+    });
+  }, [customerId]);
+
+  const isFavorite   = useCallback((id) => !!favorites[id], [favorites]);
+  const favoriteList = Object.values(favorites);
+  return { favoriteList, toggleFavorite, isFavorite };
+}
+
+// ── Protocol Indicator ────────────────────────────────────────────────────────
+function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoToDraft, onClear, onRemoveItem }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false); };
+    document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [open]);
+
+  if (carrito.length === 0) {
+    return (
+      <button onClick={onGoToDraft}
+        className="flex items-center gap-2 bg-white border border-[#D0E4EC] text-[#5B7A8C] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#F7F9FB] hover:border-[#1E8FA8] hover:text-[#1b3f7a] transition-all">
+        <ShoppingBag size={14} /> Crear protocolo
+      </button>
+    );
+  }
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen(o => !o)}
+        className="flex items-center gap-2 bg-[#1b3f7a] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#162d60] transition-all shadow-sm">
+        <ShoppingBag size={14} />
+        <span className="hidden sm:inline">Protocolo</span>
+        <span className="bg-[#1E8FA8] text-white text-xs font-bold px-1.5 py-0.5 rounded min-w-[20px] text-center tabular-nums">{carrito.length}</span>
+        <span className="hidden sm:inline tabular-nums font-bold">{fmtMXN(total)}</span>
+        <ChevronDown size={12} className={`transition-transform ${open ? "rotate-180" : ""}`} />
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-2 w-[304px] bg-white rounded-xl shadow-2xl border border-[#D0E4EC] z-50 overflow-hidden">
+          {/* Paciente */}
+          <div className="px-4 pt-3 pb-3 border-b border-[#EEF3F7] bg-[#F7F9FB] space-y-2">
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Datos del paciente</p>
+            <input type="text" placeholder="Nombre del paciente"
+              value={patientData.nombre}
+              onChange={e => onPatientChange({ ...patientData, nombre: e.target.value })}
+              className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1E8FA8] bg-white" />
+            <div className="flex gap-1.5">
+              <span className="text-[11px] font-bold text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-2 py-2 shrink-0 self-center">+521</span>
+              <input type="tel" placeholder="Teléfono (opcional)" maxLength={10}
+                value={patientData.telefono}
+                onChange={e => onPatientChange({ ...patientData, telefono: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                className="flex-1 border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1E8FA8] bg-white" />
+            </div>
+          </div>
+          {/* Productos */}
+          <div className="max-h-48 overflow-y-auto divide-y divide-[#EEF3F7]">
+            {carrito.map((item) => {
+              const dos = item.dosage || {};
+              const dTx        = dos.amount ? `${dos.amount} ${pluralUnit(dos.unit, dos.amount)}` : null;
+              const momentoTxt = Array.isArray(dos.momentos) && dos.momentos.length ? dos.momentos.join(", ") : (dos.momento || "");
+              return (
+                <div key={item.variant_id} className="flex items-start gap-2.5 px-4 py-2.5">
+                  {item.image
+                    ? <img src={item.image} alt="" className="w-8 h-8 rounded object-contain shrink-0 bg-[#F7F9FB] border border-[#D0E4EC]" />
+                    : <div className="w-8 h-8 rounded bg-[#F7F9FB] shrink-0 flex items-center justify-center text-[#B0C8D4]"><Package size={12} /></div>}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-semibold text-[#1b3f7a] line-clamp-1">{item.title}</p>
+                    {item.variant_title && <p className="text-[10px] text-[#5B7A8C]">{item.variant_title}</p>}
+                    {dTx && <p className="text-[10px] text-[#1E8FA8] mt-0.5">{dTx}{momentoTxt ? ` · ${momentoTxt}` : ""}</p>}
+                    <p className="text-[10px] font-extrabold text-[#1b3f7a] tabular-nums mt-0.5">{fmtMXN(item.price)}</p>
+                  </div>
+                  <button onClick={() => onRemoveItem(item.variant_id)} className="text-[#B0C8D4] hover:text-red-400 transition-colors shrink-0 mt-0.5"><X size={12} /></button>
+                </div>
+              );
+            })}
+          </div>
+          {/* Footer */}
+          <div className="border-t border-[#EEF3F7] p-3 space-y-2 bg-[#F7F9FB]">
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-[#5B7A8C] font-semibold">Total</span>
+              <span className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">{fmtMXN(total)}</span>
+            </div>
+            <div className="flex gap-2">
+              <button onClick={() => { onClear(); setOpen(false); }} className="flex items-center gap-1 px-3 py-2 border border-[#D0E4EC] text-[#5B7A8C] text-xs rounded-lg hover:text-red-400 hover:border-red-200 transition-colors font-semibold">
+                <Trash2 size={11} /> Limpiar
+              </button>
+              <button onClick={() => { onGoToDraft(); setOpen(false); }} className="flex-1 bg-[#1b3f7a] text-white text-xs py-2 rounded-lg font-semibold hover:bg-[#162d60] transition-colors">
+                Ir al borrador →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── DraftItem — card editable dentro del borrador ────────────────────────────
+function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAbrirProducto, enConsultorio }) {
+  const dos   = item.dosage || {};
+  const smart = detectUnit(item.title, item.variant_title || "");
+
+  const [open,     setOpen]     = useState(false);
+  const [amount,   setAmount]   = useState(dos.amount ?? 1);
+  const [unit,     setUnit]     = useState(dos.unit ?? smart);
+  const [momentos, setMomentos] = useState(dos.momentos ?? (dos.momento ? [dos.momento] : []));
+  const [acomp,    setAcomp]    = useState(dos.acompanamiento ?? "");
+  const [nota,     setNota]     = useState(dos.nota ?? "");
+  const [qty,      setQty]      = useState(item.quantity ?? 1);
+
+  // useRef garantiza que save() siempre lee los valores más recientes sin closure stale
+  const latest = useRef({});
+  latest.current = { amount, unit, momentos, acomp, nota };
+
+  const save = useCallback((overrides = {}) => {
+    const { amount, unit, momentos, acomp, nota } = { ...latest.current, ...overrides };
+    // meta se preserva del dosage original — no se edita en el borrador
+    onUpdateDosage(item.variant_id, { amount, unit, momentos, acompanamiento: acomp, nota, meta: item.dosage?.meta ?? null });
+  }, [item.variant_id, onUpdateDosage, item.dosage?.meta]); // eslint-disable-line
+
+  const handleField = (setter, key, val) => { setter(val); save({ [key]: val }); };
+
+  const toggleMomento = (m) => {
+    const prev = latest.current.momentos;
+    const next = prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m];
+    setMomentos(next);          // actualiza UI
+    save({ momentos: next });   // persiste en carrito
+  };
+
+  const meta        = item.dosage?.meta;
+  const bundlePlan  = item.bundlePlan || null;
+  const activeTier  = getBundleTier(bundlePlan?.rules, qty);
+  const dTx = amount
+    ? (meta?.tipo_dosis && meta?.dosis != null
+        ? `${amount * meta.dosis} ${pluralUnit(meta.tipo_dosis, amount * meta.dosis)}`
+        : `${amount} ${pluralUnit(unit, amount)}`)
+    : null;
+  const dur = duracionDias({ meta, amount, momentos, quantity: qty });
+  // stock viene solo en protocolos recuperados; null = no se consultó
+  const sinStock = item.stock !== null && item.stock !== undefined && item.stock <= 0;
+  // Unidades de este producto que el profesional ya tiene en su consultorio
+  const enStock = enConsultorio ? enConsultorio(item.variant_id) : 0;
+  return (
+    <div className="bg-white border border-[#D0E4EC] rounded-xl overflow-hidden">
+      {/* Fila principal */}
+      <div className="p-4 flex gap-3 items-start">
+        <span className="text-[10px] font-extrabold text-[#5B7A8C] bg-[#F7F9FB] border border-[#D0E4EC] rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5">{idx + 1}</span>
+        {item.image
+          ? <img src={item.image} alt="" className="w-14 h-14 rounded-lg object-contain shrink-0 bg-[#F7F9FB] border border-[#D0E4EC]" />
+          : <div className="w-14 h-14 rounded-lg bg-[#F7F9FB] shrink-0 flex items-center justify-center text-[#B0C8D4] border border-[#D0E4EC]"><Package size={20} /></div>}
+        <div className="flex-1 min-w-0">
+          {/* El nombre vuelve a la ficha del producto: desde el borrador se
+              necesita releer la descripción o la tabla nutricional. */}
+          {onAbrirProducto && item.product_id ? (
+            <button onClick={() => onAbrirProducto(item)}
+              className="text-left text-sm font-bold text-[#1b3f7a] leading-snug hover:text-[#1E8FA8] hover:underline transition-colors">
+              {item.title}
+            </button>
+          ) : (
+            <p className="text-sm font-bold text-[#1b3f7a] leading-snug">{item.title}</p>
+          )}
+          {item.variant_title && <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mt-0.5">{item.variant_title}</p>}
+          <div className="mt-2 flex flex-wrap gap-1.5">
+            {dTx && <span className="bg-[#1b3f7a] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{dTx}</span>}
+            {momentos.length > 0 && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{momentos.join(", ")}</span>}
+            {acomp && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{acomp}</span>}
+            {dur && (
+              <span className="bg-[#E6F4F8] text-[#1E8FA8] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#C2DFE8] flex items-center gap-1">
+                <CalendarDays size={9} /> {textoDuracion(dur.dias)}
+              </span>
+            )}
+            {sinStock && (
+              <span className="bg-red-50 text-red-500 border border-red-200 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                Sin stock
+              </span>
+            )}
+            {enStock > 0 && (
+              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
+                enStock >= qty
+                  ? "bg-[#1E8FA8] text-white"
+                  : "bg-amber-50 text-amber-700 border border-amber-200"
+              }`}>
+                <Package size={9} />
+                {enStock >= qty
+                  ? "En tu consultorio"
+                  : `Solo ${enStock} en tu consultorio`}
+              </span>
+            )}
+          </div>
+          {nota && <p className="text-[10px] text-[#5B7A8C] mt-1.5 italic">📋 {nota}</p>}
+          <div className="mt-2 space-y-1">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Precio */}
+              <p className="text-sm font-extrabold tabular-nums flex items-baseline gap-1.5">
+                {activeTier ? (
+                  <>
+                    <span className="text-[#B0C8D4] line-through text-xs font-normal">{fmtMXN(item.price * qty)}</span>
+                    <span className="text-emerald-600">{fmtMXN(item.price * qty * (1 - activeTier.pct / 100))}</span>
+                    <span className="text-[10px] font-bold text-emerald-600">−{activeTier.pct}%</span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-[#1b3f7a]">{fmtMXN(item.price * qty)}</span>
+                    {qty > 1 && <span className="text-[10px] font-normal text-[#5B7A8C]">({qty} × {fmtMXN(item.price)})</span>}
+                  </>
+                )}
+              </p>
+              {/* Selector de cantidad de frascos */}
+              <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
+                <button onClick={() => { const n = Math.max(1, qty - 1); setQty(n); onUpdateQuantity(item.variant_id, n); }}
+                  className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold transition-colors text-base">−</button>
+                <span className="w-6 text-center text-xs font-extrabold text-[#1b3f7a] tabular-nums select-none">{qty}</span>
+                <button onClick={() => { const n = qty + 1; setQty(n); onUpdateQuantity(item.variant_id, n); }}
+                  className="w-7 h-7 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold transition-colors text-base">+</button>
+              </div>
+              <span className="text-[10px] text-[#B0C8D4]">{qty === 1 ? "frasco" : "frascos"}</span>
+              <button onClick={() => setOpen(o => !o)}
+                className="flex items-center gap-1 text-[10px] font-bold text-[#1E8FA8] hover:text-[#1b3f7a] transition-colors ml-auto">
+                <Pencil size={10} /> {open ? "Cerrar" : "Editar dosis"}
+              </button>
+            </div>
+            {/* Hint bundle */}
+            {bundlePlan?.rules?.length > 0 && (
+              <p className="text-[10px] text-[#8AAAB8]">
+                {bundlePlan.rules.map(r => `${r.qty}u = −${r.pct}%`).join(" · ")}
+              </p>
+            )}
+          </div>
+        </div>
+        <button onClick={() => onRemove(item.variant_id)} className="text-[#B0C8D4] hover:text-red-400 transition-colors shrink-0 mt-0.5"><X size={14} /></button>
+      </div>
+
+      {/* Panel de edición inline */}
+      {open && (
+        <div className="border-t border-[#EEF3F7] bg-[#F7F9FB] px-4 py-4 space-y-4">
+          {/* Dosis — meta-aware (igual que ProductDetail) */}
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">
+              {meta?.tipo_dosis ? "Número de dosis" : "Dosis por toma"}
+            </p>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center bg-white border border-[#D0E4EC] rounded-lg shrink-0">
+                {/* Solo unidades enteras: media dosis complica la indicación y el
+                    cálculo de duración, y casi nadie prescribe media cápsula. */}
+                <button onClick={() => handleField(setAmount, "amount", Math.max(1, amount - 1))}
+                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] transition-colors font-bold text-lg">−</button>
+                <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{amount}</span>
+                <button onClick={() => handleField(setAmount, "amount", amount + 1)}
+                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] transition-colors font-bold text-lg">+</button>
+              </div>
+              {meta?.tipo_dosis && meta?.dosis != null ? (
+                /* Con metafields: badge fijo + resultado calculado */
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="px-3 py-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg text-sm font-semibold text-[#1E8FA8]">dosis</span>
+                  <span className="text-[#B0C8D4] text-sm">=</span>
+                  <span className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">
+                    {amount * meta.dosis} <span className="font-semibold text-[#5B7A8C]">{meta.tipo_dosis}</span>
+                  </span>
+                </div>
+              ) : (
+                /* Sin metafields: dropdown clásico */
+                <select value={unit} onChange={e => handleField(setUnit, "unit", e.target.value)}
+                  className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] bg-white">
+                  {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                </select>
+              )}
+            </div>
+            {meta?.tipo_dosis && meta?.dosis != null && (
+              <p className="text-[11px] text-[#8AAAB8] mt-1.5">
+                Porción del fabricante: <span className="font-semibold">{meta.dosis} {meta.tipo_dosis}</span>
+                {meta.total_dosis && <span className="text-[#B0C8D4]"> · {meta.total_dosis} dosis por frasco</span>}
+              </p>
+            )}
+            {dur && (
+              <div className="mt-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3 py-2 flex items-start gap-2">
+                <CalendarDays size={13} className="text-[#1E8FA8] mt-0.5 shrink-0" />
+                <p className="text-[11px] text-[#5B7A8C] leading-relaxed">
+                  <span className="font-bold text-[#1b3f7a]">Alcanza para {textoDuracion(dur.dias)}</span>
+                  {" · "}{dur.porDia} dosis al día
+                  {dur.frascos > 1 ? ` con ${dur.frascos} frascos` : ""}
+                </p>
+              </div>
+            )}
+          </div>
+          {/* Momentos — multi-select */}
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">
+              Cuándo tomarlo <span className="normal-case font-normal text-[#B0C8D4]">(puede ser varios)</span>
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {MOMENTOS.map(m => (
+                <button key={m} onClick={() => toggleMomento(m)}
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${momentos.includes(m) ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8]"}`}>
+                  {m}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Acompañamiento */}
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">Acompañamiento</p>
+            <div className="flex flex-wrap gap-1.5">
+              {ACOMP.map(a => (
+                <button key={a} onClick={() => handleField(setAcomp, "acompanamiento", acomp === a ? "" : a)}
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${acomp === a ? "bg-[#1E8FA8] text-white border-[#1E8FA8]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8]"}`}>
+                  {a}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* Nota */}
+          <div>
+            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">Nota <span className="normal-case font-normal text-[#B0C8D4]">(opcional)</span></p>
+            <input type="text" placeholder="ej. Tomar durante 3 meses" value={nota}
+              onChange={e => handleField(setNota, "nota", e.target.value)}
+              className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1E8FA8] bg-white" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Draft View ────────────────────────────────────────────────────────────────
+function DraftView({ carrito, patientData, onPatientChange, customerId, protocoloOrigen, onGuardar, guardando, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity, onAbrirProducto, enConsultorio, puedeCobrar }) {
+  const [loading, setLoading]         = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState(null);
+  const [whatsappUrl, setWhatsappUrl] = useState(null);
+  const [error, setError]             = useState(null);
+  const [copied, setCopied]           = useState(false);
+  const [avisoGuardado, setAvisoGuardado] = useState("");
+  const [nombrePlantilla, setNombrePlantilla] = useState("");
+  const [plantillaLista, setPlantillaLista]   = useState(false);
+  const [modalBorrador, setModalBorrador]     = useState(false);
+  const [nombreBorrador, setNombreBorrador]   = useState("");
+  const total = carrito.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 1), 0);
+
+  // Duración del protocolo: el producto que se termina primero marca cuándo
+  // vuelve la paciente. Solo cuentan los que tienen dosis por frasco cargada.
+  const duraciones = carrito
+    .map(p => {
+      const d = duracionDias({
+        meta:     p.dosage?.meta,
+        amount:   p.dosage?.amount,
+        momentos: p.dosage?.momentos,
+        quantity: p.quantity,
+      });
+      return d ? { dias: d.dias, title: p.title } : null;
+    })
+    .filter(Boolean);
+  const corto   = duraciones.length ? duraciones.reduce((a, b) => (b.dias < a.dias ? b : a)) : null;
+  const largo   = duraciones.length ? duraciones.reduce((a, b) => (b.dias > a.dias ? b : a)) : null;
+  const sinDato = carrito.length - duraciones.length;
+
+  // Agotados: solo se sabe en protocolos recuperados, donde se consultó el stock
+  const agotados = carrito.filter(p => p.stock !== null && p.stock !== undefined && p.stock <= 0);
+
+  // Qué parte del protocolo puede entregar hoy mismo en la consulta y qué
+  // parte hay que enviar. Con el cobro local todavía sin construir, por ahora
+  // solo se informa.
+  const enConsulta = enConsultorio
+    ? carrito.filter(p => enConsultorio(p.variant_id) >= (p.quantity || 1))
+    : [];
+  const parciales = enConsultorio
+    ? carrito.filter(p => {
+        const hay = enConsultorio(p.variant_id);
+        return hay > 0 && hay < (p.quantity || 1);
+      })
+    : [];
+
+  // ── Cobro de la parte que entrega en mano ───────────────────────────────
+  const [venta, setVenta]         = useState(null);   // la venta en curso
+  const [cobrando, setCobrando]   = useState(false);
+
+  const cobrarEnConsultorio = async () => {
+    if (!enConsulta.length) return;
+    setCobrando(true);
+    setError(null);
+    try {
+      const r = await fetch("/api/consignment/sale", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          // Se cobra el protocolo entero en un solo pago: lo que se entrega en
+          // la consulta y lo que se envía. Antes se partía en dos cobros.
+          items: carrito.map(p => ({
+            variant_id: p.variant_id,
+            quantity:   p.quantity || 1,
+            entrega:    enConsulta.some(e => e.variant_id === p.variant_id) ? "mano" : "envio",
+          })),
+          patient_name:  patientData.nombre || null,
+          patient_phone: patientData.telefono ? `+521${patientData.telefono}` : null,
+        }),
+      });
+      const d = await r.json();
+      if (!d.ok) { setError(d.error); return; }
+      setVenta({ ...d.venta, payment_url: d.payment_url });
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCobrando(false);
+    }
+  };
+
+  // Mientras el cobro está pendiente, preguntamos si ya pagó. Cuando entre
+  // Stripe esto sigue sirviendo: el webhook marca la venta y acá se ve.
+  useEffect(() => {
+    if (!venta?.id || venta.estado !== "pendiente") return;
+    const t = setInterval(async () => {
+      try {
+        const r = await fetch(`/api/consignment/sale/${venta.id}`);
+        const d = await r.json();
+        if (d.ok && d.venta.estado !== "pendiente") {
+          setVenta(v => ({ ...v, ...d.venta }));
+        }
+      } catch {}
+    }, 3000);
+    return () => clearInterval(t);
+  }, [venta?.id, venta?.estado]);
+
+  const guardarBorrador = async () => {
+    const nombre = nombreBorrador.trim();
+    if (!nombre) return;
+    const r = await onGuardar({ status: "borrador", nombre });
+    setModalBorrador(false);
+    setAvisoGuardado(r.ok
+      ? `Borrador "${nombre}" guardado. Lo puedes retomar desde el inicio del armador.`
+      : `No se pudo guardar: ${r.error}`);
+    setTimeout(() => setAvisoGuardado(""), 6000);
+  };
+
+  const guardarPlantilla = async () => {
+    const nombre = nombrePlantilla.trim();
+    if (!nombre) return;
+    const r = await onGuardar({ status: "plantilla", nombre });
+    if (r.ok) {
+      setPlantillaLista(true);
+      setNombrePlantilla("");
+    } else {
+      setAvisoGuardado(`No se pudo guardar: ${r.error}`);
+    }
+  };
+
+  const handleCheckout = async () => {
+    // Sin especialista identificado no se genera el protocolo: un carrito sin
+    // owner_id no se puede atribuir y la venta queda sin comisión (caso #ORDVHMX17451).
+    if (!customerId) {
+      setError("Tu sesión expiró. Vuelve a iniciar sesión para enviar el protocolo — sin esto la venta no queda registrada a tu nombre.");
+      return;
+    }
+    // Teléfono requerido para enviar por WhatsApp
+    if (!patientData.telefono || patientData.telefono.replace(/\D/g, "").length < 10) {
+      setError("Ingresa el teléfono del paciente (10 dígitos) para enviar por WhatsApp");
+      return;
+    }
+    setLoading(true); setError(null);
+    // Formato canónico de paciente — el mismo que usan los sharecarts de Shopify:
+    // claves name/phone, teléfono siempre con prefijo +521
+    const patientName  = patientData.nombre?.trim() || "";
+    const patientPhone = patientData.telefono ? `+521${patientData.telefono}` : "";
+    try {
+      const res  = await fetch("/api/sharecart/checkout", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner_id: customerId, name: patientName, phone: patientPhone,
+          items: carrito.map(p => ({ variant_id: p.variant_id, quantity: p.quantity || 1 })),
+          extra: {
+            patient_info: { name: patientName, phone: patientPhone },
+            origen: "protocolo",
+            // Si el protocolo salió de una plantilla o un borrador guardado,
+            // queda registrado para poder medir cuánto se usan y cuánto venden.
+            ...(protocoloOrigen?.id ? {
+              protocol_id:     protocoloOrigen.id,
+              protocol_name:   protocoloOrigen.name,
+              protocol_status: protocoloOrigen.status,
+            } : {}),
+            dosis_map: Object.fromEntries(
+              carrito.map(p => {
+                const d = p.dosage || {};
+                return [String(p.variant_id), {
+                  instruccion:    buildInstruccion(d.amount, d.unit, d.momentos || [], d.acompanamiento || "", d.meta || null),
+                  dosis_amount:   d.amount   ?? null,
+                  dosis_unit:     d.unit     ?? null,
+                  momentos:       d.momentos ?? [],
+                  acompanamiento: d.acompanamiento ?? null,
+                  nota:           d.nota     ?? null,
+                }];
+              })
+            ),
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Error generando checkout");
+
+      // Con cobro propio habilitado, el paciente paga en nuestra página y no en
+      // Shopify: un solo pago por el protocolo completo, con el envío incluido.
+      // El sharecart se crea igual, porque es lo que registra el protocolo y
+      // sostiene la atribución.
+      let url = data.checkoutUrl;
+      // Solo cuando el protocolo lleva algo que se entrega en el consultorio. Un
+      // protocolo que se envía todo sigue el flujo de siempre (carrito de Shopify).
+      if (puedeCobrar && enConsulta.length > 0) {
+        const rv = await fetch("/api/consignment/sale", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sharecart_token: data.token,
+            patient_name:  patientName || null,
+            patient_phone: patientPhone || null,
+            items: carrito.map(p => ({
+              variant_id: p.variant_id,
+              quantity:   p.quantity || 1,
+              entrega:    enConsulta.some(e => e.variant_id === p.variant_id) ? "mano" : "envio",
+            })),
+          }),
+        });
+        const dv = await rv.json();
+        if (!dv.ok) throw new Error(dv.error || "No se pudo generar el cobro");
+        url = `${window.location.origin}${dv.payment_url}`;
+        setVenta({ ...dv.venta, payment_url: dv.payment_url });
+      }
+
+      setCheckoutUrl(url);
+      // Componer y abrir WhatsApp automáticamente
+      const saludo  = patientName ? `¡Hola ${patientName}!` : "¡Hola!";
+      const mensaje = `${saludo} 🌿 Te comparto tu protocolo de suplementación personalizado:\n\n${url}\n\nCualquier duda, con gusto te ayudo.`;
+      const wa = `https://wa.me/521${patientData.telefono}?text=${encodeURIComponent(mensaje)}`;
+      setWhatsappUrl(wa);
+      window.open(wa, "_blank");
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
+  };
+  const copy = () => { navigator.clipboard.writeText(checkoutUrl); setCopied(true); setTimeout(() => setCopied(false), 2200); };
+
+  return (
+    <div className="max-w-[960px] mx-auto px-4 sm:px-6 py-6">
+      <button onClick={onBack} className="flex items-center gap-1.5 text-[#5B7A8C] hover:text-[#1b3f7a] text-sm font-semibold mb-6 transition-colors">
+        <ArrowLeft size={14} /> Volver al catálogo
+      </button>
+
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
+        {/* Lista de productos */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <h2 className="text-lg font-extrabold text-[#1b3f7a]">Borrador del Protocolo</h2>
+              {protocoloOrigen && (
+                <p className="text-[11px] text-[#5B7A8C] mt-0.5">
+                  {protocoloOrigen.status === "borrador" ? "Borrador guardado:" : "Desde la plantilla:"}{" "}
+                  <span className="font-semibold text-[#1E8FA8]">{protocoloOrigen.name}</span>
+                </p>
+              )}
+            </div>
+            <button onClick={onClear} className="flex items-center gap-1 text-xs text-[#5B7A8C] hover:text-red-400 transition-colors font-semibold">
+              <Trash2 size={11} /> Limpiar todo
+            </button>
+          </div>
+          {avisoGuardado && (
+            <p className="text-xs font-semibold text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-3 py-2">
+              {avisoGuardado}
+            </p>
+          )}
+          {carrito.length === 0 ? (
+            <div className="bg-white border border-[#D0E4EC] rounded-xl p-8 text-center text-[#B0C8D4]">
+              <Package size={32} className="mx-auto mb-2" />
+              <p className="text-sm">Sin productos en el protocolo</p>
+            </div>
+          ) : carrito.map((item, idx) => (
+            // La key incluye si ya tiene meta: cuando llega, el ítem se vuelve
+            // a montar y el editor lee la dosis ya convertida a "número de dosis".
+            <DraftItem key={`${item.variant_id}-${item.dosage?.meta ? 1 : 0}`} item={item} idx={idx}
+              onRemove={onRemoveItem} onUpdateDosage={onUpdateDosage} onUpdateQuantity={onUpdateQuantity}
+              onAbrirProducto={onAbrirProducto} enConsultorio={enConsultorio} />
+          ))}
+        </div>
+
+        {/* Panel derecho */}
+        <div className="space-y-4">
+          {/* Datos paciente */}
+          <div className="bg-white border border-[#D0E4EC] rounded-xl overflow-hidden">
+            <div className="px-4 py-3 bg-[#F7F9FB] border-b border-[#EEF3F7]">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Datos del Paciente</p>
+            </div>
+            <div className="p-4 space-y-3">
+              <div>
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5 block">Nombre</label>
+                <input type="text" placeholder="Nombre del paciente"
+                  value={patientData.nombre} onChange={e => onPatientChange({ ...patientData, nombre: e.target.value })}
+                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#1E8FA8]" />
+              </div>
+              <div>
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5 block">
+                  Teléfono <span className="normal-case font-normal text-[#1E8FA8]">para WhatsApp</span>
+                </label>
+                <div className="flex gap-2">
+                  <span className="text-xs font-bold text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-2.5 py-2.5 shrink-0">+521</span>
+                  <input type="tel" placeholder="5512345678" maxLength={10}
+                    value={patientData.telefono} onChange={e => onPatientChange({ ...patientData, telefono: e.target.value.replace(/\D/g, "").slice(0, 10) })}
+                    className={`flex-1 border rounded-lg px-3 py-2.5 text-sm focus:outline-none transition-colors
+                      ${patientData.telefono.length === 10 ? "border-[#1E8FA8] bg-[#F4FAFB]" : "border-[#D0E4EC] focus:border-[#1E8FA8]"}`} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Productos agotados — el checkout los va a rechazar, mejor avisar acá */}
+          {agotados.length > 0 && (
+            <div className="bg-red-50 border border-red-200 rounded-xl p-3.5">
+              <p className="text-xs font-bold text-red-600">
+                {agotados.length === 1 ? "Un producto sin stock" : `${agotados.length} productos sin stock`}
+              </p>
+              <p className="text-[11px] text-red-500 mt-1 leading-snug">
+                {agotados.map(p => p.title).join(" · ")}
+              </p>
+              <p className="text-[11px] text-[#5B7A8C] mt-1.5 leading-snug">
+                Quítalos o cámbialos: el protocolo no se puede enviar con productos agotados.
+              </p>
+            </div>
+          )}
+
+          {/* Resumen */}
+          <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm text-[#5B7A8C]">{carrito.length} producto{carrito.length !== 1 ? "s" : ""}</span>
+              <span className="text-lg font-extrabold text-[#1b3f7a] tabular-nums">{fmtMXN(total)}</span>
+            </div>
+
+            {(enConsulta.length > 0 || parciales.length > 0) && (
+              <div className="pt-3 border-t border-[#EEF3F7]">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">
+                  En tu consultorio
+                </p>
+                <p className="text-sm text-[#1b3f7a] leading-snug flex items-start gap-1.5">
+                  <Package size={14} className="text-[#1E8FA8] mt-0.5 shrink-0" />
+                  <span>
+                    <span className="font-extrabold">{enConsulta.length}</span> de {carrito.length}{" "}
+                    {carrito.length === 1 ? "producto" : "productos"} se los puedes entregar hoy
+                  </span>
+                </p>
+                {parciales.length > 0 && (
+                  <p className="text-[11px] text-[#5B7A8C] mt-1.5 leading-snug">
+                    {parciales.length === 1 ? "De uno" : `De ${parciales.length}`} tienes menos unidades
+                    de las que pusiste: el resto va por envío.
+                  </p>
+                )}
+                {carrito.length > enConsulta.length && (
+                  <p className="text-[10px] text-[#B0C8D4] mt-1.5">
+                    Los demás se envían como siempre
+                  </p>
+                )}
+
+                {/* Cobro de lo que se entrega en mano */}
+                {enConsulta.length > 0 && puedeCobrar && (
+                  venta ? (
+                    <div className="mt-3">
+                      {venta.estado === "pagado" ? (
+                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                          <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                            <Check size={13} /> Pagado · {fmtMXN(venta.total)}
+                          </p>
+                          <p className="text-[11px] text-emerald-600 mt-0.5">
+                            Ya le puedes entregar los productos
+                          </p>
+                        </div>
+                      ) : venta.estado === "cancelado" ? (
+                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                          <p className="text-xs font-bold text-red-600">Pago rechazado</p>
+                          <button onClick={() => setVenta(null)}
+                            className="text-[11px] font-semibold text-[#1E8FA8] hover:underline mt-1">
+                            Generar otro cobro
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg p-3 space-y-2">
+                          <p className="text-xs text-[#5B7A8C] leading-snug">
+                            Esperando el pago de <span className="font-bold text-[#1b3f7a]">{fmtMXN(venta.total)}</span>.
+                            Mostrale esta pantalla o mandale el link.
+                          </p>
+                          <div className="flex gap-2">
+                            <a href={venta.payment_url} target="_blank" rel="noopener noreferrer"
+                              className="flex-1 bg-[#1b3f7a] text-white text-xs font-semibold py-2 rounded-lg text-center hover:bg-[#162d60] transition-colors">
+                              Abrir cobro
+                            </a>
+                            <button
+                              onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${venta.payment_url}`)}
+                              className="px-3 border border-[#C2DFE8] text-[#1b3f7a] text-xs font-semibold rounded-lg hover:bg-white transition-colors">
+                              Copiar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <button
+                      onClick={cobrarEnConsultorio}
+                      disabled={cobrando}
+                      className="mt-3 w-full bg-[#1E8FA8] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#177a90] transition-colors disabled:opacity-50">
+                      {cobrando ? "Generando cobro…" : `Cobrar todo aquí · ${carrito.length} ${carrito.length === 1 ? "producto" : "productos"}`}
+                    </button>
+                  )
+                )}
+              </div>
+            )}
+
+            {corto && (
+              <div className="pt-3 border-t border-[#EEF3F7]">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">
+                  Duración estimada
+                </p>
+                <p className="text-sm text-[#1b3f7a] leading-snug flex items-start gap-1.5">
+                  <CalendarDays size={14} className="text-[#1E8FA8] mt-0.5 shrink-0" />
+                  {corto.dias === largo.dias ? (
+                    <span>El protocolo alcanza para <span className="font-extrabold">{textoDuracion(corto.dias)}</span></span>
+                  ) : (
+                    <span>
+                      Entre <span className="font-extrabold">{textoDuracion(corto.dias)}</span> y{" "}
+                      <span className="font-extrabold">{textoDuracion(largo.dias)}</span>
+                    </span>
+                  )}
+                </p>
+                {corto.dias !== largo.dias && (
+                  <p className="text-[11px] text-[#5B7A8C] mt-1.5 leading-snug">
+                    Se termina primero <span className="font-semibold text-[#1b3f7a]">{corto.title}</span>,
+                    a los {corto.dias} días. Súbele los frascos si quieres emparejar el protocolo.
+                  </p>
+                )}
+                {sinDato > 0 && (
+                  <p className="text-[10px] text-[#B0C8D4] mt-1.5">
+                    {sinDato} producto{sinDato !== 1 ? "s" : ""} sin dosis por frasco cargada: no entra{sinDato !== 1 ? "n" : ""} en la cuenta
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* Acciones */}
+          {error && <p className="text-red-500 text-xs">{error}</p>}
+          {checkoutUrl ? (
+            <div className="bg-[#E6F4F8] border border-[#C2DFE8] rounded-xl p-4 space-y-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8]">Protocolo listo para enviar</p>
+              {/* Acción principal: WhatsApp */}
+              <button onClick={() => window.open(whatsappUrl, "_blank")}
+                className="w-full bg-[#25D366] text-white text-sm py-2.5 rounded-lg font-semibold hover:bg-[#1ebe5b] transition-colors flex items-center justify-center gap-2">
+                <MessageCircle size={15} /> Abrir WhatsApp
+              </button>
+              {/* Salida de emergencia, a propósito discreta: el camino bueno es
+                  WhatsApp. Esto queda para cuando no se abre — pasa en laptops
+                  sin la sesión de WhatsApp Web vinculada. Sin PDF: la receta le
+                  llega a la paciente por mail cuando compra. */}
+              <button onClick={copy} className="w-full text-[#1E8FA8] text-xs font-medium hover:underline transition-colors">
+                {copied ? "¡Copiado!" : "¿No se abrió? Copiar link"}
+              </button>
+
+              {/* Guardar como plantilla — solo si el protocolo tiene cuerpo y
+                  no vino ya de una plantilla */}
+              {carrito.length >= 3 && protocoloOrigen?.status !== "plantilla" && (
+                plantillaLista ? (
+                  <div className="bg-white border border-[#C2DFE8] rounded-lg p-3">
+                    <p className="text-xs font-semibold text-[#1E8FA8]">
+                      Plantilla guardada. La vas a encontrar en el inicio del armador.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-[#C2DFE8] rounded-lg p-3 space-y-2">
+                    <p className="text-xs text-[#5B7A8C] leading-snug">
+                      Armaste un protocolo de {carrito.length} productos.
+                      <span className="font-semibold text-[#1b3f7a]"> ¿Lo guardas como plantilla</span> para reutilizarlo?
+                    </p>
+                    <div className="flex gap-2">
+                      <input type="text" value={nombrePlantilla} maxLength={60}
+                        onChange={e => setNombrePlantilla(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter") guardarPlantilla(); }}
+                        placeholder="Ej: Protocolo tiroides"
+                        className="flex-1 min-w-0 border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                      <button onClick={guardarPlantilla} disabled={!nombrePlantilla.trim() || guardando}
+                        className="bg-[#1E8FA8] text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#177a90] transition-colors disabled:opacity-40 shrink-0">
+                        Guardar
+                      </button>
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+          ) : (
+            <div className="space-y-2">
+              <button onClick={handleCheckout} disabled={loading || carrito.length === 0}
+                className="w-full bg-[#1b3f7a] text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 hover:bg-[#162d60] transition-colors flex items-center justify-center gap-2">
+                <MessageCircle size={15} /> {loading ? "Generando…" : "Enviar por WhatsApp"}
+              </button>
+              {!patientData.telefono && (
+                <p className="text-[11px] text-[#B0C8D4] text-center leading-tight">
+                  Ingresa el teléfono del paciente para enviar
+                </p>
+              )}
+              {/* Guardar para seguir después: no envía nada al paciente */}
+              {carrito.length > 0 && (
+                <button onClick={() => { setNombreBorrador(protocoloOrigen?.status === "borrador" ? protocoloOrigen.name : ""); setModalBorrador(true); }}
+                  disabled={guardando}
+                  className="w-full flex items-center justify-center gap-2 border border-[#C2DFE8] text-[#1E8FA8] text-sm py-2.5 rounded-xl font-semibold hover:bg-[#F4FAFB] transition-colors disabled:opacity-50">
+                  <Save size={14} />
+                  {protocoloOrigen?.status === "borrador" ? "Actualizar borrador" : "Guardar borrador"}
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Modal: nombre del borrador */}
+      {modalBorrador && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(13,33,51,0.72)]"
+          onClick={() => setModalBorrador(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+            <h3 className="text-base font-extrabold text-[#1b3f7a]">
+              {protocoloOrigen?.status === "borrador" ? "Actualizar borrador" : "Guardar borrador"}
+            </h3>
+            <p className="text-xs text-[#5B7A8C] mt-1 leading-snug">
+              Ponle un nombre para reconocerlo después. No se guardan los datos del paciente.
+            </p>
+            <input autoFocus type="text" value={nombreBorrador} maxLength={60}
+              onChange={e => setNombreBorrador(e.target.value)}
+              onKeyDown={e => { if (e.key === "Enter") guardarBorrador(); if (e.key === "Escape") setModalBorrador(false); }}
+              placeholder="Ej: Caso tiroides, faltan omegas"
+              className="w-full mt-3 border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+            <div className="flex gap-2 mt-4">
+              <button onClick={() => setModalBorrador(false)}
+                className="flex-1 border border-[#D0E4EC] text-[#5B7A8C] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#F7F9FB] transition-colors">
+                Cancelar
+              </button>
+              <button onClick={guardarBorrador} disabled={!nombreBorrador.trim() || guardando}
+                className="flex-1 bg-[#1b3f7a] text-white text-sm py-2.5 rounded-lg font-semibold hover:bg-[#162d60] transition-colors disabled:opacity-40">
+                {guardando ? "Guardando…" : "Guardar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Tarjeta de borrador o plantilla guardada ─────────────────────────────────
+function GuardadoCard({ protocolo, onAbrir, onBorrar }) {
+  const [confirmando, setConfirmando] = useState(false);
+  const productos = (protocolo.components || []).length;
+  const fecha = new Date(protocolo.updated_at || protocolo.created_at)
+    .toLocaleDateString("es-MX", { day: "numeric", month: "short" });
+
+  return (
+    <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 flex items-start justify-between gap-3 hover:border-[#1E8FA8] transition-colors">
+      <button onClick={() => onAbrir(protocolo)} className="text-left flex-1 min-w-0">
+        <p className="text-sm font-bold text-[#1b3f7a] leading-snug line-clamp-2">
+          {protocolo.name}
+          {protocolo.es_ejemplo && (
+            <span className="ml-2 align-middle text-[9px] font-extrabold uppercase tracking-widest text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] px-1.5 py-0.5 rounded">
+              Ejemplo
+            </span>
+          )}
+        </p>
+        <p className="text-[11px] text-[#5B7A8C] mt-1">
+          {protocolo.es_ejemplo
+            ? `${productos} producto${productos !== 1 ? "s" : ""} · armado por Vitahub`
+            : `${productos} producto${productos !== 1 ? "s" : ""} · ${fecha}`}
+        </p>
+      </button>
+      {confirmando ? (
+        <div className="flex items-center gap-1 shrink-0">
+          <button onClick={() => onBorrar(protocolo.id)}
+            className="text-[11px] font-semibold text-red-500 hover:underline">
+            {protocolo.es_ejemplo ? "Ocultar" : "Borrar"}
+          </button>
+          <button onClick={() => setConfirmando(false)}
+            className="text-[11px] text-[#8AAAB8] hover:text-[#1b3f7a]">No</button>
+        </div>
+      ) : (
+        <button onClick={() => setConfirmando(true)} aria-label="Borrar"
+          className="text-[#B0C8D4] hover:text-red-400 transition-colors shrink-0">
+          <Trash2 size={13} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ── Collection Card ───────────────────────────────────────────────────────────
+function CollectionCard({ item, onClick, loading, imageUrl }) {
+  return (
+    <button onClick={() => onClick(item)} disabled={loading}
+      className="group relative overflow-hidden rounded-xl border border-[#D0E4EC] flex h-[120px] sm:h-[132px] hover:shadow-md hover:border-[#1E8FA8]/40 transition-all disabled:opacity-60 text-left w-full">
+      <div className="w-[38%] relative shrink-0 overflow-hidden">
+        {imageUrl
+          ? <img src={imageUrl} alt={item.label} className="absolute inset-0 w-full h-full object-cover" />
+          : <div className={`absolute inset-0 bg-gradient-to-br ${item.from} ${item.to} flex items-center justify-center`}>
+              {item.icon
+                ? <item.icon size={44} className="text-white/90 drop-shadow" strokeWidth={1.5} />
+                : <span className="text-4xl sm:text-5xl drop-shadow">{item.emoji}</span>
+              }
+            </div>}
+      </div>
+      <div className="flex-1 bg-[#F7F9FB] group-hover:bg-[#EEF3F7] transition-colors flex flex-col justify-center px-4 py-3">
+        <p className="text-sm font-bold text-[#1b3f7a] leading-snug">{item.label}</p>
+        <p className="text-xs text-[#5B7A8C] mt-1 leading-relaxed line-clamp-2">{item.desc}</p>
+        <p className="text-xs font-semibold text-[#1E8FA8] mt-2.5 flex items-center gap-1">
+          Explorar <ChevronRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
+        </p>
+      </div>
+    </button>
+  );
+}
+
+// ── Solicitud de reposición ───────────────────────────────────────────────────
+// Los productos sin stock se listan igual, al final. Desde acá el especialista
+// le avisa al equipo que hay demanda; el endpoint resuelve quién lo pide por
+// sesión, así que no hace falta pedirle ningún dato.
+function RestockButton({ product, variant = null, size = "sm", seccion = "listado" }) {
+  const [state, setState] = useState("idle"); // idle | sending | done | error
+
+  // El SKU es lo que usa el equipo para reponer, así que tiene que viajar
+  // siempre. Desde la ficha del producto hay una variante elegida; desde la
+  // tarjeta del listado no hay ninguna, y entonces tomamos las del producto
+  // —que al estar sin stock están todas—. Si hay varias presentaciones van
+  // las dos, separadas por coma.
+  const variantes = variant ? [variant] : (product.variants || []);
+  const skus      = variantes.map(v => v?.sku).filter(Boolean);
+  const sku       = skus.length ? [...new Set(skus)].join(", ") : null;
+  const variantId = variant?.variant_id
+    ?? (variantes.length === 1 ? variantes[0]?.variant_id : null);
+
+  const solicitar = async (e) => {
+    e.stopPropagation();
+    if (state !== "idle" && state !== "error") return;
+    setState("sending");
+    try {
+      const res = await fetch("/api/restock-request", {
+        method:  "POST",
+        headers: { "Content-Type": "application/json" },
+        body:    JSON.stringify({
+          product_id:    product.product_id,
+          product_title: product.title,
+          variant_id:    variantId,
+          sku,
+          seccion,
+        }),
+      });
+      const data = await res.json();
+      setState(data.ok ? "done" : "error");
+    } catch {
+      setState("error");
+    }
+  };
+
+  const base = size === "lg"
+    ? "w-full py-3.5 rounded-xl text-sm font-bold"
+    : "w-full text-[11px] font-bold py-1.5 rounded-lg";
+
+  if (state === "done") {
+    return (
+      <div className={`${base} border border-emerald-200 bg-emerald-50 text-emerald-600 text-center`}>
+        ✓ Reposición solicitada
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={solicitar} disabled={state === "sending"}
+      className={`${base} border text-center transition-all ${state === "error"
+        ? "border-red-200 bg-red-50 text-red-500 hover:bg-red-100"
+        : "border-[#D0E4EC] bg-white text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#1b3f7a] disabled:opacity-60"}`}>
+      {state === "sending" ? "Enviando…" : state === "error" ? "Reintentar" : "Solicitar reposición"}
+    </button>
+  );
+}
+
+// ── Product Card ──────────────────────────────────────────────────────────────
+function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQuickAdd, tourCard, tourComision, enConsultorio = 0 }) {
+  const outOfStock = product.all_out_of_stock;
+  return (
+    <div data-tour={tourCard ? "producto-card" : undefined}
+      className="bg-white rounded-xl border border-[#D0E4EC] overflow-hidden flex flex-col hover:shadow-md hover:border-[#1E8FA8]/40 transition-all group">
+      {/* Imagen — click abre detalle */}
+      <div onClick={() => onClick(product)} className="cursor-pointer">
+        <div className="relative bg-[#F7F9FB] p-3 flex items-center justify-center" style={{ height: "148px" }}>
+          {product.image_url
+            ? <img src={product.image_url} alt={product.title} className={`h-full w-full object-contain ${outOfStock ? "opacity-40" : ""}`} />
+            : <div className="flex items-center justify-center w-full h-full text-[#B0C8D4]"><Package size={32} /></div>}
+          <div className="absolute top-2 left-2 flex flex-col gap-1">
+            {product.is_professional && <span className="bg-[#1b3f7a] text-white text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">PRO</span>}
+            {outOfStock && <span className="bg-red-50 text-red-500 border border-red-200 text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">Sin stock</span>}
+            {/* Lo tiene en su consultorio: se lo puede entregar en la consulta */}
+            {enConsultorio > 0 && (
+              <span className="bg-[#1E8FA8] text-white text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">
+                En consultorio · {enConsultorio}
+              </span>
+            )}
+          </div>
+          <button
+            onClick={(e) => { e.stopPropagation(); onFavorite(product); }}
+            className={`absolute top-2 right-2 w-7 h-7 flex items-center justify-center rounded-full border transition-all shadow-sm ${isFavorite(product.product_id) ? "bg-red-50 border-red-200 text-red-500" : "bg-white/90 border-[#D0E4EC] text-[#B0C8D4] hover:text-red-400 hover:border-red-200"}`}
+          >
+            <Heart size={12} fill={isFavorite(product.product_id) ? "currentColor" : "none"} />
+          </button>
+        </div>
+      </div>
+      {/* Info — click abre detalle */}
+      <div onClick={() => onClick(product)} className="px-3 pt-2.5 pb-2 flex flex-col flex-1 gap-1 cursor-pointer">
+        <p className="text-xs font-bold text-[#1b3f7a] leading-snug line-clamp-2">{product.title}</p>
+        {product.commission_percent > 0 && (
+          <p data-tour={tourComision ? "comision-badge" : undefined}
+            className="text-[10px] font-extrabold text-[#1E8FA8]">+{product.commission_percent}% comisión</p>
+        )}
+        {/* La marca sale de Supabase, no del vendor de Shopify: ese trae
+            distribuidores. Mismo cuerpo que la comisión pero sin negrita, para
+            que informe sin competirle al precio. */}
+        {product.brand && (
+          <p className="text-[10px] text-[#5B7A8C] truncate">{product.brand}</p>
+        )}
+        <p className="text-sm font-extrabold text-[#1b3f7a] tabular-nums mt-auto pt-1">
+          {product.min_price ? (product.variants?.length > 1 ? `desde ${fmtMXN(product.min_price)}` : fmtMXN(product.min_price)) : "—"}
+        </p>
+      </div>
+      {/* Acción — agregar al protocolo, o estado sin stock */}
+      {onQuickAdd && (
+        <div className="px-3 pb-3 pt-1.5">
+          {outOfStock ? (
+            <RestockButton product={product} />
+          ) : (
+            <button
+              onClick={(e) => { e.stopPropagation(); onQuickAdd(product); }}
+              className={`w-full text-[11px] font-bold py-1.5 rounded-lg border transition-all ${inProtocol ? "bg-[#E6F4F8] text-[#1E8FA8] border-[#C2DFE8] hover:bg-[#C2DFE8]" : "bg-[#F7F9FB] text-[#1b3f7a] border-[#D0E4EC] hover:bg-[#1b3f7a] hover:text-white hover:border-[#1b3f7a]"}`}>
+              {inProtocol ? "✓ En protocolo" : "+ Agregar"}
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ── Smart Suggestions ─────────────────────────────────────────────────────────
+function SmartSuggestions({ componente, excludeId, onProductClick, isFavorite, onFavorite }) {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    if (!componente) return;
+    fetch(`/api/product-catalog?componente=${encodeURIComponent(componente)}`)
+      .then(r => r.json())
+      .then(d => setItems((d.items || []).filter(p => p.product_id !== excludeId && !p.all_out_of_stock).slice(0, 3)))
+      .catch(() => {});
+  }, [componente, excludeId]);
+  if (!items.length) return null;
+  return (
+    <div className="border-t border-[#EEF3F7] pt-6 mt-6">
+      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1">Sugerencias inteligentes</p>
+      <p className="text-xs text-[#5B7A8C] mb-4">Productos con el mismo componente principal</p>
+      <div className="grid grid-cols-3 gap-3">
+        {items.map(p => (
+          <ProductCard key={p.product_id} product={p} onClick={onProductClick}
+            inProtocol={false} isFavorite={isFavorite} onFavorite={onFavorite} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Product Detail View ───────────────────────────────────────────────────────
+function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartItem, isFavorite, onFavorite, onProductClick, onBreadcrumb }) {
+  const { customer: clienteActual } = useCustomer() || {};
+  const esVitahuber = (clienteActual?.tags || "").split(",").some(t => t.trim().toLowerCase() === "vitahuber");
+  const inCart = !!cartItem;
+  const inStockVariants = (product.variants || []).filter(v => v.stock === null || v.stock > 0);
+  const [selectedVariant, setSelectedVariant] = useState(
+    cartItem
+      ? product.variants?.find(v => v.variant_id === cartItem.variant_id) || inStockVariants[0] || product.variants?.[0]
+      : inStockVariants[0] || product.variants?.[0]
+  );
+  const smartUnit = detectUnit(product.title, selectedVariant?.variant_title || "");
+  const [amount,   setAmount]   = useState(cartItem?.dosage?.amount ?? 1);
+  const [unit,     setUnit]     = useState(cartItem?.dosage?.unit ?? smartUnit);
+  const [momentos, setMomentos] = useState(
+    cartItem?.dosage?.momentos ?? (cartItem?.dosage?.momento ? [cartItem.dosage.momento] : [])
+  );
+  const [acomp,    setAcomp]    = useState(cartItem?.dosage?.acompanamiento ?? "");
+  const [nota,     setNota]     = useState(cartItem?.dosage?.nota ?? "");
+  const [quantity, setQuantity] = useState(cartItem?.quantity ?? 1);
+  const [descHtml,      setDescHtml]      = useState("");
+  const [descLoading,   setDescLoading]   = useState(false);
+  const [modoDeUso,     setModoDeUso]     = useState(null);
+  // La tabla nutricional y el modo de uso son lo primero que se consulta al
+  // prescribir: la card arranca abierta, no escondida detrás de un clic.
+  const [descTableOpen, setDescTableOpen] = useState(true);
+  const [descTextOpen,  setDescTextOpen]  = useState(false);
+  const [instrOpen,     setInstrOpen]     = useState(true);
+  const [images,      setImages]      = useState([]);
+  const [mainImg,     setMainImg]     = useState(product.image_url || null);
+  const [zoomOpen,    setZoomOpen]    = useState(false);
+
+  // Cerrar zoom con ESC
+  useEffect(() => {
+    if (!zoomOpen) return;
+    const onKey = (e) => { if (e.key === "Escape") setZoomOpen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoomOpen]);
+  const [variantMeta, setVariantMeta] = useState({}); // { variant_id: { tipo_dosis, dosis, total_unidades, total_dosis } }
+  const [bundlePlan,  setBundlePlan]  = useState(null); // { label, rules: [{qty, pct}] } | null
+
+  // Cargar descripción + imágenes + metafields de variante + bundle plan
+  useEffect(() => {
+    setDescLoading(true);
+    fetch(`/api/product-catalog?description=${product.product_id}`)
+      .then(r => r.json())
+      .then(d => {
+        setDescHtml(d.descriptionHtml || "<p>Sin descripción disponible.</p>");
+        setModoDeUso(d.modoDeUso || null);
+        if (d.images?.length > 1) { setImages(d.images); setMainImg(d.images[0]); }
+        if (d.variantMeta) setVariantMeta(d.variantMeta);
+        if (d.bundlePlan)  setBundlePlan(d.bundlePlan);
+      })
+      .catch(() => {})
+      .finally(() => setDescLoading(false));
+  }, [product.product_id]);
+
+  // Pre-llenar dosis desde metafields cuando cambia la variante seleccionada
+  // (solo si el usuario no editó manualmente — no pisamos si ya hay carrito)
+  useEffect(() => {
+    if (!selectedVariant || cartItem) return; // no pisar si ya está en carrito
+    const meta = variantMeta[String(selectedVariant.variant_id)];
+    if (!meta) return;
+    // El stepper representa DOSIS (porciones del fabricante).
+    // Siempre arranca en 1 — la composición de esa dosis la muestra el label.
+    setAmount(1);
+    if (meta.tipo_dosis) setUnit(meta.tipo_dosis);
+  }, [selectedVariant?.variant_id, variantMeta]); // eslint-disable-line
+
+  const outOfStock = selectedVariant?.stock !== null && selectedVariant?.stock <= 0;
+  const price      = selectedVariant?.price ?? product.min_price;
+
+  const toggleMomento = (m) => setMomentos(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
+
+  const handleAdd = () => {
+    if (!selectedVariant || outOfStock) return;
+    const meta = variantMeta[String(selectedVariant.variant_id)] || null;
+    const dosage = { amount, unit, momentos, acompanamiento: acomp, nota, meta };
+    inCart ? onUpdate(cartItem.variant_id, selectedVariant, dosage, quantity, bundlePlan)
+           : onAdd(product, selectedVariant, dosage, quantity, bundlePlan);
+  };
+
+  const [linkCopiado, setLinkCopiado] = useState(false);
+  const copiarLink = () => {
+    const url = `${window.location.origin}/armador-carritos?producto=${product.product_id}`;
+    navigator.clipboard?.writeText(url);
+    setLinkCopiado(true);
+    setTimeout(() => setLinkCopiado(false), 2200);
+  };
+
+  return (
+    <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6">
+      <div className="flex items-center justify-between mb-6">
+        <button onClick={onBack} className="flex items-center gap-2 text-[#5B7A8C] hover:text-[#1b3f7a] text-sm font-semibold transition-colors group">
+          <ArrowLeft size={20} className="transition-transform group-hover:-translate-x-0.5" /> {backLabel || "Volver"}
+        </button>
+        <div className="flex items-center gap-2">
+          {/* Link a esta misma ficha dentro de PRO. Es una herramienta interna del
+              equipo (solo abre con sesión de especialista), por eso solo lo ven
+              los vitahubers. */}
+          {esVitahuber && <button
+            onClick={copiarLink}
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[#D0E4EC] text-[#5B7A8C] hover:text-[#1E8FA8] hover:border-[#1E8FA8] transition-all"
+          >
+            {linkCopiado ? <Check size={12} /> : <LinkIcon size={12} />}
+            {linkCopiado ? "¡Copiado!" : "Copiar link"}
+          </button>}
+          <button
+            onClick={() => onFavorite(product)}
+            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${isFavorite(product.product_id) ? "bg-red-50 border-red-200 text-red-500" : "border-[#D0E4EC] text-[#5B7A8C] hover:text-red-400 hover:border-red-200"}`}
+          >
+            <Heart size={12} fill={isFavorite(product.product_id) ? "currentColor" : "none"} />
+            {isFavorite(product.product_id) ? "Quitar de favoritos" : "Agregar a favoritos"}
+          </button>
+        </div>
+      </div>
+
+      {/* Breadcrumb de categorías — solo si el producto tiene niveles */}
+      {onBreadcrumb && (product.level_1 || product.level_2 || product.level_3) && (
+        <nav className="flex items-center gap-1 flex-wrap mb-4 -mt-2">
+          <button onClick={() => onBreadcrumb(null, null, null)}
+            className="text-[11px] text-[#8AAAB8] hover:text-[#1b3f7a] transition-colors font-medium">
+            Inicio
+          </button>
+          {product.level_1 && (
+            <>
+              <span className="text-[#C2DFE8] text-[11px]">›</span>
+              <button onClick={() => onBreadcrumb('l1', product.level_1, product)}
+                className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">
+                {product.level_1}
+              </button>
+            </>
+          )}
+          {product.level_2 && (
+            <>
+              <span className="text-[#C2DFE8] text-[11px]">›</span>
+              <button onClick={() => onBreadcrumb('l2', product.level_2, product)}
+                className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">
+                {product.level_2}
+              </button>
+            </>
+          )}
+          {product.level_3 && (
+            <>
+              <span className="text-[#C2DFE8] text-[11px]">›</span>
+              <button onClick={() => onBreadcrumb('l3', product.level_3, product)}
+                className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">
+                {product.level_3}
+              </button>
+            </>
+          )}
+          <span className="text-[#C2DFE8] text-[11px]">›</span>
+          <span className="text-[11px] text-[#5B7A8C] font-semibold truncate max-w-[180px]">{product.title}</span>
+        </nav>
+      )}
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+        {/* Imagen principal + galería */}
+        <div className="flex flex-col gap-3">
+          <div
+            onClick={() => mainImg && setZoomOpen(true)}
+            className={`group relative bg-[#F7F9FB] border border-[#D0E4EC] rounded-2xl overflow-hidden flex items-center justify-center ${mainImg ? "cursor-zoom-in" : ""}`}
+            style={{ aspectRatio: "1/1" }}
+          >
+            {mainImg
+              ? <>
+                  <img src={mainImg} alt={product.title} className="w-full h-full object-contain p-6 transition-transform duration-300 group-hover:scale-[1.03]" />
+                  {/* Ícono zoom */}
+                  <div className="absolute bottom-3 right-3 w-7 h-7 bg-white/80 backdrop-blur-sm border border-[#D0E4EC] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                    <Search size={13} className="text-[#5B7A8C]" />
+                  </div>
+                </>
+              : <div className="text-[#B0C8D4]"><Package size={64} /></div>}
+          </div>
+          {/* Miniaturas */}
+          {images.length > 1 && (
+            <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
+              {images.map((img, i) => (
+                <button key={i} onClick={() => setMainImg(img)}
+                  className={`shrink-0 w-14 h-14 rounded-lg border-2 overflow-hidden bg-[#F7F9FB] transition-all ${mainImg === img ? "border-[#1E8FA8]" : "border-[#D0E4EC] hover:border-[#8AAAB8]"}`}>
+                  <img src={img} alt="" className="w-full h-full object-contain p-1" />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* ── Lightbox zoom ───────────────────────────────────────────────────── */}
+        {zoomOpen && mainImg && (
+          <div
+            onClick={() => setZoomOpen(false)}
+            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+          >
+            <button
+              onClick={() => setZoomOpen(false)}
+              className="absolute top-4 right-4 w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+            <img
+              src={mainImg}
+              alt={product.title}
+              onClick={e => e.stopPropagation()}
+              className="max-h-[90vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
+            />
+            {/* Navegación entre imágenes en el lightbox */}
+            {images.length > 1 && (
+              <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
+                {images.map((img, i) => (
+                  <button key={i} onClick={e => { e.stopPropagation(); setMainImg(img); }}
+                    className={`w-2 h-2 rounded-full transition-all ${mainImg === img ? "bg-white scale-125" : "bg-white/40 hover:bg-white/70"}`} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Info */}
+        <div className="flex flex-col gap-5">
+          <div className="flex flex-wrap gap-2">
+            {product.is_professional && <span className="bg-[#1b3f7a] text-white text-[10px] font-extrabold px-2.5 py-1 rounded uppercase tracking-widest">PRO</span>}
+            {product.commission_percent > 0 && <span className="bg-[#E6F4F8] text-[#1E8FA8] text-xs font-extrabold px-2.5 py-1 rounded">{product.commission_percent}% comisión</span>}
+            {inCart && <span className="bg-emerald-50 text-emerald-600 text-xs font-extrabold px-2.5 py-1 rounded">✓ En protocolo</span>}
+          </div>
+          <div>
+            {product.brand && (
+              <p className="text-[11px] font-semibold uppercase tracking-widest text-[#5B7A8C] mb-1">
+                {product.brand}
+              </p>
+            )}
+            <h1 className="text-base sm:text-xl font-medium text-[#1b3f7a] leading-snug">{product.title}</h1>
+          </div>
+          {product.variants?.length > 1 && (
+            <div>
+              <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">Presentación</label>
+              <select value={selectedVariant?.variant_id}
+                onChange={e => setSelectedVariant(product.variants.find(v => v.variant_id === Number(e.target.value)))}
+                className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]">
+                {product.variants.map(v => (
+                  <option key={v.variant_id} value={v.variant_id} disabled={v.stock !== null && v.stock <= 0}>
+                    {v.variant_title || "Único"}{v.stock !== null && v.stock <= 0 ? " · sin stock" : ""}{v.price ? ` · ${fmtMXN(v.price)}` : ""}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex items-baseline gap-3">
+            <span className="text-3xl font-extrabold text-[#1b3f7a] tabular-nums">{price ? fmtMXN(price) : "—"}</span>
+          </div>
+          {product.primary_ingredient && (
+            <div className="bg-[#F7F9FB] border border-[#D0E4EC] rounded-xl px-4 py-3">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Componente principal</p>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-[#1b3f7a]">{product.primary_ingredient}</span>
+                {product.primary_amount && <span className="text-sm font-extrabold text-[#1E8FA8] tabular-nums">{product.primary_amount} {product.primary_unit || "mg"}</span>}
+              </div>
+            </div>
+          )}
+
+          {/* Indicaciones — primero */}
+          <div className="border border-[#1E8FA8]/40 rounded-xl overflow-hidden bg-white">
+            {/* Header — colapsado muestra el texto de instrucción */}
+            <button onClick={() => setInstrOpen(o => !o)} className="w-full flex items-start justify-between px-4 py-3.5 text-left hover:bg-[#F7F9FB] transition-colors gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold text-[#1b3f7a]">Indicaciones de toma</span>
+                  <span className="text-[9px] font-extrabold bg-[#1E8FA8] text-white px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0">Requerido</span>
+                </div>
+                {/* Preview colapsado — estilo Fullscript */}
+                {!instrOpen && (
+                  <p className="text-xs text-[#1E8FA8] mt-0.5 truncate">
+                    {buildInstruccion(amount, unit, momentos, acomp, variantMeta[String(selectedVariant?.variant_id)]) || "Sin indicaciones configuradas"}
+                  </p>
+                )}
+              </div>
+              <ChevronDown size={15} className={`text-[#5B7A8C] transition-transform shrink-0 mt-0.5 ${instrOpen ? "rotate-180" : ""}`} />
+            </button>
+
+            {instrOpen && (
+              <div className="px-4 pb-5 pt-1 space-y-5 border-t border-[#EEF3F7]">
+                {/* Dosis */}
+                {(() => {
+                  const meta = variantMeta[String(selectedVariant?.variant_id)];
+                  const hasMeta = meta?.tipo_dosis && meta?.dosis != null;
+                  const totalUnits = hasMeta ? amount * meta.dosis : null;
+
+                  return (
+                    <div>
+                      <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">
+                        {hasMeta ? "Número de dosis" : "Dosis por toma"}
+                      </label>
+                      <div className="flex items-center gap-2">
+                        {/* Stepper */}
+                        <div className="flex items-center border border-[#D0E4EC] rounded-lg overflow-hidden bg-white shrink-0">
+                          {/* Solo unidades enteras, igual que en el borrador */}
+                          <button onClick={() => setAmount(a => Math.max(1, a - 1))}
+                            className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:bg-[#F7F9FB] font-bold text-lg">−</button>
+                          <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{amount}</span>
+                          <button onClick={() => setAmount(a => a + 1)}
+                            className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:bg-[#F7F9FB] font-bold text-lg">+</button>
+                        </div>
+
+                        {hasMeta ? (
+                          /* Con metafields: tipo_dosis como badge fijo + resultado */
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="px-3 py-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg text-sm font-semibold text-[#1E8FA8]">
+                              {amount === 1 ? "dosis" : "dosis"}
+                            </span>
+                            <span className="text-[#B0C8D4] text-sm">=</span>
+                            <span className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">
+                              {totalUnits} <span className="font-semibold text-[#5B7A8C]">{meta.tipo_dosis}</span>
+                            </span>
+                          </div>
+                        ) : (
+                          /* Sin metafields: dropdown clásico */
+                          <select value={unit} onChange={e => setUnit(e.target.value)}
+                            className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]">
+                            {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                          </select>
+                        )}
+                      </div>
+
+                      {/* Nota de referencia del fabricante */}
+                      {hasMeta && (
+                        <p className="text-[11px] text-[#8AAAB8] mt-1.5">
+                          Porción del fabricante: <span className="font-semibold">{meta.dosis} {meta.tipo_dosis}</span>
+                          {meta.total_dosis && <span className="text-[#B0C8D4]"> · {meta.total_dosis} dosis por frasco</span>}
+                        </p>
+                      )}
+
+                      {/* Cuánto rinde un frasco con la pauta elegida */}
+                      {(() => {
+                        const dur = duracionDias({ meta, amount, momentos, quantity: 1 });
+                        if (!dur) return null;
+                        return (
+                          <p className="text-[11px] font-semibold text-[#1E8FA8] mt-1 flex items-center gap-1">
+                            <CalendarDays size={11} className="shrink-0" />
+                            Cada frasco dura {textoDuracion(dur.dias)} con {dur.porDia} dosis al día
+                          </p>
+                        );
+                      })()}
+                    </div>
+                  );
+                })()}
+
+                {/* Momentos — multi-select */}
+                <div>
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">
+                    Cuándo tomarlo <span className="normal-case font-normal text-[#B0C8D4]">(puede ser varios)</span>
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MOMENTOS.map(m => (
+                      <button key={m} onClick={() => toggleMomento(m)}
+                        className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${momentos.includes(m) ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8] hover:text-[#1E8FA8]"}`}>
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Acompañamiento */}
+                <div>
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">Acompañamiento</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {ACOMP.map(a => (
+                      <button key={a} onClick={() => setAcomp(p => p === a ? "" : a)}
+                        className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${acomp === a ? "bg-[#1E8FA8] text-white border-[#1E8FA8]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8] hover:text-[#1E8FA8]"}`}>
+                        {a}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Nota */}
+                <div>
+                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">Nota <span className="normal-case font-normal text-[#B0C8D4]">(opcional)</span></label>
+                  <textarea value={nota} onChange={e => setNota(e.target.value)} placeholder="ej. Tomar durante 3 meses" rows={2}
+                    className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-[#1E8FA8] resize-none text-[#1b3f7a] placeholder:text-[#B0C8D4]" />
+                </div>
+
+                {/* Instrucción para el paciente — resumen parseado */}
+                {(amount > 0 && (unit || variantMeta[String(selectedVariant?.variant_id)]?.tipo_dosis)) && (() => {
+                  const meta = variantMeta[String(selectedVariant?.variant_id)];
+                  const instrText = buildInstruccion(amount, unit, momentos, acomp, meta);
+                  const notaClean = nota?.trim();
+                  // Nota como segunda oración separada
+                  const notaSentence = notaClean
+                    ? (notaClean.endsWith(".") ? notaClean : notaClean + ".")
+                    : "";
+                  const dur = duracionDias({ meta, amount, momentos, quantity });
+                  return (
+                    <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3.5 py-3">
+                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mb-1">Instrucción para el paciente</p>
+                      <p className="text-sm text-[#1b3f7a] leading-relaxed">
+                        {instrText}
+                        {notaSentence && <span className="text-[#5B7A8C]"> {notaSentence}</span>}
+                      </p>
+                      {dur && (
+                        <p className="text-[11px] text-[#5B7A8C] mt-2 pt-2 border-t border-[#C2DFE8] flex items-center gap-1.5">
+                          <CalendarDays size={12} className="text-[#1E8FA8] shrink-0" />
+                          <span>
+                            Con {dur.frascos === 1 ? "este frasco" : `${dur.frascos} frascos`} alcanza para{" "}
+                            <span className="font-bold text-[#1b3f7a]">{textoDuracion(dur.dias)}</span>
+                            <span className="text-[#B0C8D4]"> · {dur.porDia} dosis al día</span>
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Ingesta diaria estimada */}
+                {(() => {
+                  const nutrients = product.nutrients || [];
+                  if (!nutrients.length) return null;
+                  const meta      = variantMeta[String(selectedVariant?.variant_id)];
+                  const hasMeta   = meta?.tipo_dosis && meta?.dosis != null;
+                  const timesPerDay = momentos.length || 1;
+                  // Con metafields: amount = dosis (porciones), cada dosis = 1 serving
+                  // Sin metafields: amount = unidades, dividir entre serving_size del catálogo
+                  const servingSize = hasMeta ? 1 : (Number(product.serving_size) || meta?.dosis || 1);
+                  const mult = (amount / servingSize) * timesPerDay;
+                  return (
+                    <div className="bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg px-3.5 py-3">
+                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Ingesta diaria estimada</p>
+                      <div className="space-y-1">
+                        {nutrients.map(n => (
+                          <div key={n.name} className="flex justify-between items-baseline text-xs gap-2">
+                            <span className="text-[#5B7A8C] truncate">{n.name}</span>
+                            <span className="font-extrabold tabular-nums text-[#1b3f7a] shrink-0">
+                              {Number((n.amount * mult).toFixed(1)).toLocaleString("es-MX")} {n.unit}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-[#B0C8D4] mt-2">
+                        {(() => {
+                          const meta = variantMeta[String(selectedVariant?.variant_id)];
+                          if (meta?.tipo_dosis && meta?.dosis != null) {
+                            return `${amount} dosis (${amount * meta.dosis} ${meta.tipo_dosis}) × ${timesPerDay === 1 ? "1 toma/día" : `${timesPerDay} tomas/día`}`;
+                          }
+                          return `${amount} ${pluralUnit(unit, amount)} × ${timesPerDay === 1 ? "1 toma/día" : `${timesPerDay} tomas/día`}${servingSize !== 1 ? ` (porción del fabricante: ${servingSize} ${pluralUnit(unit, servingSize)})` : ""}`;
+                        })()}
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </div>
+
+          {/* Descripción — separada en dos cards después de posología */}
+          {(() => {
+            // Separar tabla HTML del resto de la descripción
+            const tableRegex = /<table[\s\S]*?<\/table>/gi;
+            const tables = descHtml.match(tableRegex) || [];
+            const tableHtml = tables.join("");
+            const textHtml  = descHtml.replace(tableRegex, "")
+              .replace(/(<p>\s*<\/p>\s*)+/gi, "")
+              .replace(/^\s*(<br\s*\/?>\s*)+/i, "")
+              .trim();
+
+            return (
+              <>
+                {/* Card A — Tabla nutricional */}
+                {(descLoading || tableHtml || modoDeUso) && (() => {
+                  const meta = variantMeta[String(selectedVariant?.variant_id)];
+                  const porcionStr = meta?.dosis != null && meta?.tipo_dosis
+                    ? `${meta.dosis} ${meta.tipo_dosis}`
+                    : null;
+                  const dosisStr = meta?.total_dosis != null
+                    ? `${meta.total_dosis} dosis por frasco`
+                    : null;
+                  const porcionLabel = [porcionStr, dosisStr].filter(Boolean).join(" · ");
+
+                  return (
+                    <div className="border border-[#D0E4EC] rounded-xl overflow-hidden">
+                      <button onClick={() => setDescTableOpen(o => !o)}
+                        className="w-full flex items-center justify-between px-4 py-3.5 text-left bg-white hover:bg-[#F7F9FB] transition-colors">
+                        <div>
+                          <span className="text-sm font-bold text-[#1b3f7a]">Tabla de información nutricional</span>
+                          {porcionLabel && (
+                            <p className="text-[11px] text-[#8AAAB8] mt-0.5">
+                              Porción del fabricante: <span className="font-semibold text-[#5B7A8C]">{porcionLabel}</span>
+                            </p>
+                          )}
+                        </div>
+                        <ChevronDown size={15} className={`text-[#5B7A8C] transition-transform shrink-0 ${descTableOpen ? "rotate-180" : ""}`} />
+                      </button>
+                      {descTableOpen && (
+                        <div className="px-4 pb-4 pt-2 border-t border-[#EEF3F7] bg-white overflow-x-auto">
+                          {descLoading
+                            ? <p className="text-xs text-[#B0C8D4] text-center py-4">Cargando…</p>
+                            : <>
+                                {tableHtml && (
+                                  <div className="[&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2.5 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:bg-[#F0F5F8] [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#5B7A8C] [&_td]:text-[#1b3f7a]"
+                                    dangerouslySetInnerHTML={{ __html: tableHtml }} />
+                                )}
+                                {/* Lo que dice el fabricante, tal cual: no es la posología
+                                    que prescribe el profesional, que se arma arriba. */}
+                                {modoDeUso && (
+                                  <div className={`${tableHtml ? "mt-3 pt-3 border-t border-[#EEF3F7]" : ""}`}>
+                                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1">
+                                      Modo de uso del fabricante
+                                    </p>
+                                    <p className="text-xs text-[#1b3f7a] leading-relaxed">{modoDeUso}</p>
+                                  </div>
+                                )}
+                              </>}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+
+                {/* Card B — Descripción de texto */}
+                {(descLoading || textHtml) && (
+                  <div className="border border-[#D0E4EC] rounded-xl overflow-hidden">
+                    <button onClick={() => setDescTextOpen(o => !o)}
+                      className="w-full flex items-center justify-between px-4 py-3.5 text-left bg-white hover:bg-[#F7F9FB] transition-colors">
+                      <span className="text-sm font-bold text-[#1b3f7a]">Descripción del producto</span>
+                      <ChevronDown size={15} className={`text-[#5B7A8C] transition-transform ${descTextOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {descTextOpen && (
+                      <div className="px-4 pb-4 pt-2 border-t border-[#EEF3F7] bg-white max-h-72 overflow-y-auto">
+                        {descLoading
+                          ? <p className="text-xs text-[#B0C8D4] text-center py-4">Cargando…</p>
+                          : <div className="prose prose-xs max-w-none text-[#5B7A8C] leading-relaxed [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_li]:mb-1"
+                              dangerouslySetInnerHTML={{ __html: textHtml || descHtml }} />}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
+          {/* Cantidad de frascos */}
+          {!outOfStock && (() => {
+            const activeTier = getBundleTier(bundlePlan?.rules, quantity);
+            const totalBase   = price * quantity;
+            const totalDsc    = activeTier ? totalBase * (1 - activeTier.pct / 100) : totalBase;
+            return (
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-3">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Cantidad</span>
+                  <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
+                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
+                      className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">−</button>
+                    <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{quantity}</span>
+                    <button onClick={() => setQuantity(q => q + 1)}
+                      className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">+</button>
+                  </div>
+                  <span className="text-xs text-[#5B7A8C]">{quantity === 1 ? "frasco" : "frascos"}</span>
+                  {/* Cuánto dura lo que lleva: ayuda a decidir cuántos frascos mandar */}
+                  {(() => {
+                    const dur = duracionDias({
+                      meta: variantMeta[String(selectedVariant?.variant_id)],
+                      amount, momentos, quantity,
+                    });
+                    return dur ? (
+                      <span className="text-[11px] font-bold text-[#1E8FA8] tabular-nums">
+                        ≈ {textoDuracion(dur.dias)}
+                      </span>
+                    ) : null;
+                  })()}
+                  {quantity > 1 && price && (
+                    <span className="ml-auto flex items-baseline gap-1.5 tabular-nums">
+                      {activeTier && (
+                        <span className="text-[11px] text-[#B0C8D4] line-through">{fmtMXN(totalBase)}</span>
+                      )}
+                      <span className={`text-xs font-extrabold ${activeTier ? "text-emerald-600" : "text-[#1E8FA8]"}`}>
+                        Total: {fmtMXN(totalDsc)}
+                      </span>
+                      {activeTier && (
+                        <span className="text-[10px] font-bold text-emerald-600">−{activeTier.pct}%</span>
+                      )}
+                    </span>
+                  )}
+                </div>
+                {/* Hint de bundle — solo si hay reglas */}
+                {bundlePlan?.rules?.length > 0 && (
+                  <p className="text-[11px] text-[#8AAAB8] pl-px">
+                    {bundlePlan.rules.map(r => `Comprando ${r.qty} = −${r.pct}% dto`).join(" · ")}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
+
+          {outOfStock
+            ? <div className="space-y-2">
+                <div className="w-full bg-[#F7F9FB] text-[#B0C8D4] text-sm font-semibold py-3.5 rounded-xl text-center border border-[#D0E4EC]">Sin stock disponible</div>
+                <RestockButton product={product} variant={selectedVariant} size="lg"
+                  seccion="ficha de producto" />
+              </div>
+            : <button onClick={handleAdd}
+                className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${inCart ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
+                {inCart ? "✓ Actualizar en protocolo" : `Agregar al protocolo${quantity > 1 ? ` (×${quantity})` : ""}`}
+              </button>
+          }
+          {selectedVariant?.sku && <p className="text-[10px] text-[#B0C8D4]">SKU: {selectedVariant.sku}</p>}
+        </div>
+      </div>
+
+      {product.componente && (
+        <SmartSuggestions componente={product.componente} excludeId={product.product_id}
+          onProductClick={onProductClick} isFavorite={isFavorite} onFavorite={onFavorite} />
+      )}
+    </div>
+  );
+}
+
+// ── Página principal (inner — necesita Suspense por useSearchParams) ──────────
+function ArmadorCarritosInner() {
+  const { customer } = useCustomer() || {};
+  const customerId   = customer?.id;
+  const searchParams = useSearchParams();
+  const fromCartToken = searchParams?.get("fromCart") || null;
+  const fromProtocol  = searchParams?.get("fromProtocol") || null;
+
+  const { favoriteList, toggleFavorite, isFavorite } = useFavorites(customerId);
+  const consigna = useConsignacion(customerId);
+
+  // Navegación
+  const [view, setView]                 = useState("home");
+  const [prevView, setPrevView]         = useState(null);
+  const [activeTabKey, setActiveTabKey] = useState(null);
+  const [collLabel, setCollLabel]       = useState("");
+  const [levelCtx, setLevelCtx]         = useState(null); // { trail:[{label,field,value}], field, value }
+
+  // Datos
+  const [query, setQuery]           = useState("");
+  const [aiMode, setAiMode]         = useState(false);
+  const [aiResult, setAiResult]     = useState(null); // { resumen, ingredientes }
+  const [productos, setProductos]   = useState([]);
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState(null);
+  const [detailProduct, setDetailProduct] = useState(null);
+  const [collectionImages, setCollectionImages] = useState({});
+
+  // ── Historial del navegador ────────────────────────────────────────────────
+  // El armador navega con estado interno (inicio → colección → producto →
+  // borrador), así que para el navegador todo es una sola página: el botón
+  // atrás sacaba al profesional afuera, en medio de armar un protocolo.
+  //
+  // Acá se espeja esa navegación en el historial. Cada vista guarda una foto de
+  // su estado —incluida la lista de productos, para no volver a pedirla— y al
+  // ir atrás se restaura la foto en vez de abandonar la página.
+  const pila        = useRef([]);     // fotos de cada vista visitada
+  const restaurando = useRef(false);  // evita re-apilar lo que acabamos de restaurar
+
+  const fotoActual = () => ({
+    view, activeTabKey, collLabel, levelCtx, productos, detailProduct, query, aiResult,
+  });
+
+  const restaurarFoto = (f) => {
+    restaurando.current = true;
+    setView(f.view);
+    setActiveTabKey(f.activeTabKey);
+    setCollLabel(f.collLabel);
+    setLevelCtx(f.levelCtx);
+    setProductos(f.productos || []);
+    setDetailProduct(f.detailProduct);
+    setQuery(f.query || "");
+    setAiResult(f.aiResult || null);
+    setPrevView(null);
+    window.scrollTo({ top: 0 });
+  };
+
+  // Apila cada cambio de vista. Mira el contenido, no quién lo disparó, así
+  // cubre también las navegaciones que no pasan por los handlers.
+  useEffect(() => {
+    if (restaurando.current) { restaurando.current = false; return; }
+    const foto = fotoActual();
+    const i    = pila.current.length;
+    pila.current.push(foto);
+    // La primera vista reemplaza la entrada actual: si se apilara, haría falta
+    // tocar "atrás" dos veces para salir del armador.
+    if (i === 0) window.history.replaceState({ vh: 0 }, "");
+    else         window.history.pushState({ vh: i }, "");
+  }, [view, activeTabKey, collLabel, levelCtx, detailProduct?.product_id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    const alVolver = (e) => {
+      const i = e.state?.vh;
+      // Sin índice nuestro, la entrada es de otra página: que el navegador siga
+      if (i == null || !pila.current[i]) return;
+      restaurarFoto(pila.current[i]);
+    };
+    window.addEventListener("popstate", alVolver);
+    return () => window.removeEventListener("popstate", alVolver);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Novedades: lo último que entró al catálogo, como tira en el inicio.
+  // Se piden los con stock nada más: mostrar algo nuevo y agotado es peor que
+  // no mostrarlo.
+  const [novedades, setNovedades] = useState([]);
+  useEffect(() => {
+    fetch(`/api/product-catalog?collection=${NOVEDADES_COLLECTION.handle}`)
+      .then(r => r.json())
+      .then(d => {
+        if (!d.ok) return;
+        setNovedades((d.items || []).filter(p => !p.all_out_of_stock).slice(0, 12));
+      })
+      .catch(() => {});
+  }, []);
+
+  // Protocolo
+  const [carrito, setCarrito]         = useState([]);
+  const [patientData, setPatientData] = useState({ nombre: "", telefono: "" });
+
+  // Borradores y plantillas guardados
+  const [guardados, setGuardados]         = useState([]);   // los del profesional
+  const [protocoloOrigen, setProtocoloOrigen] = useState(null); // { id, name, status } si el carrito salió de uno
+  const [guardando, setGuardando]         = useState(false);
+
+  const cargarGuardados = useCallback(async () => {
+    if (!customerId) return;
+    try {
+      const r = await fetch(`/api/protocols?owner_id=${customerId}`);
+      const d = await r.json();
+      if (d.ok) setGuardados(d.protocols || []);
+    } catch {}
+  }, [customerId]);
+
+  useEffect(() => { cargarGuardados(); }, [cargarGuardados]);
+
+  const borradores = useMemo(() => guardados.filter(p => p.status === "borrador"), [guardados]);
+  const plantillas = useMemo(() => guardados.filter(p => p.status !== "borrador"), [guardados]);
+
+  // ── Persistencia localStorage ────────────────────────────────────────────────
+  useEffect(() => {
+    // Si venimos de un carrito compartido, no cargamos el localStorage
+    // para no pisarlos (el efecto de fromCartToken los carga después)
+    if (fromCartToken) return;
+    try {
+      const saved = localStorage.getItem("vh_protocolo_carrito");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setCarrito(parsed.map(item => ({
+          ...item,
+          dosage: item.dosage ? {
+            ...item.dosage,
+            momentos: item.dosage.momentos ?? (item.dosage.momento ? [item.dosage.momento] : []),
+          } : {},
+        })));
+      }
+    } catch {}
+    try {
+      const savedPat = localStorage.getItem("vh_protocolo_paciente");
+      if (savedPat) setPatientData(JSON.parse(savedPat));
+    } catch {}
+  }, [fromCartToken]);
+
+  // ── Cargar desde token de sharecart (Regenerar protocolo) ────────────────────
+  useEffect(() => {
+    if (!fromCartToken) return;
+    (async () => {
+      try {
+        const res  = await fetch(`/api/sharecart/restore?token=${fromCartToken}`);
+        const data = await res.json();
+        if (!data.ok) { console.warn("[fromCart] restore error:", data.error); return; }
+        let items = data.items || [];
+        // El sharecart no guarda los metafields de dosis: los reponemos para
+        // que el carrito regenerado muestre la duración como cualquier otro.
+        const ids = items.map(i => i.variant_id).filter(Boolean);
+        if (ids.length) {
+          try {
+            const rp = await fetch(`/api/product-catalog?variant_ids=${ids.join(",")}`);
+            const dp = await rp.json();
+            if (dp.ok && dp.variantMeta) {
+              items = items.map(i => ({
+                ...i,
+                dosage: {
+                  ...(i.dosage || {}),
+                  meta: i.dosage?.meta || dp.variantMeta[String(i.variant_id)] || null,
+                },
+              }));
+            }
+          } catch {}
+        }
+        setCarrito(items);
+        if (data.patientData) setPatientData(data.patientData);
+        setView("draft");
+      } catch (e) {
+        console.error("[fromCart]", e);
+      }
+    })();
+  }, [fromCartToken]);
+  // ── Abrir un borrador o una plantilla guardada ───────────────────────────────
+  // Los precios guardados pueden haber cambiado, así que se refrescan con el
+  // catálogo antes de mostrar el borrador.
+  const abrirGuardado = useCallback(async (protocolo) => {
+    if (!protocolo?.id) return;
+    setError(null);
+    try {
+      const r = await fetch(`/api/protocols/${protocolo.id}`);
+      const d = await r.json();
+      if (!d.ok) throw new Error(d.error || "No se pudo abrir");
+
+      let items = componentesACarrito(d.protocol.components);
+      const ids = items.map(i => i.variant_id).filter(Boolean);
+      if (ids.length) {
+        try {
+          const rp = await fetch(`/api/product-catalog?variant_ids=${ids.join(",")}`);
+          const dp = await rp.json();
+          if (dp.ok) {
+            items = items.map(i => ({
+              ...i,
+              price: dp.prices?.[i.variant_id] ?? i.price,
+              // El stock se guarda en el ítem para avisar en el borrador. Un
+              // protocolo guardado hace meses puede tener productos agotados, y
+              // antes eso recién aparecía al querer enviarlo, con el paciente
+              // ya cargado.
+              stock: dp.stock?.[i.variant_id] ?? null,
+              // Si el guardado no traía los metafields de dosis, los reponemos:
+              // sin ellos no se puede calcular la duración del protocolo.
+              dosage: {
+                ...(i.dosage || {}),
+                meta: i.dosage?.meta || dp.variantMeta?.[String(i.variant_id)] || null,
+              },
+            }));
+          }
+        } catch {}
+      }
+
+      setCarrito(items);
+      setProtocoloOrigen({ id: d.protocol.id, name: d.protocol.name, status: d.protocol.status });
+      setDetailProduct(null);
+      setView("draft");
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    } catch (e) {
+      setError(e.message);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!fromProtocol) return;
+    abrirGuardado({ id: fromProtocol });
+  }, [fromProtocol, abrirGuardado]);
+
+  // ── Guardar el carrito como borrador o plantilla ─────────────────────────────
+  const guardarProtocolo = useCallback(async ({ status, nombre }) => {
+    if (!carrito.length) return { ok: false, error: "El protocolo está vacío" };
+    setGuardando(true);
+    try {
+      const components = carritoAComponentes(carrito);
+      // Si ya veníamos de un borrador, se actualiza en vez de duplicarlo
+      const actualizar = protocoloOrigen?.id && protocoloOrigen.status === "borrador" && status === "borrador";
+
+      const res = await fetch(actualizar ? `/api/protocols/${protocoloOrigen.id}` : "/api/protocols", {
+        method: actualizar ? "PATCH" : "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status, components, ...(nombre ? { name: nombre } : {}) }),
+      });
+      const d = await res.json();
+      if (!d.ok) throw new Error(d.error || "No se pudo guardar");
+
+      setProtocoloOrigen({ id: d.protocol.id, name: d.protocol.name, status: d.protocol.status });
+      cargarGuardados();
+      return { ok: true, protocolo: d.protocol };
+    } catch (e) {
+      return { ok: false, error: e.message };
+    } finally {
+      setGuardando(false);
+    }
+  }, [carrito, protocoloOrigen, cargarGuardados]);
+
+  const borrarGuardado = useCallback(async (id) => {
+    try {
+      await fetch(`/api/protocols/${id}`, { method: "DELETE" });
+      if (protocoloOrigen?.id === id) setProtocoloOrigen(null);
+      cargarGuardados();
+    } catch {}
+  }, [protocoloOrigen, cargarGuardados]);
+
+  useEffect(() => {
+    try { localStorage.setItem("vh_protocolo_carrito", JSON.stringify(carrito)); } catch {}
+  }, [carrito]);
+  useEffect(() => {
+    try { localStorage.setItem("vh_protocolo_paciente", JSON.stringify(patientData)); } catch {}
+  }, [patientData]);
+
+  const cartVariantIds  = new Set(carrito.map(p => p.variant_id));
+  const totalProtocolo  = carrito.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 1), 0);
+
+  // Imágenes de colecciones deshabilitadas — las fotos de Shopify no son adecuadas,
+  // las cards muestran el gradiente + ícono Lucide como fallback intencional.
+  // TODO: cuando se tengan imágenes editoriales apropiadas, re-habilitar con
+  //   fetch(`/api/product-catalog?collectionsMetaHandles=${handles}`)
+  useEffect(() => {
+    // no-op — imágenes de colecciones deshabilitadas (fotos de Shopify no adecuadas)
+    // TODO: re-habilitar con ?collectionsMetaHandles cuando haya imágenes editoriales
+  }, []);
+
+  // Handlers
+  const handleSearch = async (e) => {
+    e?.preventDefault();
+    if (!query.trim()) return;
+    setLoading(true); setError(null); setActiveTabKey(null); setAiResult(null);
+    try {
+      if (aiMode) {
+        // En modo IA los productos no tienen commission_percent → limpiar filtro
+        setFilterMinComm(0);
+        // Búsqueda IA — Claude interpreta y busca en Supabase
+        const res  = await fetch("/api/product-catalog/ai-search", {
+          method:  "POST",
+          headers: { "Content-Type": "application/json" },
+          body:    JSON.stringify({ query: query.trim() }),
+        });
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Error en búsqueda IA");
+        setProductos(data.items || []);
+        setAiResult({ resumen: data.resumen, ingredientes: data.ingredientes });
+        setCollLabel(`🔬 "${query.trim()}"`);
+      } else {
+        // Búsqueda normal — Shopify
+        const res  = await fetch(`/api/product-catalog?search=${encodeURIComponent(query.trim())}`);
+        const data = await res.json();
+        if (!data.ok) throw new Error(data.error || "Error al buscar");
+        setProductos(data.items || []);
+        setCollLabel(`"${query.trim()}"`);
+      }
+      setView("collection");
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
+  };
+
+  const handleCollection = async (tab) => {
+    const key = tab.id || tab.handle;
+    setLoading(true); setError(null); setActiveTabKey(key); setLevelCtx(null);
+    try {
+      const param = tab.id ? `collectionId=${tab.id}` : `collection=${tab.handle}`;
+      const res   = await fetch(`/api/product-catalog?${param}`);
+      const data  = await res.json();
+      if (!data.ok) throw new Error(data.error || "Error cargando colección");
+      setProductos(data.items || []);
+      setCollLabel(data.collectionTitle || tab.label);
+      setView("collection");
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
+  };
+
+  // ?tab=<handle> abre una colección directo, sin pasar por la vista home.
+  // Sirve para linkear una categoría desde afuera y es lo que usa el tour para
+  // que sus pasos de producto tengan una grilla donde apoyarse.
+  //
+  // ?coleccion=<handle> hace lo mismo con CUALQUIER colección de la tienda, no solo
+  // las de la barra (ej. ?coleccion=vitadeals, el handle de vitahub.mx/collections/vitadeals).
+  // El título lo trae el catálogo; si la colección no existe se muestra vacía.
+  const tabParam = searchParams?.get("tab") || searchParams?.get("coleccion") || null;
+  useEffect(() => {
+    if (!tabParam) return;
+    const handle = tabParam.trim().toLowerCase();
+    if (!/^[a-z0-9-]+$/.test(handle)) return;
+    const tab = NAV_TABS.find(t => t.handle === handle);
+    handleCollection(tab || { handle, label: handle });
+  }, [tabParam]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleProductClick = (product) => {
+    setPrevView({ view, label: collLabel, activeTabKey });
+    setDetailProduct(product);
+    setView("product");
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
+  // ?producto=<product_id> abre la ficha directo. Es lo que se copia desde la
+  // ficha para pasarle un producto a otro profesional por WhatsApp: cae acá
+  // adentro de PRO, con su precio y su comisión, y no en la tienda pública.
+  const productoParam = searchParams?.get("producto") || null;
+  useEffect(() => {
+    if (!productoParam) return;
+    let cancelado = false;
+    (async () => {
+      try {
+        const r = await fetch(`/api/product-catalog?product=${productoParam}`);
+        const d = await r.json();
+        if (!cancelado && d.ok && d.item) handleProductClick(d.item);
+      } catch {}
+    })();
+    return () => { cancelado = true; };
+  }, [productoParam]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Abre la ficha de un producto que ya está en el carrito. El ítem guardado
+  // solo tiene el ID, así que el producto completo se pide al catálogo.
+  const abrirProductoDelCarrito = useCallback(async (item) => {
+    if (!item?.product_id) return;
+    try {
+      const r = await fetch(`/api/product-catalog?product=${item.product_id}`);
+      const d = await r.json();
+      if (!d.ok || !d.item) return;
+      handleProductClick(d.item);
+    } catch {}
+  }, [handleProductClick]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleBack = () => {
+    // Si hay historial propio, el "Volver" de la pantalla y el del navegador
+    // hacen lo mismo. Si no se delegara, cada "Volver" apilaría una entrada
+    // nueva y el botón del navegador terminaría yendo hacia adelante.
+    if (window.history.state?.vh > 0) { window.history.back(); return; }
+
+    if (prevView) {
+      setView(prevView.view);
+      setActiveTabKey(prevView.activeTabKey);
+      setCollLabel(prevView.label);
+    } else { handleHome(); }
+    setDetailProduct(null);
+    setPrevView(null);
+  };
+
+  const handleHome = () => {
+    setView("home"); setProductos([]); setQuery("");
+    setError(null); setActiveTabKey(null); setDetailProduct(null); setLevelCtx(null);
+  };
+
+  // ── Navegación por árbol de categorías (breadcrumb) ─────────────────────────
+  const handleBreadcrumb = useCallback(async (field, value, product) => {
+    if (!field) { handleHome(); return; }
+
+    // Construir el trail hasta el nivel clickeado
+    const trail = [];
+    if (product?.level_1) trail.push({ label: product.level_1, field: 'l1', value: product.level_1 });
+    if (product?.level_2 && (field === 'l2' || field === 'l3'))
+      trail.push({ label: product.level_2, field: 'l2', value: product.level_2 });
+    if (product?.level_3 && field === 'l3')
+      trail.push({ label: product.level_3, field: 'l3', value: product.level_3 });
+
+    setLevelCtx({ trail, field, value });
+    setError(null); setProductos([]); setDetailProduct(null);
+    setActiveTabKey(null); setView("collection"); setPrevView(null);
+    setLoading(true);
+    try {
+      // Filtrar por todos los niveles hasta el clickeado (AND)
+      const params = new URLSearchParams();
+      if (product?.level_1 && (field === 'l1' || field === 'l2' || field === 'l3'))
+        params.set('l1', product.level_1);
+      if (product?.level_2 && (field === 'l2' || field === 'l3'))
+        params.set('l2', product.level_2);
+      if (product?.level_3 && field === 'l3')
+        params.set('l3', product.level_3);
+      // Sobreescribir el nivel clickeado con su valor
+      params.set(field, value);
+
+      const res  = await fetch(`/api/product-catalog?${params}`);
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "Error cargando categoría");
+      setProductos(data.items || []);
+      setCollLabel(value);
+    } catch (e) { setError(e.message); }
+    finally { setLoading(false); }
+  }, [handleHome]); // eslint-disable-line
+
+  const agregarAlProtocolo = useCallback((product, variant, dosage, quantity = 1, bundlePlan = null) => {
+    setCarrito(prev => {
+      if (prev.find(p => p.variant_id === variant.variant_id)) return prev;
+      return [...prev, {
+        variant_id: variant.variant_id, product_id: product.product_id,
+        title: product.title, variant_title: variant.variant_title || null,
+        image: product.image_url || null,
+        price: variant.price ?? product.min_price ?? 0, quantity,
+        bundlePlan,
+        dosage: dosage || { amount: 1, unit: detectUnit(product.title, variant.variant_title || ""), momentos: [], acompanamiento: "", nota: "" },
+      }];
+    });
+  }, []);
+
+  const actualizarEnProtocolo = useCallback((oldVid, newVariant, dosage, quantity, bundlePlan) => {
+    setCarrito(prev => prev.map(p => p.variant_id === oldVid
+      ? { ...p, variant_id: newVariant.variant_id, variant_title: newVariant.variant_title || null, price: newVariant.price ?? p.price, dosage,
+          ...(quantity != null ? { quantity } : {}),
+          ...(bundlePlan !== undefined ? { bundlePlan } : {}) }
+      : p
+    ));
+  }, []);
+
+  const agregarRapido = useCallback((product) => {
+    const variant = (product.variants || []).find(v => v.stock === null || v.stock > 0) || product.variants?.[0];
+    if (!variant) return;
+    const unit = detectUnit(product.title, variant.variant_title || "");
+    agregarAlProtocolo(product, variant, { amount: 1, unit, momentos: [], acompanamiento: "", nota: "" });
+  }, [agregarAlProtocolo]);
+
+  const quitarDelProtocolo  = useCallback(vid => setCarrito(p => p.filter(c => c.variant_id !== vid)), []);
+  const limpiarProtocolo    = useCallback(() => setCarrito([]), []);
+  const actualizarDosage    = useCallback((vid, dosage) => {
+    setCarrito(prev => prev.map(p => p.variant_id === vid ? { ...p, dosage } : p));
+  }, []);
+  const actualizarCantidad  = useCallback((vid, qty) => {
+    setCarrito(prev => prev.map(p => p.variant_id === vid ? { ...p, quantity: Math.max(1, qty) } : p));
+  }, []);
+
+  // ── Metafields de dosis faltantes ───────────────────────────────────────────
+  // Solo el detalle del producto trae la `meta` (tipo de dosis, dosis por
+  // frasco). Un producto agregado con el botón rápido, un carrito guardado en
+  // el navegador o uno restaurado entran sin ella, y sin ella no hay duración
+  // ni "número de dosis". Los completamos acá, una sola vez por variante.
+  const metaPedida = useRef(new Set());
+  useEffect(() => {
+    const faltan = carrito
+      .filter(i => i.variant_id && !i.dosage?.meta && !metaPedida.current.has(String(i.variant_id)))
+      .map(i => i.variant_id);
+    if (!faltan.length) return;
+    faltan.forEach(v => metaPedida.current.add(String(v)));
+
+    (async () => {
+      try {
+        const r = await fetch(`/api/product-catalog?variant_ids=${faltan.join(",")}`);
+        const d = await r.json();
+        if (!d.ok || !d.variantMeta) return;
+        setCarrito(prev => prev.map(i => {
+          const m = d.variantMeta[String(i.variant_id)];
+          if (!m || i.dosage?.meta) return i;
+          // Sin meta el stepper contaba unidades; con meta cuenta dosis. Si una
+          // dosis son varias cápsulas, convertimos para no multiplicar por
+          // error lo que el profesional ya había indicado.
+          const previo = Number(i.dosage?.amount) || 1;
+          const amount = m.tipo_dosis && m.dosis > 1
+            ? Math.max(1, Math.round(previo / m.dosis))
+            : previo;
+          return { ...i, dosage: { ...(i.dosage || {}), amount, meta: m } };
+        }));
+      } catch {}
+    })();
+  }, [carrito]);
+
+  // Los sin stock se muestran igual — el API ya los ordena al final del listado —
+  // para que el especialista pueda verlos y solicitar reposición.
+  const visibleProductos = productos;
+
+  // ── Filtros ──────────────────────────────────────────────────────────────────
+  const [filterBrand,    setFilterBrand]    = useState("");
+  const [filterMinComm,  setFilterMinComm]  = useState(0);   // 0 = todas
+  const [filterPriceMin, setFilterPriceMin] = useState("");
+  const [filterPriceMax, setFilterPriceMax] = useState("");
+  const [filterPro,      setFilterPro]      = useState(false); // solo is_professional
+
+  // Reset filtros al cambiar de colección
+  useEffect(() => {
+    setFilterBrand(""); setFilterMinComm(0); setFilterPriceMin(""); setFilterPriceMax(""); setFilterPro(false);
+  }, [activeTabKey]);
+
+  // Marcas disponibles (sorted)
+  const availableBrands = [...new Set(visibleProductos.map(p => p.brand).filter(Boolean))].sort();
+
+  // Aplicar filtros
+  const filteredProductos = visibleProductos.filter(p => {
+    if (filterBrand && p.brand !== filterBrand) return false;
+    if (filterPro && !p.is_professional) return false;
+    if (filterMinComm > 0 && (p.commission_percent ?? 0) < filterMinComm) return false;
+    const price = p.min_price ?? 0;
+    if (filterPriceMin !== "" && price < Number(filterPriceMin)) return false;
+    if (filterPriceMax !== "" && price > Number(filterPriceMax)) return false;
+    return true;
+  });
+
+  const outOfStockCount = filteredProductos.filter(p => p.all_out_of_stock).length;
+
+  // Anclas del tour: van en la primera tarjeta, y la de comisión en la primera
+  // que efectivamente tenga una — si no, el paso apuntaría a un elemento que
+  // no se renderiza y el tour lo saltearía.
+  const tourComisionIdx = filteredProductos.findIndex(p => (p.commission_percent ?? 0) > 0);
+
+  const hasFilters = filterBrand || filterPro || filterMinComm > 0 || filterPriceMin !== "" || filterPriceMax !== "";
+  const clearFilters = () => { setFilterBrand(""); setFilterMinComm(0); setFilterPriceMin(""); setFilterPriceMax(""); setFilterPro(false); };
+
+  const isHome     = view === "home";
+  const isProduct  = view === "product";
+  const isDraft    = view === "draft";
+  const isFavsView = view === "favorites";
+  const showGrid   = !isHome && !isProduct && !isDraft && !isFavsView && !loading && visibleProductos.length > 0;
+  const showEmpty  = !isHome && !isProduct && !isDraft && !isFavsView && !loading && !error && visibleProductos.length === 0;
+
+  return (
+    <div className="h-full flex flex-col bg-[#F7F9FB]">
+
+      {/* ── HEADER STICKY ───────────────────────────────────────────────────── */}
+      <div className="bg-white border-b border-[#EEF3F7] shrink-0 z-30">
+        <div className="max-w-[1280px] mx-auto">
+          {/* Fila 1: título + protocolo */}
+          <div className="flex items-center justify-between px-5 sm:px-6 pt-4 pb-3">
+            <button onClick={handleHome} className="text-left">
+              <h1 className="text-xl font-extrabold text-[#1b3f7a] tracking-tight leading-none">Protocolos Clínicos</h1>
+              <p className="text-xs text-[#5B7A8C] mt-0.5 hidden sm:block">Prescripciones de suplementación para tus pacientes</p>
+            </button>
+            <ProtocolIndicator
+              carrito={carrito} total={totalProtocolo}
+              patientData={patientData} onPatientChange={setPatientData}
+              onGoToDraft={() => setView("draft")}
+              onClear={limpiarProtocolo}
+              onRemoveItem={quitarDelProtocolo}
+            />
+          </div>
+          {/* Fila 2: búsqueda */}
+          <div className="px-5 sm:px-6 pb-3 space-y-2">
+            {/* Switch modo */}
+            <div data-tour="buscador-ia" className="flex items-center gap-1 bg-[#F0F5F8] rounded-lg p-0.5 w-fit">
+              <button type="button" onClick={() => setAiMode(false)}
+                className={`px-3 py-1 rounded-md text-xs font-semibold transition-all ${!aiMode ? "bg-white text-[#1b3f7a] shadow-sm" : "text-[#8AAAB8] hover:text-[#5B7A8C]"}`}>
+                Normal
+              </button>
+              <button type="button" onClick={() => setAiMode(true)}
+                className={`flex items-center gap-1 px-3 py-1 rounded-md text-xs font-semibold transition-all ${aiMode ? "bg-[#1b3f7a] text-white shadow-sm" : "text-[#8AAAB8] hover:text-[#5B7A8C]"}`}>
+                <span>🔬</span> IA
+              </button>
+            </div>
+
+            <form onSubmit={handleSearch} data-tour="buscador" className="flex gap-2">
+              <div className="relative flex-1">
+                <Search size={14} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#B0C8D4]" />
+                <input type="text"
+                  placeholder={aiMode
+                    ? "Describe el objetivo o síntoma del paciente…"
+                    : "Buscar por producto, componente o marca…"}
+                  value={query} onChange={e => setQuery(e.target.value)}
+                  className="w-full bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg pl-10 pr-4 py-2 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8] focus:bg-white transition-colors" />
+              </div>
+              <button type="submit" disabled={loading || !query.trim()}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-30 transition-colors shrink-0 ${aiMode ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
+                {aiMode ? "Analizar" : "Buscar"}
+              </button>
+            </form>
+
+            {/* Banner resultado IA */}
+            {aiResult && (
+              <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3.5 py-2.5">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mb-1">Análisis clínico</p>
+                <p className="text-xs text-[#1b3f7a] leading-snug mb-2">{aiResult.resumen}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {aiResult.ingredientes.map(i => (
+                    <span key={i.nombre} className="inline-flex items-center gap-1 bg-white border border-[#C2DFE8] rounded-full px-2.5 py-0.5 text-[11px] text-[#1b3f7a]">
+                      <span className="font-semibold">{i.nombre}</span>
+                      <span className="text-[#8AAAB8]">— {i.razon}</span>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+          {/* Fila 3: tabs */}
+          <div className="flex border-t border-[#EEF3F7] overflow-x-auto [&::-webkit-scrollbar]:hidden">
+            <button onClick={handleHome}
+              className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors shrink-0 ${isHome ? "border-[#1b3f7a] text-[#1b3f7a]" : "border-transparent text-[#5B7A8C] hover:text-[#1b3f7a]"}`}>
+              Inicio
+            </button>
+            {favoriteList.length > 0 && (
+              <button onClick={() => setView("favorites")}
+                className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors shrink-0 flex items-center gap-1.5 ${isFavsView ? "border-red-400 text-red-500" : "border-transparent text-[#5B7A8C] hover:text-red-400"}`}>
+                <Heart size={12} fill={isFavsView ? "currentColor" : "none"} />
+                Favoritos <span className="text-[10px]">({favoriteList.length})</span>
+              </button>
+            )}
+            {NAV_TABS.map(tab => {
+              const key = tab.id || tab.handle;
+              return (
+                <button key={key} onClick={() => handleCollection(tab)} disabled={loading}
+                  className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors shrink-0 ${activeTabKey === key ? "border-[#1E8FA8] text-[#1E8FA8]" : "border-transparent text-[#5B7A8C] hover:text-[#1b3f7a]"}`}>
+                  {tab.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+
+      {/* ── ÁREA MUTABLE ─────────────────────────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-[#D0E4EC] [&::-webkit-scrollbar-thumb]:rounded-full">
+
+        {/* HOME */}
+        {isHome && (
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6 space-y-8">
+            {/* Slider favoritos */}
+            {favoriteList.filter(p => !p.all_out_of_stock).length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Heart size={14} className="text-red-400" fill="currentColor" />
+                    <h2 className="text-sm font-bold text-[#1b3f7a]">Mis Favoritos</h2>
+                  </div>
+                  <button onClick={() => setView("favorites")} className="text-xs font-semibold text-[#1E8FA8] hover:underline">
+                    Ver todos ({favoriteList.length}) →
+                  </button>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden -mx-4 sm:-mx-6 px-4 sm:px-6">
+                  {favoriteList.filter(p => !p.all_out_of_stock).map(p => (
+                    <div key={p.product_id} className="w-40 shrink-0">
+                      <ProductCard product={p} onClick={handleProductClick}
+                        inProtocol={p.variants?.some(v => cartVariantIds.has(v.variant_id)) || false}
+                        isFavorite={isFavorite} onFavorite={toggleFavorite} onQuickAdd={agregarRapido}
+                        enConsultorio={consigna.productoEnConsultorio(p)} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+            {/* Borradores sin terminar */}
+            {borradores.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <FileClock size={14} className="text-[#1E8FA8]" />
+                  <h2 className="text-sm font-bold text-[#1b3f7a]">Continúa donde lo dejaste</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {borradores.map(p => (
+                    <GuardadoCard key={p.id} protocolo={p} onAbrir={abrirGuardado} onBorrar={borrarGuardado} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Plantillas propias */}
+            {plantillas.length > 0 && (
+              <section>
+                <div className="flex items-center gap-2 mb-3">
+                  <Bookmark size={14} className="text-[#1E8FA8]" />
+                  <h2 className="text-sm font-bold text-[#1b3f7a]">Mis plantillas</h2>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {plantillas.map(p => (
+                    <GuardadoCard key={p.id} protocolo={p} onAbrir={abrirGuardado} onBorrar={borrarGuardado} />
+                  ))}
+                </div>
+              </section>
+            )}
+
+            {/* Colecciones */}
+            <section>
+              <h2 className="text-sm font-bold text-[#1b3f7a] mb-4">Colecciones destacadas</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {FEATURED.map(fc => (
+                  <CollectionCard key={fc.handle || fc.id} item={fc} onClick={handleCollection}
+                    loading={loading} imageUrl={collectionImages[fc.handle || fc.id] || null} />
+                ))}
+              </div>
+            </section>
+            {/* PRO banner */}
+            <section>
+              <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#1b3f7a] to-[#1b3f7a] px-6 py-5 flex items-center justify-between gap-4">
+                <div className="flex items-start gap-4">
+                  <span className="shrink-0 bg-[#1E8FA8] text-white text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest mt-0.5">PRO</span>
+                  <div>
+                    <p className="text-white font-bold text-base leading-snug">Marcas Profesionales</p>
+                    <p className="text-[#7EAEC0] text-xs mt-1 max-w-xs">Productos exclusivos de grado clínico que tus pacientes no pueden comprar directo.</p>
+                  </div>
+                </div>
+                <button onClick={() => handleCollection(PRO_COLLECTION)}
+                  className="shrink-0 flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors whitespace-nowrap">
+                  Explorar <ChevronRight size={12} />
+                </button>
+                <div className="absolute -right-8 -top-8 w-32 h-32 bg-[#1E8FA8]/10 rounded-full pointer-events-none" />
+              </div>
+            </section>
+
+            {/* Novedades — lo último que entró al catálogo */}
+            {novedades.length > 0 && (
+              <section>
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={14} className="text-[#1E8FA8]" />
+                    <h2 className="text-sm font-bold text-[#1b3f7a]">Novedades</h2>
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] px-2 py-0.5 rounded-full">
+                      Nuevo
+                    </span>
+                  </div>
+                  <button onClick={() => handleCollection(NOVEDADES_COLLECTION)}
+                    className="text-xs font-semibold text-[#1E8FA8] hover:underline">
+                    Ver todos ({novedades.length}) →
+                  </button>
+                </div>
+                <div className="flex gap-3 overflow-x-auto pb-2 [&::-webkit-scrollbar]:hidden -mx-4 sm:-mx-6 px-4 sm:px-6">
+                  {novedades.map(p => (
+                    <div key={p.product_id} className="w-40 shrink-0">
+                      <ProductCard product={p} onClick={handleProductClick}
+                        inProtocol={p.variants?.some(v => cartVariantIds.has(v.variant_id)) || false}
+                        isFavorite={isFavorite} onFavorite={toggleFavorite} onQuickAdd={agregarRapido}
+                        enConsultorio={consigna.productoEnConsultorio(p)} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+        )}
+
+        {/* BORRADOR */}
+        {isDraft && (
+          <DraftView
+            carrito={carrito} patientData={patientData} onPatientChange={setPatientData}
+            customerId={customerId}
+            protocoloOrigen={protocoloOrigen} onGuardar={guardarProtocolo} guardando={guardando}
+            onBack={handleHome} onRemoveItem={quitarDelProtocolo} onClear={limpiarProtocolo}
+            onUpdateDosage={actualizarDosage} onUpdateQuantity={actualizarCantidad}
+            onAbrirProducto={abrirProductoDelCarrito}
+            enConsultorio={consigna.enConsultorio}
+            puedeCobrar={consigna.puedeCobrar}
+          />
+        )}
+
+        {/* FAVORITOS */}
+        {isFavsView && (
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-6">
+            <div className="flex items-center gap-2 mb-6">
+              <Heart size={16} className="text-red-400" fill="currentColor" />
+              <h2 className="text-lg font-extrabold text-[#1b3f7a]">Mis Favoritos</h2>
+              <span className="text-sm text-[#5B7A8C]">({favoriteList.length})</span>
+            </div>
+            {favoriteList.length === 0 ? (
+              <div className="flex flex-col items-center justify-center h-48 gap-2 text-[#B0C8D4]">
+                <Heart size={28} />
+                <p className="text-sm font-medium">Aún no tienes favoritos</p>
+                <p className="text-xs">Toca el ❤️ en cualquier producto para guardarlo aquí</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+                {favoriteList.filter(p => !p.all_out_of_stock).map(p => (
+                  <ProductCard key={p.product_id} product={p} onClick={handleProductClick}
+                    inProtocol={p.variants?.some(v => cartVariantIds.has(v.variant_id)) || false}
+                    isFavorite={isFavorite} onFavorite={toggleFavorite} onQuickAdd={agregarRapido}
+                    enConsultorio={consigna.productoEnConsultorio(p)} />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PRODUCT DETAIL */}
+        {isProduct && detailProduct && (
+          <ProductDetailView
+            product={detailProduct}
+            onBack={handleBack}
+            backLabel={
+              prevView?.view === "home"      ? "Inicio"     :
+              prevView?.view === "favorites" ? "Favoritos"  :
+              prevView?.view === "draft"     ? "Borrador"   :
+              collLabel || "Volver"
+            }
+            onAdd={agregarAlProtocolo}
+            onUpdate={actualizarEnProtocolo}
+            cartItem={carrito.find(c => detailProduct.variants?.some(v => v.variant_id === c.variant_id)) || null}
+            isFavorite={isFavorite}
+            onFavorite={toggleFavorite}
+            onProductClick={handleProductClick}
+            onBreadcrumb={handleBreadcrumb}
+          />
+        )}
+
+        {/* LOADER */}
+        {loading && (
+          <div className="flex items-center justify-center h-48 text-[#5B7A8C] text-sm gap-2.5">
+            <div className="w-4 h-4 border-2 border-[#D0E4EC] border-t-[#1E8FA8] rounded-full animate-spin" />
+            Cargando…
+          </div>
+        )}
+
+        {/* VACÍO */}
+        {showEmpty && (
+          <div className="flex flex-col items-center justify-center h-48 gap-1.5 text-[#5B7A8C]">
+            <Package size={28} className="text-[#B0C8D4]" />
+            <p className="font-semibold text-sm">Sin productos</p>
+            <p className="text-xs text-[#B0C8D4]">No encontramos nada para esta búsqueda</p>
+          </div>
+        )}
+
+        {/* GRID */}
+        {showGrid && (
+          <div className="max-w-[1280px] mx-auto px-4 sm:px-6 py-4">
+            {error && <p className="text-red-500 text-sm mb-4">{error}</p>}
+
+            {/* ── Barra de filtros ─────────────────────────────────────────── */}
+            <div className="bg-white border border-[#D0E4EC] rounded-xl px-4 py-3 mb-4 flex flex-wrap gap-3 items-center">
+              {/* Marca */}
+              {availableBrands.length > 1 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Marca</span>
+                  <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)}
+                    className="border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] bg-white max-w-[180px]">
+                    <option value="">Todas</option>
+                    {availableBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {/* Separador */}
+              {availableBrands.length > 1 && <div className="h-5 w-px bg-[#D0E4EC] hidden sm:block" />}
+
+              {/* Solo PRO — marcas de grado clínico (is_professional en Supabase) */}
+              <button onClick={() => setFilterPro(v => !v)}
+                title="Mostrar solo marcas profesionales"
+                className={`text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-1 rounded-full border transition-colors ${filterPro ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1b3f7a]"}`}>
+                Solo PRO
+              </button>
+
+              {/* Separador */}
+              <div className="h-5 w-px bg-[#D0E4EC] hidden sm:block" />
+
+              {/* Comisión */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Comisión</span>
+                <div className="flex gap-1">
+                  {[["Todas", 0], ["5%+", 5], ["10%+", 10], ["15%+", 15]].map(([label, val]) => (
+                    <button key={val} onClick={() => setFilterMinComm(val)}
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors ${filterMinComm === val ? "bg-[#1E8FA8] text-white border-[#1E8FA8]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8]"}`}>
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Separador */}
+              <div className="h-5 w-px bg-[#D0E4EC] hidden sm:block" />
+
+              {/* Precio */}
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Precio</span>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs text-[#B0C8D4]">$</span>
+                  <input type="number" placeholder="Desde" value={filterPriceMin}
+                    onChange={e => setFilterPriceMin(e.target.value)}
+                    className="w-20 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] tabular-nums" />
+                  <span className="text-xs text-[#B0C8D4]">—</span>
+                  <input type="number" placeholder="Hasta" value={filterPriceMax}
+                    onChange={e => setFilterPriceMax(e.target.value)}
+                    className="w-20 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] tabular-nums" />
+                </div>
+              </div>
+
+              {/* Limpiar */}
+              {hasFilters && (
+                <>
+                  <div className="h-5 w-px bg-[#D0E4EC] hidden sm:block" />
+                  <button onClick={clearFilters}
+                    className="flex items-center gap-1 text-xs font-semibold text-[#5B7A8C] hover:text-red-400 transition-colors">
+                    <X size={12} /> Limpiar
+                  </button>
+                </>
+              )}
+            </div>
+
+            {/* Breadcrumb trail de nivel — visible cuando venimos de clic en categoría */}
+            {levelCtx?.trail?.length > 0 && (
+              <nav className="flex items-center gap-1 flex-wrap mb-3 -mt-1">
+                <button onClick={handleHome} className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">Inicio</button>
+                {levelCtx.trail.map((step, i) => (
+                  <span key={i} className="flex items-center gap-1">
+                    <span className="text-[#C2DFE8] text-[11px]">›</span>
+                    {i < levelCtx.trail.length - 1
+                      ? <button onClick={() => handleBreadcrumb(step.field, step.value, { level_1: levelCtx.trail[0]?.value, level_2: levelCtx.trail[1]?.value, level_3: levelCtx.trail[2]?.value })}
+                          className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">{step.label}</button>
+                      : <span className="text-[11px] text-[#1b3f7a] font-semibold">{step.label}</span>
+                    }
+                  </span>
+                ))}
+              </nav>
+            )}
+
+            {/* Título de la colección (o de la búsqueda) que se está viendo */}
+            {collLabel && !levelCtx?.trail?.length && (
+              <h2 className="text-lg font-extrabold text-[#1b3f7a] leading-tight mb-1">{collLabel}</h2>
+            )}
+
+            {/* Conteo */}
+            <p className="text-xs text-[#5B7A8C] font-medium mb-4">
+              {filteredProductos.length} producto{filteredProductos.length !== 1 ? "s" : ""}
+              {hasFilters && visibleProductos.length !== filteredProductos.length
+                ? ` de ${visibleProductos.length}` : ""}
+            </p>
+
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 pb-6">
+              {filteredProductos.map((p, i) => (
+                <ProductCard key={p.product_id} product={p}
+                  onClick={handleProductClick}
+                  inProtocol={p.variants?.some(v => cartVariantIds.has(v.variant_id)) || false}
+                  isFavorite={isFavorite}
+                  onFavorite={toggleFavorite}
+                  onQuickAdd={agregarRapido}
+                  enConsultorio={consigna.productoEnConsultorio(p)}
+                  tourCard={i === 0}
+                  tourComision={i === tourComisionIdx}
+                />
+              ))}
+            </div>
+
+            {/* Sin resultados */}
+            {filteredProductos.length === 0 && hasFilters && (
+              <div className="text-center py-12 text-[#B0C8D4]">
+                <Package size={32} className="mx-auto mb-2" />
+                <p className="text-sm font-medium">Sin productos con esos filtros</p>
+                <button onClick={clearFilters} className="mt-3 text-xs text-[#1E8FA8] font-semibold hover:underline">
+                  Limpiar filtros
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ── Wrapper con Suspense (requerido por useSearchParams en App Router) ─────────
+export default function ArmadorCarritos() {
+  return (
+    <Suspense>
+      <ArmadorCarritosInner />
+    </Suspense>
+  );
+}

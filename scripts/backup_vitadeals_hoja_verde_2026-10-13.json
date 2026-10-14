@@ -1,0 +1,519 @@
+{
+ "nota": "Productos de la hoja con DESCUENTO en verde. Para deshacer: tagsRemove vitadeals a tag_agregado y collectionRemoveProducts a sumados_a_coleccion.",
+ "tag_agregado": [
+  {
+   "id": "gid://shopify/Product/9733250744641",
+   "sku": "VHMX00631",
+   "title": "Vitamina C 90mg Para Niños en Gomitas Orgánicas de Mary Ruth's | Fortalece el Sistema Inmune | 60 gomitas Sabor Naranja - 30 servicios"
+  },
+  {
+   "id": "gid://shopify/Product/9794463891777",
+   "sku": "VHMX01613",
+   "title": "Vitamina C,B5, B6, D3, Calcio, Yodo, Magnesio y Combinado de Hierbas de Micahel's Health | Extractos orgánicos formulados para el equilibrio hormonal femenino | 90 tabletas vegetarianas"
+  },
+  {
+   "id": "gid://shopify/Product/9794486174017",
+   "sku": "VHMX01677",
+   "title": "Cúrcuma 500 mg de Kaneka™ de Heath Thru Nutrition | Apoya la función articular, reduciendo la inflamación  | 120 y 60 cápsulas Blandas"
+  },
+  {
+   "id": "gid://shopify/Product/9794628976961",
+   "sku": "VHMX01614",
+   "title": "Rhodiola Rosea, Ashwagandha, Vitamina C, B12,B5, Calcio de Michael's Health | Apoya la respuesta al estrés y el equilibrio hormonal | 60 tabletas vegetarianas"
+  },
+  {
+   "id": "gid://shopify/Product/9974760276289",
+   "sku": "VHMX01998",
+   "title": "Fisetina 125 mg | Fisetin PRO Longevity Plus de ProHealth |  60 cápsulas"
+  },
+  {
+   "id": "gid://shopify/Product/9999947039041",
+   "sku": "VHMX02359",
+   "title": "Multivitaminico Organico Para Hombres de Mary Ruth´s | Soporte Cognitivo e Inmunológico | 60 Gomitas"
+  },
+  {
+   "id": "gid://shopify/Product/9999949070657",
+   "sku": "VHMX02344",
+   "title": "Multivitamínico + Hair Growth, MaryRuth’s | Crecimiento del Cabello | 60 gomitas"
+  },
+  {
+   "id": "gid://shopify/Product/9999948939585",
+   "sku": "VHMX02393",
+   "title": "Multivitamínico líquido Essentials+ MaryRuth’s | Favorece el metabolismo energético diario| 887 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999949431105",
+   "sku": "VHMX02408",
+   "title": "Extracto líquido de Albahaca Sagrada  | Apoya la claridad mental y concentración | 30 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999953690945",
+   "sku": "VHMX02169",
+   "title": "NADH 10 mg con D-Ribosa de Now | Favorece la producción natural de energía celular | 60 Cápsula"
+  },
+  {
+   "id": "gid://shopify/Product/9999955493185",
+   "sku": "VHMX02331",
+   "title": "Extracto Pau D’Arco líquido de Now | Antioxidante y protector celular | 59 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9609851863361",
+   "sku": "VHMX00843",
+   "title": "Multivitamínico con Minerales, Aminoácidos, Hongos Adaptógenos para Hombres de Vitativa - Viggo Testo | Bienestar Masculino - Energía | Presentación de 230g en diferentes sabores"
+  },
+  {
+   "id": "gid://shopify/Product/9609572680001",
+   "sku": "VHMX00833",
+   "title": "Multivitamínico con Magnesio, Probióticos, Colágeno de Vitativa - Elemental | Apoyo Inmunológico + Energía | Presentación de 200 g en diferentes sabores"
+  },
+  {
+   "id": "gid://shopify/Product/9974083649857",
+   "sku": "VHMX01990",
+   "title": "Proteína Whey de Ascent | Proteína Limpia | Polvos 897 g 29 porciones"
+  },
+  {
+   "id": "gid://shopify/Product/9974718890305",
+   "sku": "VHMX01992",
+   "title": "Creatina Clean de Ascent | Creapure | 45 servicios"
+  },
+  {
+   "id": "gid://shopify/Product/9811693699393",
+   "sku": "VHMX01639",
+   "title": "Calcio + Cáscara Sagrada - Weekend Colon Flush de Natures Secret | Diseñado para apoyar la limpieza rápida del colon | 16 Tabletas"
+  },
+  {
+   "id": "gid://shopify/Product/9620687847745",
+   "sku": "VHMX00111",
+   "title": "Extracto de Equinácea de Now Foods | Apoyo al Sistema Inmune | 59 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9644584665409",
+   "sku": "VHMX00508",
+   "title": "Complejo de Curcumina C3 400mg de Designs For Health | Propiedades antioxidantes - Tres formas bioactivas diferentes de curcuminoides de la especie cúrcuma | 60 Cápsulas Vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9645187203393",
+   "sku": "VHMX00366",
+   "title": "Potasio Iónico Líquido 99mg + Magnesio + Calcio de Trace Minerals | Apoyo del Sistema Nervioso, Cardiovascular y Cognitivo | 59ml"
+  },
+  {
+   "id": "gid://shopify/Product/9733272731969",
+   "sku": "VHMX00625",
+   "title": "Vitamina C + Zinc con Extracto de baya de saúco Europeo Orgánico de Mary Ruth's  | Antioxidantes y nutrientes que ayudan a proteger las células y apoyar la función respiratoria | 60 gomitas Sabor Bayas Mixtas"
+  },
+  {
+   "id": "gid://shopify/Product/9733159780673",
+   "sku": "VHMX00595",
+   "title": "Vitaminas Complejo B, C,D,A - Multivitamínico Matutino de Mary Ruth's | Apoya la energía, el sistema inmunológico y el bienestar general | Líquidos 946 y 450ml Sabor Ponche de Frutas y Frambuesa"
+  },
+  {
+   "id": "gid://shopify/Product/9795151692097",
+   "sku": "VHMX01616",
+   "title": "Diente de León, Semilla de Lino, Calabaza – Vitaminas, Minerales & Mezcla Patentada de Michael's Health | Formula que apoya al Bienestar Digestivo y la Desintoxicación del Organismo | 84 cápsulas vegetarianas en 3 paquetes diarios"
+  },
+  {
+   "id": "gid://shopify/Product/9796097474881",
+   "sku": "VHMX01683",
+   "title": "Boswellia 300 mg de Health Thru Nutrition | Actúa como antiinflamatorio y antioxidante | 60 cápsulas Blandas"
+  },
+  {
+   "id": "gid://shopify/Product/9797352751425",
+   "sku": "VHMX01693",
+   "title": "Curcu-Gel Ultra 325 mg de Health Thru Nutrition | Apoyo cardiovascular, Antioxidate | 60 cápsulas Blandas"
+  },
+  {
+   "id": "gid://shopify/Product/9999947202881",
+   "sku": "VHMX02354",
+   "title": "Cardo Mariano Orgánico Líquido, MaryRuth’s,|  Apoyo hepático y antioxidante| 30 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999947923777",
+   "sku": "VHMX02376",
+   "title": "Extracto Líquido Orgánico de hongos de MaryRuth’s | Equilibrio y bienestar general | 30 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999947596097",
+   "sku": "VHMX02386",
+   "title": "Vitamina C Líquida Orgánica para Bebés, MaryRuth’s | Apoyo inmune |60 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999948906817",
+   "sku": "VHMX02412",
+   "title": "Fenogreco Orgánico, MaryRuth’s | Apoyo digestivo y hormonal |30 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999948448065",
+   "sku": "VHMX02413",
+   "title": "Jengibre, hinojo, toronjil y manzanilla de MaryRuth’s| Relajación nocturna | 120 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999949300033",
+   "sku": "VHMX02343",
+   "title": "Hierro Liquido de Mary Ruth´s | Metabolismo Energético | 450 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999949398337",
+   "sku": "VHMX02364",
+   "title": "Mezcla de Ginseng asiático, Ginseng americano, Ashwagandha, Eleuthero, Maca, Vitality de MaryRuth’s | Suplemento Adaptógeno Líquido| 30 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999951298881",
+   "sku": "VHMX02337",
+   "title": "Magnesio e Inositol Relax NOW | Apoya la función y energía celular diaria | 454 g"
+  },
+  {
+   "id": "gid://shopify/Product/9999952380225",
+   "sku": "VHMX02300",
+   "title": "Crema rejuvenecedora MSM Healthy Skin de NOW | 237 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999954149697",
+   "sku": "VHMX02274",
+   "title": "Extracto de semilla de uva NOW | Protección Celular | 200 cápsulas"
+  },
+  {
+   "id": "gid://shopify/Product/9999949005121",
+   "sku": "VHMX02406",
+   "title": "Gomitas para menopausia de MaryRuth’s| Contribuye al equilibrio del estado de ánimo | 60 Gomitas"
+  },
+  {
+   "id": "gid://shopify/Product/9615656288577",
+   "sku": "VHMX00494",
+   "title": "Hierbas Naturales - Jarabe para la tos para Niños de Child Life | Apoyo de la función Inmunitaria | Líquido de 118.5 ml Sabor a Bayas Naturales"
+  },
+  {
+   "id": "gid://shopify/Product/9621369160001",
+   "sku": "VHMX02775",
+   "title": "DHEA 25mg de Swanson | Fortalecimiento Óseo y Promueve un envejecimiento saludable | 120 y 30 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9633254932801",
+   "sku": "VHMX00182",
+   "title": "Ñame Silvestre y Dong Quai, Fórmula Herbal de NOW Foods | Equilibrio Femenino, Ayuda a balancear el sistema hormonal de manera natural | 90 Cápsulas Veganas"
+  },
+  {
+   "id": "gid://shopify/Product/9726776213825",
+   "sku": "VHMX00616",
+   "title": "Arándano Orgánico para Niños 75mg de Mary Ruth's | Ayuda a reforzar el sistema inmunológico y la función respiratoria  | 30ml sabor arándano y frambuesa"
+  },
+  {
+   "id": "gid://shopify/Product/9733266800961",
+   "sku": "VHMX00626",
+   "title": "Multivitamínico Para Niños En Gomitas con Zinc, Colina e Inositol de Mary Ruth's | Fortalece el Sistema Inmune | 60 gomitas Sabor Fresa, Papaya y Super Ponche"
+  },
+  {
+   "id": "gid://shopify/Product/9794205614401",
+   "sku": "VHMX01609",
+   "title": "Enzimas Digestivas  600mg de Michael's Health | Apoya la recuperación muscular después del ejercicio y el Bienestar Digestivo | 90 tabletas de Ph estables con recubrimiento entérico"
+  },
+  {
+   "id": "gid://shopify/Product/9795740893505",
+   "sku": "VHMX01625",
+   "title": "Fenogreco, corteza de olmo resbaladizo, hoja de gordolobo 3300mg de Michael's Health | Diseñadas para ofrecer apoyo integral al bienestar respiratorio y digestivo | 60 masticables vegetarianos"
+  },
+  {
+   "id": "gid://shopify/Product/9795074163009",
+   "sku": "VHMX01615",
+   "title": "Vitaminas B3, B6, D3, Colina, Magnesio y Mezcla Patentada de Michael's Health | Elaborado para promover el metabolismo saludable del colesterol | 90 tabletas vegetarianas"
+  },
+  {
+   "id": "gid://shopify/Product/9795187441985",
+   "sku": "VHMX01619",
+   "title": "Vitaminas B6, D3, Hawthorn Berry, Flor de Lúpulo, Calcio y Citrato Magnesio de Michael's Health | Factores™ de Presión Arterial - Sistema Cardiovascular  | 60 Cápsulas Veganas"
+  },
+  {
+   "id": "gid://shopify/Product/9795941990721",
+   "sku": "VHMX01682",
+   "title": "Luteína 20 mg + Zeaxantina 4 mg de Health Thru Nutrition | Actúa como antioxidante y energizante celular | 60 cápsulas Blandas"
+  },
+  {
+   "id": "gid://shopify/Product/9796106518849",
+   "sku": "VHMX01627",
+   "title": "Skin Factors de Michael Health | Apoyo dérmico y antioxidante | 90 Cápsulas Vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9808890954049",
+   "sku": "VHMX01664",
+   "title": "EstroPause Menopause Support de Irwin Naturals | Equilibrio hormonal | 80 Cápsulas"
+  },
+  {
+   "id": "gid://shopify/Product/9974263152961",
+   "sku": "VHMX02013",
+   "title": "Prenatal Multi Orgánico de Garden of Life | Desarrollo Neural | 120 gomitas"
+  },
+  {
+   "id": "gid://shopify/Product/9999949168961",
+   "sku": "VHMX02350",
+   "title": "Gomitas para Inmunidad de Mary Ruth´s | 90 gomitas"
+  },
+  {
+   "id": "gid://shopify/Product/9999948546369",
+   "sku": "VHMX02348",
+   "title": "Probiótico Líquido Orgánico de MaryRuth’s | Bienestar digestivo | 60 y 120 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999950119233",
+   "sku": "VHMX02326",
+   "title": "L-Serina 500 mg, Now| Favorece la función cerebral y la memoria|  120 Cápsulas"
+  },
+  {
+   "id": "gid://shopify/Product/9999955558721",
+   "sku": "VHMX02165",
+   "title": "Extracto de Valeriana Liquido de  NOW Foods | Favorece el equilibrio emocional, relajación y calma natural | 60 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999955657025",
+   "sku": "VHMX02258",
+   "title": "Leche de coco en polvo orgánica de Now Foods | Alternativa libre de lácteos para bebidas y recetas  | Polvo 340 g"
+  },
+  {
+   "id": "gid://shopify/Product/9999956181313",
+   "sku": "VHMX02170",
+   "title": "Aceite Esencial Orgánico Lavanda de NOW Foods | Promueve relajación y calma natural |  Roll-On 10 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999956246849",
+   "sku": "VHMX02301",
+   "title": "Mezcla de Aceites Esenciales de Te de Arbol, Roll-on Organico | Complementa rutinas de cuidado facial, purifica la piel | 10 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999948185921",
+   "sku": "VHMX02397",
+   "title": "Gomitas Orgánicas Vitamina C de MaryRuth’s | Favorece la producción de colágeno para piel y tejidos| 60 gummies,"
+  },
+  {
+   "id": "gid://shopify/Product/9604961403201",
+   "sku": "VHMX00241",
+   "title": "Creatina monohidratada 1000mg + Vitamina C 11mg de Life Extension | Fortalecimiento Muscular y Metabólico | 120 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9726399938881",
+   "sku": "VHMX00569",
+   "title": "Equinácea Orgánica de Mary Ruth's 1ml por porción | Fortalece el Sistema Inmunológico | Líquido de 30ml"
+  },
+  {
+   "id": "gid://shopify/Product/9654876143937",
+   "sku": "VHMX00829",
+   "title": "Glucosamina, Condroitina, MSM y cúrcuma 1000mg por porción You Got The Moves de Moods | Promueve el buen descanso, fortaleciendo articulaciones y huesos  | 60 cápsulas veganas"
+  },
+  {
+   "id": "gid://shopify/Product/9650910495041",
+   "sku": "VHMX01360",
+   "title": "Glicinato de Magnesio Quelado 662mg BioMag de Bioptimizado | Promueve la función muscular y Ósea, como asi también el Sueño y Buen Descanso | 100 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9651138658625",
+   "sku": "VHMX01363",
+   "title": "Betaína HCI & Extracto de Cúrcuma 730mg BioZyme de Bioptimizado | Compuesto por Enzimas Digestivas que facilitan la descomposición de nutrientes - Alivia la acidez estomacal y tiene Propiedades Antiinflamatorias | 100 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9651105890625",
+   "sku": "VHMX01362",
+   "title": "Extracto de Cúrcuma, Menta, Qubracho, Castaño de Indias y Quercetina - Mezcla propia 947mg BioPhenol de Bioptimizado | Apoyo de la Función Cardiovascular, promoviendo la buena circulación sanguínea | 90 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9654714794305",
+   "sku": "VHMX01366",
+   "title": "Creatina Monohidratada + Cloruro Calcio + Malato de Magnesio 8.8g Ketolitos de Bioptimizado | Los electrolitos aseguran una hidratación adecuada y un equilibrio mineral | Polvo de 244g Sabor a Limón"
+  },
+  {
+   "id": "gid://shopify/Product/9654700441921",
+   "sku": "VHMX01365",
+   "title": "NAC (N Acetil Cisteína) + L-Glicina 970mg Glynac de Bioptimizado |  Apoya la desintoxicación del hígado, fortalece el sistema inmunitario | 90 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9654698803521",
+   "sku": "VHMX01364",
+   "title": "Vitamina A, Zinc , Mezcla propia con L-Glutamina, Aloe Vera y Polvo de Malvavisco 751mg BioZincar Plus de Bioptimizado | Ayuda a fortalecer el sistema inmunitario, promueve la reparación celular, reduciendo inflamaciones | 60 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/10126856945985",
+   "sku": "VHMX02610",
+   "title": "CREAMAG de IVB | Creatina Monohidratada + Magnesio en Polvo  | 60 Servicios"
+  },
+  {
+   "id": "gid://shopify/Product/9999955067201",
+   "sku": "VHMX02333",
+   "title": "Graviola 500 mg NOW Foods  |  Antioxidante, energía y vitalidad diaria | 100 cápsulas veganas"
+  },
+  {
+   "id": "gid://shopify/Product/9625170837825",
+   "sku": "VHMX00438",
+   "title": "MSM, Extracto de cola de caballo y Colina | Soporte para Cabello, Piel y Uñas, Aporta nutrientes esenciales | 60 Tabletas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9629972201793",
+   "sku": "VHMX00335",
+   "title": "L-Teanina, GABA y Mezcla de Hierbas Relajantes Natural Rest Plus+ de Trace Minerals | Fórmula Nocturna para Apoyar un Sueño Reparador, Libre de Gluten, Certificado Vegano, 60 Tabletas"
+  },
+  {
+   "id": "gid://shopify/Product/9888755712321",
+   "sku": "VHMX01823",
+   "title": "SpectraSoy de Metagenics con Isoflavonas de Soya | Equilibrio Hormonal | 90 tabletas"
+  },
+  {
+   "id": "gid://shopify/Product/9665175421249",
+   "sku": "VHMX01398",
+   "title": "Colágeno, Ácido hialurónico, Biotina y Vitamina E 500mg Beauty de 5H8 Nutrition | Cuidado del Cabello, Piel y Uñas | 90 Cápsulas"
+  },
+  {
+   "id": "gid://shopify/Product/9666535194945",
+   "sku": "VHMX01403",
+   "title": "Myo Inositol + D-Chiro Inositol 2.04g por porción de 5H8 Nutrition | Apoya el equilibrio hormonal en hombres y mujeres | 120 Cápsulas"
+  },
+  {
+   "id": "gid://shopify/Product/9665187643713",
+   "sku": "VHMX01415",
+   "title": "Fruto de Árandano + Vitamina C y E 950mg por porción de 5H8 Nutrition | Antioxidante - Apoya la función del tracto urinario | 90 Cápsulas"
+  },
+  {
+   "id": "gid://shopify/Product/9687506813249",
+   "sku": "VHMX01458",
+   "title": "Castaño de Indias 500mg de Adapto Heal | Apoyo Cardiovascular, Circulación Sanguínea | 150 Cápsulas Vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9688996020545",
+   "sku": "VHMX01471",
+   "title": "Ginseng Siberiano 500mg de Adaptoheal | Formulado para aumentar la energía y apoyar la resistencia al estrés | 150 Cápsulas Vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9692129460545",
+   "sku": "VHMX01472",
+   "title": "Golden Seal Hierba 500mg Adaptoheal | Promueve la función Inmune y Digestiva | 150 Cápsulas Vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9692182479169",
+   "sku": "VHMX01494",
+   "title": "Zarzaparrilla 500 mg Adaptoheal | Bienestar Digestivo y Urinaria | 150 Cápsulas Vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9687482138945",
+   "sku": "VHMX01462",
+   "title": "Cordyceps Hongo Adaptógeno 500mg de Adapto Heal | Refuerza el sistema inmunológico - Promueve la función respiratoria | 150 Cápsulas Vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9692197192001",
+   "sku": "VHMX01493",
+   "title": "Yerba Mate YBM 500 mg Adaptoheal | Bienestar Digestivo - Energía y Control de peso | 150 Cápsulas Vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9689052905793",
+   "sku": "VHMX01473",
+   "title": "Gotu Kola  Adaptóheal  | Potencia la Energía - Promueve la función Cognitiva y la Memoria | 150 Cápsulas Vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9999290663233",
+   "sku": "VHMX02429",
+   "title": "Maca negra, Fenogreco, Creatina, Arginina, Cúrcuma, Zinc y más | TES70 de Beyond Vitamins |60 y 180 cápsulas veganas"
+  },
+  {
+   "id": "gid://shopify/Product/9931527061825",
+   "sku": "VHMX01875",
+   "title": "RAW Essentials Performance Pre Workout | L-Citrulina y Beta-Alanina | Optimiza fuerza y enfoque | 610g"
+  }
+ ],
+ "sumados_a_coleccion": [
+  {
+   "id": "gid://shopify/Product/9733250744641",
+   "sku": "VHMX00631",
+   "title": "Vitamina C 90mg Para Niños en Gomitas Orgánicas de Mary Ruth's | Fortalece el Sistema Inmune | 60 gomitas Sabor Naranja - 30 servicios"
+  },
+  {
+   "id": "gid://shopify/Product/9794463891777",
+   "sku": "VHMX01613",
+   "title": "Vitamina C,B5, B6, D3, Calcio, Yodo, Magnesio y Combinado de Hierbas de Micahel's Health | Extractos orgánicos formulados para el equilibrio hormonal femenino | 90 tabletas vegetarianas"
+  },
+  {
+   "id": "gid://shopify/Product/9794486174017",
+   "sku": "VHMX01677",
+   "title": "Cúrcuma 500 mg de Kaneka™ de Heath Thru Nutrition | Apoya la función articular, reduciendo la inflamación  | 120 y 60 cápsulas Blandas"
+  },
+  {
+   "id": "gid://shopify/Product/9794628976961",
+   "sku": "VHMX01614",
+   "title": "Rhodiola Rosea, Ashwagandha, Vitamina C, B12,B5, Calcio de Michael's Health | Apoya la respuesta al estrés y el equilibrio hormonal | 60 tabletas vegetarianas"
+  },
+  {
+   "id": "gid://shopify/Product/9974760276289",
+   "sku": "VHMX01998",
+   "title": "Fisetina 125 mg | Fisetin PRO Longevity Plus de ProHealth |  60 cápsulas"
+  },
+  {
+   "id": "gid://shopify/Product/9999947039041",
+   "sku": "VHMX02359",
+   "title": "Multivitaminico Organico Para Hombres de Mary Ruth´s | Soporte Cognitivo e Inmunológico | 60 Gomitas"
+  },
+  {
+   "id": "gid://shopify/Product/9999949070657",
+   "sku": "VHMX02344",
+   "title": "Multivitamínico + Hair Growth, MaryRuth’s | Crecimiento del Cabello | 60 gomitas"
+  },
+  {
+   "id": "gid://shopify/Product/9999948939585",
+   "sku": "VHMX02393",
+   "title": "Multivitamínico líquido Essentials+ MaryRuth’s | Favorece el metabolismo energético diario| 887 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999949431105",
+   "sku": "VHMX02408",
+   "title": "Extracto líquido de Albahaca Sagrada  | Apoya la claridad mental y concentración | 30 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999953690945",
+   "sku": "VHMX02169",
+   "title": "NADH 10 mg con D-Ribosa de Now | Favorece la producción natural de energía celular | 60 Cápsula"
+  },
+  {
+   "id": "gid://shopify/Product/9999955493185",
+   "sku": "VHMX02331",
+   "title": "Extracto Pau D’Arco líquido de Now | Antioxidante y protector celular | 59 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9609851863361",
+   "sku": "VHMX00843",
+   "title": "Multivitamínico con Minerales, Aminoácidos, Hongos Adaptógenos para Hombres de Vitativa - Viggo Testo | Bienestar Masculino - Energía | Presentación de 230g en diferentes sabores"
+  },
+  {
+   "id": "gid://shopify/Product/9609572680001",
+   "sku": "VHMX00833",
+   "title": "Multivitamínico con Magnesio, Probióticos, Colágeno de Vitativa - Elemental | Apoyo Inmunológico + Energía | Presentación de 200 g en diferentes sabores"
+  },
+  {
+   "id": "gid://shopify/Product/9999955657025",
+   "sku": "VHMX02258",
+   "title": "Leche de coco en polvo orgánica de Now Foods | Alternativa libre de lácteos para bebidas y recetas  | Polvo 340 g"
+  },
+  {
+   "id": "gid://shopify/Product/9999956181313",
+   "sku": "VHMX02170",
+   "title": "Aceite Esencial Orgánico Lavanda de NOW Foods | Promueve relajación y calma natural |  Roll-On 10 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999956246849",
+   "sku": "VHMX02301",
+   "title": "Mezcla de Aceites Esenciales de Te de Arbol, Roll-on Organico | Complementa rutinas de cuidado facial, purifica la piel | 10 ml"
+  },
+  {
+   "id": "gid://shopify/Product/9999948185921",
+   "sku": "VHMX02397",
+   "title": "Gomitas Orgánicas Vitamina C de MaryRuth’s | Favorece la producción de colágeno para piel y tejidos| 60 gummies,"
+  },
+  {
+   "id": "gid://shopify/Product/9604961403201",
+   "sku": "VHMX00241",
+   "title": "Creatina monohidratada 1000mg + Vitamina C 11mg de Life Extension | Fortalecimiento Muscular y Metabólico | 120 cápsulas vegetales"
+  },
+  {
+   "id": "gid://shopify/Product/9726399938881",
+   "sku": "VHMX00569",
+   "title": "Equinácea Orgánica de Mary Ruth's 1ml por porción | Fortalece el Sistema Inmunológico | Líquido de 30ml"
+  },
+  {
+   "id": "gid://shopify/Product/9654876143937",
+   "sku": "VHMX00829",
+   "title": "Glucosamina, Condroitina, MSM y cúrcuma 1000mg por porción You Got The Moves de Moods | Promueve el buen descanso, fortaleciendo articulaciones y huesos  | 60 cápsulas veganas"
+  }
+ ],
+ "omitidos": [],
+ "no_encontrados": []
+}

@@ -1,0 +1,13 @@
+{
+ "nota": "Sacados de la colección VITADEALS por estar agotados. Conservan el tag vitadeals. Para deshacer: collectionAddProductsV2.",
+ "productos": [
+  {
+   "id": "gid://shopify/Product/10108973711681",
+   "title": "Ashwagandha Orgánica de Himalaya | Manejo del Estrés | 30 Tabletas"
+  },
+  {
+   "id": "gid://shopify/Product/9625118015809",
+   "title": "Vitamina C 1000 mg con Rosa Mosqueta Swanson  | Apoya el sistema inmunológico y ayuda en la absorción de hierro | 90 cápsulas vegetales"
+  }
+ ]
+}

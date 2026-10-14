@@ -1,0 +1,196 @@
+{
+ "nota": "Productos a los que se les quitó el tag vitadeals por tener menos de 15% de descuento (precio vs precio de comparación; se conserva si alguna variante llega a 15%). Para deshacer: tagsAdd \"vitadeals\" a cada id.",
+ "fecha": "2026-10-13T18:32:54.365Z",
+ "productos": [
+  {
+   "id": "gid://shopify/Product/9598048502081",
+   "title": "Glicinato de Magnesio 400 mg de Humble | Alta Absorción, Relajación Muscular | 60 Cápsulas",
+   "mayor_descuento": 0
+  },
+  {
+   "id": "gid://shopify/Product/9600588284225",
+   "title": "Omega-3 1660 mg DHA Xtra Nordic Naturals | Apoya el desarrollo y mantenimiento cerebral | 60 cápsulas",
+   "mayor_descuento": 14.7
+  },
+  {
+   "id": "gid://shopify/Product/9616783769921",
+   "title": "Vitamina A 25,000 UI de NOW Foods - Soporte Ocular y Función Inmunitaria | 100 Cápsulas Blandas",
+   "mayor_descuento": 7.7
+  },
+  {
+   "id": "gid://shopify/Product/9632821870913",
+   "title": "Semilla de Uva Espectro Completo 380mg de Swanson | Potente antioxidante para protección celular | 100 cápsulas vegetales",
+   "mayor_descuento": 9.2
+  },
+  {
+   "id": "gid://shopify/Product/9633063502145",
+   "title": "Extracto de Cardo Mariano 150 mg con Silimarina 120 mg y Cúrcuma de NOW Foods | Contribuye a la desintoxicación del hígado | 60 Cápsulas Vegetales",
+   "mayor_descuento": 12
+  },
+  {
+   "id": "gid://shopify/Product/9634100674881",
+   "title": "Extracto Doble Fuerza de Cardo Mariano 300 mg, Silimarina 240 mg de NOW Foods | Apoyo para la Desintoxicación y Función del Hígado con Alcachofa y Diente de León | 100 Cápsulas Vegetarianas",
+   "mayor_descuento": 14.7
+  },
+  {
+   "id": "gid://shopify/Product/9733074518337",
+   "title": "Extracto de Mezcla Orgánica Patentada 1180mg -  Enfoque y Atención de Niños de Mary Ruth's 1ml por porción | Apoya la concentración y claridad mental en los niños | Gotero de 30ml - 30 servicios",
+   "mayor_descuento": 12.7
+  },
+  {
+   "id": "gid://shopify/Product/9796568285505",
+   "title": "Aceite de Orégano de Best Naturals | Propiedades Antimicrobianas, Antioxidantes y Digestivas | 250 mg 120 Cápsulas Blandas",
+   "mayor_descuento": 9.1
+  },
+  {
+   "id": "gid://shopify/Product/9796572348737",
+   "title": "Fruta de Vitex de Best Naturals | Bienestar Femenino | 400 mg 250 Cápsulas",
+   "mayor_descuento": 9.1
+  },
+  {
+   "id": "gid://shopify/Product/9796924440897",
+   "title": "L-Triptófano de Best Naturals | Apoyo al Estado de Ánimo y Sueño | 500 mg 120 Cápsulas",
+   "mayor_descuento": 0
+  },
+  {
+   "id": "gid://shopify/Product/9800472461633",
+   "title": "Mezcla natural de ingredientes herbales 500mg de Nature's Answer | Apoyo Respiratorio, ayuda a disolver y despejar mucosidad | Spray de 60ml",
+   "mayor_descuento": 0
+  },
+  {
+   "id": "gid://shopify/Product/9800490647873",
+   "title": "Extracto de Resina de Propóleo 1000mg de Nature's Answer | Apoyo al Sistema Inmunológico - Protegiendo al organismo de infecciones | Gotero 30ml",
+   "mayor_descuento": 13
+  },
+  {
+   "id": "gid://shopify/Product/9808907043137",
+   "title": "Mighty Moringa de Irwin Naturals | Contribuye al bienestar cardiovascular |60 Cápsulas",
+   "mayor_descuento": 9.1
+  },
+  {
+   "id": "gid://shopify/Product/9811833651521",
+   "title": "L-Citrulina, Nitric Oxide Pre-Sport de Irwin Naturals | Aumenta la energía y el rendimiento físico | 60 cápsulas",
+   "mayor_descuento": 9.1
+  },
+  {
+   "id": "gid://shopify/Product/9863434600769",
+   "title": "Mezcla de Enzimas Digestivas con Bromelina, Bilis de Buey, Pancreatina y Papaína de NOW Foods | Enzimas para la Absorción de Nutrientes y Apoyo Digestivo | 180 Cápsulas Vegetales",
+   "mayor_descuento": 0
+  },
+  {
+   "id": "gid://shopify/Product/9884874047809",
+   "title": "ZeroDol Palmitoiletanolamida 500 mg | IVB Wellness Lab | Bienestar articular y muscular | 60 Cápsulas",
+   "mayor_descuento": 12.3
+  },
+  {
+   "id": "gid://shopify/Product/9884896493889",
+   "title": "Vitamina D3 + K2  | IVB Wellness Lab | Soporte Óseo, Absorción de Calcio y Apoyo Cardiovascular | 60 Cápsulas",
+   "mayor_descuento": 10.4
+  },
+  {
+   "id": "gid://shopify/Product/9884907274561",
+   "title": "Vegan Omega 3+ | IVB Wellness Lab | DHA y EPA de Microalgas | 60 Cápsulas",
+   "mayor_descuento": 10
+  },
+  {
+   "id": "gid://shopify/Product/9889316143425",
+   "title": "VALARA Proteína Vegana en Polvo 528 g | Baja en Carbohidratos y Libre de Azúcar | 16 Porciones",
+   "mayor_descuento": 12.2
+  },
+  {
+   "id": "gid://shopify/Product/9931527061825",
+   "title": "RAW Essentials Performance Pre Workout | L-Citrulina y Beta-Alanina | Optimiza fuerza y enfoque | 610g",
+   "mayor_descuento": 11.7
+  },
+  {
+   "id": "gid://shopify/Product/9931565990209",
+   "title": "Nutrex Creatina Monohidratada | Potencia fuerza y volumen | 300 g",
+   "mayor_descuento": 6.1
+  },
+  {
+   "id": "gid://shopify/Product/9999947301185",
+   "title": "Hierro Orgánico Líquido para Niños, MaryRuth’s | Energía y Vitalidad Infantil | 60 ml",
+   "mayor_descuento": 10
+  },
+  {
+   "id": "gid://shopify/Product/9999947694401",
+   "title": "Vitamina D3 Líquida Orgánica para Niños de MaryRuth’s | Apoyo huesos e inmunidad | 15 ml",
+   "mayor_descuento": 0
+  },
+  {
+   "id": "gid://shopify/Product/9999948906817",
+   "title": "Fenogreco Orgánico, MaryRuth’s | Apoyo digestivo y hormonal |30 ml",
+   "mayor_descuento": 9.1
+  },
+  {
+   "id": "gid://shopify/Product/9999950086465",
+   "title": "BCAA Blast Tropical Punch Now Sports | Resistencia y recuperación | 340 g",
+   "mayor_descuento": 10
+  },
+  {
+   "id": "gid://shopify/Product/9999951495489",
+   "title": "Cloruro de Potasio en Polvo Now Foods | Apoyo a la función Muscular| 227 g",
+   "mayor_descuento": 9.1
+  },
+  {
+   "id": "gid://shopify/Product/9999951528257",
+   "title": "Potasio Gluconato de Now Foods | Función Muscular, ayuda en la recuperación tras ejercicio |  100 tabletas",
+   "mayor_descuento": 9.1
+  },
+  {
+   "id": "gid://shopify/Product/9999952183617",
+   "title": "Creatina Monohidratada de now 750 mg  |  Mejora la fuerza y potencia muscular  | 120 Cápsulas",
+   "mayor_descuento": 10
+  },
+  {
+   "id": "gid://shopify/Product/9999952445761",
+   "title": "TestoJack 100 NOW Foods | Energía y vitalidad masculina |60 cápsulas",
+   "mayor_descuento": 0
+  },
+  {
+   "id": "gid://shopify/Product/9999952970049",
+   "title": "OralBiotic de Now Foods  | Apoya la microbiota bucal y de vías respiratorias | 60 probióticos orales",
+   "mayor_descuento": 10
+  },
+  {
+   "id": "gid://shopify/Product/9999954346305",
+   "title": "Relora de NOW Foods 300 mg | Control de estrés y apetito | 60 y 120 cápsulas veganas",
+   "mayor_descuento": 9.1
+  },
+  {
+   "id": "gid://shopify/Product/9999955034433",
+   "title": "Raíz de Sello de Oro de Now | Apoyo Digestivo y Gastrointestinal | 50 cápsulas",
+   "mayor_descuento": 10.9
+  },
+  {
+   "id": "gid://shopify/Product/10003684524353",
+   "title": "Péptidos Bioactivos de Colágeno Hidrolizado Myo y D Chiro Inositol, Biotina, Ácido Hialurónico y Vitamina C | VALARA GLOWiN | 300 g",
+   "mayor_descuento": 8.3
+  },
+  {
+   "id": "gid://shopify/Product/10126857044289",
+   "title": "Creatine Essential de IVB | Creatina Ultrafiltrada Creavitalis® | 60 Servicios",
+   "mayor_descuento": 0
+  },
+  {
+   "id": "gid://shopify/Product/10126857699649",
+   "title": "LactaNatal de IVB | Multivitamínico y mineral Apoyo a la Lactancia Materna | 60 Cápsulas",
+   "mayor_descuento": 0
+  },
+  {
+   "id": "gid://shopify/Product/10126858551617",
+   "title": "Sticks de sabores de IVB | Para personalizar el sabor de tus complementos en polvo | 10 sobres",
+   "mayor_descuento": 0
+  },
+  {
+   "id": "gid://shopify/Product/10126859239745",
+   "title": "Vita C 500 de IVB | Protección Celular y al Daño Oxidativo | 60 Cápsulas",
+   "mayor_descuento": 9.4
+  },
+  {
+   "id": "gid://shopify/Product/10146864464193",
+   "title": "Omega 3 rico en DHA de IVB | Omega 3 con certificación IFOS | 30 cápsulas",
+   "mayor_descuento": 0
+  }
+ ]
+}
