@@ -62,6 +62,8 @@ async function loadSpecialist(specialistShopifyId) {
   const bookingActive = booking?.is_active && booking?.slug;
   return {
     id: aff.id,
+    // Para acreditarle las compras desde la app (atributo specialist_ref del carrito)
+    ref: String(specialistShopifyId),
     firstName: aff.first_name,
     lastName: aff.last_name,
     displayName: booking?.display_name || [aff.first_name, aff.last_name].filter(Boolean).join(" "),

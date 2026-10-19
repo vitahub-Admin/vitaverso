@@ -29,6 +29,7 @@ export const config = {
     "/admin/:path*",
     "/admin-sharecarts/:path*",
     "/admin-productos-pacientes",
+    "/admin-upsell-app",
     "/admin-sharecarts",
     "/admin-datos-afiliados",
     "/api/admin/:path*",
