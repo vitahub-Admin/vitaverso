@@ -13,6 +13,9 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { unidadesEnMano } from "@/lib/envio";
+import { leerModoDeUso, suggestedTimes } from "@/lib/modoDeUso";
+
+export { suggestedTimes };
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
@@ -76,30 +79,6 @@ export function parseUnits(variantTitle) {
 function num(v) {
   const n = Number(v);
   return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-// Momentos del armador → horario sugerido para el recordatorio
-const MOMENTO_HORA = {
-  "Mañana": "08:00",
-  "Con desayuno": "08:30",
-  "Mediodía": "13:00",
-  "Con almuerzo": "14:00",
-  "Tarde": "17:00",
-  "Con cena": "20:00",
-  "Noche": "21:00",
-  "Antes de dormir": "22:30",
-};
-
-export function suggestedTimes(momentosList, dosesPerDay) {
-  const fromMomentos = [...new Set(momentosList.map((m) => MOMENTO_HORA[m]).filter(Boolean))].sort();
-  if (fromMomentos.length) return fromMomentos;
-  const n = Math.min(Math.max(1, Math.round(dosesPerDay || 1)), 4);
-  return {
-    1: ["08:00"],
-    2: ["08:00", "20:00"],
-    3: ["08:00", "14:00", "20:00"],
-    4: ["08:00", "13:00", "18:00", "22:00"],
-  }[n];
 }
 
 export function buyUrl(handle) {
@@ -470,6 +449,20 @@ export async function buildStack(user, { persist = true } = {}) {
   const updates = [];
   const variantIds = new Set([...Object.keys(trackingByVariant), ...Object.keys(latestByVariant)]);
 
+  // Modo de uso del catálogo: momentos y dosis cuando la receta no los trae
+  const usoByVariant = {};
+  if (variantIds.size) {
+    const { data: usos } = await supabase
+      .from("product_catalog")
+      .select("variant_id, modo_de_uso")
+      .in("variant_id", [...variantIds].map(Number))
+      .not("modo_de_uso", "is", null);
+    for (const u of usos ?? []) {
+      const leido = leerModoDeUso(u.modo_de_uso);
+      usoByVariant[String(u.variant_id)] = { texto: u.modo_de_uso.trim(), ...(leido ?? {}) };
+    }
+  }
+
   for (const vid of variantIds) {
     let row = trackingByVariant[vid] ?? null;
     const latest = latestByVariant[vid] ?? null;
@@ -495,9 +488,13 @@ export async function buildStack(user, { persist = true } = {}) {
     const meta = latest?.meta ?? {};
     const rx = latest?.rx ?? null;
     const rxUnitsPerDay = unitsPerDayFromRx(rx, meta);
-    const dailyDose = (tracked ? num(row.daily_dose) : null) ?? rxUnitsPerDay ?? null;
+    const uso = usoByVariant[vid] ?? null;
+    // Dosis: lo que configuró el cliente > receta del profesional > modo de uso del producto
+    const dailyDose = (tracked ? num(row.daily_dose) : null) ?? rxUnitsPerDay ?? uso?.porDia ?? null;
     const doseUnit = meta.tipoDosis?.toLowerCase() || rx?.unit || null;
-    const momentosList = rx?.momentosList ?? [];
+    // Momentos: los de la receta; si el profesional no dijo cuándo, los del modo de uso
+    const momentosList = rx?.momentosList?.length ? rx.momentosList : uso?.momentos ?? [];
+    const tomas = rx?.momentosList?.length ? rx.tomas : uso?.tomas ?? rx?.tomas ?? 1;
 
     const base = {
       variantId: vid,
@@ -513,9 +510,11 @@ export async function buildStack(user, { persist = true } = {}) {
       dailyDose,
       doseUnit,
       instruccion: rx?.instruccion ?? null,
+      // Modo de uso del producto (para quien no tiene indicación del profesional)
+      modoDeUso: uso?.texto ?? null,
       momentos: momentosList.join(" · ") || null,
       momentosList,
-      suggestedTimes: suggestedTimes(momentosList, rx ? rx.tomas : 1),
+      suggestedTimes: suggestedTimes(momentosList, tomas),
       source: latest ? "order" : "manual",
     };
 
@@ -547,6 +546,8 @@ export async function buildStack(user, { persist = true } = {}) {
               last_order_at: lastPurchase?.createdAt ?? deliveredAt,
               active: true,
               source: latest.local ? "auto_consultorio" : "auto_entrega",
+              // Recordatorios listos según la receta y la rutina de comidas; el cliente los puede cambiar
+              reminder_times: base.suggestedTimes,
               restock_notified_days: null,
               restock_notified_at: null,
               snoozed_until: null,
