@@ -87,6 +87,7 @@ const ADMIN_ITEMS = [
   // producción. Badges Admin sigue visible para poder seguir trabajándolo.
   { href: "/admin-badges",             label: "Badges Admin",          icon: Award       },
   { href: "/admin-notificaciones",     label: "Notificaciones Admin",  icon: Users       },
+  { href: "/admin-productos-pacientes", label: "Productos de pacientes", icon: ShoppingBag },
 ];
 
 const WHATSAPP = `https://wa.me/5215548592403?text=${encodeURIComponent("Soy profesional Vitahub y tengo una duda")}`;

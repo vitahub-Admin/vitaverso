@@ -17,6 +17,10 @@ import { leerModoDeUso, suggestedTimes } from "@/lib/modoDeUso";
 
 export { suggestedTimes };
 
+// Fotos de los suplementos que el paciente toma y no vendemos (bucket privado)
+export const CUSTOM_BUCKET = "customer-supplements";
+const FOTO_URL_SEGUNDOS = 7 * 24 * 3600;
+
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
 const STORE_URL = "https://vitahub.mx";
@@ -449,13 +453,21 @@ export async function buildStack(user, { persist = true } = {}) {
   const updates = [];
   const variantIds = new Set([...Object.keys(trackingByVariant), ...Object.keys(latestByVariant)]);
 
+  // Fotos de los productos propios del paciente: URLs firmadas (la app las guarda en caché)
+  const fotoUrl = {};
+  const fotos = (rows ?? []).filter((r) => r.custom && r.photo_path).map((r) => r.photo_path);
+  if (fotos.length) {
+    const { data: firmadas } = await supabase.storage.from(CUSTOM_BUCKET).createSignedUrls(fotos, FOTO_URL_SEGUNDOS);
+    for (const f of firmadas ?? []) if (f.signedUrl) fotoUrl[f.path] = f.signedUrl;
+  }
+
   // Modo de uso del catálogo: momentos y dosis cuando la receta no los trae
   const usoByVariant = {};
   if (variantIds.size) {
     const { data: usos } = await supabase
       .from("product_catalog")
       .select("variant_id, modo_de_uso")
-      .in("variant_id", [...variantIds].map(Number))
+      .in("variant_id", [...variantIds].map(Number).filter((v) => v > 0))
       .not("modo_de_uso", "is", null);
     for (const u of usos ?? []) {
       const leido = leerModoDeUso(u.modo_de_uso);
@@ -498,11 +510,15 @@ export async function buildStack(user, { persist = true } = {}) {
 
     const base = {
       variantId: vid,
-      productTitle: latest?.title ?? row?.product_title ?? "",
+      productTitle: latest?.title ?? (row?.custom ? row.custom_name : null) ?? row?.product_title ?? "",
       variantTitle: latest?.variantTitle ?? row?.variant_title ?? "",
       productHandle: meta.handle ?? row?.product_handle ?? null,
-      image: meta.image ?? null,
-      buyUrl: buyUrl(meta.handle ?? row?.product_handle),
+      image: meta.image ?? (row?.photo_path ? fotoUrl[row.photo_path] ?? null : null),
+      // Para cachear la foto propia aunque cambie la URL firmada
+      imageKey: row?.photo_path ?? null,
+      // Producto que no vendemos: sin recompra
+      custom: !!row?.custom,
+      buyUrl: row?.custom ? null : buyUrl(meta.handle ?? row?.product_handle),
       orderId: latest?.orderId ?? row?.order_id ?? "manual",
       orderDate: latest?.orderDate ?? null,
       orderQuantity: lastPurchase?.quantity ?? 1,

@@ -2,7 +2,7 @@
 // Perfil del cliente + su especialista (metafield de cliente custom.referido → affiliates)
 import { NextResponse } from "next/server";
 import { verifyAppCustomerToken, unauthorized, signAppCustomerToken, shouldRenewAppToken } from "@/lib/customerAppAuth";
-import { supabase, shopifyAdmin, getAppUser } from "@/lib/customerSupplements";
+import { supabase, shopifyAdmin, getAppUser, CUSTOM_BUCKET } from "@/lib/customerSupplements";
 import { ensureShopifyLink } from "@/lib/customerAppAccount";
 
 const PRO_URL = "https://pro.vitahub.mx";
@@ -159,6 +159,12 @@ export async function DELETE(req) {
   try {
     const user = await getAppUser(payload.userId);
     if (!user) return NextResponse.json({ ok: true });
+
+    // Fotos de sus productos propios (carpeta con su id en el bucket privado)
+    const { data: fotos } = await supabase.storage.from(CUSTOM_BUCKET).list(user.id, { limit: 1000 });
+    if (fotos?.length) {
+      await supabase.storage.from(CUSTOM_BUCKET).remove(fotos.map((f) => `${user.id}/${f.name}`));
+    }
 
     const steps = [
       supabase.from("supplement_tracking").delete().eq("user_id", user.id),

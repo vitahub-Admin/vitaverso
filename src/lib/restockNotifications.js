@@ -73,7 +73,8 @@ export async function sendRestockNotifications() {
     }
 
     for (const item of stack) {
-      if (item.needsOnboarding || !item.trackingId || item.daysRemaining == null) continue;
+      // Los productos que no vendemos no reciben aviso de recompra
+      if (item.custom || item.needsOnboarding || !item.trackingId || item.daysRemaining == null) continue;
 
       const snoozed = item.snoozedUntil && item.snoozedUntil > today;
       if (snoozed) continue;
