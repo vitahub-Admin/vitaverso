@@ -36,7 +36,7 @@ export async function categorias() {
 }
 
 // Precio, foto y disponibilidad vivos en Shopify para una lista de variantes
-async function enriquecer(variantIds) {
+export async function enriquecer(variantIds) {
   const ids = [...new Set(variantIds.map(String))].slice(0, 100);
   if (!ids.length) return {};
   const out = {};
