@@ -1,0 +1,17 @@
+{
+ "nota": "Agotados sacados de VITADEALS el 20-oct. Conservan el tag. Para deshacer: collectionAddProductsV2.",
+ "productos": [
+  {
+   "id": "gid://shopify/Product/10108973711681",
+   "title": "Ashwagandha Orgánica de Himalaya | Manejo del Estrés | 30 Tabletas"
+  },
+  {
+   "id": "gid://shopify/Product/9884815655233",
+   "title": "FemmeBalance | IVB Wellness Lab | Apoyo Hormonal y Equilibrio Femenino | 60 Cápsulas"
+  },
+  {
+   "id": "gid://shopify/Product/9604882301249",
+   "title": "L- Treonato de Magnesio 144mg Neuro-Mag - de Life Extension | Apoya la función neurológica, contribuyendo a la memoria y el aprendizaje | 90 cápsulas vegetarianas"
+  }
+ ]
+}

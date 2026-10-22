@@ -1,0 +1,52 @@
+{
+ "nota": "Líneas del pedido #17843 en BaseLinker (orden 55168991) retiradas el 20-oct para liberar el stock del central: la venta se entregó desde el consultorio de Rosa. Para deshacer: addOrderProduct con estas líneas y devolver el estado a 301428.",
+ "estado_original": 301428,
+ "lineas": [
+  {
+   "storage": "db",
+   "storage_id": 50176,
+   "order_product_id": 67776229,
+   "product_id": "95641160",
+   "variant_id": "95641162",
+   "name": "Proteína Hidrolizada de Suero Isolate Whey Protein  AMZ Nutrition | Recuperación muscular | 925g, 1.6kg o 2.3 kg - 1.617KG / Banana",
+   "attributes": "1.617KG / Banana | __kaching_bundles: {\"deal\":\"MlPo\",\"pp\":9942875046209,\"main\":true,\"bid\":\"e180e440-9721-4043-84ee-2bbbae7ec903\"}",
+   "sku": "VHMX01952",
+   "ean": "7503039097933",
+   "location": " 1-C-L6",
+   "warehouse_id": 59011,
+   "warehouse_type": "bl",
+   "warehouse_source_id": 59011,
+   "auction_id": "50854437814593",
+   "price_brutto": 920.48,
+   "tax_rate": 0,
+   "quantity": 2,
+   "weight": 1.62,
+   "bundle_id": 0,
+   "transaction_id": "",
+   "transaction2_id": ""
+  },
+  {
+   "storage": "db",
+   "storage_id": 50176,
+   "order_product_id": 67776230,
+   "product_id": "98795625",
+   "variant_id": "0",
+   "name": "Probióticos Just Probio B-fit 2 billones UFC | Apoyo a la Microbiota|  30 y 60 Cápsulas - 30 Cápsulas",
+   "attributes": "30 Cápsulas | __kaching_bundles: {\"deal\":\"yeOD\",\"pp\":10129052762433,\"main\":true,\"bid\":\"3d1b0f8e-bb6b-4df7-8c5a-ba4f50edcb53\"}",
+   "sku": "10129052762433",
+   "ean": "7503036646691",
+   "location": "",
+   "warehouse_id": 59011,
+   "warehouse_type": "bl",
+   "warehouse_source_id": 59011,
+   "auction_id": "50854437847361",
+   "price_brutto": 449,
+   "tax_rate": 0,
+   "quantity": 1,
+   "weight": 0,
+   "bundle_id": 0,
+   "transaction_id": "",
+   "transaction2_id": ""
+  }
+ ]
+}

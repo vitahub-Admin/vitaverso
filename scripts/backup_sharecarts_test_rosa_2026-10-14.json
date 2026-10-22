@@ -1,0 +1,151 @@
+{
+ "nota": "Sharecarts de prueba de Rosa borrados el 14-oct y la venta pendiente que se canceló. Para restaurar: insertar de nuevo las filas de sharecarts; la venta solo cambió de estado a cancelado.",
+ "sharecarts": [
+  {
+   "id": "b70f7271-56ca-4705-800f-60d29eb1f3f2",
+   "items": [
+    {
+     "quantity": 1,
+     "variant_id": 50493803856193
+    },
+    {
+     "quantity": 1,
+     "variant_id": 49836316033345
+    }
+   ],
+   "name": "test",
+   "phone": "+5215512345678",
+   "extra": {
+    "origen": "protocolo",
+    "dosis_map": {
+     "49836316033345": {
+      "nota": "",
+      "momentos": [],
+      "dosis_unit": "cápsula",
+      "instruccion": "Tomar 1 cápsula.",
+      "dosis_amount": 1,
+      "acompanamiento": ""
+     },
+     "50493803856193": {
+      "nota": "",
+      "momentos": [],
+      "dosis_unit": "cápsula",
+      "instruccion": "Tomar 1 medida.",
+      "dosis_amount": 1,
+      "acompanamiento": ""
+     }
+    },
+    "patient_info": {
+     "name": "test",
+     "phone": "+5215512345678"
+    }
+   },
+   "created_at": "2026-10-14T14:48:43.848686+00:00",
+   "token": "qcMCQcjqkO",
+   "owner_id": "9354844602689",
+   "location": {},
+   "updated_at": "2026-10-14T14:48:43.848686+00:00",
+   "recovery_exported_at": null
+  },
+  {
+   "id": "14cb71ea-9e2b-47e7-800e-d402e9fdd7e0",
+   "items": [
+    {
+     "quantity": 1,
+     "variant_id": 50493803954497
+    },
+    {
+     "quantity": 1,
+     "variant_id": 49836316033345
+    }
+   ],
+   "name": "test",
+   "phone": "+5215512345678",
+   "extra": {
+    "origen": "protocolo",
+    "dosis_map": {
+     "49836316033345": {
+      "nota": "",
+      "momentos": [],
+      "dosis_unit": "cápsula",
+      "instruccion": "Tomar 1 cápsula.",
+      "dosis_amount": 1,
+      "acompanamiento": ""
+     },
+     "50493803954497": {
+      "nota": "",
+      "momentos": [],
+      "dosis_unit": "cápsula",
+      "instruccion": "Tomar 1 medida.",
+      "dosis_amount": 1,
+      "acompanamiento": ""
+     }
+    },
+    "patient_info": {
+     "name": "test",
+     "phone": "+5215512345678"
+    }
+   },
+   "created_at": "2026-10-14T14:53:14.518294+00:00",
+   "token": "ktOnBWVI65",
+   "owner_id": "9354844602689",
+   "location": {},
+   "updated_at": "2026-10-14T14:53:14.518294+00:00",
+   "recovery_exported_at": null
+  }
+ ],
+ "ventas_canceladas": [
+  {
+   "id": "695b21a0-2725-4fc1-93f4-1fc1b7738981",
+   "owner_id": 9354844602689,
+   "sharecart_token": "ktOnBWVI65",
+   "patient_name": "test",
+   "patient_phone": "+5215512345678",
+   "items": [
+    {
+     "sku": null,
+     "image": "https://cdn.shopify.com/s/files/1/0872/9942/4577/files/1617_banana.png?v=1757206087",
+     "price": 948.94,
+     "title": "Proteína Hidrolizada de Suero Isolate Whey Protein  AMZ Nutrition | Recuperación muscular | 925g, 1.6kg o 2.3 kg",
+     "mano_qty": 1,
+     "quantity": 1,
+     "product_id": 9942875046209,
+     "variant_id": 50493803954497,
+     "variant_title": "1.617KG / Banana",
+     "commission_percent": 10
+    },
+    {
+     "sku": "VHMX00218",
+     "image": "https://cdn.shopify.com/s/files/1/0872/9942/4577/files/LE00888-1_c54696e6-9087-464a-b92e-4d94cf5fb1a5.webp?v=1756965238",
+     "price": 219,
+     "title": "Extracto de Ashwagandha Optimizada 125mg de Life Extension | Ayuda a reducir el estrés y la ansiedad, contribuyendo al descanso | 60 cápsulas vegetarianas",
+     "mano_qty": 0,
+     "quantity": 1,
+     "product_id": 9602886631745,
+     "variant_id": 49836316033345,
+     "variant_title": "60 cápsulas",
+     "commission_percent": 10
+    }
+   ],
+   "subtotal": 1167.94,
+   "descuento": 0,
+   "total": 1167.94,
+   "comision": 116.79,
+   "estado": "pendiente",
+   "payment_provider": "shopify",
+   "payment_id": null,
+   "payment_fee": null,
+   "payment_neto": null,
+   "paid_at": null,
+   "created_at": "2026-10-14T14:53:15.48724+00:00",
+   "updated_at": "2026-10-14T14:53:15.48724+00:00",
+   "envio": 0,
+   "patient_email": null,
+   "descuento_codigo": null,
+   "descuento_price_rule_id": null,
+   "shopify_draft_id": null,
+   "monto_cobrado": null,
+   "envio_tarifa": null
+  }
+ ]
+}
