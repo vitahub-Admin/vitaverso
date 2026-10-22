@@ -1,15 +1,17 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { cookies } from "next/headers";
+import { idDeSesion } from "@/lib/sesionWeb";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
   process.env.SUPABASE_SECRET_KEY
 );
 
-export async function GET(req) {
-  const { searchParams } = new URL(req.url);
-  const customerId = searchParams.get("customerId");
-  if (!customerId) return NextResponse.json({ notifications: [] });
+// Los avisos son del profesional que tiene la sesión; el ID de la URL ya no cuenta
+export async function GET() {
+  const customerId = idDeSesion(await cookies());
+  if (!customerId) return NextResponse.json({ notifications: [] }, { status: 401 });
 
   const { data, error } = await supabase
     .from("affiliate_notifications")

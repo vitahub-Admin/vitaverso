@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { randomUUID } from 'crypto';
+import { conEnlaceFirmado } from './enlaceLogin';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -33,9 +34,12 @@ function registroDeEnvio(data = {}, destinatarios = 1) {
 }
 
 /** Lo que viaja al teléfono: sin los datos internos de quién lo mandó. */
-function datosPush(data = {}) {
+function datosPush(data = {}, customerId = null) {
   // eslint-disable-next-line no-unused-vars
   const { origen, enviado_por, agente, alcance, destinatarios, envio_id, ...resto } = data;
+  // Si el aviso lleva un enlace a Pro, va firmado para ese profesional: si se le cayó la
+  // sesión en el navegador, el enlace lo reconoce. Solo en el push, no en el historial.
+  if (customerId && resto.url) resto.url = conEnlaceFirmado(resto.url, customerId);
   return resto;
 }
 
@@ -66,7 +70,7 @@ export async function sendPushToAffiliate(shopifyCustomerId, title, body, data =
 
   if (!affiliate?.push_token) return null;
 
-  return sendBatch([{ to: affiliate.push_token, title, body, data: datosPush(data), sound: 'default' }]);
+  return sendBatch([{ to: affiliate.push_token, title, body, data: datosPush(data, shopifyCustomerId), sound: 'default' }]);
 }
 
 /**
@@ -115,7 +119,7 @@ export async function notificarAfiliados({ customerIds, title, body, data = {} }
     const lote = conToken.slice(i, i + 100);
     try {
       const r = await sendBatch(lote.map(a => ({
-        to: a.push_token, title, body, data: datosPush(data), sound: 'default',
+        to: a.push_token, title, body, data: datosPush(data, a.shopify_customer_id), sound: 'default',
       })));
       for (const t of r?.data || []) {
         if (t.status === 'ok') resumen.enviados++;
@@ -154,15 +158,15 @@ export async function broadcastToAffiliates(title, body, data = {}) {
     await supabase.from('affiliate_notifications').insert(notifRows);
   } catch {}
 
-  const tokens = affiliates.map((a) => a.push_token).filter(Boolean);
+  const destinos = affiliates.filter((a) => a.push_token);
   const results = [];
 
-  for (let i = 0; i < tokens.length; i += 100) {
-    const batch = tokens.slice(i, i + 100).map((to) => ({
-      to,
+  for (let i = 0; i < destinos.length; i += 100) {
+    const batch = destinos.slice(i, i + 100).map((a) => ({
+      to: a.push_token,
       title,
       body,
-      data: datosPush(data),
+      data: datosPush(data, a.shopify_customer_id),
       sound: 'default',
     }));
     results.push(await sendBatch(batch));

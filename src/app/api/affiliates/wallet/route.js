@@ -9,7 +9,7 @@ const supabase = createClient(
 
 export async function GET(req) {
   try {
-    const customerIdNum = await resolveCustomerId(req);
+    const customerIdNum = await resolveCustomerId(req, { completa: true });
 
     if (!customerIdNum || Number.isNaN(customerIdNum)) {
       return unauthorized();

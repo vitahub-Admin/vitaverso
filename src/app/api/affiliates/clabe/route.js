@@ -18,7 +18,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const customerId = idDeSesion(cookieStore);
+    const customerId = idDeSesion(cookieStore, { completa: true });
 
     if (!customerId) {
       return NextResponse.json(

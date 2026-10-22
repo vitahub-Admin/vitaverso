@@ -21,7 +21,7 @@ const FIELD_MAP = {
 
 export async function GET(req) {
   try {
-    const customerIdNum = await resolveCustomerId(req);
+    const customerIdNum = await resolveCustomerId(req, { completa: true });
     if (!customerIdNum) return unauthorized();
 
     const { data, error } = await supabase
@@ -80,7 +80,7 @@ export async function GET(req) {
 
 export async function PATCH(req) {
   try {
-    const customerIdNum = await resolveCustomerId(req);
+    const customerIdNum = await resolveCustomerId(req, { completa: true });
     if (!customerIdNum) return unauthorized();
 
     const body = await req.json();

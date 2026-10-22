@@ -20,6 +20,9 @@ const lato = Lato({
   variable: "--font-lato",
 });
 
+// Páginas con datos sensibles: una sesión abierta desde el enlace de una notificación no entra
+const RUTAS_SENSIBLES = ["/wallet", "/mis-datos"];
+
 const PUBLIC_ROUTES = ["/", "/privacidad", "/soporte", "/terminos"];
 
 // El cobro de una venta de consultorio lo abre el paciente, que no tiene
@@ -31,7 +34,7 @@ const esRutaPublica = (p) => PUBLIC_ROUTES.includes(p) || (p || "").startsWith("
 // (el "Continuar en PRO" de la tienda) terminaba en /wallet y perdía el carrito.
 function destinoTrasLogin() {
   const url = new URL(window.location.href);
-  ["enc", "t", "sig", "aId", "redirect"].forEach((p) => url.searchParams.delete(p));
+  ["enc", "t", "sig", "aId", "redirect", "ml"].forEach((p) => url.searchParams.delete(p));
   const destino = url.pathname + url.search;
   return url.pathname !== "/" ? destino : "/wallet";
 }
@@ -105,14 +108,47 @@ function AuthManager({ children }) {
       return;
     }
 
+    // 2️⃣b ENLACE DE UNA NOTIFICACIÓN → si es auténtico, abre la sesión y deja la URL limpia
+    const ml = searchParams.get("ml");
+    if (ml) {
+      fetch("/api/sesion/enlace", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ml, ruta: window.location.pathname }),
+      })
+        .then((r) => r.json())
+        .then((data) => {
+          const url = new URL(window.location.href);
+          url.searchParams.delete("ml");
+          if (data.ok && data.customerId) {
+            Cookies.set("customerId", data.customerId, { expires: 365 });
+            setShowAuthModal(false);
+            setIsLoading(false);
+            router.replace(url.pathname + url.search);
+          } else {
+            // enlace vencido o inválido: se sigue como siempre (su sesión, o el login)
+            router.replace(url.pathname + url.search);
+          }
+        })
+        .catch(() => setIsLoading(false));
+      return;
+    }
+
     // 3️⃣ COOKIE EXISTENTE → se renueva la sesión; si el servidor ya no la reconoce, se pide entrar
     if (customerIdFromCookie) {
       setShowAuthModal(false);
       setIsLoading(false);
       fetch("/api/sesion", { method: "POST" })
         .then(async (r) => {
-          if (r.status !== 401) return;
           const d = await r.json().catch(() => ({}));
+          // Entró con el enlace de una notificación: para wallet y datos personales hay que entrar de verdad
+          if (r.ok && d.nivel === "e" && RUTAS_SENSIBLES.some((p) => pathname.startsWith(p))) {
+            await fetch("/api/sesion", { method: "DELETE" }).catch(() => {});
+            Cookies.remove("customerId");
+            setShowAuthModal(true);
+            return;
+          }
+          if (r.status !== 401) return;
           if (d.legada) return;
           Cookies.remove("customerId");
           Cookies.remove("proJwt");
@@ -160,32 +196,44 @@ function AuthManager({ children }) {
     }
   };
 
-  // Devuelve { error } cuando falla: el modal muestra el mensaje y se queda
-  // abierto. Si sale bien no devuelve nada, porque ya navegó.
-  const handleLogin = async (email, password) => {
+  // Cuando el servidor acepta al profesional (con contraseña o con código), la sesión se
+  // abre igual: cookies, sesión firmada y a la página a la que iba.
+  const abrirSesion = async (data) => {
+    Cookies.set("customerId", data.customer.id, { expires: 365 });
+    if (data.token) {
+      Cookies.set("proJwt", data.token, { expires: 365 });
+      await fetch("/api/sesion", { method: "POST", headers: { Authorization: `Bearer ${data.token}` } }).catch(() => {});
+    }
+    setShowAuthModal(false);
+    const redirect = searchParams.get("redirect");
+    router.replace(esRutaInterna(redirect) ? redirect : destinoTrasLogin());
+  };
+
+  const pedirAlServidor = async (ruta, cuerpo, errorPorDefecto) => {
     try {
-      const res = await fetch("/api/pro/auth", {
+      const res = await fetch(ruta, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify(cuerpo),
       });
       const data = await res.json();
       if (data.ok && data.customer?.id) {
-        Cookies.set("customerId", data.customer.id, { expires: 365 });
-        if (data.token) {
-          Cookies.set("proJwt", data.token, { expires: 365 });
-          await fetch("/api/sesion", { method: "POST", headers: { Authorization: `Bearer ${data.token}` } }).catch(() => {});
-        }
-        setShowAuthModal(false);
-        const redirect = searchParams.get("redirect");
-        router.replace(esRutaInterna(redirect) ? redirect : destinoTrasLogin());
+        await abrirSesion(data);
         return {};
       }
-      return { error: data.error || "Correo o contraseña incorrectos" };
+      return { error: data.error || errorPorDefecto };
     } catch {
       return { error: "Error de conexión" };
     }
   };
+
+  // Devuelve { error } cuando falla: el modal muestra el mensaje y se queda
+  // abierto. Si sale bien no devuelve nada, porque ya navegó.
+  const handleLogin = (email, password) =>
+    pedirAlServidor("/api/pro/auth", { email, password }, "Correo o contraseña incorrectos");
+
+  const handleLoginCode = (email, code) =>
+    pedirAlServidor("/api/pro/auth/code/verify", { email, code }, "El código es incorrecto o ya venció");
 
   const redirectToAffiliateRegister = () => {
     window.location.href =
@@ -248,7 +296,7 @@ function AuthManager({ children }) {
 
   // 🔐 Modal normal
   if (showAuthModal) {
-    return <LoginModal onLogin={handleLogin} onRegister={redirectToAffiliateRegister} />;
+    return <LoginModal onLogin={handleLogin} onLoginCode={handleLoginCode} onRegister={redirectToAffiliateRegister} />;
   }
 
   // ✅ Autenticado

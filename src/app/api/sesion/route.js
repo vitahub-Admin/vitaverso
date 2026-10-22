@@ -28,9 +28,9 @@ function cerrar() {
   return res;
 }
 
-function emitir(customerId) {
-  const res = NextResponse.json({ ok: true, customerId: String(customerId) });
-  res.cookies.set(COOKIE_SESION, firmarSesion(customerId), opcionesCookie());
+function emitir(customerId, nivel = "f") {
+  const res = NextResponse.json({ ok: true, customerId: String(customerId), nivel });
+  res.cookies.set(COOKIE_SESION, firmarSesion(customerId, nivel), opcionesCookie());
   // Cookie legible solo para pintar la pantalla; el servidor no se fía de ella
   res.cookies.set("customerId", String(customerId), {
     httpOnly: false,
@@ -57,9 +57,9 @@ export async function POST(req) {
 
   const firmada = leerSesion(req.cookies.get(COOKIE_SESION)?.value);
   if (firmada) {
-    if (!necesitaRenovar(firmada)) return NextResponse.json({ ok: true, customerId: firmada.id });
+    if (!necesitaRenovar(firmada)) return NextResponse.json({ ok: true, customerId: firmada.id, nivel: firmada.nivel });
     if (await dadoDeBaja(firmada.id)) return cerrar();
-    return emitir(firmada.id);
+    return emitir(firmada.id, firmada.nivel);
   }
 
   return cerrar();

@@ -69,7 +69,8 @@ export function unauthorized() {
 }
 
 // Resuelve el shopify_customer_id tanto desde cookie (web) como desde Bearer JWT (app móvil)
-export async function resolveCustomerId(req) {
+// { completa: true } → para datos sensibles: no sirve una sesión abierta desde el enlace de una notificación
+export async function resolveCustomerId(req, { completa = false } = {}) {
   // 1. Intentar Bearer JWT (app móvil)
   const decoded = verifyCustomerToken(req);
   if (decoded?.userId) return Number(decoded.userId);
@@ -78,7 +79,7 @@ export async function resolveCustomerId(req) {
   try {
     const { cookies } = await import("next/headers");
     const cookieStore = await cookies();
-    const val = idDeSesion(cookieStore);
+    const val = idDeSesion(cookieStore, { completa });
     if (val) return Number(val);
   } catch {}
 

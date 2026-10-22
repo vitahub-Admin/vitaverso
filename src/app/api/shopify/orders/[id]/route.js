@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
+import { idDeSesion } from "@/lib/sesionWeb";
+import { esAdmin } from "@/lib/adminIds";
 
 export async function GET(req, { params }) {
   try {
@@ -7,6 +10,15 @@ export async function GET(req, { params }) {
     
     const { searchParams } = new URL(req.url);
     const customerId = searchParams.get("customerId");
+
+    // Trae pedidos con nombre y correo de clientes con el token de administración de
+    // Shopify, así que solo puede pedirlos su dueño o un administrador.
+    const sesion = idDeSesion(await cookies());
+    if (!sesion) return NextResponse.json({ error: "No autorizado" }, { status: 401 });
+    const pedido = String(customerId || id || "");
+    if (!esAdmin(sesion) && pedido !== String(sesion)) {
+      return NextResponse.json({ error: "No autorizado" }, { status: 403 });
+    }
     
     console.log("Params recibidos:", { id, customerId });
 

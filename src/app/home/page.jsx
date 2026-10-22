@@ -229,7 +229,7 @@ export default function HomePage() {
   // Notificaciones
   useEffect(() => {
     if (!customerId) return;
-    fetch(`/api/home/notifications?customerId=${customerId}`)
+    fetch("/api/home/notifications")
       .then(r => r.json())
       .then(d => setNotificaciones(d.notifications || []))
       .catch(() => {});
