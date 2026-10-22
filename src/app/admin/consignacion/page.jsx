@@ -306,6 +306,7 @@ export default function ConsignacionPage() {
                     <p className="text-sm font-bold text-[#1b3f7a] leading-snug">{variante.title}</p>
                     <p className="text-[11px] text-[#1F8383] font-semibold uppercase tracking-widest mt-0.5">
                       {variante.variant_title} · {fmtMXN(variante.price)}
+                      {variante.sku && <span className="ml-2 normal-case tracking-normal font-mono text-[#5B7A8C]">{variante.sku}</span>}
                     </p>
                   </div>
                   <button onClick={() => setVariante(null)} className="text-[#8AAAB8] hover:text-[#1b3f7a]">
@@ -318,7 +319,7 @@ export default function ConsignacionPage() {
                   <input
                     value={busquedaProd}
                     onChange={(e) => setBusquedaProd(e.target.value)}
-                    placeholder="Buscar producto por nombre…"
+                    placeholder="Buscar producto por nombre o SKU…"
                     className="w-full border border-[#D0E4EC] rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[#2BB9B8]"
                   />
                   {busquedaProd.trim().length >= 3 && (
@@ -337,7 +338,9 @@ export default function ConsignacionPage() {
                               <button key={v.variant_id}
                                 onClick={() => setVariante({ ...v, title: p.title })}
                                 className="text-[11px] font-semibold border border-[#D0E4EC] rounded-full px-2.5 py-1 hover:border-[#2BB9B8] hover:text-[#1F8383] text-[#5B7A8C]">
-                                {v.variant_title || "Único"} · {fmtMXN(v.price)}
+                                {v.variant_title || "Único"}
+                                {v.sku && <span className="font-mono font-normal text-[#8AAAB8]"> · {v.sku}</span>}
+                                {" "}· {fmtMXN(v.price)}
                               </button>
                             ))}
                           </div>

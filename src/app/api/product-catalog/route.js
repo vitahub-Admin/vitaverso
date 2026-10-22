@@ -205,7 +205,7 @@ const PRODUCT_FIELDS = `
   id title status vendor
   featuredImage { url }
   variants(first: 20) {
-    edges { node { id title price inventoryQuantity inventoryPolicy } }
+    edges { node { id title sku price inventoryQuantity inventoryPolicy } }
   }
 `
 
@@ -360,7 +360,7 @@ async function buildItemsFromShopify(shopifyNodes) {
         variant_id:         vid,
         variant_title:      v.title === 'Default Title' ? null : v.title,
         price:              parseFloat(v.price) || null,
-        sku:                enrich?.skuByVariant?.[vid] || null,
+        sku:                enrich?.skuByVariant?.[vid] || v.sku || null,
         stock:              stockVal,
         commission_percent: commissionMap[vid] ?? 0,
         nutrients:          [],
