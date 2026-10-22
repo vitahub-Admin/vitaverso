@@ -45,6 +45,8 @@ export default function ConsignacionPage() {
   const [cantidad, setCantidad] = useState("");
   const [motivo, setMotivo] = useState("");
   const [guardando, setGuardando] = useState(false);
+  // Paquete: varios productos que se registran juntos con un solo botón
+  const [paquete, setPaquete] = useState([]);   // [{ variant_id, title, variant_title, sku, cantidad }]
 
   // Stock
   const [stock, setStock] = useState([]);
@@ -134,33 +136,59 @@ export default function ConsignacionPage() {
   const totalUnidades = useMemo(
     () => stock.reduce((a, s) => a + Math.max(0, s.disponible || 0), 0), [stock]);
 
+  // ── Paquete ──────────────────────────────────────────────────────────
+  const unidadesPaquete = paquete.reduce((a, l) => a + Number(l.cantidad || 0), 0);
+
+  const agregarAlPaquete = () => {
+    const n = Number(cantidad);
+    if (!variante || !Number.isFinite(n) || n === 0) { mostrar("Elige un producto y una cantidad", true); return; }
+    setPaquete((p) => {
+      const ya = p.find((l) => l.variant_id === variante.variant_id);
+      if (ya) return p.map((l) => l.variant_id === variante.variant_id ? { ...l, cantidad: Number(l.cantidad) + n } : l);
+      return [...p, { variant_id: variante.variant_id, title: variante.title, variant_title: variante.variant_title, sku: variante.sku, cantidad: n }];
+    });
+    setVariante(null); setBusquedaProd(""); setCantidad("");
+  };
+
+  const cambiarCantidad = (id, valor) =>
+    setPaquete((p) => p.map((l) => l.variant_id === id ? { ...l, cantidad: valor } : l));
+  const quitarDelPaquete = (id) => setPaquete((p) => p.filter((l) => l.variant_id !== id));
+
+  // Lo que se va a registrar: el paquete, más el producto que esté elegido y no se haya agregado
+  const lineasPendientes = () => {
+    const lineas = paquete.map((l) => ({ variant_id: l.variant_id, cantidad: Number(l.cantidad) }));
+    const n = Number(cantidad);
+    if (variante && Number.isFinite(n) && n !== 0) lineas.push({ variant_id: variante.variant_id, cantidad: n });
+    return lineas;
+  };
+  const hayAlgo = paquete.length > 0 || (variante && Number(cantidad));
+
   // ── Guardar movimiento ──────────────────────────────────────────────
   const guardar = async () => {
-    if (!profesional || !variante || !cantidad) {
-      mostrar("Falta el profesional, el producto o la cantidad", true);
-      return;
+    const lineas = lineasPendientes();
+    if (!profesional || !lineas.length) { mostrar("Falta el profesional o los productos", true); return; }
+    if (lineas.some((l) => !Number.isFinite(l.cantidad) || l.cantidad === 0)) {
+      mostrar("Hay un producto sin cantidad", true); return;
     }
-    const n = Number(cantidad);
-    if (!Number.isFinite(n) || n === 0) { mostrar("Cantidad inválida", true); return; }
 
     setGuardando(true);
     try {
       const r = await fetch("/api/admin/consignment", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          owner_id:   profesional.shopify_customer_id,
-          variant_id: variante.variant_id,
-          tipo,
-          cantidad:   n,
-          motivo,
-        }),
+        body: JSON.stringify({ owner_id: profesional.shopify_customer_id, tipo, motivo, lineas }),
       });
       const d = await r.json();
       if (!d.ok) { mostrar(d.error || "No se pudo guardar", true); return; }
 
-      mostrar(`${TIPOS.find(t => t.key === tipo).label} registrada · quedan ${d.stock.disponible} unidades`);
-      setVariante(null); setBusquedaProd(""); setCantidad(""); setMotivo("");
+      const unidades = d.items.reduce((a, i) => a + Math.abs(i.cantidad), 0);
+      const base = `${TIPOS.find(t => t.key === tipo).label} registrada · ${d.items.length} ${d.items.length === 1 ? "producto" : "productos"}, ${unidades} unidades`;
+      if (d.baselinker && !d.baselinker.ok) {
+        mostrar(`${base}. OJO: el libro quedó bien pero BaseLinker no lo movió (${d.baselinker.motivo || "sin detalle"}); hay que corregirlo a mano.`, true);
+      } else {
+        mostrar(base);
+      }
+      setPaquete([]); setVariante(null); setBusquedaProd(""); setCantidad(""); setMotivo("");
       cargarStock(profesional.shopify_customer_id);
     } finally {
       setGuardando(false);
@@ -379,11 +407,51 @@ export default function ConsignacionPage() {
               </div>
             </div>
 
+            {/* Agregar el producto elegido al paquete */}
+            <button
+              onClick={agregarAlPaquete}
+              disabled={!variante || !Number(cantidad)}
+              className="w-full border border-[#2BB9B8] text-[#1F8383] bg-white py-2.5 rounded-xl font-semibold text-sm hover:bg-[#EAF8F8] transition-colors disabled:opacity-40 disabled:hover:bg-white">
+              + Agregar al paquete
+            </button>
+
+            {/* Paquete: todo lo que se registra junto */}
+            {paquete.length > 0 && (
+              <div className="border border-[#C2DFE8] rounded-xl overflow-hidden">
+                <div className="px-3.5 py-2 bg-[#F4FAFB] border-b border-[#C2DFE8] flex items-center justify-between gap-2">
+                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Paquete a registrar</span>
+                  <span className="text-xs text-[#1F8383] font-semibold tabular-nums">
+                    {paquete.length} {paquete.length === 1 ? "producto" : "productos"} · {unidadesPaquete} unidades
+                  </span>
+                </div>
+                {paquete.map((l) => (
+                  <div key={l.variant_id} className="px-3.5 py-2.5 flex items-center gap-3 border-b border-[#EEF3F7] last:border-0">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-bold text-[#1b3f7a] leading-snug line-clamp-1">{l.title}</p>
+                      <p className="text-[11px] text-[#5B7A8C] mt-0.5">
+                        {l.variant_title || "Único"}
+                        {l.sku && <span className="font-mono text-[#8AAAB8]"> · {l.sku}</span>}
+                      </p>
+                    </div>
+                    <input
+                      type="number"
+                      value={l.cantidad}
+                      onChange={(e) => cambiarCantidad(l.variant_id, e.target.value)}
+                      className="w-16 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-sm text-center tabular-nums focus:outline-none focus:border-[#2BB9B8]"
+                    />
+                    <button onClick={() => quitarDelPaquete(l.variant_id)} className="text-[#8AAAB8] hover:text-[#1b3f7a]" title="Quitar">
+                      <X size={15} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
             <button
               onClick={guardar}
-              disabled={guardando || !variante || !cantidad}
+              disabled={guardando || !hayAlgo}
               className="w-full bg-[#1b3f7a] text-white py-2.5 rounded-xl font-semibold text-sm hover:bg-[#162d60] transition-colors disabled:opacity-40">
-              {guardando ? "Guardando…" : `Registrar ${TIPOS.find(t => t.key === tipo).label.toLowerCase()}`}
+              {guardando ? "Guardando…" : `Registrar ${TIPOS.find(t => t.key === tipo).label.toLowerCase()}${paquete.length > 1 ? ` · ${paquete.length} productos` : ""}`}
             </button>
           </div>
         )}
