@@ -306,7 +306,8 @@ function AuthManager({ children }) {
 // Rutas públicas que no requieren auth ni el shell (Header/Sidebar).
 // /cobro/ la abre el paciente: no tiene cuenta y no debería ver el menú del
 // profesional ni el logo "Pro · Profesionales", que no le habla a él.
-const PUBLIC_PATHS = ["/book/", "/cobro/"];
+// /profesionales es la landing para quien todavía no tiene cuenta.
+const PUBLIC_PATHS = ["/book/", "/cobro/", "/profesionales"];
 
 function PublicOrAuthShell({ children }) {
   const pathname = usePathname();

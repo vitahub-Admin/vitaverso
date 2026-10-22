@@ -1,0 +1,111 @@
+{
+ "nota": "Estado antes de pasar 4 unidades de devuelto a vendido. Para deshacer: volver a poner devuelto/vendido de cada fila de stock y tipo/motivo de cada movimiento.",
+ "stock": [
+  {
+   "id": "24bd5b01-d11d-479a-bc80-f913f9c7bf9e",
+   "owner_id": 9354844602689,
+   "variant_id": 49836348768577,
+   "product_id": 9640249753921,
+   "title": "Berberina + Glicinato de Magnesio + Ácido Alfa Lipoico de NutriADN | Ayuda a reducir los niveles de triglicéridos y colesterol total | 60 Cápsulas Vegetales",
+   "variant_title": "60 cápsulas",
+   "entregado": 10,
+   "vendido": 5,
+   "devuelto": 1,
+   "ajuste": 0,
+   "disponible": 4,
+   "created_at": "2026-10-14T14:16:51.495293+00:00",
+   "updated_at": "2026-10-20T22:10:48.425+00:00"
+  },
+  {
+   "id": "99ba6724-5951-4ded-966a-efbf99e1f200",
+   "owner_id": 9354844602689,
+   "variant_id": 49836348932417,
+   "product_id": 9640302412097,
+   "title": "Soporte de Omega 3 con DHA + EPA 720mg de NutriADN | Contribuye en la acción antiinflamatoria del cuerpo | 60 Cápsulas Blandas",
+   "variant_title": "60 cápsulas",
+   "entregado": 15,
+   "vendido": 7,
+   "devuelto": 1,
+   "ajuste": 0,
+   "disponible": 7,
+   "created_at": "2026-10-14T14:16:51.028282+00:00",
+   "updated_at": "2026-10-22T14:57:58.03+00:00"
+  },
+  {
+   "id": "f07d4f36-5306-46e1-890a-b0f0c6da68ca",
+   "owner_id": 9354844602689,
+   "variant_id": 50493803954497,
+   "product_id": 9942875046209,
+   "title": "Proteína Hidrolizada de Suero Isolate Whey Protein  AMZ Nutrition | Recuperación muscular | 925g, 1.6kg o 2.3 kg",
+   "variant_title": "1.617KG / Banana",
+   "entregado": 6,
+   "vendido": 3,
+   "devuelto": 1,
+   "ajuste": 0,
+   "disponible": 2,
+   "created_at": "2026-10-14T14:16:50.557508+00:00",
+   "updated_at": "2026-10-22T14:57:57.011+00:00"
+  },
+  {
+   "id": "7405ec5f-9137-4d20-816d-d8c1768c70fe",
+   "owner_id": 9354844602689,
+   "variant_id": 50493804085569,
+   "product_id": 9942875046209,
+   "title": "Proteína Hidrolizada de Suero Isolate Whey Protein  AMZ Nutrition | Recuperación muscular | 925g, 1.6kg o 2.3 kg",
+   "variant_title": "1.617KG / Vainilla",
+   "entregado": 4,
+   "vendido": 3,
+   "devuelto": 1,
+   "ajuste": 0,
+   "disponible": 0,
+   "created_at": "2026-10-14T14:16:50.068646+00:00",
+   "updated_at": "2026-10-20T22:10:50.246+00:00"
+  }
+ ],
+ "movimientos": [
+  {
+   "id": "3fe6f1df-e522-490c-82f0-e71b451adce8",
+   "owner_id": 9354844602689,
+   "variant_id": 50493804085569,
+   "tipo": "devolucion",
+   "cantidad": 1,
+   "motivo": "Sobrante del libro: su hoja ya da estas unidades por vendidas (cuadre 20-oct)",
+   "local_order_id": null,
+   "creado_por": null,
+   "created_at": "2026-10-20T22:10:50.943118+00:00"
+  },
+  {
+   "id": "b75b9b49-bfa6-4fc3-88e2-4057df1fb844",
+   "owner_id": 9354844602689,
+   "variant_id": 50493803954497,
+   "tipo": "devolucion",
+   "cantidad": 1,
+   "motivo": "Sobrante del libro: su hoja ya da estas unidades por vendidas (cuadre 20-oct)",
+   "local_order_id": null,
+   "creado_por": null,
+   "created_at": "2026-10-20T22:10:50.361313+00:00"
+  },
+  {
+   "id": "44064089-1bed-4d09-a881-43327ddea9c2",
+   "owner_id": 9354844602689,
+   "variant_id": 49836348932417,
+   "tipo": "devolucion",
+   "cantidad": 1,
+   "motivo": "Sobrante del libro: su hoja ya da estas unidades por vendidas (cuadre 20-oct)",
+   "local_order_id": null,
+   "creado_por": null,
+   "created_at": "2026-10-20T22:10:49.789465+00:00"
+  },
+  {
+   "id": "4c79d67c-0723-4396-ad0c-fb012e101eab",
+   "owner_id": 9354844602689,
+   "variant_id": 49836348768577,
+   "tipo": "devolucion",
+   "cantidad": 1,
+   "motivo": "Sobrante del libro: su hoja ya da estas unidades por vendidas (cuadre 20-oct)",
+   "local_order_id": null,
+   "creado_por": null,
+   "created_at": "2026-10-20T22:10:49.23469+00:00"
+  }
+ ]
+}
