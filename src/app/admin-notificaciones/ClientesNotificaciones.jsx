@@ -161,7 +161,7 @@ export default function ClientesNotificaciones() {
               className={`flex items-center justify-center gap-2 py-3 px-2 rounded-xl border text-sm font-bold transition-colors ${
                 mode === key
                   ? "bg-[#1b3f7a] text-white border-[#1b3f7a]"
-                  : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8]"
+                  : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#2BB9B8]"
               }`}
             >
               <Icon size={16} />
@@ -188,7 +188,7 @@ export default function ClientesNotificaciones() {
                 placeholder={mode === "usuario" ? "Buscar cliente por nombre o correo..." : "Buscar profesional por nombre o correo..."}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full border border-[#D0E4EC] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E8FA8]/30"
+                className="w-full border border-[#D0E4EC] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2BB9B8]/30"
               />
               {search.length >= 2 && (
                 <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-[#D0E4EC] rounded-xl overflow-hidden max-h-56 overflow-y-auto shadow-lg">
@@ -204,7 +204,7 @@ export default function ClientesNotificaciones() {
                     >
                       <span className="font-semibold text-[#1b3f7a]">{[r.first_name, r.last_name].filter(Boolean).join(" ") || "Sin nombre"}</span>
                       <span className="text-[#8AAAB8]">{r.email}</span>
-                      {(r.has_push || r.push_token) && <Smartphone size={12} className="text-[#1E8FA8] ml-auto shrink-0" />}
+                      {(r.has_push || r.push_token) && <Smartphone size={12} className="text-[#1F8383] ml-auto shrink-0" />}
                     </button>
                   ))}
                 </div>
@@ -224,7 +224,7 @@ export default function ClientesNotificaciones() {
             value={title}
             onChange={(e) => setTitle(e.target.value)}
             maxLength={65}
-            className="border border-[#D0E4EC] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E8FA8]/30"
+            className="border border-[#D0E4EC] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2BB9B8]/30"
           />
           <span className="text-xs text-[#B0C8D4] text-right tabular-nums">{title.length}/65</span>
         </div>
@@ -236,7 +236,7 @@ export default function ClientesNotificaciones() {
             onChange={(e) => setBody(e.target.value)}
             rows={4}
             maxLength={240}
-            className="border border-[#D0E4EC] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E8FA8]/30 resize-none"
+            className="border border-[#D0E4EC] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2BB9B8]/30 resize-none"
           />
           <span className="text-xs text-[#B0C8D4] text-right tabular-nums">{body.length}/240</span>
         </div>
@@ -249,7 +249,7 @@ export default function ClientesNotificaciones() {
             placeholder="https://vitahub.mx/collections/..."
             value={url}
             onChange={(e) => setUrl(e.target.value)}
-            className="border border-[#D0E4EC] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E8FA8]/30"
+            className="border border-[#D0E4EC] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2BB9B8]/30"
           />
           <span className="text-xs text-[#B0C8D4]">Se abre cuando el cliente toca la notificación.</span>
         </div>
@@ -307,7 +307,7 @@ export default function ClientesNotificaciones() {
                   <span className="text-[#5B7A8C]">Destinatarios <b className="tabular-nums text-[#1b3f7a]">{c.destinatarios}</b></span>
                   <span className="text-[#5B7A8C]">Push <b className="tabular-nums text-[#1b3f7a]">{c.enviados}</b></span>
                   <span className="text-[#5B7A8C]">Leídas <b className="tabular-nums text-[#1b3f7a]">{c.leidas}</b> <span className="text-[#8AAAB8]">({pct(c.leidas, c.destinatarios)})</span></span>
-                  <span className="text-[#5B7A8C]">Abiertas <b className="tabular-nums text-[#1E8FA8]">{c.abiertas}</b> <span className="text-[#8AAAB8]">({pct(c.abiertas, c.destinatarios)})</span></span>
+                  <span className="text-[#5B7A8C]">Abiertas <b className="tabular-nums text-[#1F8383]">{c.abiertas}</b> <span className="text-[#8AAAB8]">({pct(c.abiertas, c.destinatarios)})</span></span>
                 </div>
               </div>
             ))}

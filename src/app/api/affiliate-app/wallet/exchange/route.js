@@ -55,7 +55,7 @@ export async function POST(req) {
     .limit(1);
 
   if (pending?.length > 0) {
-    return NextResponse.json({ ok: false, error: 'Ya tenés una solicitud pendiente' }, { status: 400 });
+    return NextResponse.json({ ok: false, error: 'Ya tienes una solicitud pendiente' }, { status: 400 });
   }
 
   // Calcular saldo disponible

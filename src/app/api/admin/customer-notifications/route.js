@@ -5,6 +5,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { enviarCampana, estadisticasCampanas, validarUrl } from "@/lib/customerNotifications";
+import { idDeSesion } from "@/lib/sesionWeb";
 
 export const maxDuration = 300;
 
@@ -31,7 +32,7 @@ export async function POST(req) {
       return NextResponse.json({ ok: false, error: "El link debe ser una URL que empiece con https://" }, { status: 400 });
     }
 
-    const admin = (await cookies()).get("customerId")?.value ?? null;
+    const admin = idDeSesion(await cookies()) ?? null;
     const resultado = await enviarCampana({
       target: target ?? "all",
       title: title.trim().slice(0, 65),

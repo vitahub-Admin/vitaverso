@@ -6,11 +6,19 @@ import { Suspense, useState, useEffect } from "react";
 import Sidebar from "./components/Sidebar";
 import LoginModal from "./components/LoginModal";
 import Script from "next/script";
+import { Lato } from "next/font/google";
 import Cookies from "js-cookie";
 import { useSearchParams, useRouter, usePathname } from "next/navigation";
 import { CustomerProvider } from "./context/CustomerContext.jsx";
 import { SidebarProvider } from "./context/SidebarContext.jsx";
 import { TourProvider } from "./context/TourContext.jsx";
+
+const lato = Lato({
+  subsets: ["latin"],
+  weight: ["300", "400", "700", "900"],
+  display: "swap",
+  variable: "--font-lato",
+});
 
 const PUBLIC_ROUTES = ["/", "/privacidad", "/soporte", "/terminos"];
 
@@ -79,7 +87,7 @@ function AuthManager({ children }) {
         .then((r) => r.json())
         .then((data) => {
           if (data.ok && data.customerId) {
-            Cookies.set("customerId", data.customerId, { expires: 30 });
+            Cookies.set("customerId", data.customerId, { expires: 365 });
             setShowAuthModal(false);
             router.replace(destinoTrasLogin());
           } else {
@@ -97,10 +105,20 @@ function AuthManager({ children }) {
       return;
     }
 
-    // 3️⃣ COOKIE EXISTENTE
+    // 3️⃣ COOKIE EXISTENTE → se renueva la sesión; si el servidor ya no la reconoce, se pide entrar
     if (customerIdFromCookie) {
       setShowAuthModal(false);
       setIsLoading(false);
+      fetch("/api/sesion", { method: "POST" })
+        .then(async (r) => {
+          if (r.status !== 401) return;
+          const d = await r.json().catch(() => ({}));
+          if (d.legada) return;
+          Cookies.remove("customerId");
+          Cookies.remove("proJwt");
+          setShowAuthModal(true);
+        })
+        .catch(() => {});
       return;
     }
 
@@ -126,7 +144,7 @@ function AuthManager({ children }) {
       const data = await res.json();
 
       if (data.ok && data.customerId) {
-        Cookies.set("customerId", data.customerId, { expires: 30 });
+        Cookies.set("customerId", data.customerId, { expires: 365 });
 
         setShowBackdoorModal(false);
         setPendingBackdoorId(null);
@@ -153,8 +171,11 @@ function AuthManager({ children }) {
       });
       const data = await res.json();
       if (data.ok && data.customer?.id) {
-        Cookies.set("customerId", data.customer.id, { expires: 30 });
-        if (data.token) Cookies.set("proJwt", data.token, { expires: 30 });
+        Cookies.set("customerId", data.customer.id, { expires: 365 });
+        if (data.token) {
+          Cookies.set("proJwt", data.token, { expires: 365 });
+          await fetch("/api/sesion", { method: "POST", headers: { Authorization: `Bearer ${data.token}` } }).catch(() => {});
+        }
         setShowAuthModal(false);
         const redirect = searchParams.get("redirect");
         router.replace(esRutaInterna(redirect) ? redirect : destinoTrasLogin());
@@ -274,7 +295,7 @@ export default function RootLayout({ children }) {
   }, []);
 
   return (
-    <html lang="en">
+    <html lang="es" className={lato.variable}>
       <body className="h-screen flex flex-col bg-white">
         <Script
           src="https://t.contentsquare.net/uxa/bc20e7d4875d3.js"

@@ -100,7 +100,8 @@ export default function Sidebar() {
   const { collapsed, toggle } = useSidebar();
   const tour = useTour();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch("/api/sesion", { method: "DELETE" }).catch(() => {});
     Cookies.remove("customerId");
     Cookies.remove("proJwt");
     router.replace("/");
@@ -181,7 +182,7 @@ export default function Sidebar() {
             {/* Riel angosto — mobile o sidebar colapsado: no hay lugar para el
                 pin sin encimarlo sobre el ícono, así que va solo un punto. */}
             <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full
-              ${isActive ? "bg-white" : "bg-[#1E8FA8]"} ${collapsed ? "" : "sm:hidden"}`} />
+              ${isActive ? "bg-white" : "bg-[#2BB9B8]"} ${collapsed ? "" : "sm:hidden"}`} />
 
             {/* Sidebar expandido: el pin girado 90°, apuntando al ítem */}
             {!collapsed && (
@@ -192,7 +193,7 @@ export default function Sidebar() {
                   className={`rotate-90 flecha-nuevo drop-shadow-sm ${
                     isActive
                       ? "text-white [&>circle]:fill-[#1b3f7a] [&>circle]:stroke-[#1b3f7a]"
-                      : "text-[#1E8FA8] [&>circle]:fill-white [&>circle]:stroke-white"
+                      : "text-[#1F8383] [&>circle]:fill-white [&>circle]:stroke-white"
                   }`} />
               </span>
             )}
@@ -235,7 +236,7 @@ export default function Sidebar() {
               flex items-center gap-3 mb-1
               ${collapsed ? "justify-center" : "justify-start"}
               px-2.5 py-2.5 rounded-xl text-sm font-semibold transition-all
-              bg-[#E6F4F8] text-[#1E8FA8] hover:bg-[#C2DFE8]
+              bg-[#E6F4F8] text-[#1F8383] hover:bg-[#C2DFE8]
             `}
           >
             <Compass size={17} className="shrink-0" />

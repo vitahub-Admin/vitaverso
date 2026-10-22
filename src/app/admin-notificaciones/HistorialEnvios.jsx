@@ -88,8 +88,8 @@ export default function HistorialEnvios() {
             onClick={() => setAlcance(k)}
             className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
               alcance === k
-                ? "bg-[#1E8FA8] text-white border-[#1E8FA8]"
-                : "bg-white text-gray-600 border-gray-200 hover:border-[#1E8FA8]/40"
+                ? "bg-[#2BB9B8] text-[#0D2133] border-[#2BB9B8]"
+                : "bg-white text-gray-600 border-gray-200 hover:border-[#2BB9B8]/40"
             }`}
           >
             {l}
@@ -133,8 +133,8 @@ export default function HistorialEnvios() {
                   <span className="font-semibold text-gray-700">{o.etiqueta}</span> · {quien}
                 </span>
                 <span className="flex items-center gap-1">
-                  {masivo ? <Users size={12} className="text-[#1E8FA8]" /> : <User size={12} className="text-[#1E8FA8]" />}
-                  <span className={`font-bold ${masivo ? "text-[#1E8FA8]" : "text-gray-700"}`}>
+                  {masivo ? <Users size={12} className="text-[#1F8383]" /> : <User size={12} className="text-[#1F8383]" />}
+                  <span className={`font-bold ${masivo ? "text-[#1F8383]" : "text-gray-700"}`}>
                     {masivo ? "Masivo" : "Personalizado"}
                   </span> · {aQuien}
                 </span>

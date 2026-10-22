@@ -51,8 +51,8 @@ export default function LoginModal({ onLogin, onRegister }) {
 
   const campo =
     "w-full border border-[#D0E4EC] rounded-xl px-3.5 py-3 text-sm text-[#0D2133] " +
-    "placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8] " +
-    "focus:ring-2 focus:ring-[#1E8FA8]/15 transition-colors";
+    "placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8] " +
+    "focus:ring-2 focus:ring-[#2BB9B8]/15 transition-colors";
 
   const etiqueta = "block text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5";
 
@@ -66,7 +66,7 @@ export default function LoginModal({ onLogin, onRegister }) {
           {modo === "enviado" ? (
             <div className="text-center">
               <div className="w-12 h-12 rounded-full bg-[#E6F4F8] flex items-center justify-center mx-auto mb-4">
-                <MailCheck size={22} className="text-[#1E8FA8]" />
+                <MailCheck size={22} className="text-[#1F8383]" />
               </div>
               <h2 className="text-lg font-bold text-[#0D2133]">Revisa tu correo</h2>
               <p className="text-[13px] text-[#5B7A8C] mt-1.5 leading-relaxed">
@@ -75,7 +75,7 @@ export default function LoginModal({ onLogin, onRegister }) {
               </p>
               <button
                 onClick={() => { setModo("login"); setPassword(""); }}
-                className="mt-6 text-[13px] font-semibold text-[#1E8FA8] hover:text-[#0D2133] transition-colors"
+                className="mt-6 text-[13px] font-semibold text-[#1F8383] hover:text-[#0D2133] transition-colors"
               >
                 Volver a iniciar sesión
               </button>
@@ -135,7 +135,7 @@ export default function LoginModal({ onLogin, onRegister }) {
                       <label className={`${etiqueta} mb-0`}>Contraseña</label>
                       <button
                         onClick={() => { setModo("recuperar"); setError(""); }}
-                        className="text-[11px] font-semibold text-[#1E8FA8] hover:text-[#0D2133] transition-colors"
+                        className="text-[11px] font-semibold text-[#1F8383] hover:text-[#0D2133] transition-colors"
                       >
                         ¿La olvidaste?
                       </button>
@@ -177,7 +177,7 @@ export default function LoginModal({ onLogin, onRegister }) {
             <span className="text-[13px] text-[#5B7A8C]">¿Aún no eres afiliado? </span>
             <button
               onClick={onRegister}
-              className="text-[13px] font-bold text-[#1E8FA8] hover:text-[#0D2133] transition-colors"
+              className="text-[13px] font-bold text-[#1F8383] hover:text-[#0D2133] transition-colors"
             >
               Regístrate
             </button>

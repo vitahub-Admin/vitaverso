@@ -45,7 +45,7 @@ const CLASES = [
   {
     titulo: "Capacitación Blife — Formulación, combinaciones y protocolos de suplementación",
     embedId: "HW1yPbM4vBc",
-    intro: "Accedés a una capacitación profunda sobre suplementación funcional aplicada. Eduardo Ortega (My Live Live) recorre los principales suplementos y sus aplicaciones específicas.",
+    intro: "Accedes a una capacitación profunda sobre suplementación funcional aplicada. Eduardo Ortega (My Live Live) recorre los principales suplementos y sus aplicaciones específicas.",
     puntos: [
       "Magnesio y sus formas: aplicaciones en sueño, estrés, músculo y tránsito intestinal.",
       "Omega 3, Krill y grasas funcionales: absorción, inflamación y salud cardiovascular.",

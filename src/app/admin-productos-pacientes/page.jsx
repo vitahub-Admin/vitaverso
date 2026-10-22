@@ -84,7 +84,7 @@ export default function ProductosPacientesPage() {
                     <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mt-1">
                       paciente{p.pacientes !== 1 ? "s" : ""}
                     </p>
-                    <p className="text-xs text-[#1E8FA8] tabular-nums mt-0.5">{p.activos} lo siguen tomando</p>
+                    <p className="text-xs text-[#1F8383] tabular-nums mt-0.5">{p.activos} lo siguen tomando</p>
                   </div>
                 </div>
               ))}

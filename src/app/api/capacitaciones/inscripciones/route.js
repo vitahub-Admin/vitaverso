@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
+import { idDeSesion } from "@/lib/sesionWeb";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -8,7 +9,7 @@ const supabase = createClient(
 );
 
 function getCustomerId(cookieStore) {
-  return cookieStore.get("customerId")?.value || null;
+  return idDeSesion(cookieStore) || null;
 }
 
 // GET — inscripciones del usuario con su status

@@ -205,7 +205,7 @@ export default function CobroPage({ params }) {
   if (!venta) {
     return (
       <div className="min-h-screen bg-[#F7F9FB] flex items-center justify-center">
-        <Loader2 size={22} className="animate-spin text-[#1E8FA8]" />
+        <Loader2 size={22} className="animate-spin text-[#1F8383]" />
       </div>
     );
   }
@@ -282,9 +282,9 @@ export default function CobroPage({ params }) {
               <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Tus datos</p>
               <div className="space-y-2">
                 <input value={datos.nombre} onChange={set("nombre")} placeholder="Nombre completo"
-                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
                 <input value={datos.email} onChange={set("email")} type="email" placeholder="Correo electrónico"
-                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
                 <p className="text-[10px] text-[#B0C8D4]">Ahí te llega tu compra y las indicaciones de toma.</p>
               </div>
             </div>}
@@ -298,12 +298,12 @@ export default function CobroPage({ params }) {
                 </p>
                 <div className="space-y-2">
                   <input value={datos.tarjeta} onChange={set("tarjeta")} inputMode="numeric" placeholder="1234 1234 1234 1234"
-                    className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                    className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
                   <div className="grid grid-cols-2 gap-2">
                     <input value={datos.vence} onChange={set("vence")} placeholder="MM / AA"
-                      className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                      className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
                     <input value={datos.cvc} onChange={set("cvc")} placeholder="CVC"
-                      className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                      className="border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm tabular-nums text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
                   </div>
                 </div>
               </div>
@@ -445,7 +445,7 @@ export default function CobroPage({ params }) {
                     <button
                       onClick={() => cambiarCantidad(it.variant_id, 1)}
                       disabled={!!ajustando}
-                      className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-[#1E8FA8] hover:text-[#1b3f7a] disabled:opacity-40"
+                      className="mt-1.5 flex items-center gap-1 text-[11px] font-semibold text-[#1F8383] hover:text-[#1b3f7a] disabled:opacity-40"
                     >
                       <Plus size={12} /> Volver a agregar
                     </button>
@@ -519,12 +519,12 @@ export default function CobroPage({ params }) {
                     onChange={(e) => setCupon(e.target.value.toUpperCase())}
                     onKeyDown={(e) => e.key === "Enter" && cupon && moverCupon("aplicar")}
                     placeholder="Código de descuento"
-                    className="flex-1 min-w-0 border border-[#D0E4EC] rounded-lg px-3 py-2 text-[13px] uppercase tracking-wider text-[#1b3f7a] placeholder:text-[#B0C8D4] placeholder:normal-case placeholder:tracking-normal focus:outline-none focus:border-[#1E8FA8]"
+                    className="flex-1 min-w-0 border border-[#D0E4EC] rounded-lg px-3 py-2 text-[13px] uppercase tracking-wider text-[#1b3f7a] placeholder:text-[#B0C8D4] placeholder:normal-case placeholder:tracking-normal focus:outline-none focus:border-[#2BB9B8]"
                   />
                   <button
                     onClick={() => moverCupon("aplicar")}
                     disabled={!cupon || cuponEnVuelo}
-                    className="px-3 py-2 rounded-lg border border-[#D0E4EC] text-[12px] font-semibold text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#1E8FA8] disabled:opacity-40 shrink-0"
+                    className="px-3 py-2 rounded-lg border border-[#D0E4EC] text-[12px] font-semibold text-[#5B7A8C] hover:border-[#2BB9B8] hover:text-[#1F8383] disabled:opacity-40 shrink-0"
                   >
                     {cuponEnVuelo ? <Loader2 size={13} className="animate-spin" /> : "Aplicar"}
                   </button>

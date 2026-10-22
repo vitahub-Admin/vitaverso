@@ -1,8 +1,37 @@
 @import "tailwindcss";
 
+/* Tokens de marca (manual de marca v2.1). Generan utilidades: bg-celeste,
+   text-celeste-texto, border-borde, rounded-campo, shadow-tarjeta, etc.
+   Todavía no reemplazan los hex escritos en las pantallas. */
+@theme {
+  --font-sans: var(--font-lato), ui-sans-serif, system-ui, sans-serif;
+  --color-celeste: #2BB9B8;
+  --color-celeste-hover: #26A3A2;
+  --color-celeste-texto: #1F8383;
+  --color-celeste-fondo: #EAF8F8;
+  --color-celeste-suave: #D5F1F1;
+  --color-celeste-borde: #B5E7E6;
+  --color-azul: #1B3F7A;
+  --color-azul-hover: #162D60;
+  --color-azul-profundo: #0D2133;
+  --color-texto-secundario: #5B7A8C;
+  --color-texto-terciario: #8AAAB8;
+  --color-decorativo: #B0C8D4;
+  --color-borde: #D0E4EC;
+  --color-separador: #EEF3F7;
+  --color-pagina: #F7F9FB;
+  --radius-campo: 8px;
+  --radius-boton: 12px;
+  --radius-tarjeta: 16px;
+  --shadow-tarjeta: 0 1px 2px rgba(13, 33, 51, 0.06);
+  --shadow-elevado: 0 4px 12px rgba(13, 33, 51, 0.10);
+  --shadow-ventana: 0 20px 40px rgba(13, 33, 51, 0.18);
+  --shadow-foco: 0 0 0 3px rgba(43, 185, 184, 0.25);
+}
+
 
 .font-lato {
-  font-family: 'Lato', sans-serif;
+  font-family: var(--font-lato), sans-serif;
 }
 
 .imagen-mitienda{

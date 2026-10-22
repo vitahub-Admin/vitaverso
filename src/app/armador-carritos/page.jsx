@@ -1,4 +1,5 @@
 "use client";
+import { sanitizarHtml } from "@/lib/sanitizarHtml";
 import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useCustomer } from "@/app/context/CustomerContext";
@@ -205,7 +206,7 @@ function componentesACarrito(components) {
 const FEATURED = [
   { handle: "vitamina-d-en-mexico",     label: "Vitamina D3", desc: "Regulación del calcio, inmunidad y salud ósea",          icon: Sun,          from: "from-amber-400",   to: "to-orange-500"  },
   { handle: "enzimas-digestivas",       label: "Enzimas",      desc: "Digestión eficiente y absorción óptima de nutrientes",   icon: FlaskConical, from: "from-emerald-500", to: "to-teal-700"    },
-  { handle: "suplementos-con-magnesio", label: "Magnesio",     desc: "Función muscular, sueño y sistema nervioso",             icon: Zap,          from: "from-[#1E8FA8]",   to: "to-blue-700"    },
+  { handle: "suplementos-con-magnesio", label: "Magnesio",     desc: "Función muscular, sueño y sistema nervioso",             icon: Zap,          from: "from-[#2BB9B8]",   to: "to-blue-700"    },
   { handle: "omega-3-en-mexico",        label: "Omega 3",      desc: "Salud cardiovascular, cerebro y control inflamatorio",   icon: Droplets,     from: "from-blue-500",    to: "to-indigo-600"  },
 ];
 
@@ -384,7 +385,7 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
   if (carrito.length === 0) {
     return (
       <button onClick={onGoToDraft}
-        className="flex items-center gap-2 bg-white border border-[#D0E4EC] text-[#5B7A8C] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#F7F9FB] hover:border-[#1E8FA8] hover:text-[#1b3f7a] transition-all">
+        className="flex items-center gap-2 bg-white border border-[#D0E4EC] text-[#5B7A8C] px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#F7F9FB] hover:border-[#2BB9B8] hover:text-[#1b3f7a] transition-all">
         <ShoppingBag size={14} /> Crear protocolo
       </button>
     );
@@ -395,7 +396,7 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
         className="flex items-center gap-2 bg-[#1b3f7a] text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-[#162d60] transition-all shadow-sm">
         <ShoppingBag size={14} />
         <span className="hidden sm:inline">Protocolo</span>
-        <span className="bg-[#1E8FA8] text-white text-xs font-bold px-1.5 py-0.5 rounded min-w-[20px] text-center tabular-nums">{carrito.length}</span>
+        <span className="bg-[#2BB9B8] text-[#0D2133] text-xs font-bold px-1.5 py-0.5 rounded min-w-[20px] text-center tabular-nums">{carrito.length}</span>
         <span className="hidden sm:inline tabular-nums font-bold">{fmtMXN(total)}</span>
         <ChevronDown size={12} className={`transition-transform ${open ? "rotate-180" : ""}`} />
       </button>
@@ -407,13 +408,13 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
             <input type="text" placeholder="Nombre del paciente"
               value={patientData.nombre}
               onChange={e => onPatientChange({ ...patientData, nombre: e.target.value })}
-              className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1E8FA8] bg-white" />
+              className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#2BB9B8] bg-white" />
             <div className="flex gap-1.5">
-              <span className="text-[11px] font-bold text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-2 py-2 shrink-0 self-center">+521</span>
+              <span className="text-[11px] font-bold text-[#1F8383] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-2 py-2 shrink-0 self-center">+521</span>
               <input type="tel" placeholder="Teléfono (opcional)" maxLength={10}
                 value={patientData.telefono}
                 onChange={e => onPatientChange({ ...patientData, telefono: e.target.value.replace(/\D/g, "").slice(0, 10) })}
-                className="flex-1 border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1E8FA8] bg-white" />
+                className="flex-1 border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#2BB9B8] bg-white" />
             </div>
           </div>
           {/* Productos */}
@@ -430,7 +431,7 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
                   <div className="flex-1 min-w-0">
                     <p className="text-xs font-semibold text-[#1b3f7a] line-clamp-1">{item.title}</p>
                     {item.variant_title && <p className="text-[10px] text-[#5B7A8C]">{item.variant_title}</p>}
-                    {dTx && <p className="text-[10px] text-[#1E8FA8] mt-0.5">{dTx}{momentoTxt ? ` · ${momentoTxt}` : ""}</p>}
+                    {dTx && <p className="text-[10px] text-[#1F8383] mt-0.5">{dTx}{momentoTxt ? ` · ${momentoTxt}` : ""}</p>}
                     <p className="text-[10px] font-extrabold text-[#1b3f7a] tabular-nums mt-0.5">{fmtMXN(item.price)}</p>
                   </div>
                   <button onClick={() => onRemoveItem(item.variant_id)} className="text-[#B0C8D4] hover:text-red-400 transition-colors shrink-0 mt-0.5"><X size={12} /></button>
@@ -518,19 +519,19 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
               necesita releer la descripción o la tabla nutricional. */}
           {onAbrirProducto && item.product_id ? (
             <button onClick={() => onAbrirProducto(item)}
-              className="text-left text-sm font-bold text-[#1b3f7a] leading-snug hover:text-[#1E8FA8] hover:underline transition-colors">
+              className="text-left text-sm font-bold text-[#1b3f7a] leading-snug hover:text-[#1F8383] hover:underline transition-colors">
               {item.title}
             </button>
           ) : (
             <p className="text-sm font-bold text-[#1b3f7a] leading-snug">{item.title}</p>
           )}
-          {item.variant_title && <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mt-0.5">{item.variant_title}</p>}
+          {item.variant_title && <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383] mt-0.5">{item.variant_title}</p>}
           <div className="mt-2 flex flex-wrap gap-1.5">
             {dTx && <span className="bg-[#1b3f7a] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{dTx}</span>}
             {momentos.length > 0 && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{momentos.join(", ")}</span>}
             {acomp && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{acomp}</span>}
             {dur && (
-              <span className="bg-[#E6F4F8] text-[#1E8FA8] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#C2DFE8] flex items-center gap-1">
+              <span className="bg-[#E6F4F8] text-[#1F8383] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#C2DFE8] flex items-center gap-1">
                 <CalendarDays size={9} /> {textoDuracion(dur.dias)}
               </span>
             )}
@@ -542,7 +543,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
             {enStock > 0 && (
               <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 ${
                 enStock >= qty
-                  ? "bg-[#1E8FA8] text-white"
+                  ? "bg-[#2BB9B8] text-[#0D2133]"
                   : "bg-amber-50 text-amber-700 border border-amber-200"
               }`}>
                 <Package size={9} />
@@ -580,7 +581,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
               </div>
               <span className="text-[10px] text-[#B0C8D4]">{qty === 1 ? "frasco" : "frascos"}</span>
               <button onClick={() => setOpen(o => !o)}
-                className="flex items-center gap-1 text-[10px] font-bold text-[#1E8FA8] hover:text-[#1b3f7a] transition-colors ml-auto">
+                className="flex items-center gap-1 text-[10px] font-bold text-[#1F8383] hover:text-[#1b3f7a] transition-colors ml-auto">
                 <Pencil size={10} /> {open ? "Cerrar" : "Editar dosis"}
               </button>
             </div>
@@ -616,7 +617,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
               {meta?.tipo_dosis && meta?.dosis != null ? (
                 /* Con metafields: badge fijo + resultado calculado */
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-3 py-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg text-sm font-semibold text-[#1E8FA8]">dosis</span>
+                  <span className="px-3 py-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg text-sm font-semibold text-[#1F8383]">dosis</span>
                   <span className="text-[#B0C8D4] text-sm">=</span>
                   <span className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">
                     {amount * meta.dosis} <span className="font-semibold text-[#5B7A8C]">{meta.tipo_dosis}</span>
@@ -625,7 +626,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
               ) : (
                 /* Sin metafields: dropdown clásico */
                 <select value={unit} onChange={e => handleField(setUnit, "unit", e.target.value)}
-                  className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] bg-white">
+                  className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm text-[#1b3f7a] focus:outline-none focus:border-[#2BB9B8] bg-white">
                   {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
               )}
@@ -638,7 +639,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
             )}
             {dur && (
               <div className="mt-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3 py-2 flex items-start gap-2">
-                <CalendarDays size={13} className="text-[#1E8FA8] mt-0.5 shrink-0" />
+                <CalendarDays size={13} className="text-[#1F8383] mt-0.5 shrink-0" />
                 <p className="text-[11px] text-[#5B7A8C] leading-relaxed">
                   <span className="font-bold text-[#1b3f7a]">Alcanza para {textoDuracion(dur.dias)}</span>
                   {" · "}{dur.porDia} dosis al día
@@ -655,7 +656,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
             <div className="flex flex-wrap gap-1.5">
               {MOMENTOS.map(m => (
                 <button key={m} onClick={() => toggleMomento(m)}
-                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${momentos.includes(m) ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8]"}`}>
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${momentos.includes(m) ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#2BB9B8]"}`}>
                   {m}
                 </button>
               ))}
@@ -667,7 +668,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
             <div className="flex flex-wrap gap-1.5">
               {ACOMP.map(a => (
                 <button key={a} onClick={() => handleField(setAcomp, "acompanamiento", acomp === a ? "" : a)}
-                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${acomp === a ? "bg-[#1E8FA8] text-white border-[#1E8FA8]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8]"}`}>
+                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${acomp === a ? "bg-[#2BB9B8] text-[#0D2133] border-[#2BB9B8]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#2BB9B8]"}`}>
                   {a}
                 </button>
               ))}
@@ -678,7 +679,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
             <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">Nota <span className="normal-case font-normal text-[#B0C8D4]">(opcional)</span></p>
             <input type="text" placeholder="ej. Tomar durante 3 meses" value={nota}
               onChange={e => handleField(setNota, "nota", e.target.value)}
-              className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#1E8FA8] bg-white" />
+              className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-[#2BB9B8] bg-white" />
           </div>
         </div>
       )}
@@ -912,7 +913,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
               {protocoloOrigen && (
                 <p className="text-[11px] text-[#5B7A8C] mt-0.5">
                   {protocoloOrigen.status === "borrador" ? "Borrador guardado:" : "Desde la plantilla:"}{" "}
-                  <span className="font-semibold text-[#1E8FA8]">{protocoloOrigen.name}</span>
+                  <span className="font-semibold text-[#1F8383]">{protocoloOrigen.name}</span>
                 </p>
               )}
             </div>
@@ -921,7 +922,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
             </button>
           </div>
           {avisoGuardado && (
-            <p className="text-xs font-semibold text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-3 py-2">
+            <p className="text-xs font-semibold text-[#1F8383] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-3 py-2">
               {avisoGuardado}
             </p>
           )}
@@ -951,18 +952,18 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5 block">Nombre</label>
                 <input type="text" placeholder="Nombre del paciente"
                   value={patientData.nombre} onChange={e => onPatientChange({ ...patientData, nombre: e.target.value })}
-                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#1E8FA8]" />
+                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#2BB9B8]" />
               </div>
               <div>
                 <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5 block">
-                  Teléfono <span className="normal-case font-normal text-[#1E8FA8]">para WhatsApp</span>
+                  Teléfono <span className="normal-case font-normal text-[#1F8383]">para WhatsApp</span>
                 </label>
                 <div className="flex gap-2">
-                  <span className="text-xs font-bold text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-2.5 py-2.5 shrink-0">+521</span>
+                  <span className="text-xs font-bold text-[#1F8383] bg-[#E6F4F8] border border-[#C2DFE8] rounded-lg px-2.5 py-2.5 shrink-0">+521</span>
                   <input type="tel" placeholder="5512345678" maxLength={10}
                     value={patientData.telefono} onChange={e => onPatientChange({ ...patientData, telefono: e.target.value.replace(/\D/g, "").slice(0, 10) })}
                     className={`flex-1 border rounded-lg px-3 py-2.5 text-sm focus:outline-none transition-colors
-                      ${patientData.telefono.length === 10 ? "border-[#1E8FA8] bg-[#F4FAFB]" : "border-[#D0E4EC] focus:border-[#1E8FA8]"}`} />
+                      ${patientData.telefono.length === 10 ? "border-[#2BB9B8] bg-[#F4FAFB]" : "border-[#D0E4EC] focus:border-[#2BB9B8]"}`} />
                 </div>
               </div>
             </div>
@@ -996,7 +997,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                   En tu consultorio
                 </p>
                 <p className="text-sm text-[#1b3f7a] leading-snug flex items-start gap-1.5">
-                  <Package size={14} className="text-[#1E8FA8] mt-0.5 shrink-0" />
+                  <Package size={14} className="text-[#1F8383] mt-0.5 shrink-0" />
                   <span>
                     <span className="font-extrabold">{enConsulta.length}</span> de {carrito.length}{" "}
                     {carrito.length === 1 ? "producto" : "productos"} se los puedes entregar hoy
@@ -1031,7 +1032,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                         <div className="bg-red-50 border border-red-200 rounded-lg p-3">
                           <p className="text-xs font-bold text-red-600">Pago rechazado</p>
                           <button onClick={() => setVenta(null)}
-                            className="text-[11px] font-semibold text-[#1E8FA8] hover:underline mt-1">
+                            className="text-[11px] font-semibold text-[#1F8383] hover:underline mt-1">
                             Generar otro cobro
                           </button>
                         </div>
@@ -1059,7 +1060,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                     <button
                       onClick={cobrarEnConsultorio}
                       disabled={cobrando}
-                      className="mt-3 w-full bg-[#1E8FA8] text-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#177a90] transition-colors disabled:opacity-50">
+                      className="mt-3 w-full bg-[#2BB9B8] text-[#0D2133] text-sm font-semibold py-2.5 rounded-xl hover:bg-[#26A3A2] transition-colors disabled:opacity-50">
                       {cobrando ? "Generando cobro…" : `Cobrar todo aquí · ${carrito.length} ${carrito.length === 1 ? "producto" : "productos"}`}
                     </button>
                   )
@@ -1073,7 +1074,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                   Duración estimada
                 </p>
                 <p className="text-sm text-[#1b3f7a] leading-snug flex items-start gap-1.5">
-                  <CalendarDays size={14} className="text-[#1E8FA8] mt-0.5 shrink-0" />
+                  <CalendarDays size={14} className="text-[#1F8383] mt-0.5 shrink-0" />
                   {corto.dias === largo.dias ? (
                     <span>El protocolo alcanza para <span className="font-extrabold">{textoDuracion(corto.dias)}</span></span>
                   ) : (
@@ -1102,7 +1103,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
           {error && <p className="text-red-500 text-xs">{error}</p>}
           {checkoutUrl ? (
             <div className="bg-[#E6F4F8] border border-[#C2DFE8] rounded-xl p-4 space-y-3">
-              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8]">Protocolo listo para enviar</p>
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383]">Protocolo listo para enviar</p>
               {/* Acción principal: WhatsApp */}
               <button onClick={() => window.open(whatsappUrl, "_blank")}
                 className="w-full bg-[#25D366] text-white text-sm py-2.5 rounded-lg font-semibold hover:bg-[#1ebe5b] transition-colors flex items-center justify-center gap-2">
@@ -1112,7 +1113,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                   WhatsApp. Esto queda para cuando no se abre — pasa en laptops
                   sin la sesión de WhatsApp Web vinculada. Sin PDF: la receta le
                   llega a la paciente por mail cuando compra. */}
-              <button onClick={copy} className="w-full text-[#1E8FA8] text-xs font-medium hover:underline transition-colors">
+              <button onClick={copy} className="w-full text-[#1F8383] text-xs font-medium hover:underline transition-colors">
                 {copied ? "¡Copiado!" : "¿No se abrió? Copiar link"}
               </button>
 
@@ -1121,7 +1122,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
               {carrito.length >= 3 && protocoloOrigen?.status !== "plantilla" && (
                 plantillaLista ? (
                   <div className="bg-white border border-[#C2DFE8] rounded-lg p-3">
-                    <p className="text-xs font-semibold text-[#1E8FA8]">
+                    <p className="text-xs font-semibold text-[#1F8383]">
                       Plantilla guardada. La vas a encontrar en el inicio del armador.
                     </p>
                   </div>
@@ -1136,9 +1137,9 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                         onChange={e => setNombrePlantilla(e.target.value)}
                         onKeyDown={e => { if (e.key === "Enter") guardarPlantilla(); }}
                         placeholder="Ej: Protocolo tiroides"
-                        className="flex-1 min-w-0 border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+                        className="flex-1 min-w-0 border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
                       <button onClick={guardarPlantilla} disabled={!nombrePlantilla.trim() || guardando}
-                        className="bg-[#1E8FA8] text-white text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#177a90] transition-colors disabled:opacity-40 shrink-0">
+                        className="bg-[#2BB9B8] text-[#0D2133] text-xs font-semibold px-3 py-1.5 rounded-lg hover:bg-[#26A3A2] transition-colors disabled:opacity-40 shrink-0">
                         Guardar
                       </button>
                     </div>
@@ -1161,7 +1162,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
               {carrito.length > 0 && (
                 <button onClick={() => { setNombreBorrador(protocoloOrigen?.status === "borrador" ? protocoloOrigen.name : ""); setModalBorrador(true); }}
                   disabled={guardando}
-                  className="w-full flex items-center justify-center gap-2 border border-[#C2DFE8] text-[#1E8FA8] text-sm py-2.5 rounded-xl font-semibold hover:bg-[#F4FAFB] transition-colors disabled:opacity-50">
+                  className="w-full flex items-center justify-center gap-2 border border-[#C2DFE8] text-[#1F8383] text-sm py-2.5 rounded-xl font-semibold hover:bg-[#F4FAFB] transition-colors disabled:opacity-50">
                   <Save size={14} />
                   {protocoloOrigen?.status === "borrador" ? "Actualizar borrador" : "Guardar borrador"}
                 </button>
@@ -1186,7 +1187,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
               onChange={e => setNombreBorrador(e.target.value)}
               onKeyDown={e => { if (e.key === "Enter") guardarBorrador(); if (e.key === "Escape") setModalBorrador(false); }}
               placeholder="Ej: Caso tiroides, faltan omegas"
-              className="w-full mt-3 border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]" />
+              className="w-full mt-3 border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
             <div className="flex gap-2 mt-4">
               <button onClick={() => setModalBorrador(false)}
                 className="flex-1 border border-[#D0E4EC] text-[#5B7A8C] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#F7F9FB] transition-colors">
@@ -1212,12 +1213,12 @@ function GuardadoCard({ protocolo, onAbrir, onBorrar }) {
     .toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 
   return (
-    <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 flex items-start justify-between gap-3 hover:border-[#1E8FA8] transition-colors">
+    <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 flex items-start justify-between gap-3 hover:border-[#2BB9B8] transition-colors">
       <button onClick={() => onAbrir(protocolo)} className="text-left flex-1 min-w-0">
         <p className="text-sm font-bold text-[#1b3f7a] leading-snug line-clamp-2">
           {protocolo.name}
           {protocolo.es_ejemplo && (
-            <span className="ml-2 align-middle text-[9px] font-extrabold uppercase tracking-widest text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] px-1.5 py-0.5 rounded">
+            <span className="ml-2 align-middle text-[9px] font-extrabold uppercase tracking-widest text-[#1F8383] bg-[#E6F4F8] border border-[#C2DFE8] px-1.5 py-0.5 rounded">
               Ejemplo
             </span>
           )}
@@ -1251,7 +1252,7 @@ function GuardadoCard({ protocolo, onAbrir, onBorrar }) {
 function CollectionCard({ item, onClick, loading, imageUrl }) {
   return (
     <button onClick={() => onClick(item)} disabled={loading}
-      className="group relative overflow-hidden rounded-xl border border-[#D0E4EC] flex h-[120px] sm:h-[132px] hover:shadow-md hover:border-[#1E8FA8]/40 transition-all disabled:opacity-60 text-left w-full">
+      className="group relative overflow-hidden rounded-xl border border-[#D0E4EC] flex h-[120px] sm:h-[132px] hover:shadow-md hover:border-[#2BB9B8]/40 transition-all disabled:opacity-60 text-left w-full">
       <div className="w-[38%] relative shrink-0 overflow-hidden">
         {imageUrl
           ? <img src={imageUrl} alt={item.label} className="absolute inset-0 w-full h-full object-cover" />
@@ -1265,7 +1266,7 @@ function CollectionCard({ item, onClick, loading, imageUrl }) {
       <div className="flex-1 bg-[#F7F9FB] group-hover:bg-[#EEF3F7] transition-colors flex flex-col justify-center px-4 py-3">
         <p className="text-sm font-bold text-[#1b3f7a] leading-snug">{item.label}</p>
         <p className="text-xs text-[#5B7A8C] mt-1 leading-relaxed line-clamp-2">{item.desc}</p>
-        <p className="text-xs font-semibold text-[#1E8FA8] mt-2.5 flex items-center gap-1">
+        <p className="text-xs font-semibold text-[#1F8383] mt-2.5 flex items-center gap-1">
           Explorar <ChevronRight size={11} className="group-hover:translate-x-0.5 transition-transform" />
         </p>
       </div>
@@ -1330,7 +1331,7 @@ function RestockButton({ product, variant = null, size = "sm", seccion = "listad
     <button onClick={solicitar} disabled={state === "sending"}
       className={`${base} border text-center transition-all ${state === "error"
         ? "border-red-200 bg-red-50 text-red-500 hover:bg-red-100"
-        : "border-[#D0E4EC] bg-white text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#1b3f7a] disabled:opacity-60"}`}>
+        : "border-[#D0E4EC] bg-white text-[#5B7A8C] hover:border-[#2BB9B8] hover:text-[#1b3f7a] disabled:opacity-60"}`}>
       {state === "sending" ? "Enviando…" : state === "error" ? "Reintentar" : "Solicitar reposición"}
     </button>
   );
@@ -1343,7 +1344,7 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
   const outOfStock = product.all_out_of_stock && !soloConsultorio;
   return (
     <div data-tour={tourCard ? "producto-card" : undefined}
-      className="bg-white rounded-xl border border-[#D0E4EC] overflow-hidden flex flex-col hover:shadow-md hover:border-[#1E8FA8]/40 transition-all group">
+      className="bg-white rounded-xl border border-[#D0E4EC] overflow-hidden flex flex-col hover:shadow-md hover:border-[#2BB9B8]/40 transition-all group">
       {/* Imagen — click abre detalle */}
       <div onClick={() => onClick(product)} className="cursor-pointer">
         <div className="relative bg-[#F7F9FB] p-3 flex items-center justify-center" style={{ height: "148px" }}>
@@ -1355,7 +1356,7 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
             {outOfStock && <span className="bg-red-50 text-red-500 border border-red-200 text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">Sin stock</span>}
             {/* Lo tiene en su consultorio: se lo puede entregar en la consulta */}
             {enConsultorio > 0 && (
-              <span className="bg-[#1E8FA8] text-white text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">
+              <span className="bg-[#2BB9B8] text-[#0D2133] text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">
                 {soloConsultorio ? "Solo en consultorio" : "En consultorio"} · {enConsultorio}
               </span>
             )}
@@ -1373,7 +1374,7 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
         <p className="text-xs font-bold text-[#1b3f7a] leading-snug line-clamp-2">{product.title}</p>
         {product.commission_percent > 0 && (
           <p data-tour={tourComision ? "comision-badge" : undefined}
-            className="text-[10px] font-extrabold text-[#1E8FA8]">+{product.commission_percent}% comisión</p>
+            className="text-[10px] font-extrabold text-[#1F8383]">+{product.commission_percent}% comisión</p>
         )}
         {/* La marca sale de Supabase, no del vendor de Shopify: ese trae
             distribuidores. Mismo cuerpo que la comisión pero sin negrita, para
@@ -1393,7 +1394,7 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
           ) : (
             <button
               onClick={(e) => { e.stopPropagation(); onQuickAdd(product); }}
-              className={`w-full text-[11px] font-bold py-1.5 rounded-lg border transition-all ${inProtocol ? "bg-[#E6F4F8] text-[#1E8FA8] border-[#C2DFE8] hover:bg-[#C2DFE8]" : "bg-[#F7F9FB] text-[#1b3f7a] border-[#D0E4EC] hover:bg-[#1b3f7a] hover:text-white hover:border-[#1b3f7a]"}`}>
+              className={`w-full text-[11px] font-bold py-1.5 rounded-lg border transition-all ${inProtocol ? "bg-[#E6F4F8] text-[#1F8383] border-[#C2DFE8] hover:bg-[#C2DFE8]" : "bg-[#F7F9FB] text-[#1b3f7a] border-[#D0E4EC] hover:bg-[#1b3f7a] hover:text-white hover:border-[#1b3f7a]"}`}>
               {inProtocol ? "✓ En protocolo" : "+ Agregar"}
             </button>
           )}
@@ -1542,7 +1543,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
               los vitahubers. */}
           {esVitahuber && <button
             onClick={copiarLink}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[#D0E4EC] text-[#5B7A8C] hover:text-[#1E8FA8] hover:border-[#1E8FA8] transition-all"
+            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[#D0E4EC] text-[#5B7A8C] hover:text-[#1F8383] hover:border-[#2BB9B8] transition-all"
           >
             {linkCopiado ? <Check size={12} /> : <LinkIcon size={12} />}
             {linkCopiado ? "¡Copiado!" : "Copiar link"}
@@ -1568,7 +1569,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             <>
               <span className="text-[#C2DFE8] text-[11px]">›</span>
               <button onClick={() => onBreadcrumb('l1', product.level_1, product)}
-                className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">
+                className="text-[11px] text-[#8AAAB8] hover:text-[#1F8383] transition-colors font-medium">
                 {product.level_1}
               </button>
             </>
@@ -1577,7 +1578,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             <>
               <span className="text-[#C2DFE8] text-[11px]">›</span>
               <button onClick={() => onBreadcrumb('l2', product.level_2, product)}
-                className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">
+                className="text-[11px] text-[#8AAAB8] hover:text-[#1F8383] transition-colors font-medium">
                 {product.level_2}
               </button>
             </>
@@ -1586,7 +1587,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             <>
               <span className="text-[#C2DFE8] text-[11px]">›</span>
               <button onClick={() => onBreadcrumb('l3', product.level_3, product)}
-                className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">
+                className="text-[11px] text-[#8AAAB8] hover:text-[#1F8383] transition-colors font-medium">
                 {product.level_3}
               </button>
             </>
@@ -1619,7 +1620,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
               {images.map((img, i) => (
                 <button key={i} onClick={() => setMainImg(img)}
-                  className={`shrink-0 w-14 h-14 rounded-lg border-2 overflow-hidden bg-[#F7F9FB] transition-all ${mainImg === img ? "border-[#1E8FA8]" : "border-[#D0E4EC] hover:border-[#8AAAB8]"}`}>
+                  className={`shrink-0 w-14 h-14 rounded-lg border-2 overflow-hidden bg-[#F7F9FB] transition-all ${mainImg === img ? "border-[#2BB9B8]" : "border-[#D0E4EC] hover:border-[#8AAAB8]"}`}>
                   <img src={img} alt="" className="w-full h-full object-contain p-1" />
                 </button>
               ))}
@@ -1661,7 +1662,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
         <div className="flex flex-col gap-5">
           <div className="flex flex-wrap gap-2">
             {product.is_professional && <span className="bg-[#1b3f7a] text-white text-[10px] font-extrabold px-2.5 py-1 rounded uppercase tracking-widest">PRO</span>}
-            {product.commission_percent > 0 && <span className="bg-[#E6F4F8] text-[#1E8FA8] text-xs font-extrabold px-2.5 py-1 rounded">{product.commission_percent}% comisión</span>}
+            {product.commission_percent > 0 && <span className="bg-[#E6F4F8] text-[#1F8383] text-xs font-extrabold px-2.5 py-1 rounded">{product.commission_percent}% comisión</span>}
             {inCart && <span className="bg-emerald-50 text-emerald-600 text-xs font-extrabold px-2.5 py-1 rounded">✓ En protocolo</span>}
           </div>
           <div>
@@ -1677,7 +1678,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
               <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">Presentación</label>
               <select value={selectedVariant?.variant_id}
                 onChange={e => setSelectedVariant(product.variants.find(v => v.variant_id === Number(e.target.value)))}
-                className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]">
+                className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-[#2BB9B8] text-[#1b3f7a]">
                 {product.variants.map(v => (
                   <option key={v.variant_id} value={v.variant_id} disabled={v.stock !== null && v.stock <= 0 && enCons(v) === 0}>
                     {v.variant_title || "Único"}{v.stock !== null && v.stock <= 0 ? (enCons(v) > 0 ? " · solo en consultorio" : " · sin stock") : ""}{v.price ? ` · ${fmtMXN(v.price)}` : ""}
@@ -1694,23 +1695,23 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
               <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Componente principal</p>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-[#1b3f7a]">{product.primary_ingredient}</span>
-                {product.primary_amount && <span className="text-sm font-extrabold text-[#1E8FA8] tabular-nums">{product.primary_amount} {product.primary_unit || "mg"}</span>}
+                {product.primary_amount && <span className="text-sm font-extrabold text-[#1F8383] tabular-nums">{product.primary_amount} {product.primary_unit || "mg"}</span>}
               </div>
             </div>
           )}
 
           {/* Indicaciones — primero */}
-          <div className="border border-[#1E8FA8]/40 rounded-xl overflow-hidden bg-white">
+          <div className="border border-[#2BB9B8]/40 rounded-xl overflow-hidden bg-white">
             {/* Header — colapsado muestra el texto de instrucción */}
             <button onClick={() => setInstrOpen(o => !o)} className="w-full flex items-start justify-between px-4 py-3.5 text-left hover:bg-[#F7F9FB] transition-colors gap-2">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-sm font-bold text-[#1b3f7a]">Indicaciones de toma</span>
-                  <span className="text-[9px] font-extrabold bg-[#1E8FA8] text-white px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0">Requerido</span>
+                  <span className="text-[9px] font-extrabold bg-[#2BB9B8] text-[#0D2133] px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0">Requerido</span>
                 </div>
                 {/* Preview colapsado — estilo Fullscript */}
                 {!instrOpen && (
-                  <p className="text-xs text-[#1E8FA8] mt-0.5 truncate">
+                  <p className="text-xs text-[#1F8383] mt-0.5 truncate">
                     {buildInstruccion(amount, unit, momentos, acomp, variantMeta[String(selectedVariant?.variant_id)]) || "Sin indicaciones configuradas"}
                   </p>
                 )}
@@ -1745,7 +1746,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                         {hasMeta ? (
                           /* Con metafields: tipo_dosis como badge fijo + resultado */
                           <div className="flex items-center gap-2 flex-wrap">
-                            <span className="px-3 py-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg text-sm font-semibold text-[#1E8FA8]">
+                            <span className="px-3 py-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg text-sm font-semibold text-[#1F8383]">
                               {amount === 1 ? "dosis" : "dosis"}
                             </span>
                             <span className="text-[#B0C8D4] text-sm">=</span>
@@ -1756,7 +1757,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                         ) : (
                           /* Sin metafields: dropdown clásico */
                           <select value={unit} onChange={e => setUnit(e.target.value)}
-                            className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]">
+                            className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm bg-white outline-none focus:border-[#2BB9B8] text-[#1b3f7a]">
                             {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                           </select>
                         )}
@@ -1775,7 +1776,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                         const dur = duracionDias({ meta, amount, momentos, quantity: 1 });
                         if (!dur) return null;
                         return (
-                          <p className="text-[11px] font-semibold text-[#1E8FA8] mt-1 flex items-center gap-1">
+                          <p className="text-[11px] font-semibold text-[#1F8383] mt-1 flex items-center gap-1">
                             <CalendarDays size={11} className="shrink-0" />
                             Cada frasco dura {textoDuracion(dur.dias)} con {dur.porDia} dosis al día
                           </p>
@@ -1793,7 +1794,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                   <div className="flex flex-wrap gap-1.5">
                     {MOMENTOS.map(m => (
                       <button key={m} onClick={() => toggleMomento(m)}
-                        className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${momentos.includes(m) ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8] hover:text-[#1E8FA8]"}`}>
+                        className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${momentos.includes(m) ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#2BB9B8] hover:text-[#1F8383]"}`}>
                         {m}
                       </button>
                     ))}
@@ -1806,7 +1807,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                   <div className="flex flex-wrap gap-1.5">
                     {ACOMP.map(a => (
                       <button key={a} onClick={() => setAcomp(p => p === a ? "" : a)}
-                        className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${acomp === a ? "bg-[#1E8FA8] text-white border-[#1E8FA8]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8] hover:text-[#1E8FA8]"}`}>
+                        className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${acomp === a ? "bg-[#2BB9B8] text-[#0D2133] border-[#2BB9B8]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#2BB9B8] hover:text-[#1F8383]"}`}>
                         {a}
                       </button>
                     ))}
@@ -1817,7 +1818,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                 <div>
                   <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">Nota <span className="normal-case font-normal text-[#B0C8D4]">(opcional)</span></label>
                   <textarea value={nota} onChange={e => setNota(e.target.value)} placeholder="ej. Tomar durante 3 meses" rows={2}
-                    className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-[#1E8FA8] resize-none text-[#1b3f7a] placeholder:text-[#B0C8D4]" />
+                    className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-[#2BB9B8] resize-none text-[#1b3f7a] placeholder:text-[#B0C8D4]" />
                 </div>
 
                 {/* Instrucción para el paciente — resumen parseado */}
@@ -1832,14 +1833,14 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                   const dur = duracionDias({ meta, amount, momentos, quantity });
                   return (
                     <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3.5 py-3">
-                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mb-1">Instrucción para el paciente</p>
+                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383] mb-1">Instrucción para el paciente</p>
                       <p className="text-sm text-[#1b3f7a] leading-relaxed">
                         {instrText}
                         {notaSentence && <span className="text-[#5B7A8C]"> {notaSentence}</span>}
                       </p>
                       {dur && (
                         <p className="text-[11px] text-[#5B7A8C] mt-2 pt-2 border-t border-[#C2DFE8] flex items-center gap-1.5">
-                          <CalendarDays size={12} className="text-[#1E8FA8] shrink-0" />
+                          <CalendarDays size={12} className="text-[#1F8383] shrink-0" />
                           <span>
                             Con {dur.frascos === 1 ? "este frasco" : `${dur.frascos} frascos`} alcanza para{" "}
                             <span className="font-bold text-[#1b3f7a]">{textoDuracion(dur.dias)}</span>
@@ -1936,7 +1937,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                             : <>
                                 {tableHtml && (
                                   <div className="[&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2.5 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:bg-[#F0F5F8] [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#5B7A8C] [&_td]:text-[#1b3f7a]"
-                                    dangerouslySetInnerHTML={{ __html: tableHtml }} />
+                                    dangerouslySetInnerHTML={{ __html: sanitizarHtml(tableHtml) }} />
                                 )}
                                 {/* Lo que dice el fabricante, tal cual: no es la posología
                                     que prescribe el profesional, que se arma arriba. */}
@@ -1968,7 +1969,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                         {descLoading
                           ? <p className="text-xs text-[#B0C8D4] text-center py-4">Cargando…</p>
                           : <div className="prose prose-xs max-w-none text-[#5B7A8C] leading-relaxed [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_li]:mb-1"
-                              dangerouslySetInnerHTML={{ __html: textHtml || descHtml }} />}
+                              dangerouslySetInnerHTML={{ __html: sanitizarHtml(textHtml || descHtml) }} />}
                       </div>
                     )}
                   </div>
@@ -1994,7 +1995,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                       className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">+</button>
                   </div>
                   <span className="text-xs text-[#5B7A8C]">{quantity === 1 ? "frasco" : "frascos"}</span>
-                  {soloConsultorio && <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8]">Solo en consultorio · máx. {consultorioSel}</span>}
+                  {soloConsultorio && <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383]">Solo en consultorio · máx. {consultorioSel}</span>}
                   {/* Cuánto dura lo que lleva: ayuda a decidir cuántos frascos mandar */}
                   {(() => {
                     const dur = duracionDias({
@@ -2002,7 +2003,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                       amount, momentos, quantity,
                     });
                     return dur ? (
-                      <span className="text-[11px] font-bold text-[#1E8FA8] tabular-nums">
+                      <span className="text-[11px] font-bold text-[#1F8383] tabular-nums">
                         ≈ {textoDuracion(dur.dias)}
                       </span>
                     ) : null;
@@ -2012,7 +2013,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                       {activeTier && (
                         <span className="text-[11px] text-[#B0C8D4] line-through">{fmtMXN(totalBase)}</span>
                       )}
-                      <span className={`text-xs font-extrabold ${activeTier ? "text-emerald-600" : "text-[#1E8FA8]"}`}>
+                      <span className={`text-xs font-extrabold ${activeTier ? "text-emerald-600" : "text-[#1F8383]"}`}>
                         Total: {fmtMXN(totalDsc)}
                       </span>
                       {activeTier && (
@@ -2038,7 +2039,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                   seccion="ficha de producto" />
               </div>
             : <button onClick={handleAdd}
-                className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${inCart ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
+                className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${inCart ? "bg-[#2BB9B8] text-[#0D2133] hover:bg-[#26A3A2]" : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
                 {inCart ? "✓ Actualizar en protocolo" : `Agregar al protocolo${quantity > 1 ? ` (×${quantity})` : ""}`}
               </button>
           }
@@ -2661,10 +2662,10 @@ function ArmadorCarritosInner() {
                     ? "Describe el objetivo o síntoma del paciente…"
                     : "Buscar por producto, componente o marca…"}
                   value={query} onChange={e => setQuery(e.target.value)}
-                  className="w-full bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg pl-10 pr-4 py-2 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8] focus:bg-white transition-colors" />
+                  className="w-full bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg pl-10 pr-4 py-2 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8] focus:bg-white transition-colors" />
               </div>
               <button type="submit" disabled={loading || !query.trim()}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-30 transition-colors shrink-0 ${aiMode ? "bg-[#1E8FA8] text-white hover:bg-[#1a7d94]" : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
+                className={`px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-30 transition-colors shrink-0 ${aiMode ? "bg-[#2BB9B8] text-[#0D2133] hover:bg-[#26A3A2]" : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
                 {aiMode ? "Analizar" : "Buscar"}
               </button>
             </form>
@@ -2672,7 +2673,7 @@ function ArmadorCarritosInner() {
             {/* Banner resultado IA */}
             {aiResult && (
               <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3.5 py-2.5">
-                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] mb-1">Análisis clínico</p>
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383] mb-1">Análisis clínico</p>
                 <p className="text-xs text-[#1b3f7a] leading-snug mb-2">{aiResult.resumen}</p>
                 <div className="flex flex-wrap gap-1.5">
                   {aiResult.ingredientes.map(i => (
@@ -2702,7 +2703,7 @@ function ArmadorCarritosInner() {
               const key = tab.id || tab.handle;
               return (
                 <button key={key} onClick={() => handleCollection(tab)} disabled={loading}
-                  className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors shrink-0 ${activeTabKey === key ? "border-[#1E8FA8] text-[#1E8FA8]" : "border-transparent text-[#5B7A8C] hover:text-[#1b3f7a]"}`}>
+                  className={`px-4 py-2.5 text-sm font-semibold whitespace-nowrap border-b-2 transition-colors shrink-0 ${activeTabKey === key ? "border-[#2BB9B8] text-[#1F8383]" : "border-transparent text-[#5B7A8C] hover:text-[#1b3f7a]"}`}>
                   {tab.label}
                 </button>
               );
@@ -2725,7 +2726,7 @@ function ArmadorCarritosInner() {
                     <Heart size={14} className="text-red-400" fill="currentColor" />
                     <h2 className="text-sm font-bold text-[#1b3f7a]">Mis Favoritos</h2>
                   </div>
-                  <button onClick={() => setView("favorites")} className="text-xs font-semibold text-[#1E8FA8] hover:underline">
+                  <button onClick={() => setView("favorites")} className="text-xs font-semibold text-[#1F8383] hover:underline">
                     Ver todos ({favoriteList.length}) →
                   </button>
                 </div>
@@ -2745,7 +2746,7 @@ function ArmadorCarritosInner() {
             {borradores.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <FileClock size={14} className="text-[#1E8FA8]" />
+                  <FileClock size={14} className="text-[#1F8383]" />
                   <h2 className="text-sm font-bold text-[#1b3f7a]">Continúa donde lo dejaste</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -2760,7 +2761,7 @@ function ArmadorCarritosInner() {
             {plantillas.length > 0 && (
               <section>
                 <div className="flex items-center gap-2 mb-3">
-                  <Bookmark size={14} className="text-[#1E8FA8]" />
+                  <Bookmark size={14} className="text-[#1F8383]" />
                   <h2 className="text-sm font-bold text-[#1b3f7a]">Mis plantillas</h2>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -2785,7 +2786,7 @@ function ArmadorCarritosInner() {
             <section>
               <div className="relative overflow-hidden rounded-xl bg-gradient-to-r from-[#1b3f7a] to-[#1b3f7a] px-6 py-5 flex items-center justify-between gap-4">
                 <div className="flex items-start gap-4">
-                  <span className="shrink-0 bg-[#1E8FA8] text-white text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest mt-0.5">PRO</span>
+                  <span className="shrink-0 bg-[#2BB9B8] text-[#0D2133] text-[10px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest mt-0.5">PRO</span>
                   <div>
                     <p className="text-white font-bold text-base leading-snug">Marcas Profesionales</p>
                     <p className="text-[#7EAEC0] text-xs mt-1 max-w-xs">Productos exclusivos de grado clínico que tus pacientes no pueden comprar directo.</p>
@@ -2795,7 +2796,7 @@ function ArmadorCarritosInner() {
                   className="shrink-0 flex items-center gap-1.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors whitespace-nowrap">
                   Explorar <ChevronRight size={12} />
                 </button>
-                <div className="absolute -right-8 -top-8 w-32 h-32 bg-[#1E8FA8]/10 rounded-full pointer-events-none" />
+                <div className="absolute -right-8 -top-8 w-32 h-32 bg-[#2BB9B8]/10 rounded-full pointer-events-none" />
               </div>
             </section>
 
@@ -2804,14 +2805,14 @@ function ArmadorCarritosInner() {
               <section>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2">
-                    <Sparkles size={14} className="text-[#1E8FA8]" />
+                    <Sparkles size={14} className="text-[#1F8383]" />
                     <h2 className="text-sm font-bold text-[#1b3f7a]">Novedades</h2>
-                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] px-2 py-0.5 rounded-full">
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383] bg-[#E6F4F8] border border-[#C2DFE8] px-2 py-0.5 rounded-full">
                       Nuevo
                     </span>
                   </div>
                   <button onClick={() => handleCollection(NOVEDADES_COLLECTION)}
-                    className="text-xs font-semibold text-[#1E8FA8] hover:underline">
+                    className="text-xs font-semibold text-[#1F8383] hover:underline">
                     Ver todos ({novedades.length}) →
                   </button>
                 </div>
@@ -2896,7 +2897,7 @@ function ArmadorCarritosInner() {
         {/* LOADER */}
         {loading && (
           <div className="flex items-center justify-center h-48 text-[#5B7A8C] text-sm gap-2.5">
-            <div className="w-4 h-4 border-2 border-[#D0E4EC] border-t-[#1E8FA8] rounded-full animate-spin" />
+            <div className="w-4 h-4 border-2 border-[#D0E4EC] border-t-[#2BB9B8] rounded-full animate-spin" />
             Cargando…
           </div>
         )}
@@ -2922,7 +2923,7 @@ function ArmadorCarritosInner() {
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Marca</span>
                   <select value={filterBrand} onChange={e => setFilterBrand(e.target.value)}
-                    className="border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] bg-white max-w-[180px]">
+                    className="border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#2BB9B8] bg-white max-w-[180px]">
                     <option value="">Todas</option>
                     {availableBrands.map(b => <option key={b} value={b}>{b}</option>)}
                   </select>
@@ -2948,7 +2949,7 @@ function ArmadorCarritosInner() {
                 <div className="flex gap-1">
                   {[["Todas", 0], ["5%+", 5], ["10%+", 10], ["15%+", 15]].map(([label, val]) => (
                     <button key={val} onClick={() => setFilterMinComm(val)}
-                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors ${filterMinComm === val ? "bg-[#1E8FA8] text-white border-[#1E8FA8]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#1E8FA8]"}`}>
+                      className={`text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors ${filterMinComm === val ? "bg-[#2BB9B8] text-[#0D2133] border-[#2BB9B8]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#2BB9B8]"}`}>
                       {label}
                     </button>
                   ))}
@@ -2965,11 +2966,11 @@ function ArmadorCarritosInner() {
                   <span className="text-xs text-[#B0C8D4]">$</span>
                   <input type="number" placeholder="Desde" value={filterPriceMin}
                     onChange={e => setFilterPriceMin(e.target.value)}
-                    className="w-20 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] tabular-nums" />
+                    className="w-20 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#2BB9B8] tabular-nums" />
                   <span className="text-xs text-[#B0C8D4]">—</span>
                   <input type="number" placeholder="Hasta" value={filterPriceMax}
                     onChange={e => setFilterPriceMax(e.target.value)}
-                    className="w-20 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#1E8FA8] tabular-nums" />
+                    className="w-20 border border-[#D0E4EC] rounded-lg px-2 py-1.5 text-xs text-[#1b3f7a] focus:outline-none focus:border-[#2BB9B8] tabular-nums" />
                 </div>
               </div>
 
@@ -2988,13 +2989,13 @@ function ArmadorCarritosInner() {
             {/* Breadcrumb trail de nivel — visible cuando venimos de clic en categoría */}
             {levelCtx?.trail?.length > 0 && (
               <nav className="flex items-center gap-1 flex-wrap mb-3 -mt-1">
-                <button onClick={handleHome} className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">Inicio</button>
+                <button onClick={handleHome} className="text-[11px] text-[#8AAAB8] hover:text-[#1F8383] transition-colors font-medium">Inicio</button>
                 {levelCtx.trail.map((step, i) => (
                   <span key={i} className="flex items-center gap-1">
                     <span className="text-[#C2DFE8] text-[11px]">›</span>
                     {i < levelCtx.trail.length - 1
                       ? <button onClick={() => handleBreadcrumb(step.field, step.value, { level_1: levelCtx.trail[0]?.value, level_2: levelCtx.trail[1]?.value, level_3: levelCtx.trail[2]?.value })}
-                          className="text-[11px] text-[#8AAAB8] hover:text-[#1E8FA8] transition-colors font-medium">{step.label}</button>
+                          className="text-[11px] text-[#8AAAB8] hover:text-[#1F8383] transition-colors font-medium">{step.label}</button>
                       : <span className="text-[11px] text-[#1b3f7a] font-semibold">{step.label}</span>
                     }
                   </span>
@@ -3034,7 +3035,7 @@ function ArmadorCarritosInner() {
               <div className="text-center py-12 text-[#B0C8D4]">
                 <Package size={32} className="mx-auto mb-2" />
                 <p className="text-sm font-medium">Sin productos con esos filtros</p>
-                <button onClick={clearFilters} className="mt-3 text-xs text-[#1E8FA8] font-semibold hover:underline">
+                <button onClick={clearFilters} className="mt-3 text-xs text-[#1F8383] font-semibold hover:underline">
                   Limpiar filtros
                 </button>
               </div>

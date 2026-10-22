@@ -162,7 +162,7 @@ export default function BookingPage() {
         {/* Step 0: Elegir servicio */}
         {step === STEPS.SERVICE && (
           <div className="space-y-3">
-            <h2 className="text-gray-700 font-medium text-sm mb-4">¿Qué servicio necesitás?</h2>
+            <h2 className="text-gray-700 font-medium text-sm mb-4">¿Qué servicio necesitas?</h2>
             {services.map((s) => (
               <button
                 key={s.id}
@@ -202,7 +202,7 @@ export default function BookingPage() {
             <div className="bg-white rounded-2xl p-4 shadow-sm">
               <div className="flex items-center gap-2 mb-4">
                 <button onClick={() => setStep(STEPS.SERVICE)} className="text-gray-400 hover:text-gray-600 text-sm">← Volver</button>
-                <h2 className="text-gray-700 font-medium text-sm flex-1">Elegí una fecha</h2>
+                <h2 className="text-gray-700 font-medium text-sm flex-1">Elige una fecha</h2>
               </div>
 
               {/* Navegación de mes */}

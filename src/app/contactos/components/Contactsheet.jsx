@@ -98,7 +98,7 @@ export default function Contactsheet({ data, specialistId }) {
                     </span>
                   )}
                   {compro ? (
-                    <span className="text-[10px] font-semibold text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <span className="text-[10px] font-semibold text-[#1F8383] bg-[#E6F4F8] border border-[#C2DFE8] px-2 py-0.5 rounded-full flex items-center gap-1">
                       <ShoppingBag size={9} /> {c.cantidad_ordenes} compra{c.cantidad_ordenes !== 1 ? "s" : ""}
                     </span>
                   ) : (
@@ -112,13 +112,13 @@ export default function Contactsheet({ data, specialistId }) {
 
               {/* Ganancia + detalle */}
               <div className="flex flex-col items-end gap-1.5 shrink-0">
-                <span className={`text-sm font-extrabold tabular-nums ${compro ? "text-[#1E8FA8]" : "text-[#D0E4EC]"}`}>
+                <span className={`text-sm font-extrabold tabular-nums ${compro ? "text-[#1F8383]" : "text-[#D0E4EC]"}`}>
                   {fmtMXN(c.ganancia_total)}
                 </span>
                 {c.email_cliente && (
                   <button
                     onClick={() => setAbierto(expandido ? null : clave)}
-                    className="text-[11px] font-semibold text-[#1E8FA8] hover:text-[#1b3f7a] transition-colors flex items-center gap-1"
+                    className="text-[11px] font-semibold text-[#1F8383] hover:text-[#1b3f7a] transition-colors flex items-center gap-1"
                   >
                     {expandido ? "Ocultar" : "Detalles"}
                     <ChevronDown size={11} className={expandido ? "rotate-180 transition-transform" : "transition-transform"} />

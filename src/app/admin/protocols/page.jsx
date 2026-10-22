@@ -1,4 +1,5 @@
 "use client";
+import { sanitizarHtml } from "@/lib/sanitizarHtml";
 import { useState, useEffect, useCallback, useRef } from "react";
 import {
   Plus, Trash2, ChevronDown, ChevronUp, Save,
@@ -49,7 +50,7 @@ function ProductPreviewModal({ productId, title, onClose }) {
           ) : (
             <div
               className="prose prose-sm max-w-none text-gray-700 [&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-gray-200 [&_td]:px-2 [&_td]:py-1 [&_th]:border [&_th]:border-gray-200 [&_th]:px-2 [&_th]:py-1 [&_th]:bg-gray-50 [&_th]:font-semibold"
-              dangerouslySetInnerHTML={{ __html: html }}
+              dangerouslySetInnerHTML={{ __html: sanitizarHtml(html) }}
             />
           )}
         </div>
@@ -87,7 +88,7 @@ function ProductCard({ product, selected, onToggle }) {
             <div className="w-full h-full flex items-center justify-center text-gray-200"><Package size={32} /></div>
           )}
           {product.is_professional && (
-            <span className="absolute top-2 left-2 bg-[#1e8fa8] text-white text-sm font-normal px-3 py-1.5 rounded-full shadow-md ring-2 ring-white/60 tracking-widest leading-none">PRO</span>
+            <span className="absolute top-2 left-2 bg-[#2BB9B8] text-[#0D2133] text-sm font-normal px-3 py-1.5 rounded-full shadow-md ring-2 ring-white/60 tracking-widest leading-none">PRO</span>
           )}
           {selected && (
             <div className="absolute top-2 right-2 w-6 h-6 bg-[#1e3a5f] rounded-full flex items-center justify-center shadow-md">
@@ -109,7 +110,7 @@ function ProductCard({ product, selected, onToggle }) {
         {/* Info */}
         <div className="p-2.5 flex-1">
           <p className="text-xs font-semibold text-gray-800 line-clamp-2 leading-snug">{product.title}</p>
-          {product.brand && <p className="text-[11px] text-[#1e8fa8] mt-1 truncate font-medium">{product.brand}</p>}
+          {product.brand && <p className="text-[11px] text-[#1F8383] mt-1 truncate font-medium">{product.brand}</p>}
           {product.primary_ingredient && (
             <p className="text-[11px] text-emerald-700 bg-emerald-50 rounded px-1.5 py-0.5 mt-1.5 truncate font-medium">
               {product.primary_ingredient}{product.primary_amount ? ` ${product.primary_amount}${product.primary_unit ?? ''}` : ''}
@@ -274,7 +275,7 @@ function ComponentEditor({ comp, index, onUpdate, onRemove, componentes }) {
                 <div className="max-h-36 overflow-y-auto">
                   {!compSearch && (
                     <p className="text-xs text-gray-400 px-1 mb-1.5">
-                      Más populares · <span className="italic">buscá para ver todos</span>
+                      Más populares · <span className="italic">busca para ver todos</span>
                     </p>
                   )}
                   <div className="flex flex-wrap gap-1.5 p-1">
@@ -418,17 +419,17 @@ function LibreEditor({ comp, index, onUpdate, onRemove }) {
   };
 
   return (
-    <div className="border border-[#1e8fa8]/40 rounded-xl overflow-hidden bg-white">
+    <div className="border border-[#2BB9B8]/40 rounded-xl overflow-hidden bg-white">
       {/* Header */}
-      <div className="flex items-center gap-3 px-4 py-3 bg-[#1e8fa8]/5 border-b border-[#1e8fa8]/20">
-        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#1e8fa8] text-white text-[10px] font-bold uppercase tracking-wide shrink-0">
+      <div className="flex items-center gap-3 px-4 py-3 bg-[#2BB9B8]/5 border-b border-[#2BB9B8]/20">
+        <span className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-[#2BB9B8] text-[#0D2133] text-[10px] font-bold uppercase tracking-wide shrink-0">
           <Shuffle size={10} /> Libre
         </span>
         <input
           value={comp.label || ""}
           onChange={e => onUpdate({ ...comp, label: e.target.value })}
           placeholder="Etiqueta (opcional)"
-          className="flex-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-[#1e8fa8] min-w-0"
+          className="flex-1 text-sm text-gray-700 bg-white border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-[#2BB9B8] min-w-0"
         />
         <button onClick={() => setOpen(o => !o)} className="text-gray-400 hover:text-gray-600">
           {open ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
@@ -446,7 +447,7 @@ function LibreEditor({ comp, index, onUpdate, onRemove }) {
               {comp.items.map(i => (
                 <span
                   key={i.product_id}
-                  className="flex items-center gap-1 px-2.5 py-1 bg-[#1e8fa8]/10 text-[#1e8fa8] rounded-full text-xs font-medium"
+                  className="flex items-center gap-1 px-2.5 py-1 bg-[#2BB9B8]/10 text-[#1F8383] rounded-full text-xs font-medium"
                 >
                   {i.title}
                   {i.variants?.length > 1 ? ` · ${i.variants.length} var.` : ""}
@@ -465,7 +466,7 @@ function LibreEditor({ comp, index, onUpdate, onRemove }) {
               value={search}
               onChange={handleSearchChange}
               placeholder="Buscar producto por nombre..."
-              className="w-full pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-[#1e8fa8] bg-white"
+              className="w-full pl-8 pr-8 py-2 text-sm border border-gray-200 rounded-lg outline-none focus:border-[#2BB9B8] bg-white"
             />
             {search && (
               <button
@@ -759,7 +760,7 @@ function ProtocolForm({ onSaved, onCancel }) {
           </button>
           <button
             onClick={addLibre}
-            className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#1e8fa8]/40 rounded-xl text-sm text-[#1e8fa8]/70 hover:border-[#1e8fa8] hover:text-[#1e8fa8] transition-colors"
+            className="flex items-center justify-center gap-2 py-3 border-2 border-dashed border-[#2BB9B8]/40 rounded-xl text-sm text-[#1F8383]/70 hover:border-[#2BB9B8] hover:text-[#1F8383] transition-colors"
           >
             <Shuffle size={16} /> Selector libre
           </button>
@@ -861,7 +862,7 @@ export default function ProtocolsAdminPage() {
               return (
                 <div key={p.id} className="bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
                   {/* Accent bar */}
-                  <div className="h-1 bg-gradient-to-r from-[#1e3a5f] to-[#1e8fa8]" />
+                  <div className="h-1 bg-gradient-to-r from-[#1e3a5f] to-[#2BB9B8]" />
 
                   <div className="p-4 flex-1 flex flex-col gap-3">
                     {/* Nombre + visibilidad + delete */}
@@ -871,7 +872,7 @@ export default function ProtocolsAdminPage() {
                           {p.name}
                         </h3>
                         {p.owner_name && (
-                          <p className="text-[10px] text-[#1e8fa8] font-medium mt-0.5 flex items-center gap-1">
+                          <p className="text-[10px] text-[#1F8383] font-medium mt-0.5 flex items-center gap-1">
                             <User size={9} />
                             {p.owner_name}
                           </p>
@@ -893,7 +894,7 @@ export default function ProtocolsAdminPage() {
                       {(p.components || []).map((c, i) => (
                         <span
                           key={i}
-                          className="text-[10px] font-medium bg-[#1e8fa8]/10 text-[#1e8fa8] px-2 py-0.5 rounded-full"
+                          className="text-[10px] font-medium bg-[#2BB9B8]/10 text-[#1F8383] px-2 py-0.5 rounded-full"
                         >
                           {c.label || c.componente}
                           {c.items?.length ? ` · ${c.items.length}` : ''}

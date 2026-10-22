@@ -34,7 +34,7 @@ export default function RutaProgreso() {
         <h2 className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">
           Tus primeros pasos
         </h2>
-        <span className="text-[11px] font-bold text-[#1E8FA8] tabular-nums">
+        <span className="text-[11px] font-bold text-[#1F8383] tabular-nums">
           {data.nivel} de {data.total}
         </span>
       </div>
@@ -52,15 +52,15 @@ export default function RutaProgreso() {
               {/* Conector hacia el paso anterior */}
               {i > 0 && (
                 <span className={`absolute top-[13px] right-1/2 w-full h-[2px] ${
-                  previoHecho ? "bg-[#1E8FA8]" : "bg-[#E3ECF1]"}`} />
+                  previoHecho ? "bg-[#2BB9B8]" : "bg-[#E3ECF1]"}`} />
               )}
 
               {/* Punto */}
               <span className={`relative z-10 w-7 h-7 rounded-full border-2 flex items-center justify-center
                 text-[11px] font-extrabold tabular-nums transition-all ${
                 paso.done
-                  ? "bg-[#1E8FA8] border-[#1E8FA8] text-white shadow-[0_0_14px_2px_rgba(30,143,168,0.45)]"
-                  : "bg-white border-[#D0E4EC] text-[#B0C8D4] group-hover:border-[#1E8FA8] group-hover:text-[#1E8FA8]"
+                  ? "bg-[#2BB9B8] border-[#2BB9B8] text-[#0D2133] shadow-[0_0_14px_2px_rgba(43,185,184,0.45)]"
+                  : "bg-white border-[#D0E4EC] text-[#B0C8D4] group-hover:border-[#2BB9B8] group-hover:text-[#1F8383]"
               }`}>
                 {paso.done ? <Check size={14} strokeWidth={3} /> : i + 1}
               </span>

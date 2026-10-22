@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { idDeSesion } from "@/lib/sesionWeb";
 
 export default function proxy(req) {
   const { pathname } = req.nextUrl;
@@ -9,7 +10,7 @@ export default function proxy(req) {
     return NextResponse.next();
   }
 
-  const customerId = req.cookies.get("customerId")?.value;
+  const customerId = idDeSesion(req.cookies);
   const ADMIN_IDS = process.env.ADMIN_IDS?.split(",") || [];
   const isAdmin =
     customerId && ADMIN_IDS.map((id) => id.trim()).includes(customerId.trim());

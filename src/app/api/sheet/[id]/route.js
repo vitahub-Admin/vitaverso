@@ -1,10 +1,11 @@
 import { NextResponse } from "next/server";
 import { google } from "googleapis";
+import { idDeSesion } from "@/lib/sesionWeb";
 
 export async function GET(req) {
   try {
     // Leer customerId desde cookie
-    const customerId = req.cookies.get("customerId")?.value;
+    const customerId = idDeSesion(req.cookies);
 
     if (!customerId) {
       return NextResponse.json(

@@ -29,7 +29,7 @@ export async function POST(req) {
     }
 
     if (new Date(affiliate.verify_code_expires_at) < new Date()) {
-      return NextResponse.json({ ok: false, error: 'El código expiró, solicitá uno nuevo' }, { status: 400 });
+      return NextResponse.json({ ok: false, error: 'El código expiró, solicita uno nuevo' }, { status: 400 });
     }
 
     await supabase

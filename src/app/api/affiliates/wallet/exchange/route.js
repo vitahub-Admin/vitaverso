@@ -64,7 +64,7 @@ export async function POST(req) {
       .eq('status', 'pending')
       .limit(1);
 
-    if (pending?.length > 0) return NextResponse.json({ success: false, message: 'Ya tenés una solicitud pendiente' }, { status: 400 });
+    if (pending?.length > 0) return NextResponse.json({ success: false, message: 'Ya tienes una solicitud pendiente' }, { status: 400 });
 
     const { data: transactions } = await supabase
       .from('point_transactions_live')

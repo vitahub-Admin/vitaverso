@@ -154,7 +154,7 @@ export default function TourOverlay({ step, index, total, isLast, onNext, onPrev
           width:      rect.width + SPOT_PAD * 2,
           height:     rect.height + SPOT_PAD * 2,
           boxShadow:  "0 0 0 9999px rgba(13,33,51,0.72)",
-          outline:    "2px solid #1E8FA8",
+          outline:    "2px solid #2BB9B8",
           outlineOffset: "-2px",
         }}
       />
@@ -166,7 +166,7 @@ export default function TourOverlay({ step, index, total, isLast, onNext, onPrev
         style={cardStyle}
       >
         <div className="flex items-start justify-between gap-3 mb-2">
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8]">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383]">
             Paso {index + 1} de {total}
           </span>
           <button onClick={onSkip} aria-label="Salir del tour"
@@ -180,7 +180,7 @@ export default function TourOverlay({ step, index, total, isLast, onNext, onPrev
 
         {/* Progreso */}
         <div className="h-1 bg-[#EEF3F7] rounded-full mt-4 mb-3.5">
-          <div className="h-full bg-[#1E8FA8] rounded-full transition-all duration-300"
+          <div className="h-full bg-[#2BB9B8] rounded-full transition-all duration-300"
             style={{ width: `${((index + 1) / total) * 100}%` }} />
         </div>
 

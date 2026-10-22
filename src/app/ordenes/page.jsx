@@ -79,7 +79,7 @@ export default function OrdenesPage() {
             <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">
               Órdenes
             </h1>
-            <p className="text-sm text-gray-400 font-medium">Seguí tus ventas y ganancias</p>
+            <p className="text-sm text-gray-400 font-medium">Sigue tus ventas y ganancias</p>
           </div>
 
           {/* Filtros de fecha */}

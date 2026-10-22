@@ -1,5 +1,6 @@
 import jwt from "jsonwebtoken";
 import { NextResponse } from "next/server";
+import { idDeSesion } from "@/lib/sesionWeb";
 
 const SECRET = process.env.SHOPIFY_TOKEN_SECRET;
 
@@ -77,7 +78,7 @@ export async function resolveCustomerId(req) {
   try {
     const { cookies } = await import("next/headers");
     const cookieStore = await cookies();
-    const val = cookieStore.get("customerId")?.value;
+    const val = idDeSesion(cookieStore);
     if (val) return Number(val);
   } catch {}
 

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
+import { idDeSesion } from "@/lib/sesionWeb";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -16,7 +17,7 @@ function extractShopifyId(gid) {
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const customerId = cookieStore.get("customerId")?.value;
+    const customerId = idDeSesion(cookieStore);
     if (!customerId) {
       return NextResponse.json({ success: false, message: "No hay sesión activa" }, { status: 401 });
     }

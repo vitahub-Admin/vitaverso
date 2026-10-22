@@ -24,7 +24,7 @@ function ReviewModal({ show, onClose, comment, onCommentChange, onSubmit, loadin
         <button onClick={onClose} className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition">
           <X size={20} />
         </button>
-        <h3 className="text-xl font-extrabold text-[#1b3f7a] mb-1 text-center">Dejá tu reseña</h3>
+        <h3 className="text-xl font-extrabold text-[#1b3f7a] mb-1 text-center">Deja tu reseña</h3>
         <p className="text-xs text-gray-400 text-center mb-5">
           Contale a la comunidad qué te parece VitaHub como plataforma de compra.
         </p>
@@ -460,7 +460,7 @@ export default function MiTiendaPage() {
             <div className="bg-white border border-gray-100 rounded-2xl p-5 shadow-sm">
               <SectionLabel>Reseña</SectionLabel>
               <p className="text-sm text-gray-600 leading-snug mb-3">
-                Tus seguidores confían en vos. Comparte tu opinión sobre VitaHub y convierte tu respaldo en confianza real para tu comunidad.
+                Tus seguidores confían en ti. Comparte tu opinión sobre VitaHub y convierte tu respaldo en confianza real para tu comunidad.
               </p>
               <button
                 onClick={() => setShowReviewModal(true)}

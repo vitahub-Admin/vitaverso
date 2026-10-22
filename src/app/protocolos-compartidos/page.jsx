@@ -43,7 +43,7 @@ const soloDigitos = (v) => String(v || "").replace(/\D/g, "");
 const DESDE = "2026-01-01";
 
 const ETIQUETA_ORIGEN = {
-  armador: { label: "Armador", clase: "bg-[#E6F4F8] text-[#1E8FA8] border-[#C2DFE8]" },
+  armador: { label: "Armador", clase: "bg-[#E6F4F8] text-[#1F8383] border-[#C2DFE8]" },
   puente:  { label: "Desde la tienda", clase: "bg-amber-50 text-amber-700 border-amber-200" },
   tienda:  { label: "Tienda", clase: "bg-[#F7F9FB] text-[#5B7A8C] border-[#D0E4EC]" },
 };
@@ -53,7 +53,7 @@ function StatCard({ icon: Icon, label, value, accent }) {
     <div className="bg-white border border-[#D0E4EC] rounded-2xl p-4 flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-xl bg-[#E6F4F8] flex items-center justify-center">
-          <Icon size={16} className="text-[#1E8FA8]" />
+          <Icon size={16} className="text-[#1F8383]" />
         </div>
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">
           {label}
@@ -75,12 +75,12 @@ function GuardadoCard({ protocolo, onAbrir, onBorrar }) {
     .toLocaleDateString("es-MX", { day: "numeric", month: "short" });
 
   return (
-    <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 flex items-start justify-between gap-3 hover:border-[#1E8FA8] transition-colors">
+    <div className="bg-white border border-[#D0E4EC] rounded-xl p-4 flex items-start justify-between gap-3 hover:border-[#2BB9B8] transition-colors">
       <button onClick={() => onAbrir(protocolo)} className="text-left flex-1 min-w-0">
         <p className="text-sm font-bold text-[#1b3f7a] leading-snug line-clamp-2">
           {protocolo.name}
           {protocolo.es_ejemplo && (
-            <span className="ml-2 align-middle text-[9px] font-extrabold uppercase tracking-widest text-[#1E8FA8] bg-[#E6F4F8] border border-[#C2DFE8] px-1.5 py-0.5 rounded">
+            <span className="ml-2 align-middle text-[9px] font-extrabold uppercase tracking-widest text-[#1F8383] bg-[#E6F4F8] border border-[#C2DFE8] px-1.5 py-0.5 rounded">
               Ejemplo
             </span>
           )}
@@ -90,7 +90,7 @@ function GuardadoCard({ protocolo, onAbrir, onBorrar }) {
             ? `${productos} producto${productos !== 1 ? "s" : ""} · armado por Vitahub`
             : `${productos} producto${productos !== 1 ? "s" : ""} · ${fecha}`}
         </p>
-        <p className="text-[11px] font-semibold text-[#1E8FA8] mt-2 flex items-center gap-1">
+        <p className="text-[11px] font-semibold text-[#1F8383] mt-2 flex items-center gap-1">
           Abrir en el armador <ChevronRight size={11} />
         </p>
       </button>
@@ -127,7 +127,7 @@ function PanelGuardados({ titulo, ayuda, icono: Icono, lista, vacio, pista, onAb
   return (
     <section>
       <div className="flex items-center gap-2 mb-1">
-        <Icono size={14} className="text-[#1E8FA8]" />
+        <Icono size={14} className="text-[#1F8383]" />
         <h2 className="text-sm font-bold text-[#1b3f7a]">{titulo}</h2>
       </div>
       <p className="text-xs text-[#5B7A8C] mb-3">{ayuda}</p>
@@ -229,7 +229,7 @@ export default function ProtocolosCompartidos() {
     return (
       <div className="min-h-full bg-[#F7F9FB] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-[#B0C8D4]">
-          <div className="w-8 h-8 rounded-full border-[3px] border-[#D0E4EC] border-t-[#1E8FA8] animate-spin" />
+          <div className="w-8 h-8 rounded-full border-[3px] border-[#D0E4EC] border-t-[#2BB9B8] animate-spin" />
           <p className="text-sm">Cargando protocolos…</p>
         </div>
       </div>
@@ -260,7 +260,7 @@ export default function ProtocolosCompartidos() {
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all shrink-0 ${
                 tab === t.key
                   ? "bg-[#1b3f7a] text-white"
-                  : "bg-white border border-[#D0E4EC] text-[#5B7A8C] hover:border-[#1E8FA8]"
+                  : "bg-white border border-[#D0E4EC] text-[#5B7A8C] hover:border-[#2BB9B8]"
               }`}>
               <t.icon size={13} />
               {t.label} <span className="tabular-nums opacity-60">{t.n}</span>
@@ -274,7 +274,7 @@ export default function ProtocolosCompartidos() {
             <StatCard icon={CheckCircle2} label="Con venta"       value={stats.vendidos}
               accent="text-emerald-600" />
             <StatCard icon={TrendingUp}   label="Valor generado"  value={fmtMXN(stats.valor)}
-              accent="text-[#1E8FA8]" />
+              accent="text-[#1F8383]" />
           </div>
         )}
 
@@ -286,7 +286,7 @@ export default function ProtocolosCompartidos() {
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     filtro === p.key
                       ? "bg-[#1b3f7a] text-white"
-                      : "bg-white border border-[#D0E4EC] text-[#5B7A8C] hover:border-[#1E8FA8]"
+                      : "bg-white border border-[#D0E4EC] text-[#5B7A8C] hover:border-[#2BB9B8]"
                   }`}>
                   {p.label} <span className="tabular-nums opacity-60">{p.n}</span>
                 </button>
@@ -298,7 +298,7 @@ export default function ProtocolosCompartidos() {
               value={origen}
               onChange={e => setOrigen(e.target.value)}
               className="bg-white border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-xs font-semibold
-                text-[#5B7A8C] focus:outline-none focus:border-[#1E8FA8]"
+                text-[#5B7A8C] focus:outline-none focus:border-[#2BB9B8]"
             >
               <option value="todos">Todos los orígenes</option>
               <option value="armador">Armador ({carts.filter(c => c._origen === "armador").length})</option>
@@ -313,7 +313,7 @@ export default function ProtocolosCompartidos() {
                 onChange={e => setBusqueda(e.target.value)}
                 placeholder="Buscar por paciente o teléfono…"
                 className="w-full bg-white border border-[#D0E4EC] rounded-lg pl-9 pr-3 py-1.5 text-xs
-                  text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#1E8FA8]"
+                  text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]"
               />
             </div>
           </div>
@@ -336,7 +336,7 @@ export default function ProtocolosCompartidos() {
             {visibles.length > mostrados.length && (
               <button
                 onClick={() => setCuantos(c => c + 60)}
-                className="w-full border border-[#D0E4EC] bg-white text-[#1E8FA8] text-xs font-semibold py-2.5 rounded-xl hover:border-[#1E8FA8] transition-colors"
+                className="w-full border border-[#D0E4EC] bg-white text-[#1F8383] text-xs font-semibold py-2.5 rounded-xl hover:border-[#2BB9B8] transition-colors"
               >
                 Ver más · quedan {visibles.length - mostrados.length}
               </button>

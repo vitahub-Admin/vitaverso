@@ -177,7 +177,7 @@ export default function MisCarritosMerge() {
   const walletBalance  = walletData?.wallet?.available ?? 0;
 
   const chartColor1 = "#1b3f7a";
-  const chartColor2 = "#1e8fa8";
+  const chartColor2 = "#2BB9B8";
 
   return (
     <div className="min-h-screen bg-[#F7F9FB]">
@@ -215,7 +215,7 @@ export default function MisCarritosMerge() {
             icon={TrendingUp}
             label="Valor total generado"
             value={fmtMXN(totalValor)}
-            accent="bg-[#1e8fa8]"
+            accent="bg-[#2BB9B8]"
           />
           <StatCard
             icon={DollarSign}

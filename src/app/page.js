@@ -20,7 +20,7 @@ export default function LandingPage() {
         </div>
 
         <p className="text-blue-100 max-w-md text-base leading-relaxed mb-10">
-          Gestioná tus comisiones, agenda de citas, contactos y accedé a capacitaciones
+          Gestiona tus comisiones, agenda de citas, contactos y accede a capacitaciones
           exclusivas — todo en un solo lugar.
         </p>
 

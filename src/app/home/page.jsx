@@ -30,7 +30,7 @@ function fmtRelative(iso) {
 function notifIcon(data) {
   const type = data?.type || "";
   if (type.includes("recompra")) return { icon: RotateCcw, color: "text-purple-500", bg: "bg-purple-50" };
-  if (type.includes("commission") || type.includes("earning")) return { icon: ShoppingCart, color: "text-[#1E8FA8]", bg: "bg-[#E6F4F8]" };
+  if (type.includes("commission") || type.includes("earning")) return { icon: ShoppingCart, color: "text-[#1F8383]", bg: "bg-[#E6F4F8]" };
   if (type.includes("credit") || type.includes("retiro") || type.includes("exchange")) return { icon: Wallet, color: "text-emerald-500", bg: "bg-emerald-50" };
   return { icon: Bell, color: "text-[#5B7A8C]", bg: "bg-[#F7F9FB]" };
 }
@@ -59,7 +59,7 @@ function WeekChart({ sharecarts }) {
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Última semana</p>
           <p className="text-lg font-extrabold text-[#1b3f7a] mt-0.5">Protocolos compartidos</p>
         </div>
-        <Link href="/mis-carritos-merge" className="text-xs text-[#1E8FA8] font-semibold hover:underline flex items-center gap-1">
+        <Link href="/mis-carritos-merge" className="text-xs text-[#1F8383] font-semibold hover:underline flex items-center gap-1">
           Ver todo <ChevronRight size={12} />
         </Link>
       </div>
@@ -72,7 +72,7 @@ function WeekChart({ sharecarts }) {
         </div>
         <div className="flex-1 bg-[#F7F9FB] rounded-xl px-3 py-2.5">
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Convertidos</p>
-          <p className="text-2xl font-extrabold text-[#1E8FA8] tabular-nums mt-0.5">{totalConv}</p>
+          <p className="text-2xl font-extrabold text-[#1F8383] tabular-nums mt-0.5">{totalConv}</p>
         </div>
         <div className="flex-1 bg-[#F7F9FB] rounded-xl px-3 py-2.5">
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Tasa</p>
@@ -90,7 +90,7 @@ function WeekChart({ sharecarts }) {
               <div className="w-full flex flex-col justify-end rounded-t-sm overflow-hidden" style={{ height: "44px" }}>
                 <div className="w-full bg-[#D0E4EC] rounded-t-sm relative" style={{ height: `${Math.max(pct * 44, d.total > 0 ? 4 : 0)}px` }}>
                   {d.converted > 0 && (
-                    <div className="absolute bottom-0 w-full bg-[#1E8FA8] rounded-t-sm"
+                    <div className="absolute bottom-0 w-full bg-[#2BB9B8] rounded-t-sm"
                       style={{ height: `${convPct * 100}%` }} />
                   )}
                 </div>
@@ -102,7 +102,7 @@ function WeekChart({ sharecarts }) {
       </div>
       <div className="flex items-center gap-3 text-[10px] text-[#5B7A8C]">
         <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#D0E4EC] inline-block" /> Enviados</span>
-        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#1E8FA8] inline-block" /> Convertidos</span>
+        <span className="flex items-center gap-1"><span className="w-2.5 h-2.5 rounded-sm bg-[#2BB9B8] inline-block" /> Convertidos</span>
       </div>
     </div>
   );
@@ -164,7 +164,7 @@ function NovedadesPanel({ noticias, lastSeenId }) {
           <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Comunidad</p>
           <p className="text-lg font-extrabold text-[#1b3f7a] mt-0.5">Novedades</p>
         </div>
-        <Link href="/notificaciones" className="text-xs text-[#1E8FA8] font-semibold hover:underline flex items-center gap-1">
+        <Link href="/notificaciones" className="text-xs text-[#1F8383] font-semibold hover:underline flex items-center gap-1">
           Ver todas <ChevronRight size={12} />
         </Link>
       </div>
@@ -288,7 +288,7 @@ export default function HomePage() {
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center">
-                  <Wallet size={16} className="text-[#1E8FA8]" />
+                  <Wallet size={16} className="text-[#1F8383]" />
                 </div>
                 <span className="text-[10px] font-extrabold uppercase tracking-widest text-white/60">Mi Wallet</span>
               </div>
@@ -317,18 +317,18 @@ export default function HomePage() {
           {/* Descarga de la app — el aviso conviene verlo antes de necesitarlo,
               no recién cuando alguien va a retirar */}
           <p className="text-[10px] text-[#1b3f7a] leading-snug px-0.5">
-            <span className="font-extrabold uppercase tracking-wider text-[#1E8FA8]">Próximamente</span>
+            <span className="font-extrabold uppercase tracking-wider text-[#1F8383]">Próximamente</span>
             {" "}los retiros y las notificaciones van a funcionar solo desde la app.
           </p>
           <div className="flex items-center gap-2">
             <a href="https://play.google.com/store/apps/details?id=mx.vitahub.afiliados&syclid=d9188r1e4rqs73btcu40"
               target="_blank" rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#D0E4EC] bg-white text-[11px] font-bold text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#1b3f7a] transition-all">
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#D0E4EC] bg-white text-[11px] font-bold text-[#5B7A8C] hover:border-[#2BB9B8] hover:text-[#1b3f7a] transition-all">
               <Smartphone size={13} /> Android
             </a>
             <a href="https://apps.apple.com/us/app/vitahub-pro/id6779682915"
               target="_blank" rel="noopener noreferrer"
-              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#D0E4EC] bg-white text-[11px] font-bold text-[#5B7A8C] hover:border-[#1E8FA8] hover:text-[#1b3f7a] transition-all">
+              className="flex-1 flex items-center justify-center gap-1.5 py-2 rounded-xl border border-[#D0E4EC] bg-white text-[11px] font-bold text-[#5B7A8C] hover:border-[#2BB9B8] hover:text-[#1b3f7a] transition-all">
               <Smartphone size={13} /> iOS
             </a>
           </div>
@@ -337,15 +337,15 @@ export default function HomePage() {
 
           {/* Acceso rápido al armador */}
           <Link href="/armador-carritos"
-            className="group bg-white border border-[#D0E4EC] rounded-2xl p-4 flex flex-col justify-between gap-2 hover:border-[#1E8FA8]/40 hover:shadow-sm transition-all sm:min-w-[168px]">
+            className="group bg-white border border-[#D0E4EC] rounded-2xl p-4 flex flex-col justify-between gap-2 hover:border-[#2BB9B8]/40 hover:shadow-sm transition-all sm:min-w-[168px]">
             <div className="w-8 h-8 rounded-xl bg-[#E6F4F8] flex items-center justify-center">
-              <ShoppingCart size={16} className="text-[#1E8FA8]" />
+              <ShoppingCart size={16} className="text-[#1F8383]" />
             </div>
             <div>
               <p className="text-sm font-bold text-[#1b3f7a] leading-snug">Armar protocolo</p>
               <p className="text-[11px] text-[#5B7A8C] mt-0.5">Crear y enviar</p>
             </div>
-            <ChevronRight size={14} className="text-[#B0C8D4] group-hover:text-[#1E8FA8] group-hover:translate-x-0.5 transition-all" />
+            <ChevronRight size={14} className="text-[#B0C8D4] group-hover:text-[#1F8383] group-hover:translate-x-0.5 transition-all" />
           </Link>
 
         </div>
@@ -366,7 +366,7 @@ export default function HomePage() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
           {loadingCarts
             ? <div className="bg-white border border-[#D0E4EC] rounded-2xl p-5 h-48 flex items-center justify-center">
-                <div className="w-5 h-5 border-2 border-[#D0E4EC] border-t-[#1E8FA8] rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-[#D0E4EC] border-t-[#2BB9B8] rounded-full animate-spin" />
               </div>
             : <WeekChart sharecarts={sharecarts} />
           }

@@ -10,7 +10,8 @@ export default function Header() {
   const { customer, loading } = useCustomer();
   const router = useRouter();
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await fetch("/api/sesion", { method: "DELETE" }).catch(() => {});
     Cookies.remove("customerId");
     Cookies.remove("proJwt");
     router.replace("/");

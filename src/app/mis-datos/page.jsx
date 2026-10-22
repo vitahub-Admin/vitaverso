@@ -41,7 +41,7 @@ export default function PerfilAfiliado() {
     try {
       const userId = Cookies.get("customerId");
       if (!userId) {
-        setMessage({ type: "error", text: "No hay sesión activa. Por favor, iniciá sesión." });
+        setMessage({ type: "error", text: "No hay sesión activa. Por favor, inicia sesión." });
         setLoading(false);
         return;
       }
@@ -65,7 +65,7 @@ export default function PerfilAfiliado() {
 
   const handleSave = async () => {
     const userId = Cookies.get("customerId");
-    if (!userId) { setMessage({ type: "error", text: "Sesión expirada. Recargá la página." }); return; }
+    if (!userId) { setMessage({ type: "error", text: "Sesión expirada. Recarga la página." }); return; }
 
     setSaving(true);
     setMessage(null);
@@ -225,7 +225,7 @@ export default function PerfilAfiliado() {
                 La CLABE es <strong className="text-gray-700">obligatoria</strong> para procesar tus pagos y depositar tus ganancias correctamente.
               </p>
               <p className="text-xs text-gray-400">
-                Asegurate de que sea correcta — si está mal, el pago será rechazado por el banco.
+                Asegúrate de que sea correcta — si está mal, el pago será rechazado por el banco.
               </p>
             </div>
           </div>

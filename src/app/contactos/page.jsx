@@ -21,7 +21,7 @@ function StatCard({ icon: Icon, label, value, accent }) {
     <div className="bg-white border border-[#D0E4EC] rounded-2xl p-4 flex flex-col gap-3">
       <div className="flex items-center gap-2">
         <div className="w-8 h-8 rounded-xl bg-[#E6F4F8] flex items-center justify-center">
-          <Icon size={16} className="text-[#1E8FA8]" />
+          <Icon size={16} className="text-[#1F8383]" />
         </div>
         <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">
           {label}
@@ -98,7 +98,7 @@ export default function ContactsPage() {
     return (
       <div className="min-h-full bg-[#F7F9FB] flex items-center justify-center">
         <div className="flex flex-col items-center gap-3 text-[#B0C8D4]">
-          <div className="w-8 h-8 rounded-full border-[3px] border-[#D0E4EC] border-t-[#1E8FA8] animate-spin" />
+          <div className="w-8 h-8 rounded-full border-[3px] border-[#D0E4EC] border-t-[#2BB9B8] animate-spin" />
           <p className="text-sm">Cargando contactos…</p>
         </div>
       </div>
@@ -125,7 +125,7 @@ export default function ContactsPage() {
             <StatCard icon={Send}        label="Carritos"         value={totals.totalCarritos} />
             <StatCard icon={ShoppingBag} label="Compras"          value={totals.totalCompras} />
             <StatCard icon={TrendingUp}  label="Ganancia total"   value={fmtMXN(totals.gananciaTotal)}
-              accent="text-[#1E8FA8]" />
+              accent="text-[#1F8383]" />
           </div>
         )}
 
@@ -133,7 +133,7 @@ export default function ContactsPage() {
         {contactsData.length > 0 && customerId ? (
           <div className="bg-white border border-[#D0E4EC] rounded-2xl p-4 overflow-hidden space-y-4">
             {/* Buscador */}
-            <div className="flex items-center gap-2 border border-[#D0E4EC] rounded-xl px-3 py-2.5 focus-within:border-[#1E8FA8] transition-colors">
+            <div className="flex items-center gap-2 border border-[#D0E4EC] rounded-xl px-3 py-2.5 focus-within:border-[#2BB9B8] transition-colors">
               <Search size={16} className="text-[#8AAAB8] shrink-0" />
               <input
                 type="search"
@@ -163,7 +163,7 @@ export default function ContactsPage() {
                 <Search size={24} className="mx-auto mb-2 text-[#B0C8D4]" strokeWidth={1.5} />
                 <p className="text-sm text-[#5B7A8C]">Ningún contacto coincide con “{busqueda.trim()}”</p>
                 <button onClick={() => setBusqueda("")}
-                  className="mt-2 text-xs font-semibold text-[#1E8FA8] hover:underline">
+                  className="mt-2 text-xs font-semibold text-[#1F8383] hover:underline">
                   Ver todos
                 </button>
               </div>

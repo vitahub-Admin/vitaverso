@@ -17,7 +17,7 @@ export default function CompartirReferralPage() {
   useEffect(() => {
     const id = Cookies.get("customerId");
     if (!id) {
-      setError("No hay customerId disponible — necesitás estar logueado");
+      setError("No hay customerId disponible — necesitas estar logueado");
       setLoading(false);
       return;
     }

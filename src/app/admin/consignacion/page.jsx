@@ -219,7 +219,7 @@ export default function ConsignacionPage() {
                 value={busquedaPro}
                 onChange={(e) => setBusquedaPro(e.target.value)}
                 placeholder="Nombre o correo del profesional…"
-                className="w-full border border-[#D0E4EC] rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[#1E8FA8]"
+                className="w-full border border-[#D0E4EC] rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[#2BB9B8]"
               />
               {busquedaPro && (
                 <div className="absolute z-20 bg-white border border-[#D0E4EC] rounded-lg w-full max-h-56 overflow-y-auto shadow-lg mt-1">
@@ -265,7 +265,7 @@ export default function ConsignacionPage() {
                       <p className="text-xs text-[#8AAAB8] truncate">{g.email || `ID ${g.id}`}</p>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className={`text-sm font-extrabold tabular-nums ${g.disponible > 0 ? "text-[#1E8FA8]" : "text-[#B0C8D4]"}`}>
+                      <p className={`text-sm font-extrabold tabular-nums ${g.disponible > 0 ? "text-[#1F8383]" : "text-[#B0C8D4]"}`}>
                         {g.disponible} {g.disponible === 1 ? "unidad" : "unidades"}
                       </p>
                       <p className="text-[11px] text-[#8AAAB8] tabular-nums">
@@ -288,7 +288,7 @@ export default function ConsignacionPage() {
                   title={t.desc}
                   className={`flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                     tipo === t.key ? "bg-[#1b3f7a] text-white"
-                                   : "bg-white border border-[#D0E4EC] text-[#5B7A8C] hover:border-[#1E8FA8]"}`}>
+                                   : "bg-white border border-[#D0E4EC] text-[#5B7A8C] hover:border-[#2BB9B8]"}`}>
                   <t.icon size={13} /> {t.label}
                 </button>
               ))}
@@ -304,7 +304,7 @@ export default function ConsignacionPage() {
                 <div className="flex items-center gap-3 border border-[#C2DFE8] bg-[#F4FAFB] rounded-lg px-3 py-2.5">
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-bold text-[#1b3f7a] leading-snug">{variante.title}</p>
-                    <p className="text-[11px] text-[#1E8FA8] font-semibold uppercase tracking-widest mt-0.5">
+                    <p className="text-[11px] text-[#1F8383] font-semibold uppercase tracking-widest mt-0.5">
                       {variante.variant_title} · {fmtMXN(variante.price)}
                     </p>
                   </div>
@@ -319,7 +319,7 @@ export default function ConsignacionPage() {
                     value={busquedaProd}
                     onChange={(e) => setBusquedaProd(e.target.value)}
                     placeholder="Buscar producto por nombre…"
-                    className="w-full border border-[#D0E4EC] rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[#1E8FA8]"
+                    className="w-full border border-[#D0E4EC] rounded-lg pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:border-[#2BB9B8]"
                   />
                   {busquedaProd.trim().length >= 3 && (
                     <div className="absolute z-20 bg-white border border-[#D0E4EC] rounded-lg w-full max-h-72 overflow-y-auto shadow-lg mt-1">
@@ -336,7 +336,7 @@ export default function ConsignacionPage() {
                             {(p.variants || []).map((v) => (
                               <button key={v.variant_id}
                                 onClick={() => setVariante({ ...v, title: p.title })}
-                                className="text-[11px] font-semibold border border-[#D0E4EC] rounded-full px-2.5 py-1 hover:border-[#1E8FA8] hover:text-[#1E8FA8] text-[#5B7A8C]">
+                                className="text-[11px] font-semibold border border-[#D0E4EC] rounded-full px-2.5 py-1 hover:border-[#2BB9B8] hover:text-[#1F8383] text-[#5B7A8C]">
                                 {v.variant_title || "Único"} · {fmtMXN(v.price)}
                               </button>
                             ))}
@@ -360,7 +360,7 @@ export default function ConsignacionPage() {
                   value={cantidad}
                   onChange={(e) => setCantidad(e.target.value)}
                   placeholder={tipo === "ajuste" ? "±" : "0"}
-                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#1E8FA8]"
+                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#2BB9B8]"
                 />
               </div>
               <div className="flex-1">
@@ -371,7 +371,7 @@ export default function ConsignacionPage() {
                   value={motivo}
                   onChange={(e) => setMotivo(e.target.value)}
                   placeholder="Ej: primera carga, conteo del 24/09, caja dañada"
-                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#1E8FA8]"
+                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-[#2BB9B8]"
                 />
               </div>
             </div>
@@ -389,7 +389,7 @@ export default function ConsignacionPage() {
         {profesional && (
           <div className="bg-white border border-[#D0E4EC] rounded-2xl overflow-hidden">
             <div className="px-5 py-3.5 border-b border-[#EEF3F7] flex items-center gap-2">
-              <Package size={15} className="text-[#1E8FA8]" />
+              <Package size={15} className="text-[#1F8383]" />
               <h2 className="text-sm font-bold text-[#1b3f7a]">En su consultorio</h2>
               <span className="ml-auto text-xs text-[#8AAAB8] tabular-nums">
                 {stock.length} {stock.length === 1 ? "producto" : "productos"} · {totalUnidades} unidades
@@ -420,7 +420,7 @@ export default function ConsignacionPage() {
                       <td className="px-5 py-3">
                         <p className="font-semibold text-[#1b3f7a] leading-snug line-clamp-2">{s.title}</p>
                         {s.variant_title && (
-                          <p className="text-[11px] text-[#1E8FA8] font-semibold uppercase tracking-widest mt-0.5">
+                          <p className="text-[11px] text-[#1F8383] font-semibold uppercase tracking-widest mt-0.5">
                             {s.variant_title}
                           </p>
                         )}
@@ -430,7 +430,7 @@ export default function ConsignacionPage() {
                       <td className="px-3 py-3 text-right tabular-nums text-[#5B7A8C]">{s.devuelto}</td>
                       <td className="px-3 py-3 text-right tabular-nums text-[#5B7A8C]">{s.ajuste || 0}</td>
                       <td className={`px-5 py-3 text-right tabular-nums font-extrabold ${
-                        s.disponible > 0 ? "text-[#1E8FA8]" : "text-[#B0C8D4]"}`}>
+                        s.disponible > 0 ? "text-[#1F8383]" : "text-[#B0C8D4]"}`}>
                         {s.disponible}
                       </td>
                     </tr>

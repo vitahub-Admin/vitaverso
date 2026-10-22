@@ -107,7 +107,7 @@ function AvailabilityEditor({ availability, setAvailability, authHeaders }) {
   return (
     <div className="bg-white rounded-xl p-4 shadow-sm">
       <p className="text-sm text-gray-500 mb-4">
-        Definí tu horario semanal. Los turnos disponibles se generan automáticamente
+        Define tu horario semanal. Los turnos disponibles se generan automáticamente
         según la duración de cada servicio.
       </p>
 
@@ -739,7 +739,7 @@ export default function BookingDashboard() {
       {calendarError && (
         <div className="max-w-2xl mx-auto mt-4 px-4">
           <div className="bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3">
-            Error al conectar Google Calendar. Intentá de nuevo.
+            Error al conectar Google Calendar. Intenta de nuevo.
           </div>
         </div>
       )}
@@ -771,7 +771,7 @@ export default function BookingDashboard() {
           <>
             {appointments.length === 0 && (
               <div className="bg-white rounded-xl p-8 text-center text-gray-400 text-sm shadow-sm">
-                No tenés citas todavía. Compartí tu link para empezar a recibir reservas.
+                No tienes citas todavía. Comparte tu link para empezar a recibir reservas.
               </div>
             )}
             {appointments.map((a) => (

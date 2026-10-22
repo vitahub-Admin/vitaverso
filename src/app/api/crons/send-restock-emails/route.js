@@ -93,7 +93,7 @@ function buildRestockEmail({ specialistName, products }) {
       Ir al armador de prescripciones →
     </a>
     <p style="margin:16px 0 0;font-size:11px;color:#9ca3af;">
-      <a href="https://pro.vitahub.mx" style="color:#1E8FA8;text-decoration:none;">pro.vitahub.mx</a>
+      <a href="https://pro.vitahub.mx" style="color:#1F8383;text-decoration:none;">pro.vitahub.mx</a>
     </p>
   </td></tr>
 </table></td></tr></table></body></html>`;

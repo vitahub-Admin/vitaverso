@@ -1,4 +1,5 @@
 "use client";
+import { sanitizarHtml } from "@/lib/sanitizarHtml";
 import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import Cookies from "js-cookie";
 import { useCustomer } from "../context/CustomerContext.jsx";
@@ -30,7 +31,7 @@ function ProtocolList({ protocols, onSelect }) {
     return (
       <div className="flex flex-col items-center justify-center py-24 text-center px-6">
         <div className="w-16 h-16 rounded-2xl bg-[#E6F4F8] flex items-center justify-center mb-4">
-          <ClipboardList size={28} className="text-[#1E8FA8]" />
+          <ClipboardList size={28} className="text-[#1F8383]" />
         </div>
         <p className="text-[#1b3f7a] font-semibold text-base mb-1">Sin protocolos disponibles</p>
         <p className="text-[#5B7A8C] text-sm max-w-xs">
@@ -52,16 +53,16 @@ function ProtocolList({ protocols, onSelect }) {
               className="text-left bg-white border border-gray-100 rounded-2xl overflow-hidden hover:shadow-md hover:border-[#1b3f7a]/20 transition-all group flex flex-col"
             >
               {/* Accent bar */}
-              <div className="h-1 w-full bg-gradient-to-r from-[#1b3f7a] to-[#1E8FA8]" />
+              <div className="h-1 w-full bg-gradient-to-r from-[#1b3f7a] to-[#2BB9B8]" />
 
               <div className="p-5 flex flex-col flex-1">
                 {/* Producto count pill */}
-                <span className="self-start text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8] bg-[#E6F4F8] px-2.5 py-1 rounded-full mb-3">
+                <span className="self-start text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383] bg-[#E6F4F8] px-2.5 py-1 rounded-full mb-3">
                   {count} producto{count !== 1 ? "s" : ""}
                 </span>
 
                 {/* Título */}
-                <h3 className="text-lg font-extrabold text-[#1b3f7a] leading-snug mb-2 group-hover:text-[#1E8FA8] transition-colors">
+                <h3 className="text-lg font-extrabold text-[#1b3f7a] leading-snug mb-2 group-hover:text-[#1F8383] transition-colors">
                   {p.name}
                 </h3>
 
@@ -123,8 +124,8 @@ function ProductPreviewModal({ productId, title, onClose }) {
             <p className="text-sm text-[#8AAAB8] text-center py-10">Cargando descripción...</p>
           ) : (
             <div
-              className="prose prose-sm max-w-none text-[#2D4A5C] [&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2 [&_th]:py-1.5 [&_th]:bg-[#E6F4F8] [&_th]:font-semibold [&_th]:text-[#1E8FA8]"
-              dangerouslySetInnerHTML={{ __html: html }}
+              className="prose prose-sm max-w-none text-[#2D4A5C] [&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2 [&_th]:py-1.5 [&_th]:bg-[#E6F4F8] [&_th]:font-semibold [&_th]:text-[#1F8383]"
+              dangerouslySetInnerHTML={{ __html: sanitizarHtml(html) }}
             />
           )}
         </div>
@@ -181,7 +182,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
       {/* ── Encabezado del componente ── */}
       <div className="flex items-center gap-2.5 px-4 pt-3 pb-2">
         <div className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 ${
-          selectedItem ? "bg-[#1E8FA8] text-white" : "bg-[#EEF3F7] text-[#8AAAB8]"
+          selectedItem ? "bg-[#2BB9B8] text-[#0D2133]" : "bg-[#EEF3F7] text-[#8AAAB8]"
         }`}>
           {selectedItem ? <CheckCircle2 size={11} /> : compIndex + 1}
         </div>
@@ -202,7 +203,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
       {/* ── Ítem prescrito (inner card) ── */}
       <div className="px-3 pb-3">
         {selectedItem ? (
-          <div className="bg-[#F4FAFB] border border-[#1E8FA8] rounded-xl px-3 py-2.5">
+          <div className="bg-[#F4FAFB] border border-[#2BB9B8] rounded-xl px-3 py-2.5">
             <div className="flex items-start gap-3">
               {/* Nombre completo + variante */}
               <div className="flex-1 min-w-0">
@@ -211,7 +212,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                 </p>
                 <div className="flex items-center gap-2 mt-1 flex-wrap">
                   {selectedItem.variant_title && (
-                    <span className="text-[11px] font-extrabold text-[#1E8FA8] uppercase tracking-widest">
+                    <span className="text-[11px] font-extrabold text-[#1F8383] uppercase tracking-widest">
                       {selectedItem.variant_title}
                     </span>
                   )}
@@ -232,7 +233,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                   onClick={() => onQty(selectedItem.variant_id, Math.max(1, qty - 1))}
                   className="w-7 h-7 rounded-lg border border-[#C2DFE8] bg-white flex items-center justify-center hover:bg-[#E6F4F8] transition-colors"
                 >
-                  <Minus size={11} className="text-[#1E8FA8]" />
+                  <Minus size={11} className="text-[#1F8383]" />
                 </button>
                 <span className="text-sm font-extrabold text-[#1b3f7a] w-6 text-center tabular-nums">
                   {qty}
@@ -241,7 +242,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                   onClick={() => onQty(selectedItem.variant_id, qty + 1)}
                   className="w-7 h-7 rounded-lg border border-[#C2DFE8] bg-white flex items-center justify-center hover:bg-[#E6F4F8] transition-colors"
                 >
-                  <Plus size={11} className="text-[#1E8FA8]" />
+                  <Plus size={11} className="text-[#1F8383]" />
                 </button>
               </div>
             </div>
@@ -260,12 +261,12 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                   type="number" min="1" max="20"
                   value={dosage?.amount ?? 1}
                   onChange={e => onDosageChange({ ...(dosage || {}), amount: Math.max(1, Number(e.target.value)) })}
-                  className="w-11 text-sm font-bold text-center border border-[#C2DFE8] rounded-lg py-0.5 bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]"
+                  className="w-11 text-sm font-bold text-center border border-[#C2DFE8] rounded-lg py-0.5 bg-white outline-none focus:border-[#2BB9B8] text-[#1b3f7a]"
                 />
                 <select
                   value={dosage?.unit ?? 'cápsula'}
                   onChange={e => onDosageChange({ ...(dosage || {}), unit: e.target.value })}
-                  className="flex-1 text-xs font-semibold text-[#1b3f7a] border border-[#C2DFE8] rounded-lg px-2 py-1 bg-white outline-none focus:border-[#1E8FA8] cursor-pointer"
+                  className="flex-1 text-xs font-semibold text-[#1b3f7a] border border-[#C2DFE8] rounded-lg px-2 py-1 bg-white outline-none focus:border-[#2BB9B8] cursor-pointer"
                 >
                   {DOSE_UNITS.map(u => (
                     <option key={u} value={u}>{u}s</option>
@@ -283,7 +284,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                   value={note ?? ''}
                   onChange={e => onNoteChange(e.target.value)}
                   placeholder="ej. 2 cápsulas con el desayuno, durante 3 meses…"
-                  className="flex-1 text-xs text-[#1b3f7a] border-b border-[#C2DFE8] py-0.5 bg-transparent outline-none placeholder:text-[#B0C8D4] focus:border-[#1E8FA8]"
+                  className="flex-1 text-xs text-[#1b3f7a] border-b border-[#C2DFE8] py-0.5 bg-transparent outline-none placeholder:text-[#B0C8D4] focus:border-[#2BB9B8]"
                 />
               </div>
             </div>
@@ -299,7 +300,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
         {flatItems.length > 1 && (
           <button
             onClick={() => setOpen(o => !o)}
-            className="flex items-center gap-1 mt-2 ml-0.5 text-[11px] font-bold text-[#5B7A8C] hover:text-[#1E8FA8] transition-colors"
+            className="flex items-center gap-1 mt-2 ml-0.5 text-[11px] font-bold text-[#5B7A8C] hover:text-[#1F8383] transition-colors"
           >
             <ChevronDown size={12} className={`transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
             {open ? "Cerrar opciones" : `Cambiar — ${flatItems.length} opciones`}
@@ -342,9 +343,9 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                   >
                     {/* Radio */}
                     <div className={`mt-0.5 w-3.5 h-3.5 rounded-full border-2 shrink-0 flex items-center justify-center ${
-                      isSel ? "border-[#1E8FA8]" : "border-[#C8D8E0]"
+                      isSel ? "border-[#2BB9B8]" : "border-[#C8D8E0]"
                     }`}>
-                      {isSel && <div className="w-1.5 h-1.5 rounded-full bg-[#1E8FA8]" />}
+                      {isSel && <div className="w-1.5 h-1.5 rounded-full bg-[#2BB9B8]" />}
                     </div>
 
                     <div className="flex-1 min-w-0">
@@ -353,7 +354,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                       </p>
                       <div className="flex items-center gap-2 mt-0.5 flex-wrap">
                         {item.variant_title && (
-                          <span className={`text-[10px] font-extrabold uppercase tracking-widest ${isSel ? "text-[#1E8FA8]" : "text-[#8AAAB8]"}`}>
+                          <span className={`text-[10px] font-extrabold uppercase tracking-widest ${isSel ? "text-[#1F8383]" : "text-[#8AAAB8]"}`}>
                             {item.variant_title}
                           </span>
                         )}
@@ -368,7 +369,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                           </span>
                         )}
                         {itemPrice != null && (
-                          <span className={`text-sm font-extrabold tabular-nums ml-auto ${isSel ? "text-[#1E8FA8]" : "text-[#5B7A8C]"}`}>
+                          <span className={`text-sm font-extrabold tabular-nums ml-auto ${isSel ? "text-[#1F8383]" : "text-[#5B7A8C]"}`}>
                             {fmtMXN(itemPrice)}
                           </span>
                         )}
@@ -383,7 +384,7 @@ function PrescriptionField({ comp, compIndex, selection, quantity, priceMap, sto
                           setPreview({ product_id: item.product_id, title: item.title });
                         }}
                         title="Ver descripción del producto"
-                        className="shrink-0 mt-0.5 p-1 rounded-lg text-[#B0C8D4] hover:text-[#1E8FA8] hover:bg-[#E6F4F8] transition-colors"
+                        className="shrink-0 mt-0.5 p-1 rounded-lg text-[#B0C8D4] hover:text-[#1F8383] hover:bg-[#E6F4F8] transition-colors"
                       >
                         <Search size={14} />
                       </button>
@@ -430,7 +431,7 @@ function ProtocolHistory({ protocolId, onRestore }) {
             Configuraciones anteriores
           </p>
           {!loading && (
-            <span className="text-[10px] font-bold bg-[#1E8FA8]/15 text-[#1E8FA8] px-2 py-0.5 rounded-full tabular-nums">
+            <span className="text-[10px] font-bold bg-[#2BB9B8]/15 text-[#1F8383] px-2 py-0.5 rounded-full tabular-nums">
               {history.length}
             </span>
           )}
@@ -439,7 +440,7 @@ function ProtocolHistory({ protocolId, onRestore }) {
         {/* Spinner */}
         {loading && (
           <div className="flex items-center gap-2 py-3">
-            <div className="w-4 h-4 border-2 border-[#1E8FA8] border-t-transparent rounded-full animate-spin shrink-0" />
+            <div className="w-4 h-4 border-2 border-[#2BB9B8] border-t-transparent rounded-full animate-spin shrink-0" />
             <span className="text-xs text-[#7EAEC0]">Cargando historial…</span>
           </div>
         )}
@@ -456,7 +457,7 @@ function ProtocolHistory({ protocolId, onRestore }) {
               const rawPhone  = (cart.phone || '').replace(/^\+521?/, '').replace(/\D/g, '');
               return (
                 <div key={cart.token}
-                  className="shrink-0 w-52 bg-white border border-[#D0E4EC] rounded-2xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md hover:border-[#1E8FA8]/40 transition-all">
+                  className="shrink-0 w-52 bg-white border border-[#D0E4EC] rounded-2xl p-4 flex flex-col gap-3 shadow-sm hover:shadow-md hover:border-[#2BB9B8]/40 transition-all">
 
                   {/* Info principal */}
                   <div className="flex-1">
@@ -474,14 +475,14 @@ function ProtocolHistory({ protocolId, onRestore }) {
                   </div>
 
                   {/* Chip productos */}
-                  <span className="self-start text-[10px] font-bold bg-[#E6F4F8] text-[#1E8FA8] px-2.5 py-1 rounded-full">
+                  <span className="self-start text-[10px] font-bold bg-[#E6F4F8] text-[#1F8383] px-2.5 py-1 rounded-full">
                     {itemCount} producto{itemCount !== 1 ? 's' : ''}
                   </span>
 
                   {/* Botón restaurar */}
                   <button
                     onClick={() => onRestore(cart)}
-                    className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#1b3f7a] bg-[#EEF3F7] hover:bg-[#1E8FA8] hover:text-white px-3 py-2 rounded-xl transition-colors"
+                    className="flex items-center justify-center gap-1.5 text-xs font-bold text-[#1b3f7a] bg-[#EEF3F7] hover:bg-[#2BB9B8] hover:text-[#0D2133] px-3 py-2 rounded-xl transition-colors"
                   >
                     <RotateCcw size={11} />
                     Restaurar
@@ -907,11 +908,11 @@ function ProtocolUse({ protocol, customerId, onBack }) {
             </div>
             {ganancia > 0 && (
               <div className="flex items-center bg-[#F4FAFB] rounded-lg px-2.5 py-1.5 -mx-0.5">
-                <span className="flex items-center gap-1.5 text-xs font-bold text-[#1E8FA8]">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-[#1F8383]">
                   <TrendingUp size={12} />
                   Tu ganancia
                 </span>
-                <span className="ml-auto text-sm font-extrabold text-[#1E8FA8] tabular-nums">
+                <span className="ml-auto text-sm font-extrabold text-[#1F8383] tabular-nums">
                   {fmtMXN(ganancia)}
                 </span>
               </div>
@@ -933,7 +934,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                 className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${
                   copied
                     ? "bg-emerald-500 text-white scale-[1.02]"
-                    : "bg-[#E6F4F8] text-[#1E8FA8] hover:bg-[#D0ECF5]"
+                    : "bg-[#E6F4F8] text-[#1F8383] hover:bg-[#D0ECF5]"
                 }`}
               >
                 {copied ? <CheckCircle2 size={13} /> : <Copy size={13} />}
@@ -941,7 +942,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
               </button>
               <button
                 onClick={() => window.open(result.checkoutUrl, "_blank")}
-                className="flex-1 flex items-center justify-center gap-1.5 bg-[#1E8FA8] text-white py-2.5 rounded-xl text-sm font-bold hover:bg-[#177F95] transition-colors"
+                className="flex-1 flex items-center justify-center gap-1.5 bg-[#2BB9B8] text-[#0D2133] py-2.5 rounded-xl text-sm font-bold hover:bg-[#26A3A2] transition-colors"
               >
                 <ExternalLink size={13} />
                 Abrir
@@ -1002,7 +1003,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
         <div className="flex items-center gap-2.5 mt-3">
           <div className="flex-1 h-1 bg-white/10 rounded-full overflow-hidden">
             <div
-              className="h-full bg-[#1E8FA8] rounded-full transition-all duration-500"
+              className="h-full bg-[#2BB9B8] rounded-full transition-all duration-500"
               style={{ width: `${progressPct}%` }}
             />
           </div>
@@ -1021,7 +1022,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
 
             {/* Header de la caja: título + descripción del protocolo */}
             <div className="px-4 py-3 border-b border-[#EEF3F7] shrink-0">
-              <p className="text-[10px] font-extrabold text-[#1E8FA8] uppercase tracking-widest mb-0.5">
+              <p className="text-[10px] font-extrabold text-[#1F8383] uppercase tracking-widest mb-0.5">
                 Protocolo activo
               </p>
               <h2 className="text-sm font-bold text-[#1b3f7a] leading-snug">{protocol.name}</h2>
@@ -1079,7 +1080,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                         <button
                           key={ci}
                           onClick={() => restoreComp(ci)}
-                          className="flex items-center gap-1.5 text-[11px] font-bold text-[#5B7A8C] bg-[#EEF3F7] hover:bg-[#E6F4F8] hover:text-[#1E8FA8] px-3 py-1.5 rounded-full border border-[#D0E4EC] transition-colors"
+                          className="flex items-center gap-1.5 text-[11px] font-bold text-[#5B7A8C] bg-[#EEF3F7] hover:bg-[#E6F4F8] hover:text-[#1F8383] px-3 py-1.5 rounded-full border border-[#D0E4EC] transition-colors"
                         >
                           <Plus size={10} />
                           {c.label || c.componente}
@@ -1093,8 +1094,8 @@ function ProtocolUse({ protocol, customerId, onBack }) {
               {/* ── Productos extra ─────────────────────────────── */}
               <div className="pt-2 border-t border-[#EEF3F7] mt-1">
                 <div className="flex items-center gap-2 mb-2 px-1">
-                  <PackagePlus size={13} className="text-[#1E8FA8] shrink-0" />
-                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1E8FA8]">
+                  <PackagePlus size={13} className="text-[#1F8383] shrink-0" />
+                  <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383]">
                     Productos adicionales
                   </p>
                 </div>
@@ -1109,16 +1110,16 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                           <div className="flex-1 min-w-0">
                             <p className="text-xs font-bold text-[#1b3f7a] line-clamp-1">{e.title}</p>
                             {e.price > 0 && (
-                              <p className="text-[11px] text-[#1E8FA8] font-semibold tabular-nums">{fmtMXN(e.price)}</p>
+                              <p className="text-[11px] text-[#1F8383] font-semibold tabular-nums">{fmtMXN(e.price)}</p>
                             )}
                           </div>
                           <div className="flex items-center gap-1 shrink-0">
                             <button onClick={() => setExtraQty(e.variant_id, e.quantity - 1)} className="w-6 h-6 rounded-lg border border-[#C2DFE8] bg-white flex items-center justify-center hover:bg-[#E6F4F8] transition-colors">
-                              <Minus size={10} className="text-[#1E8FA8]" />
+                              <Minus size={10} className="text-[#1F8383]" />
                             </button>
                             <span className="text-xs font-extrabold text-[#1b3f7a] w-5 text-center tabular-nums">{e.quantity}</span>
                             <button onClick={() => setExtraQty(e.variant_id, e.quantity + 1)} className="w-6 h-6 rounded-lg border border-[#C2DFE8] bg-white flex items-center justify-center hover:bg-[#E6F4F8] transition-colors">
-                              <Plus size={10} className="text-[#1E8FA8]" />
+                              <Plus size={10} className="text-[#1F8383]" />
                             </button>
                           </div>
                           <button onClick={() => removeExtra(e.variant_id)} className="text-[#C2DFE8] hover:text-red-400 transition-colors ml-0.5 shrink-0">
@@ -1133,12 +1134,12 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                               type="number" min="1" max="20"
                               value={e.dosage?.amount ?? 1}
                               onChange={ev => setExtraDosage(e.variant_id, { ...(e.dosage || {}), amount: Math.max(1, Number(ev.target.value)) })}
-                              className="w-11 text-xs font-bold text-center border border-[#C2DFE8] rounded-lg py-0.5 bg-white outline-none focus:border-[#1E8FA8] text-[#1b3f7a]"
+                              className="w-11 text-xs font-bold text-center border border-[#C2DFE8] rounded-lg py-0.5 bg-white outline-none focus:border-[#2BB9B8] text-[#1b3f7a]"
                             />
                             <select
                               value={e.dosage?.unit ?? 'cápsula'}
                               onChange={ev => setExtraDosage(e.variant_id, { ...(e.dosage || {}), unit: ev.target.value })}
-                              className="flex-1 text-xs font-semibold text-[#1b3f7a] border border-[#C2DFE8] rounded-lg px-2 py-1 bg-white outline-none focus:border-[#1E8FA8] cursor-pointer"
+                              className="flex-1 text-xs font-semibold text-[#1b3f7a] border border-[#C2DFE8] rounded-lg px-2 py-1 bg-white outline-none focus:border-[#2BB9B8] cursor-pointer"
                             >
                               {DOSE_UNITS.map(u => <option key={u} value={u}>{u}s</option>)}
                             </select>
@@ -1150,7 +1151,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                               value={e.note ?? ''}
                               onChange={ev => setExtraNote(e.variant_id, ev.target.value)}
                               placeholder="ej. 2 cápsulas con el desayuno, durante 3 meses…"
-                              className="flex-1 text-xs text-[#1b3f7a] border-b border-[#C2DFE8] py-0.5 bg-transparent outline-none placeholder:text-[#B0C8D4] focus:border-[#1E8FA8]"
+                              className="flex-1 text-xs text-[#1b3f7a] border-b border-[#C2DFE8] py-0.5 bg-transparent outline-none placeholder:text-[#B0C8D4] focus:border-[#2BB9B8]"
                             />
                           </div>
                         </div>
@@ -1161,7 +1162,7 @@ function ProtocolUse({ protocol, customerId, onBack }) {
 
                 {/* Buscador */}
                 <div className="relative">
-                  <div className="flex items-center gap-2 border border-[#D0E4EC] rounded-xl px-3 py-2 bg-white focus-within:border-[#1E8FA8] transition-colors">
+                  <div className="flex items-center gap-2 border border-[#D0E4EC] rounded-xl px-3 py-2 bg-white focus-within:border-[#2BB9B8] transition-colors">
                     <Search size={12} className="text-[#B0C8D4] shrink-0" />
                     <input
                       ref={extraInputRef}
@@ -1206,13 +1207,13 @@ function ProtocolUse({ protocol, customerId, onBack }) {
                             <div className="flex-1 min-w-0">
                               <p className="text-xs font-semibold text-[#1b3f7a] line-clamp-1">{p.title}</p>
                               <div className="flex items-center gap-2 mt-0.5">
-                                {p.price && <span className="text-[11px] font-bold text-[#1E8FA8] tabular-nums">${p.price} MXN</span>}
-                                {p.is_professional && <span className="text-[10px] bg-[#1e8fa8] text-white px-1.5 py-0.5 rounded-full font-semibold">PRO</span>}
+                                {p.price && <span className="text-[11px] font-bold text-[#1F8383] tabular-nums">${p.price} MXN</span>}
+                                {p.is_professional && <span className="text-[10px] bg-[#2BB9B8] text-[#0D2133] px-1.5 py-0.5 rounded-full font-semibold">PRO</span>}
                                 {!p.available && <span className="text-[10px] text-red-500">Sin stock</span>}
                               </div>
                             </div>
                             {alreadyAdded
-                              ? <CheckCircle2 size={14} className="text-[#1E8FA8] shrink-0" />
+                              ? <CheckCircle2 size={14} className="text-[#1F8383] shrink-0" />
                               : <Plus size={14} className="text-[#B0C8D4] shrink-0" />
                             }
                           </button>

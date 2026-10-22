@@ -166,7 +166,7 @@ export default function WalletPage() {
       {/* ── Saludo Fullscript-style ── */}
       <div className="w-full bg-white border-b border-gray-100 px-6">
         <div className="max-w-[960px] mx-auto py-6">
-          <p className="text-xs font-semibold text-[#1e8fa8] uppercase tracking-widest mb-1">
+          <p className="text-xs font-semibold text-[#1F8383] uppercase tracking-widest mb-1">
             Vitahub Pro
           </p>
           <h1 className="text-3xl font-extrabold text-[#1b3f7a] tracking-tight leading-none mb-1">

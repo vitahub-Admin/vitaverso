@@ -25,7 +25,8 @@ import {
 const C = {
   bg: "#F7F9FB",
   header: "#1b3f7a",
-  accent: "#1E8FA8",
+  accent: "#2BB9B8",
+  accentText: "#1F8383",
   textSec: "#5B7A8C",
   border: "#D0E4EC",
   tealLight: "#E6F4F8",
@@ -108,7 +109,7 @@ function CustomTooltip({ active, payload, label }) {
       </p>
       <p style={{ color: C.textSec, fontSize: 12 }}>
         Ganancia est.:{" "}
-        <span style={{ color: C.accent, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+        <span style={{ color: C.accentText, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
           {fmt(ganancia)}
         </span>
       </p>
@@ -173,7 +174,7 @@ function StatCard({ icon: Icon, label, value, teal = false }) {
         </p>
         <p
           className="text-2xl font-bold tabular-nums leading-none"
-          style={{ color: teal ? C.accent : C.header }}
+          style={{ color: teal ? C.accentText : C.header }}
         >
           {value}
         </p>
@@ -184,7 +185,7 @@ function StatCard({ icon: Icon, label, value, teal = false }) {
           background: C.tealLight,
           width: 42,
           height: 42,
-          color: C.accent,
+          color: C.accentText,
         }}
       >
         <Icon size={19} strokeWidth={1.8} />
@@ -239,7 +240,7 @@ function OrdenCard({ order }) {
           </p>
           <p
             className="text-xs tabular-nums"
-            style={{ color: C.accent }}
+            style={{ color: C.accentText }}
           >
             +{fmt(ganancia)} est.
           </p>
@@ -305,13 +306,13 @@ export default function OrdenesV2Page() {
         style={{ background: C.bg, minHeight: "100vh" }}
         className="flex flex-col items-center justify-center gap-4 px-6"
       >
-        <AlertCircle size={36} strokeWidth={1.4} style={{ color: C.accent }} />
+        <AlertCircle size={36} strokeWidth={1.4} style={{ color: C.accentText }} />
         <p className="text-center text-sm" style={{ color: C.textSec }}>
           {error}
         </p>
         <button
           onClick={fetchOrders}
-          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-white"
+          className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold text-[#0D2133]"
           style={{ background: C.accent }}
         >
           <RefreshCw size={14} />
@@ -330,7 +331,7 @@ export default function OrdenesV2Page() {
           <div className="flex items-start justify-between gap-4">
             <div>
               <div className="flex items-center gap-2 mb-1">
-                <TrendingUp size={20} color="#1E8FA8" strokeWidth={2} />
+                <TrendingUp size={20} color="#2BB9B8" strokeWidth={2} />
                 <h1 className="text-xl font-bold text-white tracking-tight leading-none">
                   Panel de Ventas
                 </h1>
@@ -341,7 +342,7 @@ export default function OrdenesV2Page() {
             </div>
             <span
               className="text-xs font-semibold px-3 py-1.5 rounded-full shrink-0 mt-0.5"
-              style={{ background: "rgba(30,143,168,0.18)", color: "#7FD4E8" }}
+              style={{ background: "rgba(43,185,184,0.18)", color: "#7FD4E8" }}
             >
               {currentMonthLabel()}
             </span>
@@ -386,7 +387,7 @@ export default function OrdenesV2Page() {
           >
             <PackageOpen size={40} strokeWidth={1.2} style={{ color: C.border }} />
             <p className="text-sm font-medium" style={{ color: C.textSec }}>
-              Aún no tenés órdenes
+              Aún no tienes órdenes
             </p>
             <p className="text-xs" style={{ color: "#A8C5D2" }}>
               Tus ventas aparecerán aquí cuando se registre la primera orden.
@@ -416,7 +417,7 @@ export default function OrdenesV2Page() {
                 </div>
                 <span
                   className="text-xs px-2 py-1 rounded-lg font-medium"
-                  style={{ background: C.tealLight, color: C.accent }}
+                  style={{ background: C.tealLight, color: C.accentText }}
                 >
                   MXN
                 </span>
@@ -429,8 +430,8 @@ export default function OrdenesV2Page() {
                 >
                   <defs>
                     <linearGradient id="gradTeal" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#1E8FA8" stopOpacity={0.18} />
-                      <stop offset="95%" stopColor="#1E8FA8" stopOpacity={0} />
+                      <stop offset="5%" stopColor="#2BB9B8" stopOpacity={0.18} />
+                      <stop offset="95%" stopColor="#2BB9B8" stopOpacity={0} />
                     </linearGradient>
                   </defs>
                   <XAxis
@@ -453,11 +454,11 @@ export default function OrdenesV2Page() {
                   <Area
                     type="monotone"
                     dataKey="total"
-                    stroke="#1E8FA8"
+                    stroke="#2BB9B8"
                     strokeWidth={2}
                     fill="url(#gradTeal)"
-                    dot={{ r: 3, fill: "#1E8FA8", strokeWidth: 0 }}
-                    activeDot={{ r: 5, fill: "#1E8FA8", strokeWidth: 0 }}
+                    dot={{ r: 3, fill: "#2BB9B8", strokeWidth: 0 }}
+                    activeDot={{ r: 5, fill: "#2BB9B8", strokeWidth: 0 }}
                   />
                 </AreaChart>
               </ResponsiveContainer>
@@ -477,7 +478,7 @@ export default function OrdenesV2Page() {
                 </h2>
                 <span
                   className="text-xs font-semibold px-2 py-0.5 rounded-full"
-                  style={{ background: C.tealLight, color: C.accent }}
+                  style={{ background: C.tealLight, color: C.accentText }}
                 >
                   {orders.length}
                 </span>
@@ -493,7 +494,7 @@ export default function OrdenesV2Page() {
                 <button
                   onClick={() => setShowAll((v) => !v)}
                   className="w-full flex items-center justify-center gap-1.5 py-3 text-xs font-semibold transition-colors"
-                  style={{ color: C.accent, borderTop: `1px solid ${C.border}` }}
+                  style={{ color: C.accentText, borderTop: `1px solid ${C.border}` }}
                 >
                   {showAll ? (
                     <>

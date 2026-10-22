@@ -90,7 +90,7 @@ export default function CartRow({ cart }) {
           <div className="flex justify-end pt-2 border-t border-[#EEF3F7] mt-1">
             <button
               onClick={() => router.push(`/armador-carritos?fromCart=${cart.token}`)}
-              className="flex items-center gap-1.5 text-xs font-semibold text-[#1E8FA8] hover:text-[#1b3f7a] transition-colors py-1 px-2 rounded-lg hover:bg-white"
+              className="flex items-center gap-1.5 text-xs font-semibold text-[#1F8383] hover:text-[#1b3f7a] transition-colors py-1 px-2 rounded-lg hover:bg-white"
             >
               <RefreshCw size={12} />
               Regenerar protocolo

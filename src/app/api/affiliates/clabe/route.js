@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
+import { idDeSesion } from "@/lib/sesionWeb";
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SECRET_KEY;
@@ -17,7 +18,7 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 export async function GET() {
   try {
     const cookieStore = await cookies();
-    const customerId = cookieStore.get('customerId')?.value;
+    const customerId = idDeSesion(cookieStore);
 
     if (!customerId) {
       return NextResponse.json(

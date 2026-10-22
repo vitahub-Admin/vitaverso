@@ -1,6 +1,7 @@
 // app/api/shopify/customer/route.js
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
+import { idDeSesion } from "@/lib/sesionWeb";
 
 const SHOPIFY_STORE = process.env.SHOPIFY_STORE;
 const SHOPIFY_ACCESS_TOKEN = process.env.SHOPIFY_ACCESS_TOKEN;
@@ -9,7 +10,7 @@ export async function GET() {
   try {
     // Solo leer de cookies (como hace tu layout)
     const cookieStore = await cookies();
-    const customerId = cookieStore.get("customerId")?.value;
+    const customerId = idDeSesion(cookieStore);
 
     console.log("🔍 Endpoint /api/shopify/customer llamado");
     console.log("🔍 CustomerId desde cookies:", customerId);

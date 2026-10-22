@@ -87,7 +87,7 @@ export default function UpsellAppPage() {
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar por nombre o marca..."
-              className="w-full border border-[#D0E4EC] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#1E8FA8]/30"
+              className="w-full border border-[#D0E4EC] rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-[#2BB9B8]/30"
             />
             {busqueda.trim().length >= 2 ? (
               <div className="absolute z-50 left-0 right-0 mt-1 bg-white border border-[#D0E4EC] rounded-xl shadow-lg max-h-72 overflow-y-auto">
@@ -105,9 +105,9 @@ export default function UpsellAppPage() {
                     }}
                     className="w-full text-left px-4 py-3 border-b border-[#EEF3F7] last:border-0 hover:bg-[#F4FAFB] disabled:opacity-50 flex items-center gap-3"
                   >
-                    <Plus size={14} className="text-[#1E8FA8] shrink-0" />
+                    <Plus size={14} className="text-[#1F8383] shrink-0" />
                     <span className="text-sm font-bold text-[#1b3f7a] leading-snug flex-1">{r.title}</span>
-                    {r.variant_title ? <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#1E8FA8]">{r.variant_title}</span> : null}
+                    {r.variant_title ? <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#1F8383]">{r.variant_title}</span> : null}
                     {r.is_professional ? <span className="text-[10px] text-amber-600 bg-amber-50 px-2 py-0.5 rounded-full">Profesional</span> : null}
                     {yaEsta.has(String(r.variant_id)) ? <span className="text-[10px] text-[#8AAAB8]">Ya agregado</span> : null}
                   </button>
@@ -140,7 +140,7 @@ export default function UpsellAppPage() {
                       maxLength={80}
                       placeholder="Texto corto (opcional): Ideal para dormir mejor"
                       onBlur={(e) => { if ((e.target.value || null) !== (s.note || null)) llamar("PATCH", { id: s.id, note: e.target.value }); }}
-                      className="mt-1 w-full text-xs text-[#5B7A8C] border border-transparent hover:border-[#D0E4EC] focus:border-[#1E8FA8] rounded-lg px-2 py-1 focus:outline-none"
+                      className="mt-1 w-full text-xs text-[#5B7A8C] border border-transparent hover:border-[#D0E4EC] focus:border-[#2BB9B8] rounded-lg px-2 py-1 focus:outline-none"
                     />
                   </div>
                   <label className="flex items-center gap-2 text-xs text-[#5B7A8C] cursor-pointer select-none">

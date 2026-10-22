@@ -27,7 +27,7 @@ function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date,
     const dosisText = item.instruccion
       || (item.dosis_amount ? `${item.dosis_amount} ${item.dosis_unit || 'dosis'}` : null);
     const dosisBadge = dosisText
-      ? `<span style="display:inline-block;background:#1e8fa8;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:8px;">${dosisText}${item.quantity > 1 ? ` · ${item.quantity} frascos` : ''}</span>`
+      ? `<span style="display:inline-block;background:#2BB9B8;color:#0D2133;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:8px;">${dosisText}${item.quantity > 1 ? ` · ${item.quantity} frascos` : ''}</span>`
       : `<span style="display:inline-block;background:#1b3f7a;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:10px;">×${item.quantity}</span>`;
 
     // Si el profesional no indicó cómo se toma, va el modo de uso del producto
@@ -77,16 +77,16 @@ function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date,
   <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:800;line-height:1.2;">Protocolo de Suplementación</h1>
 </td></tr>
 
-<tr><td style="background:#1E8FA8;padding:18px 40px;">
+<tr><td style="background:#2BB9B8;padding:18px 40px;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
     <td>
-      <p style="margin:0;color:rgba(255,255,255,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Paciente</p>
-      <p style="margin:4px 0 0;color:#ffffff;font-size:15px;font-weight:700;">${patientName}</p>
+      <p style="margin:0;color:rgba(13,33,51,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Paciente</p>
+      <p style="margin:4px 0 0;color:#0D2133;font-size:15px;font-weight:700;">${patientName}</p>
     </td>
     <td align="right">
-      <p style="margin:0;color:rgba(255,255,255,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;text-align:right;">Especialista</p>
-      <p style="margin:4px 0 0;color:#ffffff;font-size:15px;font-weight:700;text-align:right;">${affiliateName}</p>
+      <p style="margin:0;color:rgba(13,33,51,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;text-align:right;">Especialista</p>
+      <p style="margin:4px 0 0;color:#0D2133;font-size:15px;font-weight:700;text-align:right;">${affiliateName}</p>
     </td>
   </tr>
   </table>
@@ -119,7 +119,7 @@ function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date,
   <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.8;text-align:center;">
     Este protocolo fue diseñado para ti por <strong style="color:#6b7280;">${affiliateName}</strong><br>a través de <strong style="color:#1b3f7a;">Vitahub Pro</strong>.<br>
     Para dudas o ajustes, contacta directamente a tu especialista.<br><br>
-    <a href="https://vitahub.mx" style="color:#1E8FA8;text-decoration:none;font-weight:600;">vitahub.mx</a>
+    <a href="https://vitahub.mx" style="color:#1F8383;text-decoration:none;font-weight:600;">vitahub.mx</a>
   </p>
 </td></tr>
 

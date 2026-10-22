@@ -9,7 +9,7 @@ export default function TerminosPage() {
       <p style={{ color: '#666', marginBottom: 32 }}>Última actualización: junio de 2026</p>
 
       <p>
-        Al usar <strong>Vitahub Pro</strong> ("la App"), operada por Vitahub México, aceptás los siguientes términos.
+        Al usar <strong>Vitahub Pro</strong> ("la App"), operada por Vitahub México, aceptas los siguientes términos.
         Si no estás de acuerdo, por favor no uses la App.
       </p>
 
@@ -31,7 +31,7 @@ export default function TerminosPage() {
 
       <h2 style={{ fontSize: 20, fontWeight: 700, marginTop: 32, marginBottom: 8 }}>3. Integración con Google Calendar</h2>
       <p>
-        La App ofrece integración opcional con Google Calendar. Al conectar tu cuenta de Google autorizás a
+        La App ofrece integración opcional con Google Calendar. Al conectar tu cuenta de Google autorizas a
         Vitahub Pro a leer tus eventos existentes y crear nuevos eventos relacionados con citas confirmadas.
         Esta autorización puede ser revocada en cualquier momento desde la App o desde tu cuenta de Google.
         El uso de esta integración está sujeto también a los{' '}

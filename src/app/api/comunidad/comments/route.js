@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@supabase/supabase-js";
+import { idDeSesion } from "@/lib/sesionWeb";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -9,7 +10,7 @@ const supabase = createClient(
 
 export async function GET() {
   const cookieStore = await cookies();
-  const customerId = cookieStore.get("customerId")?.value;
+  const customerId = idDeSesion(cookieStore);
   if (!customerId) {
     return NextResponse.json({ success: false }, { status: 401 });
   }
@@ -28,7 +29,7 @@ export async function GET() {
 
 export async function POST(req) {
   const cookieStore = await cookies();
-  const customerId = cookieStore.get("customerId")?.value;
+  const customerId = idDeSesion(cookieStore);
   if (!customerId) {
     return NextResponse.json({ success: false }, { status: 401 });
   }

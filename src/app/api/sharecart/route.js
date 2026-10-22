@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { supabase } from "@/lib/supabase";
 import { nanoid } from "nanoid";
+import { idDeSesion } from "@/lib/sesionWeb";
 
 // =============================
 //  CORS CONFIG
@@ -100,7 +101,7 @@ export async function GET(req) {
     const createdAfter = searchParams.get("created_after");
     const updatedAfter = searchParams.get("updated_after");
 
-    const customerId = req.cookies.get("customerId")?.value;
+    const customerId = idDeSesion(req.cookies);
 
     // ============================================================
     // 1️⃣ GET por token (público)

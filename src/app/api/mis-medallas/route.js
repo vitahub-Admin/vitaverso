@@ -1,5 +1,6 @@
 import { cookies } from 'next/headers'
 import { createClient } from '@supabase/supabase-js'
+import { idDeSesion } from "@/lib/sesionWeb";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -8,7 +9,7 @@ const supabase = createClient(
 
 export async function GET() {
   const cookieStore = await cookies()
-  const customerId = cookieStore.get('customerId')?.value
+  const customerId = idDeSesion(cookieStore)
   if (!customerId) return Response.json({ error: 'no auth' }, { status: 401 })
 
   const { data: allDefs, error: e1 } = await supabase
