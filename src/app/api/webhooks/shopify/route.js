@@ -8,6 +8,7 @@ import { confirmarVenta, revertirVenta } from "@/lib/ventaConsultorio";
 import { cancelarOrdenEnBaseLinker } from "@/lib/baselinker";
 import { createCalendarEvent } from "@/lib/bookingCalendar";
 import { Resend } from "resend";
+import { armarProtocolo, etiquetaDeProducto, escaparHtml } from "@/lib/protocoloDatos";
 
 export const runtime = "nodejs";
 
@@ -19,46 +20,54 @@ const supabase = createClient(
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 // ── Email de prescripción ─────────────────────────────────────────────────────
+// Mismo diseño y mismos datos que el PDF (src/app/api/protocolo-pdf/route.js): si se cambia
+// uno, se cambia el otro. Los datos salen de armarProtocolo (src/lib/protocoloDatos.js).
 
-// lineItems: { title, quantity, desc, dosis_amount?, dosis_unit?, nota? }
 function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date, lineItems, shareCartToken }) {
   const pdfUrl = `https://pro.vitahub.mx/api/protocolo-pdf?token=${shareCartToken}`;
+  const paciente = escaparHtml(patientName);
+  const especialista = escaparHtml(affiliateName);
+
   const rows = lineItems.map((item, i) => {
-    const dosisText = item.instruccion
-      || (item.dosis_amount ? `${item.dosis_amount} ${item.dosis_unit || 'dosis'}` : null);
-    const dosisBadge = dosisText
-      ? `<span style="display:inline-block;background:#2BB9B8;color:#0D2133;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-top:8px;">${dosisText}${item.quantity > 1 ? ` · ${item.quantity} frascos` : ''}</span>`
-      : `<span style="display:inline-block;background:#1b3f7a;color:#fff;font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;margin-right:10px;">×${item.quantity}</span>`;
+    const etiqueta = etiquetaDeProducto(item);
+    const pill = etiqueta.tipo === "dosis"
+      ? `<span style="display:inline-block;background:#2BB9B8;color:#0D2133;font-size:11px;font-weight:700;padding:4px 11px;border-radius:20px;">${escaparHtml(etiqueta.texto)}</span>`
+      : `<span style="display:inline-block;background:#1b3f7a;color:#ffffff;font-size:11px;font-weight:700;padding:4px 11px;border-radius:20px;">${escaparHtml(etiqueta.texto)}</span>`;
+
+    const foto = item.foto
+      ? `<img src="${item.foto}" width="72" height="72" alt="" style="display:block;width:72px;height:72px;border-radius:12px;border:1px solid #D0E4EC;object-fit:cover;background:#F7F9FB;">`
+      : `<div style="width:72px;height:72px;border-radius:12px;border:1px solid #D0E4EC;background:#F7F9FB;"></div>`;
 
     // Si el profesional no indicó cómo se toma, va el modo de uso del producto
     const usoRow = item.modo_de_uso
-      ? `<tr><td style="font-size:12px;color:#1b3f7a;line-height:1.6;padding-top:6px;"><strong>Modo de uso:</strong> ${item.modo_de_uso.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td></tr>`
-      : '';
-
+      ? `<p style="margin:8px 0 0;font-size:12px;color:#1b3f7a;line-height:1.6;"><strong>Modo de uso:</strong> ${escaparHtml(item.modo_de_uso)}</p>`
+      : "";
     const notaRow = item.nota
-      ? `<tr><td style="font-size:12px;color:#9ca3af;font-style:italic;padding-top:4px;">📝 ${item.nota}</td></tr>`
-      : '';
+      ? `<p style="margin:6px 0 0;font-size:12px;color:#9ca3af;line-height:1.6;">Nota: ${escaparHtml(item.nota)}</p>`
+      : "";
 
     return `
     <tr>
       <td style="padding-bottom:22px;${i > 0 ? "padding-top:22px;border-top:1px solid #f3f4f6;" : ""}">
         <table width="100%" cellpadding="0" cellspacing="0" border="0">
           <tr>
-            <td style="padding-bottom:8px;">
-              ${dosisBadge}
-              <span style="font-size:15px;font-weight:700;color:#1b3f7a;">${item.title}</span>
+            <td width="72" valign="top" style="width:72px;">${foto}</td>
+            <td valign="top" style="padding-left:16px;">
+              ${pill}
+              <p style="margin:8px 0 0;font-size:15px;font-weight:700;color:#1b3f7a;line-height:1.35;">${escaparHtml(item.title)}</p>
+              <p style="margin:6px 0 0;font-size:13px;color:#6b7280;line-height:1.65;">${item.desc}</p>
+              ${usoRow}
+              ${notaRow}
             </td>
           </tr>
-          <tr>
-            <td style="font-size:13px;color:#6b7280;line-height:1.65;">${item.desc}</td>
-          </tr>
-          ${usoRow}
-          ${notaRow}
         </table>
       </td>
-    </tr>
-  `;
+    </tr>`;
   }).join("");
+
+  const filaOrden = orderNumber
+    ? `<td style="color:#9ca3af;font-size:12px;">Orden #${orderNumber}</td><td align="right" style="color:#9ca3af;font-size:12px;">${date}</td>`
+    : `<td align="right" style="color:#9ca3af;font-size:12px;">${date}</td>`;
 
   return `<!DOCTYPE html>
 <html lang="es">
@@ -82,11 +91,11 @@ function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date,
   <tr>
     <td>
       <p style="margin:0;color:rgba(13,33,51,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Paciente</p>
-      <p style="margin:4px 0 0;color:#0D2133;font-size:15px;font-weight:700;">${patientName}</p>
+      <p style="margin:4px 0 0;color:#0D2133;font-size:15px;font-weight:700;">${paciente}</p>
     </td>
     <td align="right">
       <p style="margin:0;color:rgba(13,33,51,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;text-align:right;">Especialista</p>
-      <p style="margin:4px 0 0;color:#0D2133;font-size:15px;font-weight:700;text-align:right;">${affiliateName}</p>
+      <p style="margin:4px 0 0;color:#0D2133;font-size:15px;font-weight:700;text-align:right;">${especialista}</p>
     </td>
   </tr>
   </table>
@@ -94,10 +103,7 @@ function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date,
 
 <tr><td style="background:#ffffff;padding:12px 40px;border-bottom:1px solid #f3f4f6;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
-  <tr>
-    <td style="color:#9ca3af;font-size:12px;">Orden #${orderNumber}</td>
-    <td align="right" style="color:#9ca3af;font-size:12px;">${date}</td>
-  </tr>
+  <tr>${filaOrden}</tr>
   </table>
 </td></tr>
 
@@ -111,13 +117,13 @@ function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date,
 <tr><td style="background:#f0f7ff;border-top:1px solid #dbeafe;padding:24px 40px;text-align:center;">
   <p style="margin:0 0 16px;font-size:13px;color:#4b5563;">Guarda tu protocolo para consultarlo cuando quieras</p>
   <a href="${pdfUrl}" style="display:inline-block;background:#1b3f7a;color:#ffffff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;">
-    📄 Descargar mi Protocolo en PDF
+    Descargar mi protocolo en PDF
   </a>
 </td></tr>
 
 <tr><td style="background:#f9fafb;border-top:1px solid #f3f4f6;border-radius:0 0 16px 16px;padding:24px 40px;">
   <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.8;text-align:center;">
-    Este protocolo fue diseñado para ti por <strong style="color:#6b7280;">${affiliateName}</strong><br>a través de <strong style="color:#1b3f7a;">Vitahub Pro</strong>.<br>
+    Este protocolo fue diseñado para ti por <strong style="color:#6b7280;">${especialista}</strong><br>a través de <strong style="color:#1b3f7a;">Vitahub Pro</strong>.<br>
     Para dudas o ajustes, contacta directamente a tu especialista.<br><br>
     <a href="https://vitahub.mx" style="color:#1F8383;text-decoration:none;font-weight:600;">vitahub.mx</a>
   </p>
@@ -135,10 +141,10 @@ async function sendProtocolEmail(payload, shareCartToken) {
     const customerEmail = payload.customer?.email || payload.email;
     if (!customerEmail) return;
 
-    // Datos del sharecart (nombre del paciente + owner + origen)
+    // Datos del sharecart (nombre del paciente + owner + origen + productos del protocolo)
     const { data: cartData } = await supabase
       .from("sharecarts")
-      .select("owner_id, name, extra")
+      .select("owner_id, name, extra, items")
       .eq("token", shareCartToken)
       .maybeSingle();
 
@@ -147,9 +153,6 @@ async function sendProtocolEmail(payload, shareCartToken) {
     // Solo enviar para prescripciones generadas desde Protocolos Clínicos
     if (cartData.extra?.origen !== 'protocolo') return;
 
-    // Mapa de dosis por variant_id (guardado al generar el sharecart desde mis-protocolos)
-    const dosisMap = cartData.extra?.dosis_map || {};
-
     // Nombre del especialista desde affiliates
     const { data: affiliateData } = await supabase
       .from("affiliates")
@@ -157,51 +160,16 @@ async function sendProtocolEmail(payload, shareCartToken) {
       .eq("shopify_customer_id", Number(cartData.owner_id))
       .maybeSingle();
 
-    // Catálogo para cruzar product_id → slug de componente
-    const productIds = (payload.line_items || [])
-      .map(i => Number(i.product_id))
-      .filter(Boolean);
-
-    const [{ data: catalogRows }, { data: compRows }] = await Promise.all([
-      supabase.from("product_catalog").select("product_id, componente, modo_de_uso").in("product_id", productIds),
-      supabase.from("componentes").select("slug, descripcion"),
-    ]);
-
-    const catalogMap = {};
-    (catalogRows || []).forEach(r => {
-      catalogMap[r.product_id] = (r.componente || "").trim().toLowerCase();
+    // El correo y el PDF dicen lo mismo: ambos salen del protocolo que armó el profesional.
+    // Si el carrito no trajera productos, se usan los de la orden.
+    const lineasOrden = (payload.line_items || []).map(i => ({ variant_id: i.variant_id, quantity: i.quantity }));
+    const titulos = Object.fromEntries((payload.line_items || []).map(i => [i.variant_id, i.title || ""]));
+    const lineItems = await armarProtocolo({
+      items:    cartData.items?.length ? cartData.items : lineasOrden,
+      dosisMap: cartData.extra?.dosis_map || {},
+      titulos,
     });
-
-    const usoMap = {};
-    (catalogRows || []).forEach(r => { if (r.modo_de_uso) usoMap[r.product_id] = r.modo_de_uso; });
-
-    const descMap = {};
-    (compRows || []).forEach(r => {
-      if (r.slug) descMap[r.slug.trim().toLowerCase()] = r.descripcion;
-    });
-
-    const FALLBACK = "Suplemento de alta calidad seleccionado especialmente para tu protocolo de salud.";
-
-    const lineItems = (payload.line_items || []).map(item => {
-      const slug = catalogMap[item.product_id] || "";
-      const desc = (slug && descMap[slug]) || FALLBACK;
-      // Buscar dosis por variant_id del item (la clave en dosisMap es string)
-      const dosis = dosisMap[String(item.variant_id)] || {};
-      // Sin ninguna indicación del profesional sobre cómo tomarlo
-      const sinIndicacion = !dosis.instruccion && !dosis.dosis_amount && !(dosis.momentos || []).length && !dosis.acompanamiento;
-      return {
-        modo_de_uso:  sinIndicacion ? (usoMap[item.product_id] || null) : null,
-        title:        item.title || "",
-        quantity:     item.quantity,
-        desc,
-        instruccion:  dosis.instruccion  || null,
-        dosis_amount: dosis.dosis_amount || null,
-        dosis_unit:   dosis.dosis_unit   || null,
-        momentos:     dosis.momentos     || [],
-        acompanamiento: dosis.acompanamiento || null,
-        nota:         dosis.nota         || null,
-      };
-    });
+    if (!lineItems.length) return;
 
     const patientName =
       cartData.name ||
@@ -232,6 +200,16 @@ async function sendProtocolEmail(payload, shareCartToken) {
       html,
       tags: [{ name: "flujo", value: "protocolo" }],
     });
+
+    // El PDF se descarga después: guarda la orden y su fecha para mostrarlas igual que el correo
+    try {
+      const { data: fresco } = await supabase.from("sharecarts").select("extra").eq("token", shareCartToken).maybeSingle();
+      await supabase.from("sharecarts")
+        .update({ extra: { ...(fresco?.extra || cartData.extra || {}), order_number: payload.order_number, order_date: payload.created_at } })
+        .eq("token", shareCartToken);
+    } catch (e) {
+      console.error("[webhook] no se pudo guardar la orden en el protocolo:", e?.message);
+    }
 
     console.log(`[webhook] Prescripción enviada → ${customerEmail} (orden #${payload.order_number})`);
   } catch (err) {

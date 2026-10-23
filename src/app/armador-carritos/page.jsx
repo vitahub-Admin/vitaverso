@@ -699,6 +699,12 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
   const [plantillaLista, setPlantillaLista]   = useState(false);
   const [modalBorrador, setModalBorrador]     = useState(false);
   const [nombreBorrador, setNombreBorrador]   = useState("");
+  // Aviso previo al envío: "¿lo guardas como plantilla?"
+  const [modalPlantilla, setModalPlantilla]   = useState(false);
+  const [pasoPlantilla, setPasoPlantilla]     = useState("pregunta");   // pregunta | nombre
+  const [nombreAviso, setNombreAviso]         = useState("");
+  const [noPreguntar, setNoPreguntar]         = useState(false);
+  const [errorPlantilla, setErrorPlantilla]   = useState("");
   const total = carrito.reduce((acc, p) => acc + (p.price || 0) * (p.quantity || 1), 0);
 
   // Duración del protocolo: el producto que se termina primero marca cuándo
@@ -806,6 +812,42 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
     } else {
       setAvisoGuardado(`No se pudo guardar: ${r.error}`);
     }
+  };
+
+  // ── Aviso "¿guardar como plantilla?" antes de abrir WhatsApp ─────────
+  const CLAVE_NO_PREGUNTAR = "vh_no_preguntar_plantilla";
+  const yaNoPregunta = () => {
+    try { return localStorage.getItem(CLAVE_NO_PREGUNTAR) === "1"; } catch { return false; }
+  };
+
+  // Se pregunta solo si es un protocolo de verdad (2 productos o más), no vino ya de una
+  // plantilla, no se guardó como plantilla hace un momento y no pidió que no se le vuelva a preguntar.
+  const iniciarEnvio = () => {
+    const faltaDato = !customerId || !patientData.telefono || patientData.telefono.replace(/\D/g, "").length < 10;
+    const preguntar = carrito.length >= 2 && protocoloOrigen?.status !== "plantilla" && !plantillaLista && !yaNoPregunta();
+    // Si falta la sesión o el teléfono, el envío mismo explica qué falta: no tiene sentido preguntar antes
+    if (faltaDato || !preguntar) return handleCheckout();
+    setPasoPlantilla("pregunta"); setNombreAviso(""); setErrorPlantilla(""); setNoPreguntar(false);
+    setModalPlantilla(true);
+  };
+
+  const seguirSinGuardar = () => {
+    if (noPreguntar) { try { localStorage.setItem(CLAVE_NO_PREGUNTAR, "1"); } catch {} }
+    setModalPlantilla(false);
+    handleCheckout();
+  };
+
+  const guardarPlantillaYEnviar = async () => {
+    const nombre = nombreAviso.trim();
+    if (!nombre) return;
+    setErrorPlantilla("");
+    const r = await onGuardar({ status: "plantilla", nombre });
+    if (!r.ok) { setErrorPlantilla(`No se pudo guardar: ${r.error}`); return; }
+    setPlantillaLista(true);
+    setModalPlantilla(false);
+    setAvisoGuardado(`Plantilla "${nombre}" guardada. La encuentras en el inicio del armador.`);
+    setTimeout(() => setAvisoGuardado(""), 6000);
+    handleCheckout();
   };
 
   const handleCheckout = async () => {
@@ -1149,7 +1191,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
             </div>
           ) : (
             <div className="space-y-2">
-              <button onClick={handleCheckout} disabled={loading || carrito.length === 0}
+              <button onClick={iniciarEnvio} disabled={loading || carrito.length === 0}
                 className="w-full bg-[#1b3f7a] text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 hover:bg-[#162d60] transition-colors flex items-center justify-center gap-2">
                 <MessageCircle size={15} /> {loading ? "Generando…" : "Enviar por WhatsApp"}
               </button>
@@ -1157,6 +1199,35 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                 <p className="text-[11px] text-[#B0C8D4] text-center leading-tight">
                   Ingresa el teléfono del paciente para enviar
                 </p>
+              )}
+              {/* Guardar como plantilla: a la vista, sin esperar a enviar. Una plantilla se reusa
+                  con otro paciente; el borrador de abajo es para seguir después con este. */}
+              {carrito.length > 0 && protocoloOrigen?.status !== "plantilla" && (
+                plantillaLista ? (
+                  <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-xl p-3.5">
+                    <p className="text-xs font-semibold text-[#1F8383]">
+                      Plantilla guardada. La encuentras en el inicio del armador.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-white border border-[#C2DFE8] rounded-xl p-3.5 space-y-2.5">
+                    <div>
+                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">Guardar como plantilla</p>
+                      <p className="text-[11px] text-[#8AAAB8] leading-snug mt-0.5">
+                        Para usar este protocolo de nuevo con otro paciente. No guarda los datos del paciente.
+                      </p>
+                    </div>
+                    <input type="text" value={nombrePlantilla} maxLength={60}
+                      onChange={e => setNombrePlantilla(e.target.value)}
+                      onKeyDown={e => { if (e.key === "Enter") guardarPlantilla(); }}
+                      placeholder="Nombre. Ej: Protocolo tiroides"
+                      className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
+                    <button onClick={guardarPlantilla} disabled={!nombrePlantilla.trim() || guardando}
+                      className="w-full bg-[#2BB9B8] text-[#0D2133] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#26A3A2] transition-colors disabled:opacity-40">
+                      {guardando ? "Guardando…" : "Guardar plantilla"}
+                    </button>
+                  </div>
+                )
               )}
               {/* Guardar para seguir después: no envía nada al paciente */}
               {carrito.length > 0 && (
@@ -1171,6 +1242,61 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
           )}
         </div>
       </div>
+
+      {/* Modal: antes de abrir WhatsApp, ofrecer guardar el protocolo como plantilla */}
+      {modalPlantilla && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-[rgba(13,33,51,0.72)]"
+          onClick={() => setModalPlantilla(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-sm p-5 shadow-xl" onClick={e => e.stopPropagation()}>
+            {pasoPlantilla === "pregunta" ? (
+              <>
+                <h3 className="text-base font-extrabold text-[#1b3f7a]">¿Guardamos este protocolo como plantilla?</h3>
+                <p className="text-xs text-[#5B7A8C] mt-1.5 leading-snug">
+                  Así lo puedes usar de nuevo con otro paciente, sin armarlo desde cero. No se guardan los datos de este paciente.
+                </p>
+                <div className="flex gap-2 mt-4">
+                  <button onClick={seguirSinGuardar}
+                    className="flex-1 border border-[#D0E4EC] text-[#5B7A8C] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#F7F9FB] transition-colors">
+                    No, enviar
+                  </button>
+                  <button onClick={() => setPasoPlantilla("nombre")}
+                    className="flex-1 bg-[#1b3f7a] text-white text-sm py-2.5 rounded-lg font-semibold hover:bg-[#162d60] transition-colors">
+                    Sí, guardar
+                  </button>
+                </div>
+                <label className="flex items-center gap-2 mt-4 text-xs text-[#5B7A8C] cursor-pointer select-none">
+                  <input type="checkbox" checked={noPreguntar} onChange={e => setNoPreguntar(e.target.checked)}
+                    className="accent-[#2BB9B8] w-3.5 h-3.5" />
+                  No volver a preguntar
+                </label>
+              </>
+            ) : (
+              <>
+                <h3 className="text-base font-extrabold text-[#1b3f7a]">Nombre de la plantilla</h3>
+                <p className="text-xs text-[#5B7A8C] mt-1.5 leading-snug">
+                  Al guardarla, se abre WhatsApp para enviar el protocolo.
+                </p>
+                <input autoFocus type="text" value={nombreAviso} maxLength={60}
+                  onChange={e => setNombreAviso(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") guardarPlantillaYEnviar(); if (e.key === "Escape") setModalPlantilla(false); }}
+                  placeholder="Ej: Protocolo tiroides"
+                  className="w-full mt-3 border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
+                {errorPlantilla && <p className="text-xs text-red-500 mt-2 leading-snug">{errorPlantilla}</p>}
+                <div className="flex gap-2 mt-4">
+                  <button onClick={() => setPasoPlantilla("pregunta")}
+                    className="flex-1 border border-[#D0E4EC] text-[#5B7A8C] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#F7F9FB] transition-colors">
+                    Atrás
+                  </button>
+                  <button onClick={guardarPlantillaYEnviar} disabled={!nombreAviso.trim() || guardando}
+                    className="flex-1 bg-[#2BB9B8] text-[#0D2133] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#26A3A2] transition-colors disabled:opacity-40">
+                    {guardando ? "Guardando…" : "Guardar y enviar"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Modal: nombre del borrador */}
       {modalBorrador && (

@@ -1,6 +1,10 @@
 // GET /api/protocolo-pdf?token=SHARECART_TOKEN
 // Genera y devuelve el PDF del protocolo de suplementación al vuelo.
 // Se enlaza desde el email de prescripción — no requiere auth, el token actúa como clave.
+//
+// Mismo diseño y mismos datos que el correo (src/app/api/webhooks/shopify/route.js,
+// buildPrescriptionEmail): si se cambia uno, se cambia el otro. Los datos salen de
+// armarProtocolo (src/lib/protocoloDatos.js).
 
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
@@ -10,8 +14,10 @@ import {
   Page,
   Text,
   View,
+  Image,
   StyleSheet,
 } from "@react-pdf/renderer";
+import { armarProtocolo, etiquetaDeProducto } from "@/lib/protocoloDatos";
 
 export const runtime = "nodejs";
 
@@ -34,12 +40,15 @@ const S = StyleSheet.create({
   metaText:    { color: "#9ca3af", fontSize: 10 },
   body:        { backgroundColor: "#fff", padding: "24 40" },
   sectionLbl:  { color: "#9ca3af", fontSize: 8, fontWeight: "bold", letterSpacing: 2, marginBottom: 16 },
-  item:        { borderTopWidth: 1, borderTopColor: "#f3f4f6", paddingTop: 16, marginTop: 16 },
+  item:        { flexDirection: "row", borderTopWidth: 1, borderTopColor: "#f3f4f6", paddingTop: 16, marginTop: 16 },
   itemFirst:   { marginTop: 0, borderTopWidth: 0, paddingTop: 0 },
-  doseBadge:   { backgroundColor: "#2BB9B8", color: "#0D2133", fontSize: 9, fontWeight: "bold", padding: "3 9", borderRadius: 20, alignSelf: "flex-start", marginBottom: 7 },
-  qtyBadge:    { backgroundColor: "#1b3f7a", color: "#fff", fontSize: 9, fontWeight: "bold", padding: "3 9", borderRadius: 20, alignSelf: "flex-start", marginBottom: 7 },
-  itemTitle:   { color: "#1b3f7a", fontSize: 13, fontWeight: "bold", marginBottom: 5 },
-  itemDesc:    { color: "#6b7280", fontSize: 10, lineHeight: 1.65 },
+  foto:        { width: 58, height: 58, borderRadius: 9, borderWidth: 1, borderColor: "#D0E4EC", objectFit: "cover" },
+  fotoVacia:   { width: 58, height: 58, borderRadius: 9, borderWidth: 1, borderColor: "#D0E4EC", backgroundColor: "#F7F9FB" },
+  itemTexto:   { flex: 1, marginLeft: 14 },
+  doseBadge:   { backgroundColor: "#2BB9B8", color: "#0D2133", fontSize: 9, fontWeight: "bold", padding: "3 9", borderRadius: 20, alignSelf: "flex-start" },
+  qtyBadge:    { backgroundColor: "#1b3f7a", color: "#fff", fontSize: 9, fontWeight: "bold", padding: "3 9", borderRadius: 20, alignSelf: "flex-start" },
+  itemTitle:   { color: "#1b3f7a", fontSize: 12, fontWeight: "bold", marginTop: 7, lineHeight: 1.35 },
+  itemDesc:    { color: "#6b7280", fontSize: 10, lineHeight: 1.65, marginTop: 5 },
   itemNota:    { color: "#9ca3af", fontSize: 9, marginTop: 5 },
   itemUso:     { color: "#1b3f7a", fontSize: 9, marginTop: 5 },
   footer:      { backgroundColor: "#f9fafb", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "20 40", alignItems: "center" },
@@ -48,27 +57,25 @@ const S = StyleSheet.create({
 
 // ── Componente JSX del documento ──────────────────────────────────────────────
 
-function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems, protocolName }) {
+function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems }) {
   return (
     <Document title={`Protocolo — ${patientName}`}>
       <Page size="A4" style={S.page}>
 
         {/* Header */}
         <View style={S.header}>
-          <Text style={S.headerEye}>
-            Vitahub Pro{protocolName ? `  ·  ${protocolName}` : ""}
-          </Text>
+          <Text style={S.headerEye}>VITAHUB PRO</Text>
           <Text style={S.headerTitle}>Protocolo de Suplementación</Text>
         </View>
 
         {/* Paciente / Especialista */}
         <View style={S.band}>
           <View>
-            <Text style={S.bandLabel}>Paciente</Text>
+            <Text style={S.bandLabel}>PACIENTE</Text>
             <Text style={S.bandValue}>{patientName}</Text>
           </View>
           <View>
-            <Text style={[S.bandLabel, { textAlign: "right" }]}>Especialista</Text>
+            <Text style={[S.bandLabel, { textAlign: "right" }]}>ESPECIALISTA</Text>
             <Text style={[S.bandValue, { textAlign: "right" }]}>{affiliateName}</Text>
           </View>
         </View>
@@ -85,20 +92,24 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
         <View style={S.body}>
           <Text style={S.sectionLbl}>TU PROTOCOLO INCLUYE</Text>
 
-          {lineItems.map((item, i) => (
-            <View key={i} style={i === 0 ? S.itemFirst : S.item}>
-              {item.dosis_amount
-                ? <Text style={S.doseBadge}>
-                    {item.dosis_amount} {item.dosis_unit || "cápsula"}{item.dosis_amount > 1 ? "s" : ""}  ·  {item.quantity} unid.
-                  </Text>
-                : <Text style={S.qtyBadge}>×{item.quantity}</Text>
-              }
-              <Text style={S.itemTitle}>{item.title}</Text>
-              <Text style={S.itemDesc}>{item.desc}</Text>
-              {item.modo_de_uso ? <Text style={S.itemUso}>Modo de uso: {item.modo_de_uso}</Text> : null}
-              {item.nota ? <Text style={S.itemNota}>Nota: {item.nota}</Text> : null}
-            </View>
-          ))}
+          {lineItems.map((item, i) => {
+            const etiqueta = etiquetaDeProducto(item);
+            return (
+              // wrap={false}: un producto no se parte entre dos páginas
+              <View key={i} wrap={false} style={i === 0 ? [S.item, S.itemFirst] : S.item}>
+                {item.fotoDatos
+                  ? <Image src={item.fotoDatos} style={S.foto} />
+                  : <View style={S.fotoVacia} />}
+                <View style={S.itemTexto}>
+                  <Text style={etiqueta.tipo === "dosis" ? S.doseBadge : S.qtyBadge}>{etiqueta.texto}</Text>
+                  <Text style={S.itemTitle}>{item.title}</Text>
+                  <Text style={S.itemDesc}>{item.desc}</Text>
+                  {item.modo_de_uso ? <Text style={S.itemUso}>Modo de uso: {item.modo_de_uso}</Text> : null}
+                  {item.nota ? <Text style={S.itemNota}>Nota: {item.nota}</Text> : null}
+                </View>
+              </View>
+            );
+          })}
         </View>
 
         {/* Footer */}
@@ -114,6 +125,26 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
       </Page>
     </Document>
   );
+}
+
+// react-pdf necesita los bytes de la imagen y solo lee JPG y PNG (Shopify las sirve en el formato en que se
+// subieron, y a veces es WebP, que se descarta). Se descargan antes de armar el PDF; si una foto no baja a
+// tiempo o no es legible, ese producto sale sin foto y el PDF se entrega igual.
+async function descargarFoto(url) {
+  if (!url) return null;
+  try {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 6000);
+    const res = await fetch(url, { signal: ctl.signal });
+    clearTimeout(timer);
+    if (!res.ok) return null;
+    const data = Buffer.from(await res.arrayBuffer());
+    if (data[0] === 0x89 && data[1] === 0x50) return { data, format: "png" };
+    if (data[0] === 0xff && data[1] === 0xd8) return { data, format: "jpg" };
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // ── Handler ───────────────────────────────────────────────────────────────────
@@ -138,8 +169,6 @@ export async function GET(req) {
       return NextResponse.json({ error: "Protocolo no encontrado" }, { status: 404 });
     }
 
-    const dosisMap = cart.extra?.dosis_map || {};
-
     // 2. Datos del especialista
     // `display_name` vive en booking_affiliates, no acá: pedirlo hacía fallar
     // la consulta entera y el PDF salía firmado "Tu especialista en Vitahub"
@@ -159,49 +188,16 @@ export async function GET(req) {
 
     const patientName = cart.name || "Paciente";
 
-    // 3. Enriquecer productos: items del sharecart → product_catalog → componentes
-    const sharecartItems = cart.items || [];
-    const variantIds = sharecartItems.map(i => Number(i.variant_id ?? i.id)).filter(Boolean);
-
-    const [catalogResult, compResult] = await Promise.all([
-      variantIds.length
-        ? supabase.from("product_catalog").select("variant_id, product_id, title, componente, modo_de_uso").in("variant_id", variantIds)
-        : Promise.resolve({ data: [] }),
-      supabase.from("componentes").select("slug, descripcion"),
-    ]);
-
-    const catalogMap = {};
-    (catalogResult.data || []).forEach(r => { catalogMap[r.variant_id] = r; });
-
-    const descMap = {};
-    (compResult.data || []).forEach(r => {
-      if (r.slug) descMap[r.slug.trim().toLowerCase()] = r.descripcion;
+    // 3. Los mismos datos que el correo: productos, indicación de toma, descripción y foto
+    const lineItems = await armarProtocolo({
+      items:    cart.items || [],
+      dosisMap: cart.extra?.dosis_map || {},
     });
+    await Promise.all(lineItems.map(async (l) => { l.fotoDatos = await descargarFoto(l.foto); }));
 
-    const FALLBACK = "Suplemento de alta calidad seleccionado especialmente para tu protocolo de salud.";
-
-    const lineItems = sharecartItems.map(item => {
-      const vid   = Number(item.variant_id ?? item.id ?? 0);
-      const cat   = catalogMap[vid] || {};
-      const slug  = (cat.componente || "").trim().toLowerCase();
-      const desc  = (slug && descMap[slug]) || FALLBACK;
-      const dosis = dosisMap[String(vid)] || {};
-      // Sin ninguna indicación del profesional sobre cómo tomarlo, va el modo de uso del producto
-      const sinIndicacion = !dosis.instruccion && !dosis.dosis_amount && !(dosis.momentos || []).length && !dosis.acompanamiento;
-
-      return {
-        modo_de_uso:  sinIndicacion ? (cat.modo_de_uso || null) : null,
-        title:        cat.title || item.title || `Variante ${vid}`,
-        quantity:     item.quantity || 1,
-        desc,
-        dosis_amount: dosis.dosis_amount || null,
-        dosis_unit:   dosis.dosis_unit   || null,
-        nota:         dosis.nota         || null,
-      };
-    });
-
-    // 4. Generar PDF
-    const date = new Date().toLocaleDateString("es-MX", {
+    // 4. Generar PDF. La fecha es la de la orden (igual que el correo); sin orden, la de hoy.
+    const fecha = cart.extra?.order_date ? new Date(cart.extra.order_date) : new Date();
+    const date = fecha.toLocaleDateString("es-MX", {
       year: "numeric", month: "long", day: "numeric",
     });
 
@@ -212,7 +208,6 @@ export async function GET(req) {
         orderNumber={cart.extra?.order_number || null}
         date={date}
         lineItems={lineItems}
-        protocolName={cart.extra?.protocol_name || null}
       />
     );
 
