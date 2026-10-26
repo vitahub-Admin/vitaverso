@@ -7,6 +7,7 @@ import { unidadesEnMano } from '@/lib/envio'
 import { fetchVariantInfo } from '@/lib/shopifyPrices'
 import { validarDescuento } from '@/lib/descuentoShopify'
 import { totalesDe } from '@/lib/totalesVenta'
+import { esVentaTester, NO_DISPONIBLE_EN_TESTER } from '@/lib/consignacionTester'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -30,6 +31,9 @@ const EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
  */
 export async function POST(req, { params }) {
   try {
+    if (esVentaTester((await params).id)) {
+      return NextResponse.json({ ok: false, error: NO_DISPONIBLE_EN_TESTER }, { status: 400 })
+    }
     const { id } = await params
     const body = await req.json().catch(() => ({}))
 

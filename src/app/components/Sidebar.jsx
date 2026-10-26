@@ -7,6 +7,7 @@ import Cookies from "js-cookie";
 import { useCustomer } from "../context/CustomerContext.jsx";
 import { useSidebar } from "../context/SidebarContext.jsx";
 import { useTour } from "../context/TourContext.jsx";
+import { useVentasLocales } from "./useVentasLocales";
 
 import {
   Home, Contact, BarChart2,
@@ -14,7 +15,7 @@ import {
   Users, GraduationCap, Newspaper, UserPlus, Award,
   DollarSign, ShoppingBag, ShoppingCart, BookOpen,
   HelpCircle, Layers, Calendar, Settings, Compass,
-  PanelLeftClose, PanelLeftOpen, User, LogOut, Package, MapPin,
+  PanelLeftClose, PanelLeftOpen, User, LogOut, Package, MapPin, Banknote,
 } from "lucide-react";
 
 const BOOKING_WHITELIST = [
@@ -99,6 +100,8 @@ export default function Sidebar() {
   const { customer } = useCustomer();
   const { collapsed, toggle } = useSidebar();
   const tour = useTour();
+  // Ventas locales: solo aparece para quien tiene el cobro en efectivo habilitado
+  const ventasLocales = useVentasLocales(pathname);
 
   const handleLogout = async () => {
     await fetch("/api/sesion", { method: "DELETE" }).catch(() => {});
@@ -177,6 +180,14 @@ export default function Sidebar() {
       >
         <item.icon size={17} className="shrink-0" />
         {!collapsed && <span className="hidden sm:inline truncate">{item.label}</span>}
+        {/* Punto rojo: hay ventas en efectivo por pagar. Es el recordatorio de que se deben pagar. */}
+        {item.href === "/ventas-locales" && ventasLocales.ventas > 0 && (
+          <span
+            title={`${ventasLocales.ventas} ${ventasLocales.ventas === 1 ? "venta por pagar" : "ventas por pagar"}`}
+            className={`w-2.5 h-2.5 rounded-full bg-red-500 border-2 ${isActive ? "border-[#1b3f7a]" : "border-white"}
+              ${collapsed ? "absolute top-1.5 right-1.5" : "absolute top-1.5 right-1.5 sm:static sm:ml-auto sm:shrink-0"}`}
+          />
+        )}
         {esNuevo && (
           <>
             {/* Riel angosto — mobile o sidebar colapsado: no hay lugar para el
@@ -214,6 +225,14 @@ export default function Sidebar() {
 
   const adminItems = ADMIN_ITEMS.filter(() => isVitahuber);
 
+  // Ventas locales va justo debajo de Protocolos Clínicos, solo si está habilitado
+  const grupos = NAV_GROUPS.map((group, gi) => {
+    if (gi !== 1 || !ventasLocales.habilitado) return group;
+    const i = group.findIndex(it => it.href === "/armador-carritos");
+    const item = { href: "/ventas-locales", label: "Ventas locales", icon: Banknote };
+    return [...group.slice(0, i + 1), item, ...group.slice(i + 1)];
+  });
+
   return (
     <aside className={`
       bg-white border-r border-gray-100 flex flex-col justify-between h-full
@@ -244,7 +263,7 @@ export default function Sidebar() {
           </button>
         )}
 
-        {NAV_GROUPS.map((group, gi) => (
+        {grupos.map((group, gi) => (
           <div key={gi}>
             {/* Divisor entre grupos (no antes del primero) */}
             {gi > 0 && <Divider />}

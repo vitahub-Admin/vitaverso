@@ -4,6 +4,8 @@ import { resolveCustomerId } from '@/lib/customerAppAuth'
 import { fetchVariantInfo } from '@/lib/shopifyPrices'
 import { pasarelaActiva } from '@/lib/pasarelaPago'
 import { totalesDe } from '@/lib/totalesVenta'
+import { modoTester, stockTester, crearVentaTester, ventasTesterDe } from '@/lib/consignacionTester'
+import { esFantasma } from '@/lib/ventasEfectivo'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -41,11 +43,14 @@ export async function POST(req) {
     //    Lo que el profesional tiene en consignación se entrega en mano; el
     //    resto viaja desde el CEDIS. El paciente paga todo junto: un cobro, un
     //    comprobante.
-    const { data: saldos } = await supabase
-      .from('consignment_stock')
-      .select('variant_id, product_id, title, variant_title, disponible')
-      .eq('owner_id', ownerId)
-      .in('variant_id', variantIds)
+    // En modo tester el saldo sale del stock de mentira y no se toca el libro
+    const { data: saldos } = modoTester()
+      ? { data: (await stockTester(supabase, ownerId)).items.filter(i => variantIds.includes(Number(i.variant_id))) }
+      : await supabase
+          .from('consignment_stock')
+          .select('variant_id, product_id, title, variant_title, disponible')
+          .eq('owner_id', ownerId)
+          .in('variant_id', variantIds)
 
     const porVariante = Object.fromEntries((saldos || []).map(s => [String(s.variant_id), s]))
 
@@ -54,7 +59,7 @@ export async function POST(req) {
       const saldo  = porVariante[String(it.variant_id)]
       // Solo se valida contra la consignación lo que se va a entregar en mano.
       // Lo demás lo valida el stock general al armar el envío.
-      if (it.entrega === 'mano' && (!saldo || saldo.disponible < pedido)) {
+      if (it.entrega === 'mano' && !esFantasma(ownerId) && (!saldo || saldo.disponible < pedido)) {
         return NextResponse.json({
           ok: false,
           error: `No tienes ${pedido} de "${saldo?.title || it.variant_id}" en tu consultorio (hay ${saldo?.disponible ?? 0})`,
@@ -118,6 +123,19 @@ export async function POST(req) {
       return NextResponse.json({ ok: false, error: 'No se pudo obtener el precio' }, { status: 502 })
     }
 
+    if (modoTester()) {
+      // Venta en memoria: no se escribe en local_orders
+      const venta = crearVentaTester({
+        owner_id:        ownerId,
+        sharecart_token: body.sharecart_token || null,
+        patient_name:    body.patient_name || null,
+        patient_phone:   body.patient_phone || null,
+        items:           itemsVenta,
+        ...totales,
+      })
+      return NextResponse.json({ ok: true, venta, payment_url: `/cobro/${venta.id}`, simulado: true, tester: true }, { status: 201 })
+    }
+
     const { data: venta, error } = await supabase
       .from('local_orders')
       .insert([{
@@ -158,6 +176,11 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url)
     const estado = searchParams.get('estado')
+
+    if (modoTester()) {
+      const todas = ventasTesterDe(sesion)
+      return NextResponse.json({ ok: true, tester: true, ventas: estado ? todas.filter(v => v.estado === estado) : todas })
+    }
 
     let query = supabase
       .from('local_orders')

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { validarDescuento } from '@/lib/descuentoShopify'
 import { totalesDe } from '@/lib/totalesVenta'
+import { esVentaTester, NO_DISPONIBLE_EN_TESTER } from '@/lib/consignacionTester'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -29,6 +30,9 @@ async function ventaPendiente(id) {
  */
 export async function POST(req, { params }) {
   try {
+    if (esVentaTester((await params).id)) {
+      return NextResponse.json({ ok: false, error: NO_DISPONIBLE_EN_TESTER }, { status: 400 })
+    }
     const { id } = await params
     const { codigo } = await req.json().catch(() => ({}))
 
@@ -68,6 +72,9 @@ export async function POST(req, { params }) {
  */
 export async function DELETE(_req, { params }) {
   try {
+    if (esVentaTester((await params).id)) {
+      return NextResponse.json({ ok: false, error: NO_DISPONIBLE_EN_TESTER }, { status: 400 })
+    }
     const { id } = await params
 
     const { venta, error: err, status } = await ventaPendiente(id)

@@ -13,7 +13,7 @@
 
 import { useEffect, useState, useMemo } from "react";
 import { affiliatesService } from "../../services/affiliates";
-import { Package, Search, Plus, Minus, Settings2, X } from "lucide-react";
+import { Package, Search, Plus, Minus, Settings2, X, Banknote } from "lucide-react";
 
 const fmtMXN = (n) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 })
@@ -54,6 +54,10 @@ export default function ConsignacionPage() {
 
   // Resumen: quién tiene producto en su consultorio, para no tener que buscarlo
   const [resumen, setResumen] = useState(null);
+
+  // Ventas en efectivo cobradas en consultorio que el profesional todavía no paga
+  const [deudores, setDeudores] = useState([]);
+  const [totalDeuda, setTotalDeuda] = useState(0);
 
   const mostrar = (texto, error = false) => {
     setAviso({ texto, error });
@@ -129,6 +133,14 @@ export default function ConsignacionPage() {
       setResumen([...por.values()].sort((a, b) => b.disponible - a.disponible));
     } catch { setResumen([]); }
   };
+
+  const cargarDeudores = async () => {
+    try {
+      const d = await (await fetch("/api/admin/consignment/efectivo")).json();
+      if (d.ok) { setDeudores(d.deudores || []); setTotalDeuda(d.total || 0); }
+    } catch {}
+  };
+  useEffect(() => { cargarDeudores(); }, [profesional]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Se vuelve a leer al entrar y cada vez que se regresa a la lista (después de un movimiento)
   useEffect(() => { if (!profesional) cargarResumen(); }, [profesional]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -213,6 +225,39 @@ export default function ConsignacionPage() {
             aviso.error ? "bg-red-50 border border-red-200 text-red-600"
                         : "bg-emerald-50 border border-emerald-200 text-emerald-700"}`}>
             {aviso.texto}
+          </div>
+        )}
+
+        {/* ── Efectivo por pagar: quién cobró en consultorio y todavía no paga ── */}
+        {deudores.length > 0 && (
+          <div className="bg-white border border-[#F59E0B]/50 rounded-2xl overflow-hidden">
+            <div className="px-5 py-3.5 bg-[#FFFBEB] border-b border-[#FDE68A] flex items-center gap-2">
+              <Banknote size={15} className="text-[#B45309]" />
+              <h2 className="text-sm font-bold text-[#1b3f7a]">Efectivo por pagar</h2>
+              <span className="ml-auto text-sm font-extrabold text-[#B45309] tabular-nums">{fmtMXN(totalDeuda)}</span>
+            </div>
+            <div className="divide-y divide-[#EEF3F7]">
+              {deudores.map((d) => {
+                const dias = Math.floor((Date.now() - new Date(d.desde)) / 86400000);
+                return (
+                  <button key={d.owner_id}
+                    onClick={() => setProfesional({ shopify_customer_id: Number(d.owner_id), first_name: d.first_name, last_name: d.last_name })}
+                    className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-[#F7F9FB] transition-colors">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-[#1b3f7a] truncate">
+                        {(d.first_name + " " + d.last_name).trim() || `ID ${d.owner_id}`}
+                      </p>
+                      <p className="text-[11px] text-[#8AAAB8]">
+                        {d.ventas} {d.ventas === 1 ? "venta" : "ventas"} · {dias <= 0 ? "desde hoy" : `hace ${dias} ${dias === 1 ? "día" : "días"}`}
+                        {d.en_pago ? " · ya generó su pago" : ""}
+                      </p>
+                    </div>
+                    {dias >= 1 && <span className="text-[10px] font-bold text-[#B45309] bg-amber-100 rounded-full px-2 py-0.5">Atrasado</span>}
+                    <span className="text-sm font-bold text-[#1b3f7a] tabular-nums">{fmtMXN(d.a_pagar)}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
 

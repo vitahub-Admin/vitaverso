@@ -8,6 +8,7 @@
 
 import { unidadesEnMano } from './envio';
 import { moverStockConsultorios } from './baselinker';
+import { esFantasma, cerrarLiquidacionEfectivo } from './ventasEfectivo';
 import { vencerCupon, reactivarCupon } from './descuentoShopify';
 import { marcarCuponUsado, desmarcarCuponUsado } from './storeCredit';
 import { syncClienteTrasVentaLocal, quitarSeguimientoDeVentaLocal } from './customerAppAccount';
@@ -59,6 +60,11 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
     else enMano.set(i.variant_id, { ...i, quantity: mano });
   }
   let items = [...enMano.values()];
+
+  // Profesional "fantasma" (pruebas del equipo): no hay producto físico, así que nunca se toca el
+  // libro de consignación ni BaseLinker. Todo lo demás de la venta corre igual.
+  const fantasma = esFantasma(venta.owner_id);
+  if (fantasma) items = [];
 
   // 1. Verificar que el stock siga estando. Entre que se armó el cobro y que
   //    el paciente pagó pudo venderse en otra consulta.
@@ -155,7 +161,7 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
   // 3b. Lo entregado en mano sale del almacén Consultorios de BaseLinker (lo que se
   //     envía lo descuenta la propia orden de Shopify desde el central). Si BaseLinker
   //     falla, la venta ya está cobrada y cerrada: solo se deja el aviso.
-  const salida = await moverStockConsultorios(
+  const salida = fantasma ? { ok: true } : await moverStockConsultorios(
     'venta',
     items.map(i => ({ product_id: i.product_id, sku: i.sku, cantidad: i.quantity })),
     `venta ${String(venta.id).slice(0, 8)}`,
@@ -241,7 +247,16 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
 
   // recienCerrada: solo quien la cerró en ESTE llamado lo ve en true; sirve para hacer
   // una sola vez lo que va con el pago (como el correo del protocolo).
-  return { ok: true, order: cerrada, recienCerrada: true };
+  // 7. Si esta venta era la liquidación de un profesional con efectivo por pagar: se cierran sus ventas
+  //    en efectivo y se manda el protocolo a cada paciente. No bloquea ni deshace nada si falla.
+  let esLiquidacion = false;
+  try {
+    esLiquidacion = (await cerrarLiquidacionEfectivo(supabase, cerrada)).esLiquidacion;
+  } catch (e) {
+    console.error('[venta consultorio] no se pudo cerrar la liquidación de efectivo:', e.message);
+  }
+
+  return { ok: true, order: cerrada, recienCerrada: true, esLiquidacion };
 }
 
 /**

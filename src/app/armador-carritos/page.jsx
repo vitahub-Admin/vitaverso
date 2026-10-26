@@ -1,5 +1,6 @@
 "use client";
 import { sanitizarHtml } from "@/lib/sanitizarHtml";
+import { useEfectivo, EfectivoPill, CobroEfectivoModal } from "./EfectivoPorLiquidar";
 import { useState, useEffect, useRef, useCallback, useMemo, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useCustomer } from "@/app/context/CustomerContext";
@@ -9,7 +10,7 @@ import {
   Plus, Minus, Heart, Pencil, MessageCircle,
   Sun, FlaskConical, Zap, Droplets,
   Save, FileClock, Bookmark, CalendarDays, Check, Sparkles,
-  Link2 as LinkIcon,
+  Link2 as LinkIcon, Banknote,
 } from "lucide-react";
 
 const DOSE_UNITS = ["cápsula", "tableta", "softgel", "gota", "ml", "mg", "g", "sobre", "cucharada", "probiótico", "unidad"];
@@ -239,9 +240,15 @@ const fmtMXN = (n) =>
 // Lo que el profesional tiene físicamente en su consultorio. Sirve para
 // marcarlo mientras arma el protocolo: lo que ya tiene ahí se le puede
 // entregar al paciente en la consulta, sin esperar envío.
+// Lo que se muestra como disponible a un profesional "fantasma"; en pantalla se ve como ∞
+const UNIDADES_INFINITAS = 9999;
+const verUnidades = (n) => (n >= UNIDADES_INFINITAS ? "∞" : n);
+
 function useConsignacion(customerId) {
   const [disponibles, setDisponibles] = useState({});   // variant_id → unidades
   const [puedeCobrar, setPuedeCobrar] = useState(false); // ¿hay pasarela de pago?
+  const [efectivoHabilitado, setEfectivoHabilitado] = useState(false); // cobro en efectivo
+  const [infinito, setInfinito] = useState(false); // profesional "fantasma" (pruebas): todo el catálogo disponible
 
   useEffect(() => {
     if (!customerId) return;
@@ -251,22 +258,24 @@ function useConsignacion(customerId) {
         if (!d.ok) return;
         setDisponibles(d.disponibles || {});
         setPuedeCobrar(Boolean(d.puede_cobrar));
+        setEfectivoHabilitado(Boolean(d.efectivo));
+        setInfinito(Boolean(d.infinito));
       })
       .catch(() => {});
   }, [customerId]);
 
   // Unidades disponibles de una variante (0 si no tiene)
   const enConsultorio = useCallback(
-    (variantId) => Number(disponibles[String(variantId)] || 0), [disponibles]);
+    (variantId) => infinito ? UNIDADES_INFINITAS : Number(disponibles[String(variantId)] || 0), [disponibles, infinito]);
 
   // ¿Alguna variante de este producto está en el consultorio?
   const productoEnConsultorio = useCallback((product) =>
-    (product?.variants || []).reduce(
+    infinito ? UNIDADES_INFINITAS : (product?.variants || []).reduce(
       (max, v) => Math.max(max, Number(disponibles[String(v.variant_id)] || 0)), 0),
-    [disponibles]);
+    [disponibles, infinito]);
 
-  return { disponibles, enConsultorio, productoEnConsultorio, puedeCobrar,
-           tieneAlgo: Object.keys(disponibles).length > 0 };
+  return { disponibles, enConsultorio, productoEnConsultorio, puedeCobrar, efectivoHabilitado,
+           tieneAlgo: infinito || Object.keys(disponibles).length > 0 };
 }
 
 function useFavorites(customerId) {
@@ -688,8 +697,9 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
 }
 
 // ── Draft View ────────────────────────────────────────────────────────────────
-function DraftView({ carrito, patientData, onPatientChange, customerId, protocoloOrigen, onGuardar, guardando, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity, onAbrirProducto, enConsultorio, puedeCobrar }) {
+function DraftView({ carrito, patientData, onPatientChange, customerId, protocoloOrigen, onGuardar, guardando, onBack, onRemoveItem, onClear, onUpdateDosage, onUpdateQuantity, onAbrirProducto, enConsultorio, puedeCobrar, efectivo }) {
   const [loading, setLoading]         = useState(false);
+  const [modalEfectivo, setModalEfectivo] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
   const [whatsappUrl, setWhatsappUrl] = useState(null);
   const [error, setError]             = useState(null);
@@ -1082,7 +1092,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                         <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg p-3 space-y-2">
                           <p className="text-xs text-[#5B7A8C] leading-snug">
                             Esperando el pago de <span className="font-bold text-[#1b3f7a]">{fmtMXN(venta.total)}</span>.
-                            Mostrale esta pantalla o mandale el link.
+                            Muéstrale esta pantalla o mándale el link.
                           </p>
                           <div className="flex gap-2">
                             <a href={venta.payment_url} target="_blank" rel="noopener noreferrer"
@@ -1106,6 +1116,21 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                       {cobrando ? "Generando cobro…" : `Cobrar todo aquí · ${carrito.length} ${carrito.length === 1 ? "producto" : "productos"}`}
                     </button>
                   )
+                )}
+
+                {/* Cobro en efectivo: el profesional cobra en mano y se le acumula para liquidar al cerrar el día */}
+                {enConsulta.length > 0 && efectivo?.habilitado && !venta && (
+                  <button
+                    onClick={() => setModalEfectivo(true)}
+                    className="mt-2 w-full flex items-center justify-center gap-2 border border-[#2BB9B8] text-[#1F8383] bg-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#EAF8F8] transition-colors">
+                    <Banknote size={15} />
+                    Cobré en efectivo · {enConsulta.length} {enConsulta.length === 1 ? "producto" : "productos"}
+                  </button>
+                )}
+                {enConsulta.length > 0 && efectivo?.habilitado && !venta && carrito.length > enConsulta.length && (
+                  <p className="text-[10px] text-[#8AAAB8] mt-1.5 leading-snug">
+                    El efectivo es solo para lo que tienes en tu consultorio. Lo demás se cobra con tarjeta, por el envío de siempre.
+                  </p>
                 )}
               </div>
             )}
@@ -1242,6 +1267,39 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
           )}
         </div>
       </div>
+
+      {/* Modal: cobro en efectivo de lo que se entrega hoy en el consultorio */}
+      {modalEfectivo && (
+        <CobroEfectivoModal
+          items={enConsulta.map(p => ({ variant_id: p.variant_id, title: p.title, variant_title: p.variant_title, price: p.price, quantity: p.quantity || 1 }))}
+          patientName={patientData.nombre?.trim() || ""}
+          patientPhone={patientData.telefono ? `+521${patientData.telefono}` : ""}
+          extra={{
+            dosis_map: Object.fromEntries(
+              enConsulta.map(p => {
+                const d = p.dosage || {};
+                return [String(p.variant_id), {
+                  instruccion:    buildInstruccion(d.amount, d.unit, d.momentos || [], d.acompanamiento || "", d.meta || null),
+                  dosis_amount:   d.amount   ?? null,
+                  dosis_unit:     d.unit     ?? null,
+                  momentos:       d.momentos ?? [],
+                  acompanamiento: d.acompanamiento ?? null,
+                  nota:           d.nota     ?? null,
+                }];
+              })
+            ),
+            ...(protocoloOrigen?.id ? { protocolo: {
+              protocol_id: protocoloOrigen.id, protocol_name: protocoloOrigen.name, protocol_status: protocoloOrigen.status,
+            } } : {}),
+          }}
+          onRegistrar={efectivo.registrar}
+          onClose={(registrado) => {
+            setModalEfectivo(false);
+            // Lo que ya se cobró y se entregó sale del protocolo; lo demás sigue para enviarse
+            if (registrado) enConsulta.forEach(p => onRemoveItem(p.variant_id));
+          }}
+        />
+      )}
 
       {/* Modal: antes de abrir WhatsApp, ofrecer guardar el protocolo como plantilla */}
       {modalPlantilla && (
@@ -1483,7 +1541,7 @@ function ProductCard({ product, onClick, inProtocol, isFavorite, onFavorite, onQ
             {/* Lo tiene en su consultorio: se lo puede entregar en la consulta */}
             {enConsultorio > 0 && (
               <span className="bg-[#2BB9B8] text-[#0D2133] text-[9px] font-extrabold px-2 py-0.5 rounded uppercase tracking-widest">
-                {soloConsultorio ? "Solo en consultorio" : "En consultorio"} · {enConsultorio}
+                {soloConsultorio ? "Solo en consultorio" : "En consultorio"} · {verUnidades(enConsultorio)}
               </span>
             )}
           </div>
@@ -2121,7 +2179,7 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
                       className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">+</button>
                   </div>
                   <span className="text-xs text-[#5B7A8C]">{quantity === 1 ? "frasco" : "frascos"}</span>
-                  {soloConsultorio && <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383]">Solo en consultorio · máx. {consultorioSel}</span>}
+                  {soloConsultorio && <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383]">Solo en consultorio · máx. {verUnidades(consultorioSel)}</span>}
                   {/* Cuánto dura lo que lleva: ayuda a decidir cuántos frascos mandar */}
                   {(() => {
                     const dur = duracionDias({
@@ -2191,6 +2249,7 @@ function ArmadorCarritosInner() {
 
   const { favoriteList, toggleFavorite, isFavorite } = useFavorites(customerId);
   const consigna = useConsignacion(customerId);
+  const efectivo = useEfectivo(consigna.efectivoHabilitado);
 
   // Navegación
   const [view, setView]                 = useState("home");
@@ -2758,13 +2817,16 @@ function ArmadorCarritosInner() {
               <h1 className="text-xl font-extrabold text-[#1b3f7a] tracking-tight leading-none">Protocolos Clínicos</h1>
               <p className="text-xs text-[#5B7A8C] mt-0.5 hidden sm:block">Prescripciones de suplementación para tus pacientes</p>
             </button>
-            <ProtocolIndicator
-              carrito={carrito} total={totalProtocolo}
-              patientData={patientData} onPatientChange={setPatientData}
-              onGoToDraft={() => setView("draft")}
-              onClear={limpiarProtocolo}
-              onRemoveItem={quitarDelProtocolo}
-            />
+            <div className="flex items-center gap-2.5">
+              <EfectivoPill efectivo={efectivo} />
+              <ProtocolIndicator
+                carrito={carrito} total={totalProtocolo}
+                patientData={patientData} onPatientChange={setPatientData}
+                onGoToDraft={() => setView("draft")}
+                onClear={limpiarProtocolo}
+                onRemoveItem={quitarDelProtocolo}
+              />
+            </div>
           </div>
           {/* Fila 2: búsqueda */}
           <div className="px-5 sm:px-6 pb-3 space-y-2">
@@ -2968,6 +3030,7 @@ function ArmadorCarritosInner() {
             onAbrirProducto={abrirProductoDelCarrito}
             enConsultorio={consigna.enConsultorio}
             puedeCobrar={consigna.puedeCobrar}
+            efectivo={efectivo}
           />
         )}
 

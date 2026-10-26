@@ -6,6 +6,7 @@ import { fetchVariantInfo } from '@/lib/shopifyPrices'
 import { unidadesSeparadas, unidadesEnMano } from '@/lib/envio'
 import { validarDescuento } from '@/lib/descuentoShopify'
 import { totalesDe } from '@/lib/totalesVenta'
+import { esVentaTester, leerVentaTester, actualizarVentaTester, NO_DISPONIBLE_EN_TESTER } from '@/lib/consignacionTester'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -22,6 +23,18 @@ const supabase = createClient(
 export async function GET(_req, { params }) {
   try {
     const { id } = await params
+
+    // Venta de modo tester: vive en memoria
+    if (esVentaTester(id)) {
+      const v = leerVentaTester(id)
+      if (!v) return NextResponse.json({ ok: false, error: 'Venta no encontrada' }, { status: 404 })
+      return NextResponse.json({
+        ok: true, tester: true,
+        venta: { ...v, profesional: 'Profesional de prueba', profesional_foto: null },
+        pasarela: 'mock', simulado: true, monto_a_cobrar: v.total, modo_prueba: false,
+      })
+    }
+
     const { data, error } = await supabase
       .from('local_orders')
       .select('id, owner_id, patient_name, items, subtotal, envio, envio_tarifa, descuento, descuento_codigo, total, estado, payment_provider, payment_fee, payment_neto, paid_at, created_at')
@@ -93,6 +106,9 @@ export async function GET(_req, { params }) {
  */
 export async function PATCH(req, { params }) {
   try {
+    if (esVentaTester((await params).id)) {
+      return NextResponse.json({ ok: false, error: NO_DISPONIBLE_EN_TESTER }, { status: 400 })
+    }
     const { id } = await params
     const { cantidades } = await req.json().catch(() => ({}))
     if (!cantidades || typeof cantidades !== 'object') {
@@ -184,6 +200,17 @@ export async function POST(req, { params }) {
     // Stripe no hay manera de marcar una venta como pagada.
     const { id } = await params
     const { accion, email } = await req.json().catch(() => ({}))
+
+    // Venta de modo tester: se marca en memoria, sin confirmarVenta (no baja stock, no mueve BaseLinker, no acredita comisión)
+    if (esVentaTester(id)) {
+      const v = leerVentaTester(id)
+      if (!v) return NextResponse.json({ ok: false, error: 'Venta no encontrada' }, { status: 404 })
+      if (v.estado !== 'pendiente') return NextResponse.json({ ok: false, error: `La venta está ${v.estado}` }, { status: 400 })
+      const cambios = accion === 'cancelar'
+        ? { estado: 'cancelado' }
+        : { estado: 'pagado', paid_at: new Date().toISOString(), ...(email ? { patient_email: String(email).trim().toLowerCase() } : {}) }
+      return NextResponse.json({ ok: true, tester: true, venta: actualizarVentaTester(id, cambios) })
+    }
 
     // El simulador vive por venta: depende del profesional que la generó, no de
     // quién abre la página — el que paga es el paciente y no tiene sesión.
