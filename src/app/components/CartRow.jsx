@@ -8,12 +8,15 @@
  *
  * Espera la forma que devuelve /api/sharecart/merged/[id]:
  *   { token, created_at, client_name, phone, items_count, items_value,
- *     has_sale, items: [{ title, variant_title, price, quantity }] }
+ *     has_sale, efectivo?: { estado: "por_pagar" | "pagada", total }, items: [{ title, variant_title, price, quantity }] }
+ *
+ * `efectivo` marca lo que el profesional cobró en mano: el paciente ya pagó, aunque la venta todavía no
+ * pasa por Shopify (eso ocurre cuando el profesional paga su carrito de ventas locales).
  */
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { CheckCircle2, Clock, ChevronDown, ChevronUp, RefreshCw } from "lucide-react";
+import { CheckCircle2, Clock, ChevronDown, ChevronUp, RefreshCw, Banknote } from "lucide-react";
 
 export const fmtMXN = (n) =>
   new Intl.NumberFormat("es-MX", { style: "currency", currency: "MXN", maximumFractionDigits: 0 })
@@ -28,7 +31,7 @@ export default function CartRow({ cart }) {
 
   return (
     <div className={`bg-white border rounded-2xl overflow-hidden transition-shadow hover:shadow-sm
-      ${cart.has_sale ? "border-emerald-200" : "border-[#D0E4EC]"}`}>
+      ${cart.has_sale ? "border-emerald-200" : cart.efectivo ? "border-[#B5E7E6]" : "border-[#D0E4EC]"}`}>
 
       <button
         onClick={() => setOpen(o => !o)}
@@ -36,7 +39,9 @@ export default function CartRow({ cart }) {
       >
         {cart.has_sale
           ? <CheckCircle2 size={18} className="text-emerald-500 shrink-0" />
-          : <Clock size={18} className="text-[#B0C8D4] shrink-0" />
+          : cart.efectivo
+            ? <Banknote size={18} className="text-[#2BB9B8] shrink-0" />
+            : <Clock size={18} className="text-[#B0C8D4] shrink-0" />
         }
 
         <div className="flex-1 min-w-0">
@@ -46,11 +51,16 @@ export default function CartRow({ cart }) {
             </span>
             {cart.has_sale
               ? <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Vendido</span>
-              : <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] bg-[#F7F9FB] px-2 py-0.5 rounded-full">Pendiente</span>
+              : cart.efectivo
+                ? <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383] bg-[#EAF8F8] px-2 py-0.5 rounded-full">
+                    {cart.efectivo.estado === "pagada" ? "Vendido · efectivo" : "Cobrado en efectivo"}
+                  </span>
+                : <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] bg-[#F7F9FB] px-2 py-0.5 rounded-full">Pendiente</span>
             }
           </div>
           <p className="text-[11px] text-[#B0C8D4] mt-0.5">
             {cart.items_count} {cart.items_count === 1 ? "producto" : "productos"} · {date}
+            {cart.efectivo?.estado === "por_pagar" && " · por pagar a Vitahub"}
           </p>
         </div>
 

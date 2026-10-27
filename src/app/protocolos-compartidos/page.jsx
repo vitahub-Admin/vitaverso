@@ -37,6 +37,10 @@ const origenDe = (origen) =>
 // "+5215512345678" y no importa cómo lo haya escrito el profesional.
 const soloDigitos = (v) => String(v || "").replace(/\D/g, "");
 
+// Una venta es una orden de Shopify, o un cobro en efectivo: ahí el paciente ya pagó en mano aunque la orden
+// de Shopify salga hasta que el profesional liquide sus ventas locales.
+const esVenta = (c) => Boolean(c.has_sale || c.efectivo);
+
 // Los carritos anteriores a 2026 son del método viejo: casi todos quedaron sin
 // ítems guardados (5.877 vacíos, todos de feb a dic 2025), así que no se pueden
 // regenerar ni sirven de historial. Se dejan fuera.
@@ -192,15 +196,15 @@ export default function ProtocolosCompartidos() {
   }, [guardados]);
 
   const stats = useMemo(() => {
-    const vendidos = carts.filter(c => c.has_sale).length;
+    const vendidos = carts.filter(esVenta).length;
     const valor    = carts.reduce((a, c) => a + (Number(c.items_value) || 0), 0);
     return { total: carts.length, vendidos, valor };
   }, [carts]);
 
   const visibles = useMemo(() => {
     let out = carts;
-    if (filtro === "vendidos")   out = out.filter(c => c.has_sale);
-    if (filtro === "pendientes") out = out.filter(c => !c.has_sale);
+    if (filtro === "vendidos")   out = out.filter(esVenta);
+    if (filtro === "pendientes") out = out.filter(c => !esVenta(c));
     if (origen !== "todos")      out = out.filter(c => c._origen === origen);
     const q = busqueda.trim().toLowerCase();
     if (q) {

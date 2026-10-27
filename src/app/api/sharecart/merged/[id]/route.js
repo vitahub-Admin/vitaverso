@@ -1,5 +1,14 @@
 import { NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { cookies } from 'next/headers';
 import { supabase } from '@/lib/supabase';
+import { idDeSesion } from '@/lib/sesionWeb';
+
+// ventas_efectivo está cerrada a la llave pública: se lee con la de servicio
+const servicio = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL,
+  process.env.SUPABASE_SECRET_KEY
+);
 
 function calculateItemsValue(items) {
   if (!Array.isArray(items)) return 0;
@@ -52,6 +61,24 @@ export async function GET(request, { params }) {
     const shareCartsWithOrders = new Set(
       (ordersWithCart || []).map(o => o.share_cart)
     );
+
+    // 2a. Protocolos cobrados en efectivo. Esa venta no pasa por Shopify hasta que el profesional
+    //     liquida, así que no aparece en `orders` y `has_sale` queda en falso. Se informa aparte
+    //     (`efectivo`) sin tocar `has_sale`, que es la señal de conversión que usan Analytics e Inicio.
+    //     Solo se muestra a su dueño: las ventas en efectivo son un dato financiero.
+    const efectivoPorToken = {};
+    const esDueño = idDeSesion(await cookies()) === String(customerId);
+    const tokensEfectivo = (carts || []).filter(c => c.extra?.efectivo).map(c => c.token);
+    if (esDueño && tokensEfectivo.length) {
+      const { data: ventasEfectivo } = await servicio
+        .from('ventas_efectivo')
+        .select('sharecart_token, estado, total')
+        .in('sharecart_token', tokensEfectivo)
+        .neq('estado', 'cancelada');
+      for (const v of ventasEfectivo || []) {
+        efectivoPorToken[v.sharecart_token] = { estado: v.estado, total: Number(v.total) };
+      }
+    }
 
     // 2b. Enriquecer items del nuevo formato (tienen variant_id pero sin title)
     //     Buscar en product_catalog para obtener título y precio real
@@ -110,6 +137,7 @@ export async function GET(request, { params }) {
         items_value:     calculateItemsValue(enriched),
         status:          hasSale ? 'Completed' : 'Pending',
         has_sale:        hasSale,
+        efectivo:        efectivoPorToken[cart.token] || null,   // { estado: 'por_pagar' | 'pagada', total }
         platform:        'new',
         items:           enriched,
         extra:           cart.extra,
