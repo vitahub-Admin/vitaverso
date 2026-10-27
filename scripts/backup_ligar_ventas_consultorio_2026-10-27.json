@@ -1,0 +1,77 @@
+{
+ "nota": "Filas de local_orders antes de ligar las pagadas a su protocolo y cancelar las pendientes duplicadas. Para deshacer: volver a poner sharecart_token=null en las pagadas y estado=pendiente en las duplicadas.",
+ "pagadas": [
+  {
+   "id": "be8924cb-ab94-4ef4-9cec-29a20a175ed6",
+   "sharecart_token": null,
+   "estado": "pagado"
+  },
+  {
+   "id": "676f81a1-a195-4f3c-bd58-742c5d7134de",
+   "sharecart_token": null,
+   "estado": "pagado"
+  },
+  {
+   "id": "85670f7b-a629-4cb6-8a07-496269d6ceac",
+   "sharecart_token": null,
+   "estado": "pagado"
+  },
+  {
+   "id": "2bc8ed00-6527-46f1-9b1a-1a48ddb101f3",
+   "sharecart_token": null,
+   "estado": "pagado"
+  },
+  {
+   "id": "0e1e5067-3aab-4eea-a7f6-6ac984279103",
+   "sharecart_token": null,
+   "estado": "pagado"
+  },
+  {
+   "id": "c5fc5b8c-e448-43cd-afc3-0bbae4683812",
+   "sharecart_token": null,
+   "estado": "pagado"
+  },
+  {
+   "id": "29f0a34e-d695-454f-8272-216090231783",
+   "sharecart_token": null,
+   "estado": "pagado"
+  }
+ ],
+ "duplicadas": [
+  {
+   "id": "d468a0d3-ce9a-40c7-998f-b2f54bcfc6b3",
+   "sharecart_token": "cU4pMTEZJx",
+   "estado": "pendiente"
+  },
+  {
+   "id": "b4f42831-3379-4e19-9c5d-f75ad8384312",
+   "sharecart_token": "N7oI5h4Vh2",
+   "estado": "pendiente"
+  },
+  {
+   "id": "81ff02da-de6e-43a2-85ab-cca80ba2ea9b",
+   "sharecart_token": "i-US6CzVi7",
+   "estado": "pendiente"
+  },
+  {
+   "id": "b7fb1454-c678-44a8-b8f2-ba7ce9219bd7",
+   "sharecart_token": "ZbuqSsU7Gv",
+   "estado": "pendiente"
+  },
+  {
+   "id": "229046f8-9547-4ffb-a2d8-efb3c1ac328e",
+   "sharecart_token": "J9hgxkfaCp",
+   "estado": "pendiente"
+  },
+  {
+   "id": "c4b7d1e0-8f08-474a-857e-273eb2b5f199",
+   "sharecart_token": "FcYNfKhy_P",
+   "estado": "pendiente"
+  },
+  {
+   "id": "048274a4-9228-4736-b941-8ec4a75f527e",
+   "sharecart_token": "Iq3jpMJzOk",
+   "estado": "pendiente"
+  }
+ ]
+}

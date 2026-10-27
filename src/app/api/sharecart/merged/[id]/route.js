@@ -62,23 +62,23 @@ export async function GET(request, { params }) {
       (ordersWithCart || []).map(o => o.share_cart)
     );
 
-    // 2a. Protocolos cobrados en efectivo. Esa venta no pasa por Shopify hasta que el profesional
-    //     liquida, así que no aparece en `orders` y `has_sale` queda en falso. Se informa aparte
-    //     (`efectivo`) sin tocar `has_sale`, que es la señal de conversión que usan Analytics e Inicio.
-    //     Solo se muestra a su dueño: las ventas en efectivo son un dato financiero.
-    const efectivoPorToken = {};
+    // 2a. Ventas que no pasan por una orden de Shopify:
+    //     · venta de consultorio con tarjeta (local_orders): la cierra nuestro webhook, no genera fila en orders
+    //     · cobro en efectivo (ventas_efectivo): el paciente ya pagó en mano; la orden de Shopify sale cuando el
+    //       profesional paga su carrito de ventas locales
+    //     Ambas están cerradas a la llave pública: se leen con la de servicio, acotadas al profesional.
+    const [{ data: locales }, { data: efectivos }] = await Promise.all([
+      servicio.from('local_orders').select('sharecart_token')
+        .eq('owner_id', String(customerId)).eq('estado', 'pagado').not('sharecart_token', 'is', null),
+      servicio.from('ventas_efectivo').select('sharecart_token, estado, total')
+        .eq('owner_id', customerId).neq('estado', 'cancelada').not('sharecart_token', 'is', null),
+    ]);
+    const ventaLocalPagada = new Set((locales || []).map(l => l.sharecart_token));
+    const efectivoPorToken = Object.fromEntries(
+      (efectivos || []).map(v => [v.sharecart_token, { estado: v.estado, total: Number(v.total) }])
+    );
+    // El detalle del efectivo (estado y monto) es un dato financiero: solo se entrega a su dueño
     const esDueño = idDeSesion(await cookies()) === String(customerId);
-    const tokensEfectivo = (carts || []).filter(c => c.extra?.efectivo).map(c => c.token);
-    if (esDueño && tokensEfectivo.length) {
-      const { data: ventasEfectivo } = await servicio
-        .from('ventas_efectivo')
-        .select('sharecart_token, estado, total')
-        .in('sharecart_token', tokensEfectivo)
-        .neq('estado', 'cancelada');
-      for (const v of ventasEfectivo || []) {
-        efectivoPorToken[v.sharecart_token] = { estado: v.estado, total: Number(v.total) };
-      }
-    }
 
     // 2b. Enriquecer items del nuevo formato (tienen variant_id pero sin title)
     //     Buscar en product_catalog para obtener título y precio real
@@ -124,7 +124,10 @@ export async function GET(request, { params }) {
     // 3. Armar lista con status calculado
     const mergedCarts = (carts || []).map(cart => {
       const enriched = enrichItems(cart.items);
-      const hasSale = shareCartsWithOrders.has(cart.token);
+      // Vendido: orden de Shopify, venta de consultorio pagada, o cobro en efectivo ya liquidado
+      const hasSale = shareCartsWithOrders.has(cart.token)
+        || ventaLocalPagada.has(cart.token)
+        || efectivoPorToken[cart.token]?.estado === 'pagada';
       return {
         source:          'supabase',
         id:              cart.token,
@@ -137,7 +140,7 @@ export async function GET(request, { params }) {
         items_value:     calculateItemsValue(enriched),
         status:          hasSale ? 'Completed' : 'Pending',
         has_sale:        hasSale,
-        efectivo:        efectivoPorToken[cart.token] || null,   // { estado: 'por_pagar' | 'pagada', total }
+        efectivo:        (esDueño && efectivoPorToken[cart.token]) || null,   // { estado: 'por_pagar' | 'pagada', total }
         platform:        'new',
         items:           enriched,
         extra:           cart.extra,
