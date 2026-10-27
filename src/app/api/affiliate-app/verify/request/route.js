@@ -42,7 +42,7 @@ export async function POST(req) {
       subject: 'Tu código de verificación',
       html: `
         <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:12px">
-          <img src="https://vitahub.mx/logo.png" alt="Vitahub" style="height:40px;margin-bottom:24px" />
+          <img src="https://pro.vitahub.mx/LOGO.png" alt="Vitahub Pro" width="137" height="40" style="display:block;border:0;height:40px;width:auto;margin-bottom:24px" />
           <h2 style="color:#1b3f7a;margin:0 0 8px">Hola, ${affiliate.first_name}</h2>
           <p style="color:#555;margin:0 0 24px">Tu código de verificación para Vitahub Pro es:</p>
           <div style="background:#1b3f7a;color:#fff;font-size:32px;font-weight:bold;letter-spacing:8px;text-align:center;padding:20px;border-radius:10px">
