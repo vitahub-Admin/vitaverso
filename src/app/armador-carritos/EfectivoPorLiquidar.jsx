@@ -138,8 +138,8 @@ export function PanelEfectivo({ efectivo }) {
 
   const { pendientes, liquidadas, totales, pago } = efectivo;
   const atrasado = pendientes.some((v) => !esDeHoy(v.created_at));
-  const conCorreo = pendientes.filter((v) => v.patient_email).length;
-  const sinCorreo = pendientes.length - conCorreo;
+  const sinCorreo = pendientes.filter((v) => !v.patient_email).length;
+  const sinEnviar = pendientes.filter((v) => v.patient_email && !v.protocolo_enviado_at).length;
 
   // Solo pruebas del equipo: cierra la liquidación sin Shopify
   const simular = async () => {
@@ -202,8 +202,8 @@ export function PanelEfectivo({ efectivo }) {
             </div>
             <p className="text-[11px] text-[#8AAAB8] leading-snug">
               Cuando pagues, se cierran las ventas, se descuenta tu inventario y la comisión se acredita en tu wallet.
-              {conCorreo > 0 && ` Se enviará su protocolo por correo a ${conCorreo} ${conCorreo === 1 ? "paciente" : "pacientes"}.`}
-              {sinCorreo > 0 && ` ${sinCorreo} ${sinCorreo === 1 ? "venta no tiene" : "ventas no tienen"} correo y no recibirán protocolo.`}
+              {sinCorreo > 0 && ` ${sinCorreo} ${sinCorreo === 1 ? "venta no tiene" : "ventas no tienen"} correo: ese paciente no recibió su protocolo.`}
+              {sinEnviar > 0 && !efectivo.modoSandbox && ` ${sinEnviar} ${sinEnviar === 1 ? "protocolo no se pudo enviar" : "protocolos no se pudieron enviar"}; se reintenta al pagar.`}
             </p>
 
             {error && <p className="text-xs text-red-500">{error}</p>}
@@ -242,7 +242,7 @@ export function PanelEfectivo({ efectivo }) {
                   {simulando ? "Cerrando…" : "Simular el pago (solo pruebas)"}
                 </button>
                 <p className="text-[10px] text-[#B0C8D4] text-center leading-snug mt-1.5">
-                  Cierra las ventas y manda el protocolo a cada paciente, sin cobrar nada ni mover inventario.
+                  Cierra las ventas sin cobrar nada ni mover inventario. Los protocolos ya salieron al cobrar.
                 </p>
               </div>
             )}
@@ -321,6 +321,7 @@ export function CobroEfectivoModal({ items, patientName, patientPhone, patientEm
   const [cargando, setCargando] = useState(false);
   const [error, setError]       = useState("");
   const [venta, setVenta]       = useState(null);
+  const [enSandbox, setEnSandbox] = useState(false);
   const [correo, setCorreo]     = useState(patientEmail || "");
 
   const total = items.reduce((a, i) => a + (Number(i.price) || 0) * (i.quantity || 1), 0);
@@ -337,6 +338,7 @@ export function CobroEfectivoModal({ items, patientName, patientPhone, patientEm
     setCargando(false);
     if (!r.ok) { setError(r.error || "No se pudo registrar el cobro"); return; }
     setVenta(r.venta);
+    setEnSandbox(Boolean(r.sandbox));
     setPaso("listo");
   };
 
@@ -377,7 +379,7 @@ export function CobroEfectivoModal({ items, patientName, patientPhone, patientEm
                 placeholder="paciente@ejemplo.com"
                 className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
               <p className="text-[11px] text-[#8AAAB8] mt-1 leading-snug">
-                Ahí le llega su protocolo con las indicaciones, cuando pagues tus ventas. Sin correo, no lo recibe.
+                Ahí le llega su protocolo con las indicaciones en cuanto registres el cobro. Sin correo, no lo recibe.
               </p>
             </div>
             {error && <p className="text-xs text-red-500 mt-2.5 leading-snug">{error}</p>}
@@ -411,7 +413,13 @@ export function CobroEfectivoModal({ items, patientName, patientPhone, patientEm
               </div>
               <p className="text-[11px] text-[#8AAAB8] leading-snug pt-1.5 border-t border-[#EEF3F7]">
                 Se sumó a tus ventas por pagar. La ves en "Ventas locales".
-                {venta.patient_email ? ` Su protocolo se enviará a ${venta.patient_email} cuando pagues.` : " No capturaste correo: no recibirá su protocolo por correo."}
+                {!venta.patient_email
+                  ? " No capturaste correo: no recibirá su protocolo por correo."
+                  : enSandbox
+                    ? ` (Prueba local: el correo a ${venta.patient_email} no se envía.)`
+                    : venta.protocolo_enviado_at
+                      ? ` Ya le enviamos su protocolo a ${venta.patient_email}.`
+                      : ` No se pudo enviar el protocolo a ${venta.patient_email}; se reintenta cuando pagues tus ventas.`}
               </p>
             </div>
             <button onClick={() => onClose(true)}

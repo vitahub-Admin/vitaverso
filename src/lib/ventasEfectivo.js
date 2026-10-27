@@ -5,7 +5,8 @@
 // Al cerrar el día paga todo junto: `iniciarLiquidacion` arma una venta de consultorio (`local_orders`)
 // con todo entregado en mano, que se paga por el checkout de Shopify como cualquier otra. Cuando ese pago
 // se confirma, `confirmarVenta` descuenta el libro, mueve BaseLinker y acredita la comisión, y
-// `cerrarLiquidacionEfectivo` marca las ventas como pagadas y manda el protocolo a cada paciente.
+// `cerrarLiquidacionEfectivo` marca las ventas como pagadas. (El protocolo del paciente sale al cobrar, no al
+// pagar el carrito; al cerrar solo se reintentan los que no pudieron enviarse.)
 //
 // Hay dos listas de profesionales, en variables de entorno (sin tocar la base):
 //   COBRO_EFECTIVO_REAL      el cobro en efectivo con su stock real de consignación
@@ -126,6 +127,24 @@ export async function registrarVentaEfectivo(supabase, {
     location: {},
   });
   if (errCart) console.error("[ventas efectivo] no se pudo guardar el protocolo:", errCart.message);
+
+  // El paciente ya pagó en mano: su protocolo le llega ahora, sin esperar a que el profesional pague su
+  // carrito (eso solo mueve inventario, BaseLinker y comisión). Si el correo falla, la venta queda igual y
+  // se reintenta al cerrar la liquidación.
+  if (venta.patient_email && !errCart) {
+    try {
+      const r = await enviarProtocoloDeVentaEfectivo(venta);
+      if (r.ok) {
+        const ahora = new Date().toISOString();
+        await supabase.from("ventas_efectivo").update({ protocolo_enviado_at: ahora }).eq("id", venta.id);
+        venta = { ...venta, protocolo_enviado_at: ahora };
+      } else {
+        console.error(`[ventas efectivo] no se envió el protocolo de ${venta.id}: ${r.motivo}`);
+      }
+    } catch (e) {
+      console.error(`[ventas efectivo] error enviando el protocolo de ${venta.id}:`, e.message);
+    }
+  }
 
   return { ok: true, venta };
 }
@@ -257,8 +276,8 @@ export async function iniciarLiquidacion(supabase, ownerId) {
 
 /**
  * Lo llama confirmarVenta cuando una venta de consultorio recién se cerró. Si esa venta era la
- * liquidación de un profesional: marca las ventas en efectivo como pagadas y manda el protocolo a cada
- * paciente que dejó su correo.
+ * liquidación de un profesional: marca las ventas en efectivo como pagadas y reintenta el protocolo de las que
+ * no pudieron enviarse al cobrar.
  */
 export async function cerrarLiquidacionEfectivo(supabase, orden) {
   const { data: liq } = await supabase.from("liquidaciones_efectivo")

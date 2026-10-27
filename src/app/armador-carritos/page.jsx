@@ -753,37 +753,6 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
 
   // ── Cobro de la parte que entrega en mano ───────────────────────────────
   const [venta, setVenta]         = useState(null);   // la venta en curso
-  const [cobrando, setCobrando]   = useState(false);
-
-  const cobrarEnConsultorio = async () => {
-    if (!enConsulta.length) return;
-    setCobrando(true);
-    setError(null);
-    try {
-      const r = await fetch("/api/consignment/sale", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          // Se cobra el protocolo entero en un solo pago: lo que se entrega en
-          // la consulta y lo que se envía. Antes se partía en dos cobros.
-          items: carrito.map(p => ({
-            variant_id: p.variant_id,
-            quantity:   p.quantity || 1,
-            entrega:    enConsulta.some(e => e.variant_id === p.variant_id) ? "mano" : "envio",
-          })),
-          patient_name:  patientData.nombre || null,
-          patient_phone: patientData.telefono ? `+521${patientData.telefono}` : null,
-        }),
-      });
-      const d = await r.json();
-      if (!d.ok) { setError(d.error); return; }
-      setVenta({ ...d.venta, payment_url: d.payment_url });
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setCobrando(false);
-    }
-  };
 
   // Mientras el cobro está pendiente, preguntamos si ya pagó. Cuando entre
   // Stripe esto sigue sirviendo: el webhook marca la venta y acá se ve.
@@ -858,6 +827,33 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
     setAvisoGuardado(`Plantilla "${nombre}" guardada. La encuentras en el inicio del armador.`);
     setTimeout(() => setAvisoGuardado(""), 6000);
     handleCheckout();
+  };
+
+  // Compra personal: el profesional se compra a sí mismo lo que armó. Se crea el carrito de Shopify y se
+  // abre para que lo pague; no se pide paciente ni teléfono, no se manda por WhatsApp y no sale correo de
+  // protocolo (el correo solo sale en carritos con origen "protocolo"). La venta queda a su nombre, igual
+  // que cualquier compra de un especialista.
+  const [compraPersonalUrl, setCompraPersonalUrl] = useState(null);
+  const comprarPersonal = async () => {
+    if (!customerId) {
+      setError("Tu sesión expiró. Vuelve a iniciar sesión para hacer tu compra.");
+      return;
+    }
+    setLoading(true); setError(null);
+    try {
+      const res  = await fetch("/api/sharecart/checkout", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          owner_id: customerId, name: null, phone: null,
+          items: carrito.map(p => ({ variant_id: p.variant_id, quantity: p.quantity || 1 })),
+          extra: { compra_personal: true },
+        }),
+      });
+      const data = await res.json();
+      if (!data.ok) throw new Error(data.error || "No se pudo armar tu compra");
+      setCompraPersonalUrl(data.checkoutUrl);
+      window.open(data.checkoutUrl, "_blank");
+    } catch (e) { setError(e.message); } finally { setLoading(false); }
   };
 
   const handleCheckout = async () => {
@@ -1067,71 +1063,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                   </p>
                 )}
 
-                {/* Cobro de lo que se entrega en mano */}
-                {enConsulta.length > 0 && puedeCobrar && (
-                  venta ? (
-                    <div className="mt-3">
-                      {venta.estado === "pagado" ? (
-                        <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
-                          <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
-                            <Check size={13} /> Pagado · {fmtMXN(venta.total)}
-                          </p>
-                          <p className="text-[11px] text-emerald-600 mt-0.5">
-                            Ya le puedes entregar los productos
-                          </p>
-                        </div>
-                      ) : venta.estado === "cancelado" ? (
-                        <div className="bg-red-50 border border-red-200 rounded-lg p-3">
-                          <p className="text-xs font-bold text-red-600">Pago rechazado</p>
-                          <button onClick={() => setVenta(null)}
-                            className="text-[11px] font-semibold text-[#1F8383] hover:underline mt-1">
-                            Generar otro cobro
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg p-3 space-y-2">
-                          <p className="text-xs text-[#5B7A8C] leading-snug">
-                            Esperando el pago de <span className="font-bold text-[#1b3f7a]">{fmtMXN(venta.total)}</span>.
-                            Muéstrale esta pantalla o mándale el link.
-                          </p>
-                          <div className="flex gap-2">
-                            <a href={venta.payment_url} target="_blank" rel="noopener noreferrer"
-                              className="flex-1 bg-[#1b3f7a] text-white text-xs font-semibold py-2 rounded-lg text-center hover:bg-[#162d60] transition-colors">
-                              Abrir cobro
-                            </a>
-                            <button
-                              onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${venta.payment_url}`)}
-                              className="px-3 border border-[#C2DFE8] text-[#1b3f7a] text-xs font-semibold rounded-lg hover:bg-white transition-colors">
-                              Copiar
-                            </button>
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <button
-                      onClick={cobrarEnConsultorio}
-                      disabled={cobrando}
-                      className="mt-3 w-full bg-[#2BB9B8] text-[#0D2133] text-sm font-semibold py-2.5 rounded-xl hover:bg-[#26A3A2] transition-colors disabled:opacity-50">
-                      {cobrando ? "Generando cobro…" : `Cobrar todo aquí · ${carrito.length} ${carrito.length === 1 ? "producto" : "productos"}`}
-                    </button>
-                  )
-                )}
 
-                {/* Cobro en efectivo: el profesional cobra en mano y se le acumula para liquidar al cerrar el día */}
-                {enConsulta.length > 0 && efectivo?.habilitado && !venta && (
-                  <button
-                    onClick={() => setModalEfectivo(true)}
-                    className="mt-2 w-full flex items-center justify-center gap-2 border border-[#2BB9B8] text-[#1F8383] bg-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#EAF8F8] transition-colors">
-                    <Banknote size={15} />
-                    Cobré en efectivo · {enConsulta.length} {enConsulta.length === 1 ? "producto" : "productos"}
-                  </button>
-                )}
-                {enConsulta.length > 0 && efectivo?.habilitado && !venta && carrito.length > enConsulta.length && (
-                  <p className="text-[10px] text-[#8AAAB8] mt-1.5 leading-snug">
-                    El efectivo es solo para lo que tienes en tu consultorio. Lo demás se cobra con tarjeta, por el envío de siempre.
-                  </p>
-                )}
               </div>
             )}
 
@@ -1164,6 +1096,115 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
                 )}
               </div>
             )}
+
+            {/* Método de cobro: cómo se le cobra al paciente, o si la compra es del propio profesional */}
+            <div className="pt-3 border-t border-[#EEF3F7] space-y-3.5">
+              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C]">
+                Método de cobro
+              </p>
+
+              {/* Estado del cobro del paciente (esperando el pago, pagado o rechazado) */}
+              {enConsulta.length > 0 && puedeCobrar && venta && (
+                <div>
+                  {venta.estado === "pagado" ? (
+                    <div className="bg-emerald-50 border border-emerald-200 rounded-lg p-3">
+                      <p className="text-xs font-bold text-emerald-700 flex items-center gap-1.5">
+                        <Check size={13} /> Pagado · {fmtMXN(venta.total)}
+                      </p>
+                      <p className="text-[11px] text-emerald-600 mt-0.5">
+                        Ya le puedes entregar los productos
+                      </p>
+                    </div>
+                  ) : venta.estado === "cancelado" ? (
+                    <div className="bg-red-50 border border-red-200 rounded-lg p-3">
+                      <p className="text-xs font-bold text-red-600">Pago rechazado</p>
+                      <p className="text-[11px] text-red-500 mt-0.5 leading-snug">Para cobrar de nuevo, envía el protocolo otra vez.</p>
+                      <button onClick={() => setVenta(null)}
+                        className="text-[11px] font-semibold text-[#1F8383] hover:underline mt-1">
+                        Entendido
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg p-3 space-y-2">
+                      <p className="text-xs text-[#5B7A8C] leading-snug">
+                        Esperando el pago de <span className="font-bold text-[#1b3f7a]">{fmtMXN(venta.total)}</span>.
+                        Muéstrale esta pantalla o mándale el link.
+                      </p>
+                      <div className="flex gap-2">
+                        <a href={venta.payment_url} target="_blank" rel="noopener noreferrer"
+                          className="flex-1 bg-[#1b3f7a] text-white text-xs font-semibold py-2 rounded-lg text-center hover:bg-[#162d60] transition-colors">
+                          Abrir cobro
+                        </a>
+                        <button
+                          onClick={() => navigator.clipboard?.writeText(`${window.location.origin}${venta.payment_url}`)}
+                          className="px-3 border border-[#C2DFE8] text-[#1b3f7a] text-xs font-semibold rounded-lg hover:bg-white transition-colors">
+                          Copiar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {checkoutUrl ? (
+                <p className="text-xs text-[#5B7A8C] leading-snug">
+                  El protocolo ya está listo: envíalo desde el recuadro de abajo.
+                </p>
+              ) : (
+                <>
+                  {/* Efectivo: el profesional cobra en mano y la venta se le acumula para pagarla al cerrar el día */}
+                  {enConsulta.length > 0 && efectivo?.habilitado && !venta && (
+                    <div>
+                      <p className="text-[11px] font-bold text-[#1b3f7a] mb-1.5">Efectivo</p>
+                      {enConsulta.length > 0 && efectivo?.habilitado && !venta && (
+                        <button
+                          onClick={() => setModalEfectivo(true)}
+                          className="w-full flex items-center justify-center gap-2 border border-[#2BB9B8] text-[#1F8383] bg-white text-sm font-semibold py-2.5 rounded-xl hover:bg-[#EAF8F8] transition-colors">
+                          <Banknote size={15} />
+                          Cobré por efectivo · {enConsulta.length} {enConsulta.length === 1 ? "producto" : "productos"}
+                        </button>
+                      )}
+                      {enConsulta.length > 0 && efectivo?.habilitado && !venta && carrito.length > enConsulta.length && (
+                        <p className="text-[10px] text-[#8AAAB8] mt-1.5 leading-snug">
+                          El efectivo es solo para lo que tienes en tu consultorio. Lo demás se cobra con tarjeta.
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Tarjeta */}
+                  <div>
+                    <p className="text-[11px] font-bold text-[#1b3f7a] mb-1.5">Tarjeta</p>
+                    <button onClick={iniciarEnvio} disabled={loading || carrito.length === 0}
+                      className="w-full bg-[#1b3f7a] text-white py-2 rounded-lg font-semibold text-xs disabled:opacity-50 hover:bg-[#162d60] transition-colors flex items-center justify-center gap-1.5">
+                      <MessageCircle size={13} /> {loading ? "Generando…" : "Enviar por WhatsApp"}
+                    </button>
+                    {!patientData.telefono && (
+                      <p className="text-[10px] text-[#B0C8D4] mt-1.5 leading-tight">
+                        Ingresa el teléfono del paciente para enviar
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Compra personal: el profesional se la paga a sí mismo, no se manda a ningún paciente */}
+                  <div>
+                    <button onClick={comprarPersonal} disabled={loading || carrito.length === 0}
+                      className="w-full flex items-center justify-center gap-1.5 border border-[#D0E4EC] text-[#5B7A8C] bg-white py-2 rounded-lg font-semibold text-xs hover:border-[#2BB9B8] hover:text-[#1F8383] transition-colors disabled:opacity-50">
+                      <ShoppingBag size={13} /> Compra personal
+                    </button>
+                    <p className="text-[10px] text-[#B0C8D4] mt-1.5 leading-tight">
+                      Para cuando tú pagas tu compra: no se envía a ningún paciente.
+                    </p>
+                    {compraPersonalUrl && (
+                      <a href={compraPersonalUrl} target="_blank" rel="noopener noreferrer"
+                        className="block mt-1.5 text-[11px] font-semibold text-[#1F8383] hover:underline">
+                        ¿No se abrió? Abrir mi compra
+                      </a>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Acciones */}
@@ -1216,15 +1257,6 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
             </div>
           ) : (
             <div className="space-y-2">
-              <button onClick={iniciarEnvio} disabled={loading || carrito.length === 0}
-                className="w-full bg-[#1b3f7a] text-white py-3 rounded-xl font-semibold text-sm disabled:opacity-50 hover:bg-[#162d60] transition-colors flex items-center justify-center gap-2">
-                <MessageCircle size={15} /> {loading ? "Generando…" : "Enviar por WhatsApp"}
-              </button>
-              {!patientData.telefono && (
-                <p className="text-[11px] text-[#B0C8D4] text-center leading-tight">
-                  Ingresa el teléfono del paciente para enviar
-                </p>
-              )}
               {/* Guardar como plantilla: a la vista, sin esperar a enviar. Una plantilla se reusa
                   con otro paciente; el borrador de abajo es para seguir después con este. */}
               {carrito.length > 0 && protocoloOrigen?.status !== "plantilla" && (
