@@ -31,7 +31,7 @@ export async function POST(req) {
     })
   }
 
-  if (!efectivoHabilitado(sesion)) {
+  if (!(await efectivoHabilitado(supabase, sesion))) {
     return NextResponse.json({ ok: false, error: 'El cobro en efectivo todavía no está disponible' }, { status: 404 })
   }
   const r = await iniciarLiquidacion(supabase, sesion)

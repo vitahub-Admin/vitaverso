@@ -22,7 +22,7 @@ const noDisponible = () =>
  *   ?resumen=1  solo los totales (lo usa el punto rojo del menú; es una consulta liviana)
  *
  * Tres modos: el sandbox local (memoria del servidor), y el real, solo para los profesionales
- * con el cobro habilitado (variables COBRO_EFECTIVO_REAL / COBRO_EFECTIVO_FANTASMA).
+ * con el cobro habilitado (todo profesional con consignación, más las listas COBRO_EFECTIVO_REAL / COBRO_EFECTIVO_FANTASMA).
  */
 export async function GET(req) {
   const sesion = await resolveCustomerId(req)
@@ -31,7 +31,7 @@ export async function GET(req) {
     return NextResponse.json({ ok: true, sandbox: true, ...efectivoDeTester(sesion) })
   }
   if (!sesion) return NextResponse.json({ ok: false, error: 'Sin sesión' }, { status: 401 })
-  if (!efectivoHabilitado(sesion)) return noDisponible()
+  if (!(await efectivoHabilitado(supabase, sesion))) return noDisponible()
 
   if (new URL(req.url).searchParams.get('resumen')) {
     return NextResponse.json({ ok: true, ...(await resumenEfectivo(supabase, sesion)) })
@@ -50,7 +50,7 @@ export async function POST(req) {
   try {
     const sesion = await resolveCustomerId(req)
     if (!sesion) return NextResponse.json({ ok: false, error: 'Sin sesión' }, { status: 401 })
-    if (!modoTester() && !efectivoHabilitado(sesion)) return noDisponible()
+    if (!modoTester() && !(await efectivoHabilitado(supabase, sesion))) return noDisponible()
 
     const body  = await req.json()
     const items = Array.isArray(body.items) ? body.items : []

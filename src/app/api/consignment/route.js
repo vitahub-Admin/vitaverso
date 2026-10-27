@@ -65,7 +65,7 @@ export async function GET(req) {
 
     // Con el cobro en efectivo habilitado, lo cobrado y todavía sin pagar queda reservado: no cuenta
     // como disponible, aunque el libro no se toque hasta que el profesional pague.
-    const conEfectivo = efectivoHabilitado(ownerId)
+    const conEfectivo = await efectivoHabilitado(supabase, ownerId)
     if (conEfectivo) {
       const reservadas = await reservadasDe(supabase, ownerId)
       items = items.map(i => {

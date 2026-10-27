@@ -10,6 +10,9 @@
 //
 // Hay dos listas de profesionales, en variables de entorno (sin tocar la base):
 //   COBRO_EFECTIVO_REAL      el cobro en efectivo con su stock real de consignación
+//   COBRO_EFECTIVO_SOLO_LISTAS=1  apaga el cobro para todos los demás (interruptor de emergencia)
+//
+// Además, TODO profesional con producto en consignación lo tiene habilitado (salvo ese interruptor).
 //   COBRO_EFECTIVO_FANTASMA  pruebas: como si tuvieran todo el catálogo en su consultorio, sin límite.
 //                            Todo corre de verdad (cobro, reserva, panel, correo, borrador de Shopify)
 //                            EXCEPTO lo físico: nunca se descuenta el libro ni se mueve BaseLinker.
@@ -23,8 +26,23 @@ import { enviarProtocoloDeVentaEfectivo } from "@/lib/protocoloCorreo";
 const lista = (v) => String(v || "").split(",").map((s) => s.trim()).filter(Boolean);
 
 export const esFantasma = (ownerId) => lista(process.env.COBRO_EFECTIVO_FANTASMA).includes(String(ownerId));
-export const efectivoHabilitado = (ownerId) =>
-  esFantasma(ownerId) || lista(process.env.COBRO_EFECTIVO_REAL).includes(String(ownerId));
+const enListaReal = (ownerId) => lista(process.env.COBRO_EFECTIVO_REAL).includes(String(ownerId));
+
+/**
+ * ¿Puede cobrar en efectivo? Las listas de entorno (fantasma / real) siempre; los demás, si tienen
+ * o han tenido producto en consignación. COBRO_EFECTIVO_SOLO_LISTAS=1 deja solo las listas.
+ */
+export async function efectivoHabilitado(supabase, ownerId) {
+  if (esFantasma(ownerId) || enListaReal(ownerId)) return true;
+  if (process.env.COBRO_EFECTIVO_SOLO_LISTAS === "1") return false;
+  const { data } = await supabase
+    .from("consignment_stock")
+    .select("variant_id")
+    .eq("owner_id", String(ownerId))
+    .gt("entregado", 0)
+    .limit(1);
+  return Boolean(data && data.length);
+}
 
 /** Lo que se muestra como disponible a un profesional "fantasma": no se acaba. */
 export const INFINITO = 9999;
