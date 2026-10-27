@@ -103,6 +103,7 @@ export default function MisCarritosMerge() {
                 created_at:   extractValue(c.created_at),
                 status:       extractValue(c.status),
                 has_sale:     !!c.has_sale,
+                efectivo:     c.efectivo || null,
                 items_value:  Number(extractValue(c.items_value)) || 0,
                 items_count:  c.items_count || 0,
                 client_name:  c.client_name || null,
