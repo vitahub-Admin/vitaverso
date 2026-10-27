@@ -52,15 +52,22 @@ export default function CartRow({ cart }) {
             {cart.has_sale
               ? <span className="text-[10px] font-extrabold uppercase tracking-widest text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full">Vendido</span>
               : cart.efectivo
-                ? <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383] bg-[#EAF8F8] px-2 py-0.5 rounded-full">
-                    {cart.efectivo.estado === "pagada" ? "Vendido · efectivo" : "Cobrado en efectivo"}
-                  </span>
+                ? <>
+                    <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383] bg-[#EAF8F8] px-2 py-0.5 rounded-full">
+                      {cart.efectivo.estado === "pagada" ? "Vendido · efectivo" : "Cobrado en efectivo"}
+                    </span>
+                    {/* El paciente ya pagó en mano, pero el profesional todavía no le paga a Vitahub */}
+                    {cart.efectivo.estado === "por_pagar" && (
+                      <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#B45309] bg-amber-50 border border-amber-200 px-2 py-0.5 rounded-full">
+                        Sin pagar a Vitahub
+                      </span>
+                    )}
+                  </>
                 : <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] bg-[#F7F9FB] px-2 py-0.5 rounded-full">Pendiente</span>
             }
           </div>
           <p className="text-[11px] text-[#B0C8D4] mt-0.5">
             {cart.items_count} {cart.items_count === 1 ? "producto" : "productos"} · {date}
-            {cart.efectivo?.estado === "por_pagar" && " · por pagar a Vitahub"}
           </p>
         </div>
 
