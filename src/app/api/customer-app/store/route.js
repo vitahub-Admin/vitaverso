@@ -1,5 +1,5 @@
 // GET /api/customer-app/store
-//   sin parámetros  → portada: categorías, recomendados del profesional y sugeridos del carrito
+//   sin parámetros  → portada: categorías, recomendados del profesional, sugeridos del carrito y ofertas (VitaDeals)
 //   ?q=magnesio      → búsqueda por nombre, marca o ingrediente
 //   ?categoria=Sueño → productos de una categoría
 //   ?sugeridos=1     → solo los sugeridos del carrito ("Completa tu pedido")
@@ -8,7 +8,7 @@
 import { NextResponse } from "next/server";
 import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
 import { getAppUser } from "@/lib/customerSupplements";
-import { buscar, categorias, recomendadosDelProfesional, sugeridosDelCarrito, enriquecer } from "@/lib/customerStore";
+import { buscar, categorias, recomendadosDelProfesional, sugeridosDelCarrito, vitaDeals, enriquecer } from "@/lib/customerStore";
 
 export async function GET(req) {
   const payload = verifyAppCustomerToken(req);
@@ -34,15 +34,19 @@ export async function GET(req) {
       return NextResponse.json({ ok: true, specialistRef, productos: await buscar({ q: q ?? "", categoria }) });
     }
 
-    const [cats, recomendados, sugeridos] = await Promise.all([
+    const [cats, recomendados, sugeridos, ofertas] = await Promise.all([
       categorias().catch(() => []),
       recomendadosDelProfesional(user.specialist_shopify_id).catch((e) => {
         console.error("[store] recomendados:", e.message);
         return [];
       }),
       sugeridosDelCarrito(),
+      vitaDeals().catch((e) => {
+        console.error("[store] vitadeals:", e.message);
+        return [];
+      }),
     ]);
-    return NextResponse.json({ ok: true, specialistRef, categorias: cats, recomendados, sugeridos });
+    return NextResponse.json({ ok: true, specialistRef, categorias: cats, recomendados, sugeridos, ofertas });
   } catch (err) {
     console.error("customer-app/store:", err);
     return NextResponse.json({ ok: false, error: "No se pudo cargar la tienda" }, { status: 500 });

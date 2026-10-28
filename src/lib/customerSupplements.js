@@ -209,21 +209,55 @@ async function fetchVariantsMeta(variantIds) {
  * lo pone él mismo en el checkout).
  * Devuelve "órdenes" con la misma forma que fetchRecentOrders().
  */
+/**
+ * Ventas cobradas en efectivo en el consultorio, por el correo que anotó el profesional.
+ * Para el paciente están cerradas desde el cobro (pagó y se llevó todo en mano), aunque
+ * el profesional todavía no le haya pagado a Vitahub ("por_pagar"). Las canceladas no.
+ * La liquidación con la que el profesional paga es otra venta de consultorio, sin correo
+ * de paciente, así que no se cuenta dos veces.
+ */
+export async function fetchVentasEfectivo(email) {
+  if (!email) return [];
+  const desde = new Date(Date.now() - CONSULTORIO_ULTIMOS_DIAS * 86400000).toISOString();
+  const { data, error } = await supabase
+    .from("ventas_efectivo")
+    .select("id, owner_id, created_at, sharecart_token, items, total")
+    .in("estado", ["por_pagar", "pagada"])
+    .ilike("patient_email", email.trim())
+    .gte("created_at", desde)
+    .order("created_at", { ascending: false });
+  if (error) {
+    console.error("[customerSupplements] ventas_efectivo:", error.message);
+    return [];
+  }
+  return data ?? [];
+}
+
 async function fetchLocalPurchases(user) {
   if (!user.email) return [];
   const desde = new Date(Date.now() - CONSULTORIO_ULTIMOS_DIAS * 86400000).toISOString();
-  const { data: ventas, error } = await supabase
-    .from("local_orders")
-    .select("id, paid_at, sharecart_token, items")
-    .eq("estado", "pagado")
-    .ilike("patient_email", user.email.trim())
-    .gte("paid_at", desde)
-    .order("paid_at", { ascending: false });
-  if (error) {
-    console.error("[customerSupplements] local_orders:", error.message);
-    return [];
-  }
-  if (!ventas?.length) return [];
+  const [{ data: pagadas, error }, efectivo] = await Promise.all([
+    supabase
+      .from("local_orders")
+      .select("id, paid_at, sharecart_token, items")
+      .eq("estado", "pagado")
+      .ilike("patient_email", user.email.trim())
+      .gte("paid_at", desde)
+      .order("paid_at", { ascending: false }),
+    fetchVentasEfectivo(user.email),
+  ]);
+  if (error) console.error("[customerSupplements] local_orders:", error.message);
+  // Efectivo: todo se entregó en mano al cobrar; misma forma que local_orders
+  const ventas = [
+    ...(pagadas ?? []),
+    ...efectivo.map((v) => ({
+      id: `efectivo_${v.id}`,
+      paid_at: v.created_at,
+      sharecart_token: v.sharecart_token,
+      items: (v.items ?? []).map((i) => ({ ...i, entrega: "mano", mano_qty: null })),
+    })),
+  ];
+  if (!ventas.length) return [];
 
   const vids = [...new Set(ventas.flatMap((v) => (v.items ?? []).filter((i) => unidadesEnMano(i) > 0).map((i) => String(i.variant_id))))];
   const metaByVariant = await fetchVariantsMeta(vids).catch((err) => {

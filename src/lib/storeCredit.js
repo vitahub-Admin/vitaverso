@@ -32,11 +32,12 @@ export function codigoAleatorio(largo = 8) {
  * @param {number} [monto]       valor del cupón en MXN (monto fijo)
  * @param {number} [porcentaje]  alternativa a `monto`: 1–100, sobre el pedido (ej. 10 = 10%)
  * @param {number} [venceEnDias] días de vigencia; sin esto no vence
+ * @param {number} [minimo]      compra mínima (subtotal) para usarlo; sin esto no hay mínimo
  * @param {string} titulo  cómo se ve en el admin de Shopify
  * @param {string} [code]  código a usar; si no se manda, se genera uno
  * @returns {{ code: string, priceRuleId: number }}
  */
-export async function crearCuponDeCredito({ monto, porcentaje, venceEnDias, titulo, code = codigoAleatorio() }) {
+export async function crearCuponDeCredito({ monto, porcentaje, venceEnDias, minimo, titulo, code = codigoAleatorio() }) {
   if (!porcentaje && !(Number(monto) > 0)) throw new Error('El cupón necesita un monto o un porcentaje');
   const valor = porcentaje
     ? { percentage: Number(porcentaje) / 100 }
@@ -61,6 +62,7 @@ export async function crearCuponDeCredito({ monto, porcentaje, venceEnDias, titu
           code,
           startsAt:            new Date().toISOString(),
           ...(venceEnDias ? { endsAt: new Date(Date.now() + Number(venceEnDias) * 86400000).toISOString() } : {}),
+          ...(Number(minimo) > 0 ? { minimumRequirement: { subtotal: { greaterThanOrEqualToSubtotal: Number(minimo).toFixed(2) } } } : {}),
           usageLimit:          1,
           appliesOncePerCustomer: true,
           customerSelection:   { all: true },

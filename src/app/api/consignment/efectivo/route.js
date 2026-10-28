@@ -56,6 +56,11 @@ export async function POST(req) {
     const items = Array.isArray(body.items) ? body.items : []
     if (!items.length) return NextResponse.json({ ok: false, error: 'Sin productos' }, { status: 400 })
 
+    // Sin nombre no hay a quién atribuirle el protocolo: en Mis Protocolos quedaría como "Sin nombre"
+    if (String(body.patient_name || '').trim().length < 2) {
+      return NextResponse.json({ ok: false, error: 'Escribe el nombre del paciente' }, { status: 400 })
+    }
+
     const correo = String(body.patient_email || '').trim().toLowerCase()
     if (correo && !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(correo)) {
       return NextResponse.json({ ok: false, error: 'El correo del paciente no es válido' }, { status: 400 })

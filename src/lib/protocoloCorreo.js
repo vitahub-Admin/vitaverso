@@ -13,7 +13,29 @@ const supabase = createClient(
   process.env.SUPABASE_SECRET_KEY
 );
 
-export function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date, lineItems, shareCartToken }) {
+// App de pacientes. Android se muestra recién cuando esté publicada en Google Play
+// (MI_VITAHUB_ANDROID_PUBLICA=1 en Vercel): antes de eso el link da 404.
+const APP_IOS_URL = "https://apps.apple.com/mx/app/id6821184197";
+const APP_ANDROID_URL = "https://play.google.com/store/apps/details?id=mx.vitahub.cliente";
+
+// Bloque "Sigue tu protocolo en Mi Vitahub". appEmail: el correo con el que debe entrar
+// para que la app encuentre su compra (se busca por ese correo).
+function bloqueApp(appEmail) {
+  const boton = (href, texto) =>
+    `<a href="${href}" style="display:inline-block;margin:4px;background:#ffffff;color:#1b3f7a;border:1px solid #B5E7E6;font-size:13px;font-weight:700;padding:10px 20px;border-radius:8px;text-decoration:none;">${texto}</a>`;
+  const botones = [
+    boton(APP_IOS_URL, "Descargar para iPhone"),
+    process.env.MI_VITAHUB_ANDROID_PUBLICA === "1" ? boton(APP_ANDROID_URL, "Descargar para Android") : "",
+  ].join("");
+  return `
+<tr><td style="background:#EAF8F8;border-top:1px solid #B5E7E6;padding:24px 40px;text-align:center;">
+  <p style="margin:0 0 6px;font-size:15px;font-weight:700;color:#1b3f7a;">Sigue tu protocolo en la app Mi Vitahub</p>
+  <p style="margin:0 0 14px;font-size:13px;color:#4b5563;line-height:1.6;">Recordatorios para cada toma y un aviso antes de que se te termine un suplemento.<br>Entra con <strong style="color:#1b3f7a;">${escaparHtml(appEmail)}</strong> y verás tus suplementos.</p>
+  ${botones}
+</td></tr>`;
+}
+
+export function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date, lineItems, shareCartToken, appEmail = null }) {
   const pdfUrl = `https://pro.vitahub.mx/api/protocolo-pdf?token=${shareCartToken}`;
   const paciente = escaparHtml(patientName);
   const especialista = escaparHtml(affiliateName);
@@ -110,6 +132,7 @@ export function buildPrescriptionEmail({ affiliateName, patientName, orderNumber
     Descargar mi protocolo en PDF
   </a>
 </td></tr>
+${appEmail ? bloqueApp(appEmail) : ""}
 
 <tr><td style="background:#f9fafb;border-top:1px solid #f3f4f6;border-radius:0 0 16px 16px;padding:24px 40px;">
   <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.8;text-align:center;">
@@ -162,6 +185,8 @@ export async function enviarProtocoloDeVentaEfectivo(venta) {
     date: new Date(venta.created_at || Date.now()).toLocaleDateString("es-MX", { year: "numeric", month: "long", day: "numeric" }),
     lineItems,
     shareCartToken: venta.sharecart_token,
+    // La app encuentra esta compra por el correo: tiene que entrar con este mismo
+    appEmail:       venta.patient_email,
   });
 
   const { error } = await resend.emails.send({

@@ -131,6 +131,26 @@ export async function recomendadosDelProfesional(specialistShopifyId, limite = 1
   return vids.map((v) => vivos[v]).filter((p) => p?.available);
 }
 
+// Portada de la tienda: la colección de ofertas de vitahub.mx/collections/vitadeals,
+// en el orden que tiene en Shopify y solo lo disponible
+export async function vitaDeals(limite = 24) {
+  const data = await shopifyAdmin(
+    `query vitadeals($n: Int!) {
+      collectionByIdentifier(identifier: { handle: "vitadeals" }) {
+        products(first: $n, sortKey: COLLECTION_DEFAULT) { edges { node {
+          status variants(first: 1) { edges { node { id } } }
+        } } }
+      }
+    }`,
+    { n: limite * 2 }
+  );
+  const vids = (data?.collectionByIdentifier?.products?.edges ?? [])
+    .map(({ node }) => (node.status === "ACTIVE" ? node.variants.edges[0]?.node?.id?.split("/").pop() : null))
+    .filter(Boolean);
+  const vivos = await enriquecer(vids);
+  return vids.map((v) => vivos[v]).filter((p) => p?.available).slice(0, limite);
+}
+
 // Sugeridos del carrito, administrados en PRO
 export async function sugeridosDelCarrito() {
   const { data, error } = await supabase

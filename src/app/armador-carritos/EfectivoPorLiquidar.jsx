@@ -323,14 +323,17 @@ export function CobroEfectivoModal({ items, patientName, patientPhone, patientEm
   const [venta, setVenta]       = useState(null);
   const [enSandbox, setEnSandbox] = useState(false);
   const [correo, setCorreo]     = useState(patientEmail || "");
+  const [nombre, setNombre]     = useState(patientName || "");
+  const nombreValido = nombre.trim().length >= 2;
 
   const total = items.reduce((a, i) => a + (Number(i.price) || 0) * (i.quantity || 1), 0);
 
   const confirmar = async () => {
+    if (!nombreValido) { setError("Escribe el nombre del paciente."); return; }
     setCargando(true); setError("");
     const r = await onRegistrar({
       items: items.map((i) => ({ variant_id: i.variant_id, quantity: i.quantity || 1 })),
-      patient_name: patientName || null,
+      patient_name: nombre.trim(),
       patient_phone: patientPhone || null,
       patient_email: correo.trim() || null,
       ...(extra || {}),
@@ -371,7 +374,16 @@ export function CobroEfectivoModal({ items, patientName, patientPhone, patientEm
               <span className="text-sm text-[#5B7A8C]">Cobra al paciente</span>
               <span className="text-xl font-extrabold text-[#1b3f7a] tabular-nums">{fmtMXN(total)}</span>
             </div>
-            {patientName && <p className="text-[11px] text-[#8AAAB8] mt-1">Paciente: {patientName}</p>}
+
+            <div className="mt-3.5">
+              <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">Nombre del paciente</label>
+              <input type="text" value={nombre} onChange={(e) => { setNombre(e.target.value); setError(""); }} autoComplete="off"
+                placeholder="Nombre y apellido"
+                className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm text-[#1b3f7a] placeholder:text-[#B0C8D4] focus:outline-none focus:border-[#2BB9B8]" />
+              <p className="text-[11px] text-[#8AAAB8] mt-1 leading-snug">
+                Con este nombre queda guardado el protocolo en Mis Protocolos.
+              </p>
+            </div>
 
             <div className="mt-3.5">
               <label className="block text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">Correo del paciente</label>
@@ -389,7 +401,7 @@ export function CobroEfectivoModal({ items, patientName, patientPhone, patientEm
                 className="flex-1 border border-[#D0E4EC] text-[#5B7A8C] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#F7F9FB] transition-colors">
                 Cancelar
               </button>
-              <button onClick={confirmar} disabled={cargando}
+              <button onClick={confirmar} disabled={cargando || !nombreValido}
                 className="flex-1 bg-[#2BB9B8] text-[#0D2133] text-sm py-2.5 rounded-lg font-semibold hover:bg-[#26A3A2] transition-colors disabled:opacity-50">
                 {cargando ? "Registrando…" : "Ya cobré en efectivo"}
               </button>

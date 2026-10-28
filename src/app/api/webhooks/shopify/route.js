@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPushToAffiliate } from "@/lib/affiliateNotifications";
 import { marcarCuponUsado } from "@/lib/storeCredit";
+import { marcarDescuentoUsado } from "@/lib/descuentosClientes";
 import { interpretarOrdenShopify } from "@/lib/cobroShopify";
 import { confirmarVenta, revertirVenta } from "@/lib/ventaConsultorio";
 import { cancelarOrdenEnBaseLinker } from "@/lib/baselinker";
@@ -627,6 +628,15 @@ export async function POST(req) {
     // afiliado deje de verlos en su lista sin tener que preguntarle a Shopify
     // por cada código cada vez que abre la app.
     for (const d of payload.discount_codes || []) {
+      const code = String(d?.code || "").toUpperCase();
+      // VR-: descuento de recompra de un cliente (Mi Vitahub)
+      if (code.startsWith("VR-")) {
+        marcarDescuentoUsado(code, {
+          orderName: payload.name,
+          usedAt:    payload.created_at,
+        }).catch(e => console.error("marcarDescuentoUsado:", e.message));
+        continue;
+      }
       if (!d?.code?.startsWith("VH-")) continue;
       marcarCuponUsado(supabase, d.code, {
         orderName: payload.name,

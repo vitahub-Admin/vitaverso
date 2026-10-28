@@ -2,7 +2,7 @@
 // Perfil del cliente + su especialista (metafield de cliente custom.referido → affiliates)
 import { NextResponse } from "next/server";
 import { verifyAppCustomerToken, unauthorized, signAppCustomerToken, shouldRenewAppToken } from "@/lib/customerAppAuth";
-import { supabase, shopifyAdmin, getAppUser, CUSTOM_BUCKET } from "@/lib/customerSupplements";
+import { supabase, shopifyAdmin, getAppUser, CUSTOM_BUCKET, fetchVentasEfectivo } from "@/lib/customerSupplements";
 import { ensureShopifyLink } from "@/lib/customerAppAccount";
 
 const PRO_URL = "https://pro.vitahub.mx";
@@ -133,6 +133,18 @@ export async function GET(req) {
       } catch (err) {
         // Si Shopify falla seguimos con lo guardado en Supabase
         console.error("customer-app/me shopify error:", err.message);
+      }
+    }
+
+    // Sin profesional en Shopify: el que le cobró en efectivo en su consultorio (la venta
+    // no pasa por Shopify, así que el metafield referido no se entera). Se guarda para
+    // que el carrito de la app también le acredite las compras.
+    if (!specialistShopifyId) {
+      const [venta] = await fetchVentasEfectivo(appUser.email ?? payload.email);
+      const owner = Number(venta?.owner_id);
+      if (owner) {
+        specialistShopifyId = owner;
+        await supabase.from("customer_app_users").update({ specialist_shopify_id: owner }).eq("id", appUser.id);
       }
     }
 
