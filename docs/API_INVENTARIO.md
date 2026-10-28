@@ -4,8 +4,9 @@ Para sistemas externos que necesitan saber qué producto se mueve y se vende en 
 sobre todo las ventas que **no pasan por Shopify** (venta de consultorio con tarjeta y efectivo liquidado).
 
 - Base: `https://pro.vitahub.mx/api/v1/inventario`
-- Autenticación: `Authorization: Bearer <llave>`. Una llave por consumidor, en la variable de Vercel
-  `INVENTARIO_API_KEYS` (varias separadas por coma). Sin llaves configuradas la API responde 503.
+- Autenticación: la misma llave que las demás APIs externas, en el encabezado `x-api-key: <llave>`
+  (variable de Vercel `SHARECART_API_KEY`). También vale `Authorization: Bearer <llave>`.
+  Si se quiere una llave aparte para un consumidor, va en `INVENTARIO_API_KEYS` (varias separadas por coma).
 - Todo es lectura. Las fechas son ISO 8601 en UTC.
 
 ## GET /movimientos

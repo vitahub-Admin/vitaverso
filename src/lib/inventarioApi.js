@@ -1,12 +1,14 @@
 // API de lectura del inventario de consignación, para sistemas externos (control de stock y
-// predicción de compras). Solo lectura. Se autentica con una llave por consumidor:
-//   INVENTARIO_API_KEYS=llave1,llave2     (se manda como  Authorization: Bearer <llave>)
+// predicción de compras). Solo lectura. Acepta la misma llave que las demás APIs externas
+// (SHARECART_API_KEY, en el encabezado x-api-key) y, si hace falta separar consumidores,
+// llaves propias en INVENTARIO_API_KEYS=llave1,llave2 (también como Authorization: Bearer <llave>).
 
 import crypto from "crypto";
 import { NextResponse } from "next/server";
 
 const llaves = () =>
-  String(process.env.INVENTARIO_API_KEYS || "").split(",").map((s) => s.trim()).filter(Boolean);
+  [process.env.SHARECART_API_KEY, ...String(process.env.INVENTARIO_API_KEYS || "").split(",")]
+    .map((s) => String(s || "").trim()).filter(Boolean);
 
 function igual(a, b) {
   const x = Buffer.from(a), y = Buffer.from(b);
@@ -15,7 +17,8 @@ function igual(a, b) {
 
 /** null si la llave es válida; si no, la respuesta de error lista para devolver. */
 export function exigirLlave(req) {
-  const recibida = (req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "").trim();
+  const recibida = (req.headers.get("x-api-key") || req.headers.get("authorization") || "")
+    .replace(/^Bearer\s+/i, "").trim();
   const validas = llaves();
   if (!validas.length) {
     return NextResponse.json({ ok: false, error: "API no habilitada" }, { status: 503 });
