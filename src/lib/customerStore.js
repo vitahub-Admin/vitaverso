@@ -131,6 +131,78 @@ export async function recomendadosDelProfesional(specialistShopifyId, limite = 1
   return vids.map((v) => vivos[v]).filter((p) => p?.available);
 }
 
+/**
+ * Ficha de un producto: fotos, descripción y variantes con precio y stock vivos.
+ * Solo productos activos y no profesionales (los mismos que muestra la búsqueda).
+ * La marca sale del catálogo: el vendor de Shopify no siempre es la marca real.
+ */
+export async function detalleProducto(handle) {
+  const data = await shopifyAdmin(
+    `query fichaProducto($handle: String!) {
+      productByIdentifier(identifier: { handle: $handle }) {
+        id title handle status descriptionHtml
+        images(first: 10) { edges { node { url } } }
+        variants(first: 30) { edges { node {
+          id title price availableForSale image { url }
+        } } }
+      }
+    }`,
+    { handle }
+  );
+  const p = data?.productByIdentifier;
+  if (!p || p.status !== "ACTIVE") return null;
+  const productId = p.id.split("/").pop();
+
+  const { data: cat } = await supabase
+    .from("product_catalog")
+    .select("brand, is_professional")
+    .eq("product_id", productId)
+    .limit(1)
+    .maybeSingle();
+  if (cat?.is_professional) return null;
+
+  return {
+    productId,
+    handle: p.handle,
+    title: p.title,
+    brand: cat?.brand ?? null,
+    descripcion: htmlATexto(p.descriptionHtml),
+    images: p.images.edges.map(({ node }) => node.url),
+    url: buyUrl(p.handle),
+    variants: p.variants.edges.map(({ node: v }) => ({
+      variantId: v.id.split("/").pop(),
+      title: p.title,
+      variantTitle: v.title === "Default Title" ? "" : v.title,
+      price: v.price != null ? Number(v.price) : null,
+      available: !!v.availableForSale,
+      image: v.image?.url ?? p.images.edges[0]?.node?.url ?? null,
+      handle: p.handle,
+    })),
+  };
+}
+
+// La app no renderiza HTML: párrafos y viñetas como texto plano
+function htmlATexto(html = "") {
+  return String(html)
+    .replace(/<(script|style)[\s\S]*?<\/\1>/gi, "")
+    .replace(/<li[^>]*>/gi, "\n• ")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|h[1-6]|ul|ol|tr)>/gi, "\n\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;|&rsquo;|&lsquo;/g, "'")
+    .replace(/&ldquo;|&rdquo;/g, '"')
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&[a-z]+;/gi, " ")
+    .replace(/[ \t]+/g, " ")
+    .replace(/ *\n */g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 // Portada de la tienda: la colección de ofertas de vitahub.mx/collections/vitadeals,
 // en el orden que tiene en Shopify y solo lo disponible
 export async function vitaDeals(limite = 24) {
