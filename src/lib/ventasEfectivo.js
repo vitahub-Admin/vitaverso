@@ -44,6 +44,9 @@ export async function efectivoHabilitado(supabase, ownerId) {
   return Boolean(data && data.length);
 }
 
+/** Folio corto de un cobro en efectivo: EF-0012 (las ventas viejas sin folio no lo muestran) */
+export const folioEfectivo = (v) => (v?.folio ? `EF-${String(v.folio).padStart(4, "0")}` : null);
+
 /** Lo que se muestra como disponible a un profesional "fantasma": no se acaba. */
 export const INFINITO = 9999;
 
@@ -244,6 +247,9 @@ export async function iniciarLiquidacion(supabase, ownerId) {
   }
   const items = [...porVariante.values()].map((i) => ({ ...i, mano_qty: i.quantity }));
   const totales = totalesDe(items);
+  // Los movimientos del libro heredan este nombre como motivo: así cada salida dice qué cobros la originaron
+  const detalle = pend.map((v) => `${folioEfectivo(v) || String(v.id).slice(0, 8)} ${v.patient_name || "sin nombre"}`).join(", ");
+  const nombreOrden = `Liquidación de efectivo · ${detalle}`.slice(0, 300);
 
   const { data: abierta } = await supabase.from("liquidaciones_efectivo").select("*")
     .eq("owner_id", dueño).eq("estado", "pendiente")
@@ -259,12 +265,12 @@ export async function iniciarLiquidacion(supabase, ownerId) {
   const ahora = new Date().toISOString();
   if (ordenId) {
     const { error } = await supabase.from("local_orders")
-      .update({ items, ...totales, updated_at: ahora }).eq("id", ordenId).eq("estado", "pendiente");
+      .update({ items, ...totales, patient_name: nombreOrden, updated_at: ahora }).eq("id", ordenId).eq("estado", "pendiente");
     if (error) return { ok: false, error: error.message };
   } else {
     const { data: lo, error } = await supabase.from("local_orders").insert([{
       owner_id: String(ownerId),
-      patient_name: "Liquidación de efectivo",
+      patient_name: nombreOrden,
       items, ...totales,
       estado: "pendiente",
       payment_provider: pasarelaActiva(ownerId),
