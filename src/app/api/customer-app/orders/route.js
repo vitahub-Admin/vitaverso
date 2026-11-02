@@ -2,7 +2,7 @@
 // Últimas órdenes del cliente con productos, estado de pago y de envío (guías de paquetería)
 import { NextResponse } from "next/server";
 import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
-import { shopifyAdmin, buyUrl, getAppUser, fetchVentasEfectivo } from "@/lib/customerSupplements";
+import { shopifyAdmin, buyUrl, getAppUser, fetchVentasEfectivo, desdeVentana } from "@/lib/customerSupplements";
 import { enriquecer } from "@/lib/customerStore";
 
 // Estado de envío que ve el cliente, del más avanzado al menos
@@ -74,9 +74,9 @@ export async function GET(req) {
     if (!shopifyCustomerId) return NextResponse.json({ ok: true, orders: efectivo });
 
     const data = await shopifyAdmin(
-      `query customerOrders($id: ID!) {
+      `query customerOrders($id: ID!, $q: String!) {
         customer(id: $id) {
-          orders(first: 15, sortKey: CREATED_AT, reverse: true) {
+          orders(first: 30, sortKey: CREATED_AT, reverse: true, query: $q) {
             edges { node {
               id name createdAt cancelledAt
               displayFinancialStatus displayFulfillmentStatus
@@ -97,7 +97,8 @@ export async function GET(req) {
           }
         }
       }`,
-      { id: `gid://shopify/Customer/${shopifyCustomerId}` }
+      // Compras de los últimos 120 días
+      { id: `gid://shopify/Customer/${shopifyCustomerId}`, q: `created_at:>=${desdeVentana()}` }
     );
 
     const orders = (data?.customer?.orders?.edges ?? []).map(({ node }) => {

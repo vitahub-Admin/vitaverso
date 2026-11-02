@@ -27,13 +27,15 @@ const STORE_URL = "https://vitahub.mx";
 const PRO_URL = "https://pro.vitahub.mx";
 const TZ = "America/Mexico_City";
 
-// Variantes compradas hace más de esto y sin seguimiento no se sugieren
-const SUGERIR_COMPRAS_DE_LOS_ULTIMOS_DIAS = 120;
-// Compras sin receta (sin dosis del profesional): solo las muy recientes
-const SUGERIR_SIN_RECETA_DIAS = 45;
-// Ventas de consultorio que se consideran para el stack
-const CONSULTORIO_ULTIMOS_DIAS = 180;
-const ORDENES_A_REVISAR = 10;
+// El cliente ve sus compras de los últimos 120 días (tienda y consultorio), en el stack
+// y en Envíos. Un suplemento que todavía le dura se queda aunque la compra sea más vieja.
+export const VENTAS_ULTIMOS_DIAS = 120;
+const ORDENES_A_REVISAR = 50;
+
+// created_at:>=AAAA-MM-DD para filtrar órdenes de Shopify por la ventana
+export function desdeVentana() {
+  return mxDate(new Date(Date.now() - VENTAS_ULTIMOS_DIAS * 86400000));
+}
 
 export const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -139,9 +141,9 @@ export function variantMeta(v) {
 // Órdenes recientes (no canceladas) del cliente con lo necesario para el stack
 async function fetchRecentOrders(shopifyCustomerId) {
   const data = await shopifyAdmin(
-    `query stackOrders($id: ID!, $n: Int!) {
+    `query stackOrders($id: ID!, $n: Int!, $q: String!) {
       customer(id: $id) {
-        orders(first: $n, sortKey: CREATED_AT, reverse: true) {
+        orders(first: $n, sortKey: CREATED_AT, reverse: true, query: $q) {
           edges { node {
             id createdAt cancelledAt
             customAttributes { key value }
@@ -154,7 +156,7 @@ async function fetchRecentOrders(shopifyCustomerId) {
         }
       }
     }`,
-    { id: `gid://shopify/Customer/${shopifyCustomerId}`, n: ORDENES_A_REVISAR }
+    { id: `gid://shopify/Customer/${shopifyCustomerId}`, n: ORDENES_A_REVISAR, q: `created_at:>=${desdeVentana()}` }
   );
 
   return (data?.customer?.orders?.edges ?? [])
@@ -218,7 +220,7 @@ async function fetchVariantsMeta(variantIds) {
  */
 export async function fetchVentasEfectivo(email) {
   if (!email) return [];
-  const desde = new Date(Date.now() - CONSULTORIO_ULTIMOS_DIAS * 86400000).toISOString();
+  const desde = new Date(Date.now() - VENTAS_ULTIMOS_DIAS * 86400000).toISOString();
   const { data, error } = await supabase
     .from("ventas_efectivo")
     .select("id, owner_id, created_at, sharecart_token, items, total")
@@ -235,7 +237,7 @@ export async function fetchVentasEfectivo(email) {
 
 async function fetchLocalPurchases(user) {
   if (!user.email) return [];
-  const desde = new Date(Date.now() - CONSULTORIO_ULTIMOS_DIAS * 86400000).toISOString();
+  const desde = new Date(Date.now() - VENTAS_ULTIMOS_DIAS * 86400000).toISOString();
   const [{ data: pagadas, error }, efectivo] = await Promise.all([
     supabase
       .from("local_orders")
@@ -487,6 +489,16 @@ export async function buildStack(user, { persist = true } = {}) {
   const updates = [];
   const variantIds = new Set([...Object.keys(trackingByVariant), ...Object.keys(latestByVariant)]);
 
+  // En seguimiento sin pedido reciente (agregado a mano o compra vieja): la foto y los datos
+  // del producto se piden aparte a Shopify. Los productos propios del paciente no están ahí.
+  const sinPedido = [...variantIds].filter((vid) => !latestByVariant[vid] && Number(vid) > 0 && !trackingByVariant[vid]?.custom);
+  const metaSuelta = sinPedido.length
+    ? await fetchVariantsMeta(sinPedido).catch((err) => {
+        console.error("[customerSupplements] metafields sin pedido:", err.message);
+        return {};
+      })
+    : {};
+
   // Fotos de los productos propios del paciente: URLs firmadas (la app las guarda en caché)
   const fotoUrl = {};
   const fotos = (rows ?? []).filter((r) => r.custom && r.photo_path).map((r) => r.photo_path);
@@ -522,16 +534,13 @@ export async function buildStack(user, { persist = true } = {}) {
 
     let tracked = row && row.active && row.start_date;
 
-    // Sin seguimiento: solo sugerimos compras recientes. Con receta del profesional
-    // (dosis conocida) la ventana es larga; sin receta, solo lo muy reciente, para no
-    // llenar "por configurar" con cosas que no son suplementos (proteína, snacks...).
+    // Sin seguimiento: solo sugerimos compras de la ventana de 120 días.
     // El cliente puede descartar cualquiera con "No lo tomo" (DELETE → fila inactiva).
     if (!tracked) {
-      const ventana = latest?.rx ? SUGERIR_COMPRAS_DE_LOS_ULTIMOS_DIAS : SUGERIR_SIN_RECETA_DIAS;
-      if (!lastPurchase || diffDays(mxDate(lastPurchase.createdAt), today) > ventana) continue;
+      if (!lastPurchase || diffDays(mxDate(lastPurchase.createdAt), today) > VENTAS_ULTIMOS_DIAS) continue;
     }
 
-    const meta = latest?.meta ?? {};
+    const meta = latest?.meta ?? metaSuelta[vid]?.meta ?? {};
     const rx = latest?.rx ?? null;
     const rxUnitsPerDay = unitsPerDayFromRx(rx, meta);
     const uso = usoByVariant[vid] ?? null;
@@ -656,6 +665,12 @@ export async function buildStack(user, { persist = true } = {}) {
       });
       Object.assign(row, updates[updates.length - 1]);
     }
+
+    // Ya se le terminó y la compra es de antes de la ventana: sale del stack.
+    // La fila queda; si lo vuelve a comprar, el ciclo se extiende y aparece de nuevo.
+    const ultimaCompra = lastPurchase?.createdAt ?? row.last_order_at ?? null;
+    const desde = ultimaCompra ? mxDate(ultimaCompra) : cycle.start;
+    if (daysRemaining === 0 && desde && diffDays(desde, today) > VENTAS_ULTIMOS_DIAS) continue;
 
     supplements.push({
       ...base,

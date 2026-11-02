@@ -6,7 +6,15 @@ import { supabase } from "@/lib/customerSupplements";
 
 const CONFIG_ID = 2;
 
+// WhatsApp de atención a clientes (env CUSTOMER_APP_SUPPORT_WHATSAPP, ej. 525654388525).
+// Sin la variable, la app usa el número que trae fijo.
+function supportWhatsapp() {
+  const n = (process.env.CUSTOMER_APP_SUPPORT_WHATSAPP ?? "").replace(/\D/g, "");
+  return n.length >= 10 ? n : null;
+}
+
 export async function GET(req) {
+  const support_whatsapp = supportWhatsapp();
   try {
     const platform = req.nextUrl.searchParams.get("platform") === "ios" ? "ios" : "android";
 
@@ -17,10 +25,11 @@ export async function GET(req) {
       .maybeSingle();
 
     if (error) throw error;
-    if (!data) return NextResponse.json({ ok: true, min_version: null });
+    if (!data) return NextResponse.json({ ok: true, min_version: null, support_whatsapp });
 
     return NextResponse.json({
       ok: true,
+      support_whatsapp,
       min_version: platform === "ios" ? data.ios_min_version : data.android_min_version,
       forced: !!data.forced,
       message: data.update_message,
