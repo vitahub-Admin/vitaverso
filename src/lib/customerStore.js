@@ -35,7 +35,8 @@ export async function categorias() {
   return lista;
 }
 
-// Precio, foto y disponibilidad vivos en Shopify para una lista de variantes
+// Precio, foto y disponibilidad vivos en Shopify para una lista de variantes.
+// Solo productos activos y publicados en la tienda online (lo que se ve en vitahub.mx).
 export async function enriquecer(variantIds) {
   const ids = [...new Set(variantIds.map(String))].slice(0, 100);
   if (!ids.length) return {};
@@ -46,13 +47,13 @@ export async function enriquecer(variantIds) {
         nodes(ids: $ids) { ... on ProductVariant {
           id title price availableForSale
           image { url }
-          product { id title handle status featuredImage { url } }
+          product { id title handle status onlineStoreUrl featuredImage { url } }
         } }
       }`,
       { ids: ids.slice(i, i + 50).map((id) => `gid://shopify/ProductVariant/${id}`) }
     );
     for (const n of data?.nodes ?? []) {
-      if (!n?.id || n.product?.status !== "ACTIVE") continue;
+      if (!n?.id || n.product?.status !== "ACTIVE" || !n.product.onlineStoreUrl) continue;
       out[n.id.split("/").pop()] = {
         variantId: n.id.split("/").pop(),
         productId: n.product.id.split("/").pop(),
@@ -133,14 +134,15 @@ export async function recomendadosDelProfesional(specialistShopifyId, limite = 1
 
 /**
  * Ficha de un producto: fotos, descripción y variantes con precio y stock vivos.
- * Solo productos activos y no profesionales (los mismos que muestra la búsqueda).
+ * Cualquier producto activo y publicado en vitahub.mx: la tienda de la app muestra
+ * lo mismo que la web (VitaDeals y la colección del profesional incluyen productos PRO).
  * La marca sale del catálogo: el vendor de Shopify no siempre es la marca real.
  */
 export async function detalleProducto(handle) {
   const data = await shopifyAdmin(
     `query fichaProducto($handle: String!) {
       productByIdentifier(identifier: { handle: $handle }) {
-        id title handle status descriptionHtml
+        id title handle status onlineStoreUrl descriptionHtml
         images(first: 10) { edges { node { url } } }
         variants(first: 30) { edges { node {
           id title price availableForSale image { url }
@@ -150,16 +152,15 @@ export async function detalleProducto(handle) {
     { handle }
   );
   const p = data?.productByIdentifier;
-  if (!p || p.status !== "ACTIVE") return null;
+  if (!p || p.status !== "ACTIVE" || !p.onlineStoreUrl) return null;
   const productId = p.id.split("/").pop();
 
   const { data: cat } = await supabase
     .from("product_catalog")
-    .select("brand, is_professional")
+    .select("brand")
     .eq("product_id", productId)
     .limit(1)
     .maybeSingle();
-  if (cat?.is_professional) return null;
 
   return {
     productId,

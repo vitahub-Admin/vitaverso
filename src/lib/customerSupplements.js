@@ -30,11 +30,13 @@ const TZ = "America/Mexico_City";
 // El cliente ve sus compras de los últimos 120 días (tienda y consultorio), en el stack
 // y en Envíos. Un suplemento que todavía le dura se queda aunque la compra sea más vieja.
 export const VENTAS_ULTIMOS_DIAS = 120;
+// Envíos (historial de pedidos) mira más atrás: sirve para volver a pedir lo mismo
+export const PEDIDOS_ULTIMOS_DIAS = 500;
 const ORDENES_A_REVISAR = 50;
 
 // created_at:>=AAAA-MM-DD para filtrar órdenes de Shopify por la ventana
-export function desdeVentana() {
-  return mxDate(new Date(Date.now() - VENTAS_ULTIMOS_DIAS * 86400000));
+export function desdeVentana(dias = VENTAS_ULTIMOS_DIAS) {
+  return mxDate(new Date(Date.now() - dias * 86400000));
 }
 
 export const supabase = createClient(
@@ -218,9 +220,9 @@ async function fetchVariantsMeta(variantIds) {
  * La liquidación con la que el profesional paga es otra venta de consultorio, sin correo
  * de paciente, así que no se cuenta dos veces.
  */
-export async function fetchVentasEfectivo(email) {
+export async function fetchVentasEfectivo(email, dias = VENTAS_ULTIMOS_DIAS) {
   if (!email) return [];
-  const desde = new Date(Date.now() - VENTAS_ULTIMOS_DIAS * 86400000).toISOString();
+  const desde = new Date(Date.now() - dias * 86400000).toISOString();
   const { data, error } = await supabase
     .from("ventas_efectivo")
     .select("id, owner_id, created_at, sharecart_token, items, total")
