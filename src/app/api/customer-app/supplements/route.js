@@ -17,8 +17,8 @@ export async function GET(req) {
     const user = await getAppUser(payload.userId);
     if (!user) return unauthorized();
 
-    const { supplements, protocols, today } = await buildStack(user);
-    return NextResponse.json({ ok: true, today, supplements, protocols });
+    const { supplements, pasados, protocols, today } = await buildStack(user);
+    return NextResponse.json({ ok: true, today, supplements, pasados, protocols });
   } catch (err) {
     console.error("customer-app/supplements GET error:", err);
     return NextResponse.json({ ok: false, error: "No se pudieron cargar tus suplementos" }, { status: 500 });

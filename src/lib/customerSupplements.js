@@ -486,6 +486,8 @@ export async function buildStack(user, { persist = true } = {}) {
   }
 
   const supplements = [];
+  // Terminados hace tiempo: historial, sin seguimiento ni avisos
+  const pasados = [];
   const updates = [];
   const variantIds = new Set([...Object.keys(trackingByVariant), ...Object.keys(latestByVariant)]);
 
@@ -666,11 +668,25 @@ export async function buildStack(user, { persist = true } = {}) {
       Object.assign(row, updates[updates.length - 1]);
     }
 
-    // Ya se le terminó y la compra es de antes de la ventana: sale del stack.
-    // La fila queda; si lo vuelve a comprar, el ciclo se extiende y aparece de nuevo.
+    // Ya se le terminó y la compra es de antes de la ventana: sale de lo que está tomando
+    // y pasa a "Suplementos que tomaste antes". La fila queda; si lo vuelve a comprar,
+    // el ciclo se extiende y aparece de nuevo.
     const ultimaCompra = lastPurchase?.createdAt ?? row.last_order_at ?? null;
     const desde = ultimaCompra ? mxDate(ultimaCompra) : cycle.start;
-    if (daysRemaining === 0 && desde && diffDays(desde, today) > VENTAS_ULTIMOS_DIAS) continue;
+    if (daysRemaining === 0 && desde && diffDays(desde, today) > VENTAS_ULTIMOS_DIAS) {
+      pasados.push({
+        variantId: vid,
+        productTitle: base.productTitle || row.product_title,
+        variantTitle: base.variantTitle,
+        productHandle: base.productHandle,
+        image: base.image,
+        imageKey: base.imageKey,
+        custom: base.custom,
+        buyUrl: base.buyUrl,
+        endDate: cycle.end,
+      });
+      continue;
+    }
 
     supplements.push({
       ...base,
@@ -701,5 +717,8 @@ export async function buildStack(user, { persist = true } = {}) {
     return (a.daysRemaining ?? 9999) - (b.daysRemaining ?? 9999);
   });
 
-  return { supplements, protocols, today };
+  // Lo último que terminó, primero
+  pasados.sort((a, b) => ((a.endDate ?? "") < (b.endDate ?? "") ? 1 : -1));
+
+  return { supplements, pasados, protocols, today };
 }
