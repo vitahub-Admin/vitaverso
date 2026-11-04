@@ -2,7 +2,10 @@
 // Últimas órdenes del cliente con productos, estado de pago y de envío (guías de paquetería)
 import { NextResponse } from "next/server";
 import { verifyAppCustomerToken, unauthorized } from "@/lib/customerAppAuth";
-import { shopifyAdmin, buyUrl, getAppUser, fetchVentasEfectivo, desdeVentana, PEDIDOS_ULTIMOS_DIAS } from "@/lib/customerSupplements";
+import { shopifyAdmin, buyUrl, getAppUser, fetchVentasEfectivo } from "@/lib/customerSupplements";
+
+// Envíos muestra todo el historial (sin límite de fecha): sirve para volver a pedir lo mismo
+const PEDIDOS_MAX = 100;
 import { enriquecer } from "@/lib/customerStore";
 
 // Estado de envío que ve el cliente, del más avanzado al menos
@@ -23,7 +26,7 @@ function shippingStatus(order, entrega) {
 // Compras pagadas en efectivo en el consultorio: no existen en Shopify (el profesional
 // las paga después, todas juntas). Para el paciente son pedidos ya entregados en mano.
 async function comprasEnEfectivo(email) {
-  const ventas = await fetchVentasEfectivo(email, PEDIDOS_ULTIMOS_DIAS);
+  const ventas = await fetchVentasEfectivo(email, null);
   if (!ventas.length) return [];
   // Handle del producto para "Volver a pedir" (si Shopify falla, sin ese botón)
   const vivos = await enriquecer(ventas.flatMap((v) => (v.items ?? []).map((i) => String(i.variant_id)))).catch(() => ({}));
@@ -74,9 +77,9 @@ export async function GET(req) {
     if (!shopifyCustomerId) return NextResponse.json({ ok: true, orders: efectivo });
 
     const data = await shopifyAdmin(
-      `query customerOrders($id: ID!, $q: String!) {
+      `query customerOrders($id: ID!, $n: Int!) {
         customer(id: $id) {
-          orders(first: 50, sortKey: CREATED_AT, reverse: true, query: $q) {
+          orders(first: $n, sortKey: CREATED_AT, reverse: true) {
             edges { node {
               id name createdAt cancelledAt
               displayFinancialStatus displayFulfillmentStatus
@@ -97,8 +100,7 @@ export async function GET(req) {
           }
         }
       }`,
-      // Compras de los últimos 500 días (el stack usa 120)
-      { id: `gid://shopify/Customer/${shopifyCustomerId}`, q: `created_at:>=${desdeVentana(PEDIDOS_ULTIMOS_DIAS)}` }
+      { id: `gid://shopify/Customer/${shopifyCustomerId}`, n: PEDIDOS_MAX }
     );
 
     const orders = (data?.customer?.orders?.edges ?? []).map(({ node }) => {

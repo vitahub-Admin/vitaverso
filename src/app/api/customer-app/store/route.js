@@ -1,6 +1,7 @@
 // GET /api/customer-app/store
 //   sin parámetros  → portada: categorías, recomendados del profesional, sugeridos del carrito y ofertas (VitaDeals)
-//   ?q=magnesio      → búsqueda por nombre, marca o ingrediente
+//   ?q=magnesio      → búsqueda por nombre, marca o ingrediente (con pocos resultados la
+//                      completa la IA: src/lib/customerStoreIA.js)
 //   ?categoria=Sueño → productos de una categoría
 //   ?producto=handle → ficha del producto: fotos, descripción y variantes
 //   ?sugeridos=1     → solo los sugeridos del carrito ("Completa tu pedido")
@@ -15,6 +16,7 @@ import { getAppUser } from "@/lib/customerSupplements";
 import {
   buscar, categorias, recomendadosDelProfesional, sugeridosDelCarrito, vitaDeals, enriquecer, detalleProducto,
 } from "@/lib/customerStore";
+import { buscarConIA } from "@/lib/customerStoreIA";
 
 export async function GET(req) {
   try {
@@ -43,7 +45,16 @@ export async function GET(req) {
       return NextResponse.json({ ok: true, specialistRef, sugeridos: await sugeridosDelCarrito() });
     }
     if (q || categoria) {
-      return NextResponse.json({ ok: true, specialistRef, productos: await buscar({ q: q ?? "", categoria }) });
+      let productos = await buscar({ q: q ?? "", categoria });
+      // Pocos resultados con texto: la IA arma la búsqueda (frases, sinónimos, inglés) y
+      // se suman sus productos después de los de la búsqueda normal, sin repetir
+      if (q && !categoria && productos.length < 4) {
+        const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "sin-ip";
+        const vistos = new Set(productos.map((x) => String(x.productId)));
+        const extra = (await buscarConIA({ q, user, ip })).filter((x) => !vistos.has(String(x.productId)));
+        productos = [...productos, ...extra];
+      }
+      return NextResponse.json({ ok: true, specialistRef, productos });
     }
 
     const [cats, recomendados, sugeridos, ofertas] = await Promise.all([

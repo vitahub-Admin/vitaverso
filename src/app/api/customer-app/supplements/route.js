@@ -17,7 +17,7 @@ export async function GET(req) {
     const user = await getAppUser(payload.userId);
     if (!user) return unauthorized();
 
-    const { supplements, pasados, protocols, today } = await buildStack(user);
+    const { supplements, pasados, protocols, today } = await buildStack(user, { conHistorial: true });
     return NextResponse.json({ ok: true, today, supplements, pasados, protocols });
   } catch (err) {
     console.error("customer-app/supplements GET error:", err);

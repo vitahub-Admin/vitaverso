@@ -30,9 +30,9 @@ const TZ = "America/Mexico_City";
 // El cliente ve sus compras de los últimos 120 días (tienda y consultorio), en el stack
 // y en Envíos. Un suplemento que todavía le dura se queda aunque la compra sea más vieja.
 export const VENTAS_ULTIMOS_DIAS = 120;
-// Envíos (historial de pedidos) mira más atrás: sirve para volver a pedir lo mismo
-export const PEDIDOS_ULTIMOS_DIAS = 500;
 const ORDENES_A_REVISAR = 50;
+// "Suplementos que tomaste antes": todo lo que compró alguna vez (sin límite de fecha)
+const HISTORIAL_ORDENES = 100;
 
 // created_at:>=AAAA-MM-DD para filtrar órdenes de Shopify por la ventana
 export function desdeVentana(dias = VENTAS_ULTIMOS_DIAS) {
@@ -187,6 +187,47 @@ async function fetchRecentOrders(shopifyCustomerId) {
     }));
 }
 
+/**
+ * Todo lo que compró el cliente, sin límite de fecha: tienda (últimas 100 órdenes no
+ * canceladas) y efectivo de consultorio. variantId → { createdAt (la compra más reciente),
+ * title, variantTitle, image }.
+ */
+async function fetchHistorialCompras(user) {
+  const out = new Map();
+  const anotar = (vid, createdAt, datos) => {
+    if (!vid) return;
+    const k = String(vid);
+    const prev = out.get(k);
+    if (!prev || prev.createdAt < createdAt) out.set(k, { createdAt, ...datos });
+  };
+  const [tienda, efectivo] = await Promise.all([
+    user.shopify_customer_id
+      ? shopifyAdmin(
+          `query historial($id: ID!, $n: Int!) {
+            customer(id: $id) { orders(first: $n, sortKey: CREATED_AT, reverse: true) { edges { node {
+              createdAt cancelledAt
+              lineItems(first: 50) { edges { node { title variant { id title } } } }
+            } } } }
+          }`,
+          { id: `gid://shopify/Customer/${user.shopify_customer_id}`, n: HISTORIAL_ORDENES }
+        )
+      : null,
+    fetchVentasEfectivo(user.email, null),
+  ]);
+  for (const { node: o } of tienda?.customer?.orders?.edges ?? []) {
+    if (o.cancelledAt) continue;
+    for (const { node: li } of o.lineItems.edges) {
+      anotar(li.variant?.id?.split("/").pop(), o.createdAt, { title: li.title, variantTitle: li.variant?.title ?? "" });
+    }
+  }
+  for (const v of efectivo) {
+    for (const i of v.items ?? []) {
+      anotar(i.variant_id, v.created_at, { title: i.title, variantTitle: i.variant_title ?? "", image: i.image ?? null });
+    }
+  }
+  return out;
+}
+
 // Metafields de varias variantes sueltas (para lo entregado en consultorio, que no
 // trae la variante en el pedido de Shopify)
 async function fetchVariantsMeta(variantIds) {
@@ -220,16 +261,16 @@ async function fetchVariantsMeta(variantIds) {
  * La liquidación con la que el profesional paga es otra venta de consultorio, sin correo
  * de paciente, así que no se cuenta dos veces.
  */
+// dias = null: todo el historial
 export async function fetchVentasEfectivo(email, dias = VENTAS_ULTIMOS_DIAS) {
   if (!email) return [];
-  const desde = new Date(Date.now() - dias * 86400000).toISOString();
-  const { data, error } = await supabase
+  let query = supabase
     .from("ventas_efectivo")
     .select("id, owner_id, created_at, sharecart_token, items, total")
     .in("estado", ["por_pagar", "pagada"])
-    .ilike("patient_email", email.trim())
-    .gte("created_at", desde)
-    .order("created_at", { ascending: false });
+    .ilike("patient_email", email.trim());
+  if (dias) query = query.gte("created_at", new Date(Date.now() - dias * 86400000).toISOString());
+  const { data, error } = await query.order("created_at", { ascending: false }).limit(100);
   if (error) {
     console.error("[customerSupplements] ventas_efectivo:", error.message);
     return [];
@@ -430,7 +471,7 @@ function computeCycle(row, purchases, perBottle) {
  * @param {{ id: string, shopify_customer_id: number|null }} user  fila de customer_app_users
  * @param {{ persist?: boolean }} opts  persist: guarda end_date/quantity recalculados
  */
-export async function buildStack(user, { persist = true } = {}) {
+export async function buildStack(user, { persist = true, conHistorial = false } = {}) {
   const today = mxDate();
 
   const { data: rows, error } = await supabase
@@ -707,6 +748,36 @@ export async function buildStack(user, { persist = true } = {}) {
     });
   }
 
+  // Todo lo demás que compró alguna vez (tienda y efectivo de consultorio, sin límite de
+  // fecha) también va a "Suplementos que tomaste antes", para que pueda volver a pedirlo
+  const yaListados = new Set([...supplements, ...pasados].map((s) => String(s.variantId)));
+  // Solo para la pantalla (no en el cron de reabastecimiento, que recorre a todos)
+  const historial = !conHistorial ? new Map() : await fetchHistorialCompras(user).catch((err) => {
+    console.error("[customerSupplements] historial:", err.message);
+    return new Map();
+  });
+  const sinListar = [...historial.keys()].filter((vid) => !yaListados.has(vid) && Number(vid) > 0);
+  if (sinListar.length) {
+    const metaHist = await fetchVariantsMeta(sinListar.slice(0, 100)).catch(() => ({}));
+    for (const vid of sinListar) {
+      const h = historial.get(vid);
+      const m = metaHist[vid];
+      const handle = m?.meta?.handle ?? null;
+      pasados.push({
+        variantId: vid,
+        productTitle: m?.title ?? h.title ?? "",
+        variantTitle: m?.variantTitle ?? h.variantTitle ?? "",
+        productHandle: handle,
+        image: m?.meta?.image ?? h.image ?? null,
+        imageKey: null,
+        custom: false,
+        buyUrl: handle ? buyUrl(handle) : null,
+        endDate: null,
+        ultimaCompra: mxDate(h.createdAt),
+      });
+    }
+  }
+
   if (persist && updates.length) {
     await Promise.all(
       updates.map(({ id, ...fields }) => supabase.from("supplement_tracking").update(fields).eq("id", id))
@@ -719,8 +790,9 @@ export async function buildStack(user, { persist = true } = {}) {
     return (a.daysRemaining ?? 9999) - (b.daysRemaining ?? 9999);
   });
 
-  // Lo último que terminó, primero
-  pasados.sort((a, b) => ((a.endDate ?? "") < (b.endDate ?? "") ? 1 : -1));
+  // Lo más reciente primero (lo que terminó o lo que compró)
+  const fechaPasado = (p) => p.endDate ?? p.ultimaCompra ?? "";
+  pasados.sort((a, b) => (fechaPasado(a) < fechaPasado(b) ? 1 : -1));
 
   return { supplements, pasados, protocols, today };
 }

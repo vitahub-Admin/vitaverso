@@ -150,6 +150,16 @@ export async function GET(req) {
 
     const specialist = specialistShopifyId ? await loadSpecialist(specialistShopifyId) : null;
 
+    // Foto de perfil (POST me/foto): URL firmada; la clave cambia al cambiar la foto, así
+    // la app no muestra la vieja desde su caché
+    const { data: archivos } = await supabase.storage.from(CUSTOM_BUCKET).list(appUser.id, { search: "perfil.jpg", limit: 1 });
+    const fotoArchivo = (archivos ?? []).find((f) => f.name === "perfil.jpg");
+    if (fotoArchivo) {
+      const { data: firmada } = await supabase.storage.from(CUSTOM_BUCKET).createSignedUrl(`${appUser.id}/perfil.jpg`, 7 * 24 * 3600);
+      customer.fotoPerfilUrl = firmada?.signedUrl ?? null;
+      customer.fotoPerfilKey = `perfil-${appUser.id}-${fotoArchivo.updated_at ?? fotoArchivo.created_at ?? ""}`;
+    }
+
     // Sesión renovable: token nuevo cuando el actual ya pasó la mitad de su vida útil
     const token = shouldRenewAppToken(payload)
       ? signAppCustomerToken(appUser.id, appUser.email ?? payload.email, appUser.shopify_customer_id)
