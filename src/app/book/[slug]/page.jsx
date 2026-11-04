@@ -238,7 +238,10 @@ export default function BookingPage() {
                   const dateStr = `${year}-${String(month + 1).padStart(2,"0")}-${String(dayNum).padStart(2,"0")}`;
                   const isPast = date < today;
                   const isTooFar = date > maxDate;
-                  const isDisabled = isPast || isTooFar;
+                  // Si el profesional no atiende ese día de la semana, se tapa. Sin horario cargado no se tapa nada.
+                  const dias = affiliate?.dias_disponibles || [];
+                  const isNoLaboral = dias.length > 0 && !dias.includes(date.getDay());
+                  const isDisabled = isPast || isTooFar || isNoLaboral;
                   const isSelected = dateStr === selectedDate;
                   const isToday = date.toDateString() === today.toDateString();
 

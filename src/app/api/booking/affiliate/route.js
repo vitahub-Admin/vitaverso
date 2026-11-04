@@ -46,7 +46,14 @@ export async function GET(req) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500, headers: CORS });
   if (!data) return NextResponse.json({ error: "Afiliado no encontrado" }, { status: 404, headers: CORS });
 
-  return NextResponse.json(data, { headers: CORS });
+  // Días de la semana en que atiende (0=Dom … 6=Sáb), para que el calendario público tape los demás
+  const { data: disp } = await supabase
+    .from("booking_availability")
+    .select("day_of_week")
+    .eq("affiliate_id", data.id);
+  const dias_disponibles = [...new Set((disp || []).map((d) => d.day_of_week))];
+
+  return NextResponse.json({ ...data, dias_disponibles }, { headers: CORS });
 }
 
 export async function POST(req) {
