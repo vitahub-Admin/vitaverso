@@ -35,10 +35,34 @@ function bloqueApp(appEmail) {
 </td></tr>`;
 }
 
-export function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date, lineItems, shareCartToken, appEmail = null }) {
+// generico: guía de uso de una compra normal (sin protocolo de un profesional). No lleva la banda
+// de especialista, ni el PDF (sale de un protocolo guardado), ni dice que alguien diseñó el pedido;
+// especialistaContacto, si viene, se nombra solo como contacto para dudas.
+export function buildPrescriptionEmail({ affiliateName, patientName, orderNumber, date, lineItems, shareCartToken, appEmail = null, generico = false, especialistaContacto = null }) {
   const pdfUrl = `https://pro.vitahub.mx/api/protocolo-pdf?token=${shareCartToken}`;
   const paciente = escaparHtml(patientName);
   const especialista = escaparHtml(affiliateName);
+  const tituloCorreo = generico ? "Cómo tomar tu pedido" : "Protocolo de Suplementación";
+  const bandaDerecha = generico ? "" : `
+    <td align="right">
+      <p style="margin:0;color:rgba(13,33,51,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;text-align:right;">Especialista</p>
+      <p style="margin:4px 0 0;color:#0D2133;font-size:15px;font-weight:700;text-align:right;">${especialista}</p>
+    </td>`;
+  const bloquePdf = generico ? "" : `
+<tr><td style="background:#f0f7ff;border-top:1px solid #dbeafe;padding:24px 40px;text-align:center;">
+  <p style="margin:0 0 16px;font-size:13px;color:#4b5563;">Guarda tu protocolo para consultarlo cuando quieras</p>
+  <a href="${pdfUrl}" style="display:inline-block;background:#1b3f7a;color:#ffffff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;">
+    Descargar mi protocolo en PDF
+  </a>
+</td></tr>`;
+  const bloqueContacto = generico && especialistaContacto ? `
+<tr><td style="background:#ffffff;border-top:1px solid #f3f4f6;padding:20px 40px;text-align:center;">
+  <p style="margin:0;font-size:13px;color:#4b5563;line-height:1.7;">Tu especialista en Vitahub: <strong style="color:#1b3f7a;">${escaparHtml(especialistaContacto)}</strong>.<br>Si tienes dudas sobre cómo tomar tus suplementos, puedes escribirle.</p>
+</td></tr>` : "";
+  const pie = generico
+    ? `Esta guía se armó con la información de los productos de tu pedido y es de carácter general.<br>Ante cualquier duda, consulta a un profesional de la salud.<br><br>`
+    : `Este protocolo fue diseñado para ti por <strong style="color:#6b7280;">${especialista}</strong><br>a través de <strong style="color:#1b3f7a;">Vitahub Pro</strong>.<br>
+    Para dudas o ajustes, contacta directamente a tu especialista.<br><br>`;
 
   const rows = lineItems.map((item, i) => {
     const etiqueta = etiquetaDeProducto(item);
@@ -86,7 +110,7 @@ export function buildPrescriptionEmail({ affiliateName, patientName, orderNumber
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Protocolo de Suplementación</title>
+<title>${tituloCorreo}</title>
 </head>
 <body style="margin:0;padding:0;background:#F7F9FB;font-family:Arial,Helvetica,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F7F9FB;">
@@ -95,20 +119,16 @@ export function buildPrescriptionEmail({ affiliateName, patientName, orderNumber
 
 <tr><td style="background:#1b3f7a;border-radius:16px 16px 0 0;padding:30px 40px 26px;">
   <p style="margin:0 0 8px;color:#7eb8c9;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;">Vitahub Pro</p>
-  <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:800;line-height:1.2;">Protocolo de Suplementación</h1>
+  <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:800;line-height:1.2;">${tituloCorreo}</h1>
 </td></tr>
 
 <tr><td style="background:#2BB9B8;padding:18px 40px;">
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
   <tr>
     <td>
-      <p style="margin:0;color:rgba(13,33,51,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">Paciente</p>
+      <p style="margin:0;color:rgba(13,33,51,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;">${generico ? "Pedido de" : "Paciente"}</p>
       <p style="margin:4px 0 0;color:#0D2133;font-size:15px;font-weight:700;">${paciente}</p>
-    </td>
-    <td align="right">
-      <p style="margin:0;color:rgba(13,33,51,0.7);font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;text-align:right;">Especialista</p>
-      <p style="margin:4px 0 0;color:#0D2133;font-size:15px;font-weight:700;text-align:right;">${especialista}</p>
-    </td>
+    </td>${bandaDerecha}
   </tr>
   </table>
 </td></tr>
@@ -120,24 +140,19 @@ export function buildPrescriptionEmail({ affiliateName, patientName, orderNumber
 </td></tr>
 
 <tr><td style="background:#ffffff;padding:28px 40px;">
-  <p style="margin:0 0 20px;font-size:10px;font-weight:700;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;">Tu protocolo incluye</p>
+  <p style="margin:0 0 20px;font-size:10px;font-weight:700;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;">${generico ? "Tu pedido incluye" : "Tu protocolo incluye"}</p>
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
   ${rows}
   </table>
 </td></tr>
 
-<tr><td style="background:#f0f7ff;border-top:1px solid #dbeafe;padding:24px 40px;text-align:center;">
-  <p style="margin:0 0 16px;font-size:13px;color:#4b5563;">Guarda tu protocolo para consultarlo cuando quieras</p>
-  <a href="${pdfUrl}" style="display:inline-block;background:#1b3f7a;color:#ffffff;font-size:14px;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;letter-spacing:0.3px;">
-    Descargar mi protocolo en PDF
-  </a>
-</td></tr>
+${bloquePdf}
 ${appEmail ? bloqueApp(appEmail) : ""}
+${bloqueContacto}
 
 <tr><td style="background:#f9fafb;border-top:1px solid #f3f4f6;border-radius:0 0 16px 16px;padding:24px 40px;">
   <p style="margin:0;font-size:11px;color:#9ca3af;line-height:1.8;text-align:center;">
-    Este protocolo fue diseñado para ti por <strong style="color:#6b7280;">${especialista}</strong><br>a través de <strong style="color:#1b3f7a;">Vitahub Pro</strong>.<br>
-    Para dudas o ajustes, contacta directamente a tu especialista.<br><br>
+    ${pie}
     <a href="https://vitahub.mx" style="color:#1F8383;text-decoration:none;font-weight:600;">vitahub.mx</a>
   </p>
 </td></tr>

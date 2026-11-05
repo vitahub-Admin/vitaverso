@@ -11,6 +11,7 @@ import { createCalendarEvent } from "@/lib/bookingCalendar";
 import { Resend } from "resend";
 import { armarProtocolo } from "@/lib/protocoloDatos";
 import { buildPrescriptionEmail } from "@/lib/protocoloCorreo";
+import { enviarGuiaDePedido } from "@/lib/protocoloGeneral";
 
 export const runtime = "nodejs";
 
@@ -701,6 +702,30 @@ export async function POST(req) {
         .then(({ data: claimed }) => {
           if (claimed) sendProtocolEmail(payload, shareCart).catch(() => {});
         });
+    }
+
+    // Compra normal (sin protocolo de un profesional): guía de uso con la porción de cada producto.
+    // Apagado por defecto: solo con PROTOCOLO_A_TODOS=1. Mismo candado de una sola vez por orden.
+    // El referido, si hay, solo se lee para nombrarlo como contacto; no se escribe nada en la
+    // orden ni en la atribución. Se omite la autocompra de un profesional (su referido es él mismo).
+    if (!shareCart && process.env.PROTOCOLO_A_TODOS === "1") {
+      const refGuia = correctedRef || (specialistRef !== "0000" ? specialistRef : null);
+      const esAutocompra = refGuia && String(refGuia) === String(customer.id);
+      if (!esAutocompra) {
+        supabase
+          .from('orders')
+          .update({ protocol_email_sent_at: new Date().toISOString() })
+          .eq('order_id', orderId)
+          .is('protocol_email_sent_at', null)
+          .select('order_id')
+          .maybeSingle()
+          .then(({ data: claimed }) => {
+            if (!claimed) return;
+            return enviarGuiaDePedido({ payload, especialistaId: refGuia })
+              .then(r => { if (!r.ok) console.log(`[webhook] guía de pedido no enviada (orden #${orderNumber}): ${r.motivo}`); });
+          })
+          .catch(e => console.error("[webhook] guía de pedido error:", e?.message));
+      }
     }
 
     // Determinar especialista efectivo para comisiones
