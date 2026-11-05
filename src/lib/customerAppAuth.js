@@ -4,12 +4,16 @@ import { idDeSesion } from "@/lib/sesionWeb";
 
 const SECRET = process.env.SHOPIFY_TOKEN_SECRET;
 
+// Token de profesionales. Dura lo mismo que el de pacientes y se renueva igual
+// (/api/affiliate-app/sesion): mientras abra la app cada 3 meses, no vuelve a entrar.
 // payload: { userId, email, shopifyCustomerId? }
+export const PRO_TOKEN_DAYS = 90;
+
 export function signCustomerToken(userId, email, shopifyCustomerId = null) {
   return jwt.sign(
     { userId: String(userId), email, shopifyCustomerId: shopifyCustomerId ? String(shopifyCustomerId) : null },
     SECRET,
-    { expiresIn: "30d" }
+    { expiresIn: `${PRO_TOKEN_DAYS}d` }
   );
 }
 
