@@ -2,8 +2,8 @@
 // Genera y devuelve el PDF del protocolo de suplementación al vuelo.
 // Se enlaza desde el email de prescripción — no requiere auth, el token actúa como clave.
 //
-// Mismo diseño y mismos datos que el correo (src/app/api/webhooks/shopify/route.js,
-// buildPrescriptionEmail): si se cambia uno, se cambia el otro. Los datos salen de
+// Mismo diseño que el correo nuevo de protocolo (franja azul, banda turquesa, pastilla de toma, bloque de la
+// app Mi Vitahub) y mismos datos: si se cambia uno, se cambia el otro. Los datos salen de
 // armarProtocolo (src/lib/protocoloDatos.js).
 
 import { NextResponse } from "next/server";
@@ -15,6 +15,7 @@ import {
   Text,
   View,
   Image,
+  Link,
   StyleSheet,
 } from "@react-pdf/renderer";
 import { armarProtocolo, etiquetaDeProducto } from "@/lib/protocoloDatos";
@@ -27,6 +28,11 @@ const supabase = createClient(
 );
 
 // ── Estilos PDF ───────────────────────────────────────────────────────────────
+
+const APP_IOS_URL = "https://apps.apple.com/mx/app/mi-vitahub/id6821184197";
+const APP_ANDROID_URL = "https://play.google.com/store/apps/details?id=mx.vitahub.cliente";
+// La app de Android solo se ofrece cuando ya está publicada (misma variable que usan los correos).
+const ANDROID_PUBLICA = process.env.MI_VITAHUB_ANDROID_PUBLICA === "1";
 
 const S = StyleSheet.create({
   page:        { fontFamily: "Helvetica", backgroundColor: "#F7F9FB", paddingBottom: 40 },
@@ -51,6 +57,11 @@ const S = StyleSheet.create({
   itemDesc:    { color: "#6b7280", fontSize: 10, lineHeight: 1.65, marginTop: 5 },
   itemNota:    { color: "#9ca3af", fontSize: 9, marginTop: 5 },
   itemUso:     { color: "#1b3f7a", fontSize: 9, marginTop: 5 },
+  app:         { backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "22 40", alignItems: "center" },
+  appTitle:    { color: "#1b3f7a", fontSize: 13, fontWeight: "bold", textAlign: "center" },
+  appText:     { color: "#4b5563", fontSize: 10, lineHeight: 1.6, textAlign: "center", marginTop: 6, maxWidth: 400 },
+  appLinks:    { flexDirection: "row", justifyContent: "center", marginTop: 12 },
+  appBtn:      { backgroundColor: "#1b3f7a", color: "#fff", fontSize: 10, fontWeight: "bold", padding: "7 16", borderRadius: 20, marginHorizontal: 5, textDecoration: "none" },
   footer:      { backgroundColor: "#f9fafb", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "20 40", alignItems: "center" },
   footerText:  { color: "#9ca3af", fontSize: 9, lineHeight: 1.9, textAlign: "center" },
 });
@@ -90,7 +101,7 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
 
         {/* Productos */}
         <View style={S.body}>
-          <Text style={S.sectionLbl}>TU PROTOCOLO INCLUYE</Text>
+          <Text style={S.sectionLbl}>TU PROTOCOLO DE SUPLEMENTOS</Text>
 
           {lineItems.map((item, i) => {
             const etiqueta = etiquetaDeProducto(item);
@@ -104,12 +115,27 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
                   <Text style={etiqueta.tipo === "dosis" ? S.doseBadge : S.qtyBadge}>{etiqueta.texto}</Text>
                   <Text style={S.itemTitle}>{item.title}</Text>
                   <Text style={S.itemDesc}>{item.desc}</Text>
-                  {item.modo_de_uso ? <Text style={S.itemUso}>Modo de uso: {item.modo_de_uso}</Text> : null}
+                  {item.modo_de_uso
+                    ? <Text style={S.itemUso}><Text style={{ fontFamily: "Helvetica-Bold" }}>Modo de uso:</Text> {item.modo_de_uso}</Text>
+                    : null}
                   {item.nota ? <Text style={S.itemNota}>Nota: {item.nota}</Text> : null}
                 </View>
               </View>
             );
           })}
+        </View>
+
+        {/* La app: el mismo mensaje y los mismos enlaces que el correo */}
+        <View style={S.app} wrap={false}>
+          <Text style={S.appTitle}>Descarga Mi Vitahub y no te pierdas ninguna dosis</Text>
+          <Text style={S.appText}>
+            Programa tus dosis a la hora indicada y te mandaremos un recordatorio. Podrás hacer seguimiento del envío
+            hasta que llegue. Te avisaremos antes de que tu suplemento se termine.
+          </Text>
+          <View style={S.appLinks}>
+            <Link src={APP_IOS_URL} style={S.appBtn}>Descargar para iPhone</Link>
+            {ANDROID_PUBLICA ? <Link src={APP_ANDROID_URL} style={S.appBtn}>Descargar para Android</Link> : null}
+          </View>
         </View>
 
         {/* Footer */}
