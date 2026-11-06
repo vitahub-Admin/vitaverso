@@ -12,6 +12,7 @@ import { Resend } from "resend";
 import { armarProtocolo } from "@/lib/protocoloDatos";
 import { buildPrescriptionEmail } from "@/lib/protocoloCorreo";
 import { enviarGuiaDePedido } from "@/lib/protocoloGeneral";
+import { viaVitaPulse, armarEvento, enviarEvento } from "@/lib/correosVitaPulse";
 
 export const runtime = "nodejs";
 
@@ -70,22 +71,48 @@ async function sendProtocolEmail(payload, shareCartToken) {
       year: "numeric", month: "long", day: "numeric",
     });
 
-    const html = buildPrescriptionEmail({
-      affiliateName,
-      patientName,
-      orderNumber: payload.order_number,
-      date,
-      lineItems,
-      shareCartToken,
-    });
+    if (viaVitaPulse("protocolo")) {
+      // Sale por VitaPulse, sin respaldo por Resend. Si falla, se libera la orden para que un
+      // reenvío de Shopify lo vuelva a intentar; el evento_id evita que se duplique.
+      const r = await enviarEvento(armarEvento({
+        tipo: "protocolo",
+        ref: payload.id,
+        asunto: "Tu protocolo de suplementación — Vitahub Pro",
+        nombre: patientName,
+        email: customerEmail,
+        emailApp: customerEmail,
+        especialista: [affiliateData?.first_name, affiliateData?.last_name].filter(Boolean).join(" ") || null,
+        especialistaRol: "autor",
+        ordenNumero: payload.order_number,
+        fechaIso: payload.created_at,
+        pdfUrl: `https://pro.vitahub.mx/api/protocolo-pdf?token=${shareCartToken}`,
+        lineItems,
+      }));
+      if (!r.ok) {
+        console.error(`[webhook] protocolo no enviado a VitaPulse (orden #${payload.order_number}): ${r.motivo}`);
+        if (r.reintentar) {
+          await supabase.from("orders").update({ protocol_email_sent_at: null }).eq("order_id", payload.id);
+        }
+        return;
+      }
+    } else {
+      const html = buildPrescriptionEmail({
+        affiliateName,
+        patientName,
+        orderNumber: payload.order_number,
+        date,
+        lineItems,
+        shareCartToken,
+      });
 
-    await resend.emails.send({
-      from: "Vitahub Pro <noreply@pro.vitahub.mx>",
-      to: customerEmail,
-      subject: "Tu protocolo de suplementación — Vitahub Pro",
-      html,
-      tags: [{ name: "flujo", value: "protocolo" }],
-    });
+      await resend.emails.send({
+        from: "Vitahub Pro <noreply@pro.vitahub.mx>",
+        to: customerEmail,
+        subject: "Tu protocolo de suplementación — Vitahub Pro",
+        html,
+        tags: [{ name: "flujo", value: "protocolo" }],
+      });
+    }
 
     // El PDF se descarga después: guarda la orden y su fecha para mostrarlas igual que el correo
     try {
@@ -722,7 +749,14 @@ export async function POST(req) {
           .then(({ data: claimed }) => {
             if (!claimed) return;
             return enviarGuiaDePedido({ payload, especialistaId: refGuia })
-              .then(r => { if (!r.ok) console.log(`[webhook] guía de pedido no enviada (orden #${orderNumber}): ${r.motivo}`); });
+              .then(async r => {
+                if (r.ok) return;
+                console.log(`[webhook] guía de pedido no enviada (orden #${orderNumber}): ${r.motivo}`);
+                // Si fue VitaPulse el que no respondió, se libera la orden para que un reenvío la reintente
+                if (r.reintentar) {
+                  await supabase.from('orders').update({ protocol_email_sent_at: null }).eq('order_id', orderId);
+                }
+              });
           })
           .catch(e => console.error("[webhook] guía de pedido error:", e?.message));
       }

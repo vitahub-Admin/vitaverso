@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 import { armarProtocolo, etiquetaDeProducto, escaparHtml } from "@/lib/protocoloDatos";
+import { viaVitaPulse, armarEvento, enviarEvento } from "@/lib/correosVitaPulse";
 
 // Correo del protocolo de suplementación que recibe el paciente. Mismo diseño y mismos datos que el
 // PDF (src/app/api/protocolo-pdf/route.js): si se cambia uno, se cambia el otro. Los datos salen de
@@ -192,6 +193,27 @@ export async function enviarProtocoloDeVentaEfectivo(venta) {
     titulos: Object.fromEntries((venta.items || []).map((i) => [i.variant_id, i.title || ""])),
   });
   if (!lineItems.length) return { ok: false, motivo: "el protocolo no tiene productos" };
+
+  // Salida por VitaPulse (CORREOS_VIA_VITAPULSE): sin respaldo por Resend. Si falla, el cobro en efectivo
+  // lo reintenta al cerrar la liquidación, y el evento_id evita que el reintento duplique el correo.
+  if (viaVitaPulse("consultorio")) {
+    const nombreAfiliado = [afiliado?.first_name, afiliado?.last_name].filter(Boolean).join(" ") || null;
+    const r = await enviarEvento(armarEvento({
+      tipo: "consultorio",
+      ref: venta.id ?? venta.sharecart_token,
+      asunto: "Tu protocolo de suplementación — Vitahub Pro",
+      nombre: venta.patient_name || cart.name || "Paciente",
+      email: venta.patient_email,
+      emailApp: venta.patient_email,
+      especialista: nombreAfiliado,
+      especialistaRol: nombreAfiliado ? "autor" : null,
+      ordenNumero: null,
+      fechaIso: venta.created_at,
+      pdfUrl: `https://pro.vitahub.mx/api/protocolo-pdf?token=${venta.sharecart_token}`,
+      lineItems,
+    }));
+    return r.ok ? { ok: true } : { ok: false, motivo: r.motivo };
+  }
 
   const html = buildPrescriptionEmail({
     affiliateName: [afiliado?.first_name, afiliado?.last_name].filter(Boolean).join(" ") || "Tu especialista en Vitahub",
