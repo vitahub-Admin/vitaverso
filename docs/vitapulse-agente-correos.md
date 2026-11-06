@@ -226,10 +226,8 @@ Hoy Pro envía estos tres correos por Resend. Para que nadie reciba dos:
 1. **Modo sombra** (el primero): VitaPulse arma y guarda cada correo sin enviarlo, y se compara con lo que Pro
    mandó (Resend, tag `flujo`) hasta que coincidan en destinatario, productos, porción y modo de uso.
 2. **Corte:** se acuerda una fecha y hora. A partir de ahí VitaPulse envía y **Pro se apaga** para estos
-   tres correos. **Pendiente del lado de Pro:** agregar un interruptor que apague esos envíos y siga guardando
-   `order_number` y `order_date` en el protocolo (para el PDF). Hasta que ese interruptor exista y se active, el
-   corte no debe hacerse.
-3. Pro conserva su interruptor para volver atrás si algo sale mal.
+   tres correos. **Del lado de Pro ya existe el interruptor:** la variable `CORREOS_PROTOCOLO_DESDE_PRO`. Con valor `0`, Pro no envía ninguno de los tres correos y sigue haciendo todo lo demás (el candado de una sola vez, `order_number` y `order_date` en el protocolo para el PDF, y las marcas de enviado). Quien la apaga es Maxi en Vercel, a la hora del corte; no hay que tocar código.
+3. Para volver atrás basta quitar esa variable o ponerla distinta de `0`: Pro vuelve a enviar.
 
 ---
 

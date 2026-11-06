@@ -1,7 +1,7 @@
 import { Resend } from "resend";
 import { createClient } from "@supabase/supabase-js";
 import { armarProtocolo, etiquetaDeProducto, escaparHtml } from "@/lib/protocoloDatos";
-import { viaVitaPulse, armarEvento, enviarEvento } from "@/lib/correosVitaPulse";
+import { viaVitaPulse, armarEvento, enviarEvento, proEnviaCorreos } from "@/lib/correosVitaPulse";
 
 // Correo del protocolo de suplementación que recibe el paciente. Mismo diseño y mismos datos que el
 // PDF (src/app/api/protocolo-pdf/route.js): si se cambia uno, se cambia el otro. Los datos salen de
@@ -172,6 +172,9 @@ ${bloqueContacto}
  * @param venta fila de ventas_efectivo (patient_email, sharecart_token, patient_name, owner_id, created_at)
  */
 export async function enviarProtocoloDeVentaEfectivo(venta) {
+  // Corte (CORREOS_PROTOCOLO_DESDE_PRO=0): lo manda VitaPulse. "omitido" evita que quien llama lo
+  // marque como enviado o lo cuente como error.
+  if (!proEnviaCorreos()) return { ok: false, omitido: true, motivo: "los correos de protocolo los manda VitaPulse" };
   if (!venta?.patient_email || !venta?.sharecart_token) return { ok: false, motivo: "sin correo o sin protocolo" };
 
   const { data: cart } = await supabase

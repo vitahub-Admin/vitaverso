@@ -12,7 +12,7 @@ import { Resend } from "resend";
 import { armarProtocolo } from "@/lib/protocoloDatos";
 import { buildPrescriptionEmail } from "@/lib/protocoloCorreo";
 import { enviarGuiaDePedido } from "@/lib/protocoloGeneral";
-import { viaVitaPulse, armarEvento, enviarEvento } from "@/lib/correosVitaPulse";
+import { viaVitaPulse, armarEvento, enviarEvento, proEnviaCorreos } from "@/lib/correosVitaPulse";
 
 export const runtime = "nodejs";
 
@@ -71,7 +71,11 @@ async function sendProtocolEmail(payload, shareCartToken) {
       year: "numeric", month: "long", day: "numeric",
     });
 
-    if (viaVitaPulse("protocolo")) {
+    const pro_envia = proEnviaCorreos();
+    if (!pro_envia) {
+      // Corte (CORREOS_PROTOCOLO_DESDE_PRO=0): el correo lo manda VitaPulse leyendo la base.
+      // Aquí solo se sigue guardando la orden en el protocolo, abajo.
+    } else if (viaVitaPulse("protocolo")) {
       // Sale por VitaPulse, sin respaldo por Resend. Si falla, se libera la orden para que un
       // reenvío de Shopify lo vuelva a intentar; el evento_id evita que se duplique.
       const r = await enviarEvento(armarEvento({
@@ -124,7 +128,7 @@ async function sendProtocolEmail(payload, shareCartToken) {
       console.error("[webhook] no se pudo guardar la orden en el protocolo:", e?.message);
     }
 
-    console.log(`[webhook] Prescripción enviada → ${customerEmail} (orden #${payload.order_number})`);
+    if (pro_envia) console.log(`[webhook] Prescripción enviada → ${customerEmail} (orden #${payload.order_number})`);
   } catch (err) {
     console.error("[webhook] sendProtocolEmail error:", err?.message);
   }
@@ -735,7 +739,7 @@ export async function POST(req) {
     // Apagado por defecto: solo con PROTOCOLO_A_TODOS=1. Mismo candado de una sola vez por orden.
     // El referido, si hay, solo se lee para nombrarlo como contacto; no se escribe nada en la
     // orden ni en la atribución. Se omite la autocompra de un profesional (su referido es él mismo).
-    if (!shareCart && process.env.PROTOCOLO_A_TODOS === "1") {
+    if (!shareCart && process.env.PROTOCOLO_A_TODOS === "1" && proEnviaCorreos()) {
       const refGuia = correctedRef || (specialistRef !== "0000" ? specialistRef : null);
       const esAutocompra = refGuia && String(refGuia) === String(customer.id);
       if (!esAutocompra) {

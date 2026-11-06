@@ -159,7 +159,7 @@ export async function registrarVentaEfectivo(supabase, {
         const ahora = new Date().toISOString();
         await supabase.from("ventas_efectivo").update({ protocolo_enviado_at: ahora }).eq("id", venta.id);
         venta = { ...venta, protocolo_enviado_at: ahora };
-      } else {
+      } else if (!r.omitido) {
         console.error(`[ventas efectivo] no se envió el protocolo de ${venta.id}: ${r.motivo}`);
       }
     } catch (e) {
@@ -324,7 +324,7 @@ export async function cerrarLiquidacionEfectivo(supabase, orden) {
       if (r.ok) {
         correos++;
         await supabase.from("ventas_efectivo").update({ protocolo_enviado_at: new Date().toISOString() }).eq("id", v.id);
-      } else {
+      } else if (!r.omitido) {
         console.error(`[ventas efectivo] no se envió el protocolo de ${v.id}: ${r.motivo}`);
       }
     } catch (e) {

@@ -17,6 +17,17 @@ import { etiquetaDeProducto } from "@/lib/protocoloDatos";
 const APP_IOS_URL = "https://apps.apple.com/mx/app/id6821184197";
 const APP_ANDROID_URL = "https://play.google.com/store/apps/details?id=mx.vitahub.cliente";
 
+// Corte de los envíos desde Pro (variable de entorno en Vercel): CORREOS_PROTOCOLO_DESDE_PRO
+//   vacía o cualquier valor distinto de 0 → Pro envía como siempre (por Resend o por VitaPulse)
+//   0                                     → Pro NO envía ninguno de los tres correos (protocolo,
+//                                           consultorio, guía de pedido): los manda VitaPulse leyendo
+//                                           la base. Pro sigue haciendo todo lo demás: el candado de
+//                                           una sola vez por orden, guardar número y fecha de la orden
+//                                           en el protocolo (para el PDF) y las marcas de enviado.
+export function proEnviaCorreos() {
+  return (process.env.CORREOS_PROTOCOLO_DESDE_PRO || "").trim() !== "0";
+}
+
 export function viaVitaPulse(tipo) {
   const v = (process.env.CORREOS_VIA_VITAPULSE || "").trim();
   if (!v || v === "0") return false;
