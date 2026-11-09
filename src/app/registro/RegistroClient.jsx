@@ -21,6 +21,8 @@ const AGENDA =
 const VIDEO = process.env.NEXT_PUBLIC_REGISTRO_VIDEO_URL || "";
 const POSTER = process.env.NEXT_PUBLIC_REGISTRO_VIDEO_POSTER || "";
 const GUARDADO = "vh_registro_v1";
+const EMAIL_DEMO = "fake@vitahub.mx";
+const CODIGO_DEMO = "123456";
 
 const PROFESIONES = [
   "Médico", "Nutricionista", "Dietista", "Fisioterapeuta", "Quiropráctico", "Entrenador Personal",
@@ -430,7 +432,7 @@ function PantallaB({ f, e, poner, tocar, poner2, volver, enviar, enviando, error
   );
 }
 
-function PantallaCodigo({ email, volver, verificar, verificando, error, reenviar, espera, aviso, reintento, reintentar }) {
+function PantallaCodigo({ demo, email, volver, verificar, verificando, error, reenviar, espera, aviso, reintento, reintentar }) {
   const [digitos, setDigitos] = useState(["", "", "", "", "", ""]);
   const refs = useRef([]);
   const [sacudir, setSacudir] = useState(0);
@@ -502,6 +504,11 @@ function PantallaCodigo({ email, volver, verificar, verificando, error, reenviar
             </button>
           )}
         </div>
+      )}
+      {demo && (
+        <p className="rounded-xl border border-dashed border-[#2BB9B8] bg-[#2BB9B8]/10 p-3 text-[13px] text-[#0D2133]">
+          <strong>Modo demostración.</strong> No mandamos ningún correo: escribe el código <strong className="tracking-widest">{CODIGO_DEMO}</strong>.
+        </p>
       )}
       {aviso && !error && <p className="reg-subir rounded-xl bg-[#E6F4F8] p-3 text-[13px] font-medium text-[#1E8FA8]">{aviso}</p>}
 
@@ -589,7 +596,7 @@ function Confeti() {
   );
 }
 
-function PantallaListo({ nombre, entrar }) {
+function PantallaListo({ nombre, entrar, demo }) {
   const proximos = [
     { Icono: BadgeCheck, t: "Completa tu perfil", d: "Foto, presentación y redes, para que tus pacientes te reconozcan." },
     { Icono: ClipboardList, t: "Arma tu primer protocolo", d: "Elige los suplementos, la dosis y cuándo tomarlos." },
@@ -625,7 +632,12 @@ function PantallaListo({ nombre, entrar }) {
         ))}
       </ul>
 
-      <Boton type="button" onClick={entrar}>Entrar a mi cuenta <ArrowRight size={18} /></Boton>
+      {demo && (
+        <p className="rounded-xl border border-dashed border-[#2BB9B8] bg-[#2BB9B8]/10 p-3 text-[13px] text-[#0D2133]">
+          <strong>Modo demostración:</strong> no se creó ninguna cuenta ni se guardó nada.
+        </p>
+      )}
+      <Boton type="button" onClick={entrar}>{demo ? "Reiniciar la demostración" : <>Entrar a mi cuenta <ArrowRight size={18} /></>}</Boton>
     </div>
   );
 }
@@ -748,9 +760,11 @@ export default function RegistroClient() {
   };
 
   const terminarCuenta = async (r) => {
-    await abrirSesion(r);
+    if (!r.demo) {
+      await abrirSesion(r);
+      api("completar", { email: f.email });
+    }
     setCreada(true);
-    api("completar", { email: f.email });
     setTimeout(() => { setVerificando(false); setCreada(false); ir("agenda"); }, 900);
   };
 
@@ -781,6 +795,12 @@ export default function RegistroClient() {
     else setErrorCodigo(r.error || "No pudimos reenviar el código.");
   };
 
+  const demo = f.email.trim().toLowerCase() === EMAIL_DEMO;
+  const reiniciar = () => {
+    try { localStorage.removeItem(GUARDADO); } catch {}
+    setF(VACIO); setE({}); setErrorCodigo(""); setErrorGeneral(""); setAviso(""); setReintento(""); setEspera(0);
+    ir("a", "atras");
+  };
   const actual = indicePaso(pantalla);
   const entrada = sentido === "adelante" ? "reg-entrar-der" : "reg-entrar-izq";
 
@@ -792,6 +812,11 @@ export default function RegistroClient() {
         <main className="flex flex-1 items-start justify-center px-4 pb-10 pt-6 sm:px-6 lg:items-center lg:py-12">
           <div ref={tarjeta} className="relative w-full max-w-[34rem]">
             <div className="relative rounded-3xl border border-[#E3EEF3] bg-white p-5 shadow-[0_24px_60px_-28px_rgba(13,33,51,0.35)] sm:p-8">
+              {demo && pantalla !== "a" && (
+                <p className="reg-subir -mt-2 mb-4 inline-flex items-center gap-1.5 rounded-full bg-[#2BB9B8]/15 px-3 py-1 text-[11px] font-extrabold uppercase tracking-wider text-[#1E8FA8]">
+                  <Sparkles size={12} /> Modo demostración · no se guarda nada
+                </p>
+              )}
               <Progreso actual={actual} />
 
               <div key={pantalla} className={entrada}>
@@ -801,11 +826,11 @@ export default function RegistroClient() {
                     enviar={enviar} enviando={enviando} errorGeneral={errorGeneral} yaExiste={yaExiste} />
                 )}
                 {pantalla === "codigo" && (
-                  <PantallaCodigo email={f.email.trim()} volver={() => ir("b", "atras")} verificar={verificar} verificando={verificando}
+                  <PantallaCodigo demo={demo} email={f.email.trim()} volver={() => ir("b", "atras")} verificar={verificar} verificando={verificando}
                     error={errorCodigo} reenviar={reenviar} espera={espera} aviso={aviso} reintento={reintento} reintentar={reintentar} />
                 )}
                 {pantalla === "agenda" && <PantallaAgenda nombre={f.nombre.trim()} siguiente={() => ir("listo")} />}
-                {pantalla === "listo" && <PantallaListo nombre={f.nombre.trim()} entrar={() => router.push("/mi-tienda")} />}
+                {pantalla === "listo" && <PantallaListo demo={demo} nombre={f.nombre.trim()} entrar={demo ? reiniciar : () => router.push("/mi-tienda")} />}
               </div>
 
               {mostrarCreando && pantalla === "codigo" && <CreandoCuenta terminado={creada} />}

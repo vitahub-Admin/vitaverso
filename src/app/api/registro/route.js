@@ -8,7 +8,8 @@
 //
 // Pública a propósito (la usa quien todavía no tiene cuenta). Se protege con: verificación del correo ANTES de
 // crear nada en Shopify, límites por correo, por IP y por registros, y un campo trampa para bots.
-// Todo el trabajo vive en src/lib/registroAfiliado.js. Abierta solo con REGISTRO_PRO_ACTIVO=1.
+// Todo el trabajo vive en src/lib/registroAfiliado.js. Siempre abierta; REGISTRO_PRO_CERRADO=1 es el corte de
+// emergencia. Con el correo fake@vitahub.mx corre en modo demostración: recorre los pasos sin guardar nada.
 import { NextResponse } from "next/server";
 import {
   registroAbierto, iniciarRegistro, reenviarCodigo, verificarYCrear, reintentarCuenta, marcarCompletado,
@@ -18,7 +19,7 @@ export const maxDuration = 60; // crear cliente + colección + metafields en Sho
 
 export async function POST(req) {
   if (!registroAbierto()) {
-    return NextResponse.json({ ok: false, error: "El registro desde Pro todavía no está abierto." }, { status: 503 });
+    return NextResponse.json({ ok: false, error: "El registro desde Pro está en pausa por unos minutos. Intenta más tarde." }, { status: 503 });
   }
 
   try {

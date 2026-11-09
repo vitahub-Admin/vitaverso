@@ -12,8 +12,12 @@
  * Lo que arregla de paso: `referral_id` (hoy casi siempre "N/A" porque n8n tomaba el campo equivocado) y
  * las altas a medias (cada paso queda anotado en `registro_afiliados`).
  *
- * Interruptor: REGISTRO_PRO_ACTIVO=1. Con cualquier otro valor las rutas responden "aún no está abierto".
+ * Siempre abierto. Corte de emergencia opcional: REGISTRO_PRO_CERRADO=1 (las rutas responden "en pausa").
  * Avisos de falla: REGISTRO_ALERTA_EMAIL (o, si no está, BASELINKER_ALERTA_EMAIL).
+ *
+ * Modo demostración: con el correo fake@vitahub.mx se recorren TODOS los pasos (validación real del formulario,
+ * código, creación de cuenta, agenda y bienvenida) sin escribir nada: ni en Supabase, ni en Shopify, ni mandar
+ * correos, ni abrir sesión. El código de la demostración es 123456.
  */
 
 import crypto from "crypto";
@@ -28,7 +32,12 @@ import {
 const resend = new Resend(process.env.RESEND_API_KEY);
 const API_SHOPIFY = "2025-01"; // la misma versión que usaba n8n
 
-export const registroAbierto = () => process.env.REGISTRO_PRO_ACTIVO === "1";
+export const registroAbierto = () => process.env.REGISTRO_PRO_CERRADO !== "1";
+
+export const EMAIL_DEMO = "fake@vitahub.mx";
+export const CODIGO_DEMO = "123456";
+const esDemo = (email) => normalizeEmail(email) === EMAIL_DEMO;
+const COOLDOWN_DEMO = 10; // segundos, para poder probar el reenvío sin esperar un minuto
 export const claveRegistro = (email) => `reg:${normalizeEmail(email)}`;
 
 // ── Formulario ───────────────────────────────────────────────────────────────
@@ -427,6 +436,9 @@ export async function iniciarRegistro(body, ip) {
   if (v.errores) return { status: 400, json: { ok: false, errores: v.errores, error: "Revisa los campos marcados" } };
   const d = v.datos;
 
+  // Demostración: el formulario se validó de verdad, pero no se guarda nada ni se manda ningún correo
+  if (esDemo(d.email)) return { status: 200, json: { ok: true, demo: true, cooldown: COOLDOWN_DEMO } };
+
   const existente = await afiliadoExistente(d.email, d.cedula);
   if (existente) {
     return {
@@ -472,6 +484,7 @@ export async function iniciarRegistro(body, ip) {
 /** Reenvía el código de un registro que ya está en curso. */
 export async function reenviarCodigo(emailCrudo, ip) {
   const email = normalizeEmail(emailCrudo);
+  if (esDemo(email)) return { status: 200, json: { ok: true, demo: true, cooldown: COOLDOWN_DEMO } };
   const reg = isValidEmail(email) ? await registroReciente(email) : null;
   if (!reg || reg.verificado_at) return { status: 200, json: { ok: true, cooldown: RESEND_COOLDOWN_SEC } }; // no se revela nada
   const envio = await mandarCodigo(email, reg.datos?.nombre, ip);
@@ -485,6 +498,13 @@ export async function verificarYCrear(emailCrudo, codigoCrudo) {
   const code = String(codigoCrudo ?? "").replace(/\D/g, "");
   const INVALIDO = "El código es incorrecto o ya venció. Revisa tu correo o pide uno nuevo.";
   if (!isValidEmail(email) || code.length !== 6) return { status: 400, json: { ok: false, error: "Escribe el código de 6 dígitos" } };
+
+  // Demostración: solo vale el código fijo, y no se crea ni se abre nada
+  if (esDemo(email)) {
+    return code === CODIGO_DEMO
+      ? { status: 200, json: { ok: true, cuentaLista: true, demo: true } }
+      : { status: 401, json: { ok: false, error: INVALIDO } };
+  }
 
   const reg = await registroReciente(email);
   if (!reg) return { status: 401, json: { ok: false, error: INVALIDO } };
@@ -510,6 +530,7 @@ export async function reintentarCuenta(paseCrudo) {
 /** El registro terminó: la persona ya entró a Pro. */
 export async function marcarCompletado(emailCrudo) {
   const email = normalizeEmail(emailCrudo);
+  if (esDemo(email)) return;
   const reg = isValidEmail(email) ? await registroReciente(email) : null;
   if (reg?.paso === "cuenta_creada") await guardarRegistro(reg.id, { paso: "completado", completado_at: new Date().toISOString() });
 }
