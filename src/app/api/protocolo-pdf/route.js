@@ -36,17 +36,17 @@ const ANDROID_PUBLICA = process.env.MI_VITAHUB_ANDROID_PUBLICA === "1";
 
 const S = StyleSheet.create({
   page:        { fontFamily: "Helvetica", backgroundColor: "#fff" },
-  header:      { backgroundColor: "#1b3f7a", padding: "28 40 24" },
+  header:      { backgroundColor: "#1b3f7a", padding: "20 40 18" },
   headerEye:   { color: "#7eb8c9", fontSize: 9, fontWeight: "bold", letterSpacing: 2, marginBottom: 5 },
   headerTitle: { color: "#fff", fontSize: 20, fontWeight: "bold" },
-  band:        { backgroundColor: "#2BB9B8", flexDirection: "row", justifyContent: "space-between", padding: "14 40" },
+  band:        { backgroundColor: "#2BB9B8", flexDirection: "row", justifyContent: "space-between", padding: "10 40" },
   bandLabel:   { color: "rgba(13,33,51,0.7)", fontSize: 8, fontWeight: "bold", letterSpacing: 1.5, marginBottom: 3 },
   bandValue:   { color: "#0D2133", fontSize: 13, fontWeight: "bold" },
-  meta:        { flexDirection: "row", justifyContent: "space-between", padding: "10 40", backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  meta:        { flexDirection: "row", justifyContent: "space-between", padding: "7 40", backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
   metaText:    { color: "#9ca3af", fontSize: 10 },
-  body:        { backgroundColor: "#fff", padding: "24 40" },
-  sectionLbl:  { color: "#9ca3af", fontSize: 8, fontWeight: "bold", letterSpacing: 2, marginBottom: 16 },
-  item:        { flexDirection: "row", borderTopWidth: 1, borderTopColor: "#f3f4f6", paddingTop: 16, marginTop: 16 },
+  body:        { backgroundColor: "#fff", padding: "12 40 6" },
+  sectionLbl:  { color: "#9ca3af", fontSize: 8, fontWeight: "bold", letterSpacing: 2, marginBottom: 12 },
+  item:        { flexDirection: "row", borderTopWidth: 1, borderTopColor: "#f3f4f6", paddingTop: 8, marginTop: 8 },
   itemFirst:   { marginTop: 0, borderTopWidth: 0, paddingTop: 0 },
   foto:        { width: 58, height: 58, borderRadius: 9, borderWidth: 1, borderColor: "#D0E4EC", objectFit: "cover" },
   fotoVacia:   { width: 58, height: 58, borderRadius: 9, borderWidth: 1, borderColor: "#D0E4EC", backgroundColor: "#F7F9FB" },
@@ -57,13 +57,13 @@ const S = StyleSheet.create({
   itemDesc:    { color: "#6b7280", fontSize: 10, lineHeight: 1.65, marginTop: 5 },
   itemNota:    { color: "#9ca3af", fontSize: 9, marginTop: 5 },
   itemUso:     { color: "#1b3f7a", fontSize: 9, marginTop: 5 },
-  app:         { backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "16 40 14", alignItems: "center" },
+  app:         { backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "9 40 8", alignItems: "center" },
   appTitle:    { color: "#1b3f7a", fontSize: 13, fontWeight: "bold", textAlign: "center" },
-  appText:     { color: "#4b5563", fontSize: 10, lineHeight: 1.6, textAlign: "center", marginTop: 6, maxWidth: 400 },
-  appLinks:    { flexDirection: "row", justifyContent: "center", marginTop: 12 },
+  appText:     { color: "#4b5563", fontSize: 10, lineHeight: 1.5, textAlign: "center", marginTop: 4, maxWidth: 400 },
+  appLinks:    { flexDirection: "row", justifyContent: "center", marginTop: 9 },
   appBtn:      { backgroundColor: "#1b3f7a", color: "#fff", fontSize: 10, fontWeight: "bold", padding: "7 16", borderRadius: 20, marginHorizontal: 5, textDecoration: "none" },
-  footer:      { backgroundColor: "#f9fafb", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "14 40", alignItems: "center" },
-  footerText:  { color: "#9ca3af", fontSize: 8.5, lineHeight: 1.7, textAlign: "center" },
+  footer:      { backgroundColor: "#f9fafb", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "7 40", alignItems: "center" },
+  footerText:  { color: "#9ca3af", fontSize: 8, lineHeight: 1.6, textAlign: "center" },
 });
 
 // ── Componente JSX del documento ──────────────────────────────────────────────
@@ -131,9 +131,9 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
             <Text style={S.appTitle}>Descarga Mi Vitahub y no te pierdas ninguna dosis</Text>
             <Text style={S.appText}>
               Programa tus dosis a la hora indicada y te mandaremos un recordatorio. Podrás hacer seguimiento del envío
-              hasta que llegue. Te avisaremos antes de que tu suplemento se termine.
+              hasta que llegue. Te avisaremos antes de que tu suplemento se termine. Entra con el correo con el que compraste
+              y tus suplementos ya van a estar cargados.
             </Text>
-            <Text style={S.appText}>Entra con el correo con el que compraste y tus suplementos ya van a estar cargados.</Text>
             <View style={S.appLinks}>
               <Link src={APP_IOS_URL} style={S.appBtn}>Descargar para iPhone</Link>
               {ANDROID_PUBLICA ? <Link src={APP_ANDROID_URL} style={S.appBtn}>Descargar para Android</Link> : null}
@@ -143,9 +143,7 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
           <View style={S.footer}>
             <Text style={S.footerText}>
               Protocolo diseñado para ti por {affiliateName} a través de Vitahub Pro.{"\n"}
-              Esta guía se armó con la información de tus productos y es de carácter general.{"\n"}
-              Ante cualquier duda, consulta a un profesional de la salud.{"\n"}
-              vitahub.mx
+              Esta guía es de carácter general. Ante cualquier duda, consulta a un profesional de la salud. vitahub.mx
             </Text>
           </View>
         </View>
