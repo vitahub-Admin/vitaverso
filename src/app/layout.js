@@ -23,7 +23,7 @@ const lato = Lato({
 // Páginas con datos sensibles: una sesión abierta desde el enlace de una notificación no entra
 const RUTAS_SENSIBLES = ["/wallet", "/mis-datos"];
 
-const PUBLIC_ROUTES = ["/", "/privacidad", "/soporte", "/terminos"];
+const PUBLIC_ROUTES = ["/", "/privacidad", "/soporte", "/terminos", "/registro"];
 
 // El cobro de una venta de consultorio lo abre el paciente, que no tiene
 // cuenta: pedirle login ahí sería pedirle que se registre para poder pagar.
@@ -307,7 +307,7 @@ function AuthManager({ children }) {
 // /cobro/ la abre el paciente: no tiene cuenta y no debería ver el menú del
 // profesional ni el logo "Pro · Profesionales", que no le habla a él.
 // /profesionales es la landing para quien todavía no tiene cuenta.
-const PUBLIC_PATHS = ["/book/", "/cobro/", "/profesionales"];
+const PUBLIC_PATHS = ["/book/", "/cobro/", "/profesionales", "/registro"];
 
 function PublicOrAuthShell({ children }) {
   const pathname = usePathname();
