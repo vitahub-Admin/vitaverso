@@ -19,6 +19,7 @@ import {
   StyleSheet,
 } from "@react-pdf/renderer";
 import { armarProtocolo, etiquetaDeProducto } from "@/lib/protocoloDatos";
+import { BANDA_APP, BADGE_APPSTORE, BADGE_GOOGLEPLAY } from "@/lib/protocoloPdfImagenes";
 
 export const runtime = "nodejs";
 
@@ -31,22 +32,20 @@ const supabase = createClient(
 
 const APP_IOS_URL = "https://apps.apple.com/mx/app/mi-vitahub/id6821184197";
 const APP_ANDROID_URL = "https://play.google.com/store/apps/details?id=mx.vitahub.cliente";
-// La app de Android solo se ofrece cuando ya está publicada (misma variable que usan los correos).
-const ANDROID_PUBLICA = process.env.MI_VITAHUB_ANDROID_PUBLICA === "1";
 
 const S = StyleSheet.create({
   page:        { fontFamily: "Helvetica", backgroundColor: "#fff" },
-  header:      { backgroundColor: "#1b3f7a", padding: "20 40 18" },
+  header:      { backgroundColor: "#1b3f7a", padding: "28 40 24" },
   headerEye:   { color: "#7eb8c9", fontSize: 9, fontWeight: "bold", letterSpacing: 2, marginBottom: 5 },
-  headerTitle: { color: "#fff", fontSize: 20, fontWeight: "bold" },
-  band:        { backgroundColor: "#2BB9B8", flexDirection: "row", justifyContent: "space-between", padding: "10 40" },
+  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
+  band:        { backgroundColor: "#2BB9B8", flexDirection: "row", justifyContent: "space-between", padding: "14 40" },
   bandLabel:   { color: "rgba(13,33,51,0.7)", fontSize: 8, fontWeight: "bold", letterSpacing: 1.5, marginBottom: 3 },
   bandValue:   { color: "#0D2133", fontSize: 13, fontWeight: "bold" },
-  meta:        { flexDirection: "row", justifyContent: "space-between", padding: "7 40", backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
+  meta:        { flexDirection: "row", justifyContent: "space-between", padding: "10 40", backgroundColor: "#fff", borderBottomWidth: 1, borderBottomColor: "#f3f4f6" },
   metaText:    { color: "#9ca3af", fontSize: 10 },
-  body:        { backgroundColor: "#fff", padding: "12 40 6" },
-  sectionLbl:  { color: "#9ca3af", fontSize: 8, fontWeight: "bold", letterSpacing: 2, marginBottom: 12 },
-  item:        { flexDirection: "row", borderTopWidth: 1, borderTopColor: "#f3f4f6", paddingTop: 8, marginTop: 8 },
+  body:        { backgroundColor: "#fff", padding: "24 40 20" },
+  sectionLbl:  { color: "#9ca3af", fontSize: 8, fontWeight: "bold", letterSpacing: 2, marginBottom: 16 },
+  item:        { flexDirection: "row", borderTopWidth: 1, borderTopColor: "#f3f4f6", paddingTop: 16, marginTop: 16 },
   itemFirst:   { marginTop: 0, borderTopWidth: 0, paddingTop: 0 },
   foto:        { width: 58, height: 58, borderRadius: 9, borderWidth: 1, borderColor: "#D0E4EC", objectFit: "cover" },
   fotoVacia:   { width: 58, height: 58, borderRadius: 9, borderWidth: 1, borderColor: "#D0E4EC", backgroundColor: "#F7F9FB" },
@@ -57,13 +56,15 @@ const S = StyleSheet.create({
   itemDesc:    { color: "#6b7280", fontSize: 10, lineHeight: 1.65, marginTop: 5 },
   itemNota:    { color: "#9ca3af", fontSize: 9, marginTop: 5 },
   itemUso:     { color: "#1b3f7a", fontSize: 9, marginTop: 5 },
-  app:         { backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "9 40 8", alignItems: "center" },
-  appTitle:    { color: "#1b3f7a", fontSize: 13, fontWeight: "bold", textAlign: "center" },
-  appText:     { color: "#4b5563", fontSize: 10, lineHeight: 1.5, textAlign: "center", marginTop: 4, maxWidth: 400 },
-  appLinks:    { flexDirection: "row", justifyContent: "center", marginTop: 9 },
-  appBtn:      { backgroundColor: "#1b3f7a", color: "#fff", fontSize: 10, fontWeight: "bold", padding: "7 16", borderRadius: 20, marginHorizontal: 5, textDecoration: "none" },
-  footer:      { backgroundColor: "#f9fafb", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "7 40", alignItems: "center" },
-  footerText:  { color: "#9ca3af", fontSize: 8, lineHeight: 1.6, textAlign: "center" },
+  appBanda:    { width: "100%" },
+  app:         { backgroundColor: "#fff", paddingTop: 4, paddingBottom: 14, paddingHorizontal: 32, alignItems: "center" },
+  appText:     { color: "#4b5563", fontSize: 10, lineHeight: 1.5, textAlign: "center", marginTop: 8 },
+  appText2:    { fontWeight: "bold", color: "#1b3f7a" },
+  appLinks:    { flexDirection: "row", justifyContent: "center", alignItems: "center", marginTop: 10 },
+  badgeApple:  { height: 36, width: 108, marginHorizontal: 6 },
+  badgePlay:   { height: 36, width: 121, marginHorizontal: 6 },
+  footer:      { backgroundColor: "#f9fafb", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "14 40", alignItems: "center" },
+  footerText:  { color: "#9ca3af", fontSize: 9, lineHeight: 1.8, textAlign: "center" },
 });
 
 // ── Componente JSX del documento ──────────────────────────────────────────────
@@ -127,16 +128,14 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
 
         {/* La app y el pie, juntos: el mismo mensaje, los mismos enlaces y la misma nota general que el correo */}
         <View wrap={false}>
+          <Image src={BANDA_APP} style={S.appBanda} />
           <View style={S.app}>
-            <Text style={S.appTitle}>Descarga Mi Vitahub y no te pierdas ninguna dosis</Text>
             <Text style={S.appText}>
-              Programa tus dosis a la hora indicada y te mandaremos un recordatorio. Podrás hacer seguimiento del envío
-              hasta que llegue. Te avisaremos antes de que tu suplemento se termine. Entra con el correo con el que compraste
-              y tus suplementos ya van a estar cargados.
+              Entra con el correo con el que compraste y tus suplementos ya van a estar cargados.
             </Text>
             <View style={S.appLinks}>
-              <Link src={APP_IOS_URL} style={S.appBtn}>Descargar para iPhone</Link>
-              {ANDROID_PUBLICA ? <Link src={APP_ANDROID_URL} style={S.appBtn}>Descargar para Android</Link> : null}
+              <Link src={APP_IOS_URL}><Image src={BADGE_APPSTORE} style={S.badgeApple} /></Link>
+              <Link src={APP_ANDROID_URL}><Image src={BADGE_GOOGLEPLAY} style={S.badgePlay} /></Link>
             </View>
           </View>
 
