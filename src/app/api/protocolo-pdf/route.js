@@ -35,10 +35,10 @@ const APP_ANDROID_URL = "https://play.google.com/store/apps/details?id=mx.vitahu
 const ANDROID_PUBLICA = process.env.MI_VITAHUB_ANDROID_PUBLICA === "1";
 
 const S = StyleSheet.create({
-  page:        { fontFamily: "Helvetica", backgroundColor: "#F7F9FB", paddingBottom: 40 },
+  page:        { fontFamily: "Helvetica", backgroundColor: "#fff" },
   header:      { backgroundColor: "#1b3f7a", padding: "28 40 24" },
   headerEye:   { color: "#7eb8c9", fontSize: 9, fontWeight: "bold", letterSpacing: 2, marginBottom: 5 },
-  headerTitle: { color: "#fff", fontSize: 22, fontWeight: "bold" },
+  headerTitle: { color: "#fff", fontSize: 20, fontWeight: "bold" },
   band:        { backgroundColor: "#2BB9B8", flexDirection: "row", justifyContent: "space-between", padding: "14 40" },
   bandLabel:   { color: "rgba(13,33,51,0.7)", fontSize: 8, fontWeight: "bold", letterSpacing: 1.5, marginBottom: 3 },
   bandValue:   { color: "#0D2133", fontSize: 13, fontWeight: "bold" },
@@ -57,13 +57,13 @@ const S = StyleSheet.create({
   itemDesc:    { color: "#6b7280", fontSize: 10, lineHeight: 1.65, marginTop: 5 },
   itemNota:    { color: "#9ca3af", fontSize: 9, marginTop: 5 },
   itemUso:     { color: "#1b3f7a", fontSize: 9, marginTop: 5 },
-  app:         { backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "22 40", alignItems: "center" },
+  app:         { backgroundColor: "#fff", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "16 40 14", alignItems: "center" },
   appTitle:    { color: "#1b3f7a", fontSize: 13, fontWeight: "bold", textAlign: "center" },
   appText:     { color: "#4b5563", fontSize: 10, lineHeight: 1.6, textAlign: "center", marginTop: 6, maxWidth: 400 },
   appLinks:    { flexDirection: "row", justifyContent: "center", marginTop: 12 },
   appBtn:      { backgroundColor: "#1b3f7a", color: "#fff", fontSize: 10, fontWeight: "bold", padding: "7 16", borderRadius: 20, marginHorizontal: 5, textDecoration: "none" },
-  footer:      { backgroundColor: "#f9fafb", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "20 40", alignItems: "center" },
-  footerText:  { color: "#9ca3af", fontSize: 9, lineHeight: 1.9, textAlign: "center" },
+  footer:      { backgroundColor: "#f9fafb", borderTopWidth: 1, borderTopColor: "#f3f4f6", padding: "14 40", alignItems: "center" },
+  footerText:  { color: "#9ca3af", fontSize: 8.5, lineHeight: 1.7, textAlign: "center" },
 });
 
 // ── Componente JSX del documento ──────────────────────────────────────────────
@@ -76,13 +76,13 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
         {/* Header */}
         <View style={S.header}>
           <Text style={S.headerEye}>VITAHUB PRO</Text>
-          <Text style={S.headerTitle}>Protocolo de Suplementación</Text>
+          <Text style={S.headerTitle}>Sigue tu protocolo en la app Mi Vitahub</Text>
         </View>
 
         {/* Paciente / Especialista */}
         <View style={S.band}>
           <View>
-            <Text style={S.bandLabel}>PACIENTE</Text>
+            <Text style={S.bandLabel}>PROTOCOLO DE</Text>
             <Text style={S.bandValue}>{patientName}</Text>
           </View>
           <View>
@@ -125,27 +125,29 @@ function ProtocoloPDF({ affiliateName, patientName, orderNumber, date, lineItems
           })}
         </View>
 
-        {/* La app: el mismo mensaje y los mismos enlaces que el correo */}
-        <View style={S.app} wrap={false}>
-          <Text style={S.appTitle}>Descarga Mi Vitahub y no te pierdas ninguna dosis</Text>
-          <Text style={S.appText}>
-            Programa tus dosis a la hora indicada y te mandaremos un recordatorio. Podrás hacer seguimiento del envío
-            hasta que llegue. Te avisaremos antes de que tu suplemento se termine.
-          </Text>
-          <View style={S.appLinks}>
-            <Link src={APP_IOS_URL} style={S.appBtn}>Descargar para iPhone</Link>
-            {ANDROID_PUBLICA ? <Link src={APP_ANDROID_URL} style={S.appBtn}>Descargar para Android</Link> : null}
+        {/* La app y el pie, juntos: el mismo mensaje, los mismos enlaces y la misma nota general que el correo */}
+        <View wrap={false}>
+          <View style={S.app}>
+            <Text style={S.appTitle}>Descarga Mi Vitahub y no te pierdas ninguna dosis</Text>
+            <Text style={S.appText}>
+              Programa tus dosis a la hora indicada y te mandaremos un recordatorio. Podrás hacer seguimiento del envío
+              hasta que llegue. Te avisaremos antes de que tu suplemento se termine.
+            </Text>
+            <Text style={S.appText}>Entra con el correo con el que compraste y tus suplementos ya van a estar cargados.</Text>
+            <View style={S.appLinks}>
+              <Link src={APP_IOS_URL} style={S.appBtn}>Descargar para iPhone</Link>
+              {ANDROID_PUBLICA ? <Link src={APP_ANDROID_URL} style={S.appBtn}>Descargar para Android</Link> : null}
+            </View>
           </View>
-        </View>
 
-        {/* Footer */}
-        <View style={S.footer}>
-          <Text style={S.footerText}>
-            Este protocolo fue diseñado para ti por {affiliateName}{"\n"}
-            a través de Vitahub Pro.{"\n"}
-            Para dudas o ajustes, contacta directamente a tu especialista.{"\n\n"}
-            vitahub.mx
-          </Text>
+          <View style={S.footer}>
+            <Text style={S.footerText}>
+              Protocolo diseñado para ti por {affiliateName} a través de Vitahub Pro.{"\n"}
+              Esta guía se armó con la información de tus productos y es de carácter general.{"\n"}
+              Ante cualquier duda, consulta a un profesional de la salud.{"\n"}
+              vitahub.mx
+            </Text>
+          </View>
         </View>
 
       </Page>
