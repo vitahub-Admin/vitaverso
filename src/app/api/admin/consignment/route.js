@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { resolveCustomerId } from '@/lib/customerAppAuth'
-import { moverStockConsultorios } from '@/lib/baselinker'
+import { moverConsultorios } from '@/lib/consultoriosStock'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -179,7 +179,7 @@ export async function POST(req) {
     // no se refleja allá a propósito (puede ser un conteo, no un movimiento físico).
     let baselinker = null
     if (tipo === 'entrega' || tipo === 'devolucion') {
-      baselinker = await moverStockConsultorios(
+      baselinker = await moverConsultorios(
         tipo,
         [{ product_id: prod.product_id, sku: prod.sku, cantidad }],
         `${motivo || 'sin motivo'} · profesional ${ownerId}`,
@@ -295,7 +295,7 @@ async function registrarPaquete(body, sesion) {
   // Un solo documento en BaseLinker con todo el paquete. El ajuste no se refleja allá.
   let baselinker = null
   if (tipo === 'entrega' || tipo === 'devolucion') {
-    baselinker = await moverStockConsultorios(
+    baselinker = await moverConsultorios(
       tipo,
       ids.map(id => ({ product_id: prodDe[id].product_id, sku: prodDe[id].sku, cantidad: porVariante.get(id) })),
       `${motivo || 'sin motivo'} · profesional ${ownerId} · paquete de ${ids.length}`,

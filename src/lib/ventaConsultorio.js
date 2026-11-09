@@ -7,7 +7,7 @@
  */
 
 import { unidadesEnMano } from './envio';
-import { moverStockConsultorios } from './baselinker';
+import { moverConsultorios } from './consultoriosStock';
 import { esFantasma, cerrarLiquidacionEfectivo } from './ventasEfectivo';
 import { vencerCupon, reactivarCupon } from './descuentoShopify';
 import { marcarCuponUsado, desmarcarCuponUsado } from './storeCredit';
@@ -161,9 +161,9 @@ export async function confirmarVenta(supabase, ventaId, datosPago = {}) {
   // 3b. Lo entregado en mano sale del almacén Consultorios de BaseLinker (lo que se
   //     envía lo descuenta la propia orden de Shopify desde el central). Si BaseLinker
   //     falla, la venta ya está cobrada y cerrada: solo se deja el aviso.
-  const salida = fantasma ? { ok: true } : await moverStockConsultorios(
+  const salida = fantasma ? { ok: true } : await moverConsultorios(
     'venta',
-    items.map(i => ({ product_id: i.product_id, sku: i.sku, cantidad: i.quantity })),
+    items.map(i => ({ product_id: i.product_id, sku: i.sku, variant_id: i.variant_id, cantidad: i.quantity })),
     `venta ${String(venta.id).slice(0, 8)}`,
   );
   if (!salida.ok) console.error(`[venta consultorio] BaseLinker no registró la salida de la venta ${venta.id}: ${salida.motivo}`);
@@ -386,9 +386,9 @@ export async function revertirVenta(supabase, ventaId, { motivo = 'Cancelada en 
   //     La orden de Shopify ya la cierra cancelarOrdenEnBaseLinker (lo que se envió).
   if ((movs || []).length) {
     const datosDe = Object.fromEntries((venta.items || []).map(i => [String(i.variant_id), i]));
-    const entrada = await moverStockConsultorios(
+    const entrada = await moverConsultorios(
       'reversa',
-      movs.map(m => ({ product_id: datosDe[String(m.variant_id)]?.product_id, sku: datosDe[String(m.variant_id)]?.sku, cantidad: m.cantidad })),
+      movs.map(m => ({ product_id: datosDe[String(m.variant_id)]?.product_id, sku: datosDe[String(m.variant_id)]?.sku, variant_id: m.variant_id, cantidad: m.cantidad })),
       `venta ${String(venta.id).slice(0, 8)} cancelada`,
     );
     if (!entrada.ok) console.error(`[revertir venta] BaseLinker no registró la entrada de la venta ${venta.id}: ${entrada.motivo}`);

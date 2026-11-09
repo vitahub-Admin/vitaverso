@@ -145,8 +145,14 @@ export async function productoBL({ product_id, sku }) {
   const padre = Object.values(l.products || {})[0];
   if (!padre) return null;
   const d = (await bl('getInventoryProductsData', { inventory_id: INVENTARIO, products: [padre.id] })).products?.[padre.id];
-  const hijo = Object.entries(d?.variants || {}).find(([, v]) => v.sku === sku);
-  return hijo ? Number(hijo[0]) : padre.id;
+  const variantes = Object.entries(d?.variants || {});
+  const hijo = variantes.find(([, v]) => v.sku === sku);
+  if (hijo) return Number(hijo[0]);
+  // Un producto con variantes no tiene stock en el padre: si no se encontró la variante (por ejemplo la
+  // línea llegó sin SKU) devolver el padre hacía fallar el descuento con "no alcanzan las unidades".
+  // Es mejor decir que no se encontró, para que el acuse diga qué pasó de verdad.
+  if (variantes.length) return null;
+  return padre.id;
 }
 
 async function documento({ tipo, almacen, destino = null, items, notas }) {
@@ -211,7 +217,7 @@ export async function moverStockConsultorios(sentido, lineas = [], nota = '', { 
       const cantidad = Number(l.cantidad);
       if (!(cantidad > 0)) continue;
       const id = await productoBL(l);
-      if (!id) return { ok: false, motivo: `producto ${l.sku || l.product_id} no encontrado en BaseLinker` };
+      if (!id) return { ok: false, motivo: `producto ${l.sku || l.product_id} no encontrado en BaseLinker${l.sku ? '' : ' (la línea llegó sin SKU)'}` };
 
       const { ubicaciones } = await unidadesDe(id, args.almacen);
       const enCentral      = ubicaciones[`bl_${CENTRAL}`] ?? '';
