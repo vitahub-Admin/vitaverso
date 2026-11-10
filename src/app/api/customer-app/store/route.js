@@ -22,6 +22,60 @@ import { puedeVerPrecioApp, aplicarPrecioApp } from "@/lib/customerPrecioApp";
 // Resultados de una búsqueda con texto (IA + normal)
 const MAXIMO_RESULTADOS = 36;
 
+// Texto sin acentos, espacios ni signos: "B-Life" y "B Life" → "blife"
+const compacto = (s) => String(s).toLowerCase().normalize("NFD").replace(/[^a-z0-9]/g, "");
+const palabrasDe = (s) =>
+  String(s).toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").split(/[^a-z0-9]+/).filter(Boolean);
+// Palabras que cuentan para "tiene todas" (sin relleno tipo "para", "de")
+const RELLENO = new Set(["de", "del", "la", "el", "los", "las", "y", "con", "para", "por", "en", "un", "una", "algo", "que", "mi", "me", "al", "sin"]);
+const palabrasDeBusqueda = (q) =>
+  String(q).toLowerCase().split(/\s+/).filter((w) => !RELLENO.has(w)).map(compacto).filter((w) => w.length >= 2);
+
+/**
+ * ¿El texto (ya en palabras) trae `buscado` (compacto) al principio de una palabra, pudiendo
+ * seguir en las siguientes? "blife" está en "B-Life" y "B Life"; "probiotico" en
+ * "Probióticos"; "ninos" NO está en "Femeninos" (no empieza ahí). Lo de 3 letras o menos
+ * tiene que ser la palabra entera: "sop" no es "Soporte", "nad" sí es "NAD+".
+ */
+function empiezaEnPalabra(palabras, buscado) {
+  if (!buscado) return false;
+  const corto = buscado.length <= 3;
+  for (let i = 0; i < palabras.length; i++) {
+    let s = "";
+    for (let j = i; j < palabras.length; j++) {
+      s += palabras[j];
+      if (corto ? s === buscado : s.startsWith(buscado)) return true;
+      if (!buscado.startsWith(s)) break;
+    }
+  }
+  return false;
+}
+
+// El nombre del producto: sin lo que va después del primer "|" (beneficios, ingredientes) y
+// sin el "|" con que empiezan algunos ("| Resveratrol de Cellx | …")
+const nombreDe = (title) => String(title ?? "").replace(/^[\s|]+/, "").split("|")[0];
+
+/**
+ * Orden final de una búsqueda con texto (estable dentro de cada grupo):
+ * 0. el nombre trae lo que escribió completo ("vitamina c" → Vitamina C 1000, no Vitamina B3)
+ * 1. trae todas sus palabras, en cualquier orden ("omega blife" → Omega 3 Platinum B Life)
+ * 2. trae alguno de los términos de la IA (con errores de escritura: "cucurma" → Cúrcuma…)
+ * 3. el resto, en el orden en que llegaron
+ */
+function ordenarBusqueda(lista, q, terminosIA = []) {
+  const frase = compacto(q);
+  const palabras = palabrasDeBusqueda(q);
+  const terminos = terminosIA.map(compacto).filter((t) => t.length >= 2);
+  const grupo = (x) => {
+    const p = palabrasDe(`${nombreDe(x.title)} ${x.brand ?? ""}`);
+    if (frase.length >= 2 && empiezaEnPalabra(p, frase)) return 0;
+    if (palabras.length && palabras.every((w) => empiezaEnPalabra(p, w))) return 1;
+    if (terminos.some((t) => empiezaEnPalabra(p, t))) return 2;
+    return 3;
+  };
+  return lista.map((x, i) => ({ x, i, g: grupo(x) })).sort((a, b) => a.g - b.g || a.i - b.i).map(({ x }) => x);
+}
+
 export async function GET(req) {
   try {
     const payload = verifyAppCustomerToken(req);
@@ -69,9 +123,8 @@ export async function GET(req) {
         buscar({ q, categoria }),
       ]);
       const vistos = new Set();
-      const productos = [...deIA, ...normales]
-        .filter((x) => !vistos.has(String(x.productId)) && vistos.add(String(x.productId)))
-        .slice(0, MAXIMO_RESULTADOS);
+      const juntos = [...deIA.productos, ...normales].filter((x) => !vistos.has(String(x.productId)) && vistos.add(String(x.productId)));
+      const productos = ordenarBusqueda(juntos, q, deIA.terminos).slice(0, MAXIMO_RESULTADOS);
       return NextResponse.json({ ok: true, specialistRef, productos: precios(productos) });
     }
 
