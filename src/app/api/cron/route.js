@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { syncCalendarEvents, syncCalendlyInvitees } from '@/app/services/googleCalendarService';
 import { syncInviteesMatch } from '@/lib/syncInviteesMatch';
+import { limpiarBorradoresApp } from '@/lib/customerCheckout';
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -157,6 +158,14 @@ export async function GET(req) {
   } catch (err) {
     console.error('❌ Booking cleanup failed:', err);
     results.bookingCleanup = { error: err.message };
+  }
+
+  // ── Borradores de precio de app sin pagar (app de clientes) ──
+  try {
+    results.borradoresApp = await limpiarBorradoresApp();
+  } catch (err) {
+    console.error('❌ Limpieza de borradores app failed:', err);
+    results.borradoresApp = { error: err.message };
   }
 
   return NextResponse.json({ success: true, results });

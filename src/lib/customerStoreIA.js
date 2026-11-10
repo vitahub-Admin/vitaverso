@@ -1,5 +1,5 @@
 // Apoyo con IA para la búsqueda de la tienda de Mi Vitahub. No es un botón ni se anuncia:
-// cuando la búsqueda normal encuentra poco, Claude traduce lo que escribió el cliente
+// en cada búsqueda con texto (sus resultados van primero), Claude traduce lo que escribió el cliente
 // (frases como "algo para dormir", sinónimos, nombres en inglés, errores) a términos del
 // catálogo y una categoría, y con eso se busca igual que siempre.
 //
@@ -15,8 +15,10 @@ const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 const MODELO = "claude-haiku-5-5";
 
 // Límite por día (en memoria de cada instancia: es un freno, no una cuenta exacta)
-const LIMITE_CON_CUENTA = 30;
-const LIMITE_INVITADO = 10;
+// Ahora va en todas las búsquedas con texto (la app busca al dejar de escribir), así que el
+// límite es más amplio; al pasarlo, la búsqueda sigue con la normal
+const LIMITE_CON_CUENTA = 120;
+const LIMITE_INVITADO = 40;
 const usos = new Map(); // clave → { dia, n }
 
 // Interpretaciones ya hechas (la app busca mientras escriben y las frases se repiten entre

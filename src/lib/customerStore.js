@@ -5,6 +5,8 @@
 // Toda venta que salga de la app se acredita al profesional del paciente: el carrito
 // lleva specialist_ref (ver cartUrl en la app) además del metafield custom.referido.
 import { supabase, shopifyAdmin, buyUrl } from "@/lib/customerSupplements";
+import { ponerInsignias } from "@/lib/customerBadges";
+import { CAMPOS_PRECIO_APP, leerPrecioApp } from "@/lib/customerPrecioApp";
 
 const POR_PAGINA = 24;
 
@@ -20,7 +22,6 @@ export async function categorias() {
       .from("product_catalog")
       .select("level_2, product_id")
       .eq("status", "ACTIVE")
-      .eq("is_professional", false)
       .not("level_2", "is", null)
       .range(desde, desde + 999);
     if (error) throw new Error(error.message);
@@ -53,7 +54,8 @@ export async function enriquecer(variantIds) {
         nodes(ids: $ids) { ... on ProductVariant {
           id title price compareAtPrice availableForSale
           image { url }
-          product { id title handle status onlineStoreUrl featuredImage { url } }
+          ${CAMPOS_PRECIO_APP}
+          product { id title handle status onlineStoreUrl tags featuredImage { url } }
         } }
       }`,
       { ids: ids.slice(i, i + 50).map((id) => `gid://shopify/ProductVariant/${id}`) }
@@ -71,16 +73,26 @@ export async function enriquecer(variantIds) {
         image: n.image?.url ?? n.product.featuredImage?.url ?? null,
         handle: n.product.handle,
         url: buyUrl(n.product.handle),
+        tags: n.product.tags ?? [],
+        // Interno: el route decide si se aplica (aplicarPrecioApp) y lo borra antes de responder
+        precioAppValor: leerPrecioApp(n, n.price),
       };
     }
   }
-  return out;
+  return conInsignias(Object.values(out)).then(() => out);
+}
+
+// Insignias por reglas (customerBadges); los tags solo sirven para las reglas, no se mandan
+async function conInsignias(lista) {
+  await ponerInsignias(lista).catch((e) => console.error("[customerStore] insignias:", e.message));
+  for (const p of lista) delete p.tags;
+  return lista;
 }
 
 /**
  * Búsqueda en el catálogo: por nombre, marca o ingrediente, o por categoría.
- * Devuelve un producto por fila (su primera variante disponible), sin productos
- * profesionales, con lo agotado al final.
+ * Devuelve un producto por fila (su primera variante disponible), incluidos los
+ * profesionales, con lo agotado al final. Solo lo publicado en vitahub.mx (enriquecer).
  */
 export async function buscar({ q = "", categoria = null, limite = POR_PAGINA } = {}) {
   const texto = String(q).trim().replace(/[,%()*]/g, " ").slice(0, 60);
@@ -143,7 +155,6 @@ async function filasCatalogo(texto, categoria) {
       .from("product_catalog")
       .select("product_id, variant_id, title, brand")
       .eq("status", "ACTIVE")
-      .eq("is_professional", false)
       .limit(160);
     if (texto.length >= 2) {
       const t = `%${texto}%`;
@@ -192,10 +203,11 @@ export async function detalleProducto(handle) {
   const data = await shopifyAdmin(
     `query fichaProducto($handle: String!) {
       productByIdentifier(identifier: { handle: $handle }) {
-        id title handle status onlineStoreUrl descriptionHtml
+        id title handle status onlineStoreUrl descriptionHtml tags
         images(first: 10) { edges { node { url } } }
         variants(first: 30) { edges { node {
           id title price compareAtPrice availableForSale image { url }
+          ${CAMPOS_PRECIO_APP}
         } } }
       }
     }`,
@@ -213,6 +225,20 @@ export async function detalleProducto(handle) {
     .maybeSingle();
 
   const { nutricional, resto } = separarTablaNutricional(p.descriptionHtml);
+  const variants = p.variants.edges.map(({ node: v }) => ({
+    variantId: v.id.split("/").pop(),
+    productId,
+    title: p.title,
+    variantTitle: v.title === "Default Title" ? "" : v.title,
+    price: v.price != null ? Number(v.price) : null,
+    compareAtPrice: precioRegular(v.compareAtPrice, v.price),
+    available: !!v.availableForSale,
+    image: v.image?.url ?? p.images.edges[0]?.node?.url ?? null,
+    handle: p.handle,
+    tags: p.tags ?? [],
+    precioAppValor: leerPrecioApp(v, v.price),
+  }));
+  await conInsignias(variants);
   return {
     productId,
     handle: p.handle,
@@ -225,16 +251,7 @@ export async function detalleProducto(handle) {
     nutricional,
     images: p.images.edges.map(({ node }) => node.url),
     url: buyUrl(p.handle),
-    variants: p.variants.edges.map(({ node: v }) => ({
-      variantId: v.id.split("/").pop(),
-      title: p.title,
-      variantTitle: v.title === "Default Title" ? "" : v.title,
-      price: v.price != null ? Number(v.price) : null,
-      compareAtPrice: precioRegular(v.compareAtPrice, v.price),
-      available: !!v.availableForSale,
-      image: v.image?.url ?? p.images.edges[0]?.node?.url ?? null,
-      handle: p.handle,
-    })),
+    variants,
   };
 }
 

@@ -26,7 +26,7 @@ AS $$
            lower(unaccent(concat_ws(' ', pc.title, pc.brand, pc.primary_ingredient, pc.componente))) AS texto
       FROM product_catalog pc
      WHERE pc.status = 'ACTIVE'
-       AND pc.is_professional = false
+       -- Los profesionales también salen (solo se muestran si están publicados en vitahub.mx)
        AND (cat IS NULL OR pc.level_2 = cat)
   )
   SELECT c.product_id, c.variant_id, c.title, c.brand,
