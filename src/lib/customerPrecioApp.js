@@ -12,6 +12,7 @@
 // Cómo se cobra: si el carrito tiene algún producto con precio de app, el checkout es un
 // pedido borrador de Shopify con ese precio ya aplicado (ver customerCheckout.js).
 import { mxDate } from "@/lib/customerSupplements";
+import { textoDeInsignias } from "@/lib/customerBadges";
 
 export const PRECIO_APP_DESDE = "1.1.3";
 
@@ -36,8 +37,13 @@ export function puedeVerPrecioApp(req, user) {
   return !!v && !esMenor(v, PRECIO_APP_DESDE);
 }
 
-/** Precio de app vigente de una variante (nodo de la Admin API con CAMPOS_PRECIO_APP), o null */
-export function leerPrecioApp(nodo, precioNormal) {
+/**
+ * Precio de app vigente de una variante (nodo de la Admin API con CAMPOS_PRECIO_APP), o null.
+ * Si el precio de app no es menor al de la web (la web ya bajó a ese precio) pero sí al
+ * regular (compare at), vale el de la web: se muestra como precio de app con el regular
+ * tachado y se cobra igual que en la web.
+ */
+export function leerPrecioApp(nodo, precioNormal, compareAt) {
   const crudo = nodo?.precioAppMf?.value;
   if (!crudo) return null;
   let monto = null;
@@ -47,7 +53,12 @@ export function leerPrecioApp(nodo, precioNormal) {
   } catch {
     monto = Number(crudo);
   }
-  if (!(monto > 0) || !(Number(precioNormal) > monto)) return null;
+  const web = Number(precioNormal);
+  if (!(monto > 0) || !(web > 0)) return null;
+  if (monto >= web) {
+    if (!(Number(compareAt) > web)) return null;
+    monto = web;
+  }
   const hasta = nodo?.precioAppHastaMf?.value?.slice(0, 10);
   if (hasta && hasta < mxDate()) return null;
   return Math.round(monto * 100) / 100;
@@ -63,12 +74,16 @@ export function aplicarPrecioApp(lista, permitido) {
     if (!p || typeof p !== "object") continue;
     const v = p.precioAppValor;
     delete p.precioAppValor;
-    if (!permitido || !v || !(p.price > v)) continue;
-    // Tachado = el precio regular de siempre (el "compare at", el mismo que se tacha en
-    // vitahub.mx); si el producto no tiene, el precio de la web
-    p.compareAtPrice = Math.max(Number(p.compareAtPrice) || 0, p.price);
-    p.price = v;
-    p.precioApp = true;
+    if (permitido && v && p.price >= v) {
+      // Tachado = el precio regular de siempre (el "compare at", el mismo que se tacha en
+      // vitahub.mx); si el producto no tiene, el precio de la web
+      p.compareAtPrice = Math.max(Number(p.compareAtPrice) || 0, p.price);
+      p.price = v;
+      p.precioApp = true;
+    }
+    // Insignias "-{descuento}" con el precio que ve este cliente (copia: puede venir de caché)
+    if (Array.isArray(p.badges)) p.badges = p.badges.map((b) => ({ ...b }));
+    textoDeInsignias(p);
   }
   return lista;
 }

@@ -75,7 +75,7 @@ export async function enriquecer(variantIds) {
         url: buyUrl(n.product.handle),
         tags: n.product.tags ?? [],
         // Interno: el route decide si se aplica (aplicarPrecioApp) y lo borra antes de responder
-        precioAppValor: leerPrecioApp(n, n.price),
+        precioAppValor: leerPrecioApp(n, n.price, n.compareAtPrice),
       };
     }
   }
@@ -236,7 +236,7 @@ export async function detalleProducto(handle) {
     image: v.image?.url ?? p.images.edges[0]?.node?.url ?? null,
     handle: p.handle,
     tags: p.tags ?? [],
-    precioAppValor: leerPrecioApp(v, v.price),
+    precioAppValor: leerPrecioApp(v, v.price, v.compareAtPrice),
   }));
   await conInsignias(variants);
   return {

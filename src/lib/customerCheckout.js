@@ -70,7 +70,10 @@ export async function linkDePago({ items, codigo = null, user, specialistRef = n
   const disponibles = limpios.filter((i) => vivos[i.variantId]?.available);
   if (!disponibles.length) return null;
 
-  const conDescuento = conPrecioApp ? disponibles.filter((i) => vivos[i.variantId].precioAppValor) : [];
+  // Borrador solo si hay algo más barato que en la web (precio de app = web → carrito normal)
+  const conDescuento = conPrecioApp
+    ? disponibles.filter((i) => vivos[i.variantId].precioAppValor < vivos[i.variantId].price)
+    : [];
   if (!conDescuento.length) {
     return { tipo: "carrito", url: carritoNormal(disponibles, specialistRef, cupon) };
   }

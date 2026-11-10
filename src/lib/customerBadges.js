@@ -46,6 +46,19 @@ function cumple(regla, p) {
 }
 
 /**
+ * Recalcula el texto de las insignias con {descuento} usando el precio final (con o sin precio
+ * de app, según quién mira). Quita las que quedan sin descuento y borra el dato interno.
+ */
+export function textoDeInsignias(p) {
+  if (!Array.isArray(p?.badges)) return p;
+  const d = descuento(p);
+  p.badges = p.badges
+    .filter((b) => !b._plantilla || d > 0)
+    .map(({ _plantilla, ...b }) => (_plantilla ? { ...b, texto: _plantilla.replace("{descuento}", `${d}%`).slice(0, 24) } : b));
+  return p;
+}
+
+/**
  * Agrega `badges` a cada producto/variante (necesita price, compareAtPrice, available,
  * productId y tags). Modifica los objetos y los devuelve.
  */
@@ -61,7 +74,12 @@ export async function ponerInsignias(productos) {
     for (const r of vigentes) {
       if (badges.length >= MAX) break;
       if (!cumple(r.regla, p)) continue;
-      const texto = (r.texto ?? "").replace("{descuento}", `${descuento(p)}%`).trim().slice(0, 24);
+      const plantilla = (r.texto ?? "").trim();
+      const conDescuento = plantilla.includes("{descuento}");
+      // Sin descuento que mostrar: la insignia de "-{descuento}" no va (salvo que tenga precio de
+      // app, que se calcula después en aplicarPrecioApp)
+      if (conDescuento && !descuento(p) && !p.precioAppValor) continue;
+      const texto = plantilla.replace("{descuento}", `${descuento(p)}%`).slice(0, 24);
       const icono = typeof r.icono_url === "string" && r.icono_url.startsWith("https://") ? r.icono_url : null;
       if (!texto && !icono) continue;
       badges.push({
@@ -69,6 +87,8 @@ export async function ponerInsignias(productos) {
         icono,
         colorTexto: COLOR.test(r.color_texto ?? "") ? r.color_texto : "#ffffff",
         colorFondo: COLOR.test(r.color_fondo ?? "") ? r.color_fondo : "#1b3f7a",
+        // Interno: se vuelve a calcular con el precio final (aplicarPrecioApp → textoDeInsignias)
+        ...(conDescuento ? { _plantilla: plantilla } : {}),
       });
     }
     p.badges = badges;
