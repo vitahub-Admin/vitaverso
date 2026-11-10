@@ -7,7 +7,7 @@
 // Las reglas de cuándo y cuánto se otorga se resuelven aquí, en el backend, y se llaman
 // desde las compras (webhook de órdenes y ventas en efectivo). Usar el cupón no le quita
 // comisión al profesional.
-import { supabase } from "@/lib/customerSupplements";
+import { supabase, shopifyAdmin } from "@/lib/customerSupplements";
 import { crearCuponDeCredito, codigoAleatorio } from "@/lib/storeCredit";
 
 const CAMPOS = "id, code, tipo, valor, minimo, titulo, starts_at, ends_at, used_at, used_order, created_at";
@@ -40,7 +40,39 @@ export async function descuentosDelCliente(email) {
     .order("ends_at", { ascending: true, nullsFirst: false })
     .limit(20);
   if (error) throw new Error(error.message);
-  return (data ?? []).map(aCliente);
+  const vivos = await activosEnShopify((data ?? []).map((d) => d.code));
+  return (data ?? []).filter((d) => !vivos || vivos.has(d.code)).map(aCliente);
+}
+
+/**
+ * Códigos que siguen activos en Shopify (alguien puede desactivar o borrar un cupón desde el
+ * admin, y ahí la app no lo debe ofrecer: el checkout lo rechazaría). Si se desactivó, se
+ * anota su fecha de fin en la tabla para que no vuelva a consultarse.
+ * Devuelve null si Shopify no responde: en ese caso se muestran los de la tabla, como antes.
+ */
+async function activosEnShopify(codes) {
+  if (!codes.length) return new Set();
+  try {
+    const campos = codes
+      .map((c, i) => `c${i}: codeDiscountNodeByCode(code: ${JSON.stringify(c)}) { codeDiscount { ... on DiscountCodeBasic { status endsAt } } }`)
+      .join("\n");
+    const data = await shopifyAdmin(`{ ${campos} }`);
+    const activos = new Set();
+    await Promise.all(codes.map(async (code, i) => {
+      const d = data?.[`c${i}`]?.codeDiscount;
+      if (d?.status === "ACTIVE") return activos.add(code);
+      // Desactivado, vencido o borrado en Shopify: se cierra también en la tabla
+      await supabase
+        .from("customer_discounts")
+        .update({ ends_at: d?.endsAt ?? new Date().toISOString() })
+        .eq("code", code)
+        .is("used_at", null);
+    }));
+    return activos;
+  } catch (err) {
+    console.error("[descuentosClientes] estado en Shopify:", err.message);
+    return null;
+  }
 }
 
 /**
