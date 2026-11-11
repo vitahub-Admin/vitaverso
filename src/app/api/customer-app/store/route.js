@@ -93,7 +93,9 @@ export async function GET(req) {
 
     if (p.get("producto")) {
       const handle = p.get("producto").trim().toLowerCase();
-      if (!/^[a-z0-9-]+$/.test(handle)) {
+      // Hay handles con ® y ™ ("macuguard®-…"); va como variable de GraphQL, así que solo se
+      // descarta lo que nunca es un handle (espacios, barras, comillas)
+      if (!/^[^\s/\\?#"'<>]{1,255}$/u.test(handle)) {
         return NextResponse.json({ ok: false, error: "Producto no encontrado" }, { status: 404 });
       }
       const producto = await detalleProducto(handle);
