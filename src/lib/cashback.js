@@ -15,11 +15,9 @@ import { Resend } from "resend";
 import { supabase } from "@/lib/customerSupplements";
 import { otorgarDescuento, anularDescuentosDeCompra } from "@/lib/descuentosClientes";
 import { enviarNotificaciones } from "@/lib/customerNotifications";
+import { correoCashback } from "@/lib/cashbackCorreo";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
-
-const APP_IOS_URL = "https://apps.apple.com/mx/app/id6821184197";
-const APP_ANDROID_URL = "https://play.google.com/store/apps/details?id=mx.vitahub.cliente";
 
 // La configuración se lee como mucho una vez por minuto (el webhook recibe muchas órdenes)
 let cache = { at: 0, promos: [] };
@@ -104,7 +102,7 @@ export async function otorgarCashback(payload) {
       if (!d.nuevo) return null;
 
       console.log(`[cashback] ${promo.id} ${payload.name} ${pesos(monto)} → ${d.code} ${pesos(escalon.monto)}`);
-      await avisar({ promo, email, valor: escalon.monto, descuento: d, nombre: payload.customer?.first_name });
+      await avisar({ promo, email, valor: escalon.monto, descuento: d, nombre: payload.customer?.first_name, pedido: payload.name });
       return { promo: promo.id, code: d.code, valor: escalon.monto };
     }
     return null;
@@ -129,7 +127,7 @@ export async function anularCashback(payload) {
 // ── Avisos ───────────────────────────────────────────────────────────────────
 // Push a quien ya tiene la app y correo a todos. El correo NO lleva el código: el cupón se ve
 // y se aplica en la app, así es el motivo para descargarla.
-async function avisar({ promo, email, valor, descuento, nombre }) {
+async function avisar({ promo, email, valor, descuento, nombre, pedido }) {
   const vence = descuento.endsAt ? ` Úsalo antes del ${fechaCorta(descuento.endsAt)}.` : "";
 
   if (promo.avisar_push) {
@@ -152,31 +150,22 @@ async function avisar({ promo, email, valor, descuento, nombre }) {
 
   if (promo.avisar_correo) {
     try {
-      const saludo = nombre ? `¡Hola, ${String(nombre).replace(/[<>&"]/g, "")}!` : "¡Hola!";
-      // Android solo si ya está publicada (misma variable que los correos de protocolo)
-      const tiendas = [["iPhone", APP_IOS_URL], ...(process.env.MI_VITAHUB_ANDROID_PUBLICA === "1" ? [["Android", APP_ANDROID_URL]] : [])];
+      const { asunto, html, texto } = correoCashback({
+        valor,
+        email,
+        nombre,
+        pedido,
+        venceIso: descuento.endsAt,
+        promo: String(promo.titulo || "").replace(/^cashback\s*/i, "") || "Vitahub",
+        // Android solo si ya está publicada (misma variable que los correos de protocolo)
+        conAndroid: process.env.MI_VITAHUB_ANDROID_PUBLICA === "1",
+      });
       const { error } = await resend.emails.send({
         from: "Vitahub <noreply@pro.vitahub.mx>",
         to: email,
-        subject: `Tienes ${pesos(valor)} de cashback esperándote en la app`,
-        html: `
-          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;background:#f9f9f9;border-radius:12px">
-            <img src="https://pro.vitahub.mx/logosimple.png" alt="Vitahub" width="165" height="40" style="display:block;border:0;height:40px;width:auto;margin-bottom:24px" />
-            <h2 style="color:#1b3f7a;margin:0 0 8px">${saludo}</h2>
-            <p style="color:#555;margin:0 0 20px;line-height:1.5">Gracias por tu compra. Te regalamos cashback para tu próximo pedido:</p>
-            <div style="background:#1b3f7a;color:#fff;font-size:34px;font-weight:bold;text-align:center;padding:20px;border-radius:10px">
-              ${pesos(valor)}
-            </div>
-            <p style="color:#555;margin:20px 0;line-height:1.5">
-              Lo encuentras en la app de Vitahub, en tus descuentos. Entra con este mismo correo (${email}) y se aplica al pagar.${vence}
-            </p>
-            <table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr>
-              ${tiendas.map(([nombre, url]) => `<td style="padding:4px"><a href="${url}" style="display:block;background:#1E8FA8;color:#fff;text-decoration:none;text-align:center;padding:14px;border-radius:10px;font-weight:bold">Descargar para ${nombre}</a></td>`).join("")}
-            </tr></table>
-            <p style="color:#999;font-size:12px;margin-top:24px">Es de un solo uso y se combina con otras promociones.</p>
-          </div>
-        `,
-        text: `${saludo} Gracias por tu compra. Tienes ${pesos(valor)} de cashback para tu próximo pedido en la app de Vitahub: entra con ${email} y lo verás en tus descuentos.${vence} ${tiendas.map(([n, u]) => `${n}: ${u}`).join(" · ")}`,
+        subject: asunto,
+        html,
+        text: texto,
         tags: [{ name: "flujo", value: `cashback_${String(promo.id).replace(/[^a-zA-Z0-9_-]/g, "_")}` }],
       });
       if (error) throw new Error(error.message ?? JSON.stringify(error));
