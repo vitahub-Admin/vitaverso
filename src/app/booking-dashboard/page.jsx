@@ -560,6 +560,23 @@ function TarjetaCita({ a, proxima, onEditar, onCancelar }) {
   );
 }
 
+// Foto del profesional. La URL se copió de su colección de Shopify al activar la agenda; si esa
+// imagen ya no existe (se cambió o se borró allá), se muestra su inicial en vez de una imagen rota.
+function Avatar({ url, nombre }) {
+  const [rota, setRota] = useState(false);
+  useEffect(() => { setRota(false); }, [url]);
+  return (
+    <div className="w-14 h-14 rounded-full overflow-hidden bg-celeste-suave flex items-center justify-center shrink-0">
+      {url && !rota ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={url} alt="" className="w-full h-full object-cover" onError={() => setRota(true)} />
+      ) : (
+        <span className="text-xl font-bold text-azul">{(nombre || "?").trim().charAt(0).toUpperCase()}</span>
+      )}
+    </div>
+  );
+}
+
 function Estadistica({ valor, texto }) {
   return (
     <div className={`${tarjeta} px-4 py-3`}>
@@ -829,14 +846,7 @@ export default function BookingDashboard() {
         {/* Encabezado */}
         <div className={`${tarjeta} p-5`}>
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-full overflow-hidden bg-celeste-suave flex items-center justify-center shrink-0">
-              {affiliate?.photo_url ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={affiliate.photo_url} alt="" className="w-full h-full object-cover" />
-              ) : (
-                <span className="text-xl font-bold text-azul">{(affiliate?.display_name || "?").trim().charAt(0).toUpperCase()}</span>
-              )}
-            </div>
+            <Avatar url={affiliate?.photo_url} nombre={affiliate?.display_name} />
             <div className="min-w-0 flex-1">
               <h1 className="font-bold text-azul text-lg leading-tight truncate">{affiliate?.display_name || "Mis citas"}</h1>
               {affiliate?.specialty && <p className="text-sm text-texto-secundario truncate">{affiliate.specialty}</p>}
@@ -983,9 +993,6 @@ export default function BookingDashboard() {
                     </div>
                     <div className="text-right shrink-0">
                       <p className="font-bold text-azul text-lg tabular-nums">${Number(s.price).toLocaleString("es-MX")}</p>
-                      {montoNeto(s.price, commissionRate) !== null && (
-                        <p className="text-celeste-texto text-xs font-semibold tabular-nums">Recibes ${montoNeto(s.price, commissionRate).toLocaleString("es-MX")}</p>
-                      )}
                       <div className="flex gap-1 justify-end mt-2">
                         <button onClick={() => setEditingService(s)} aria-label="Editar servicio"
                           className="p-1.5 rounded-campo text-texto-secundario hover:text-azul hover:bg-pagina">

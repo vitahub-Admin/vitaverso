@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { resolveBookingAffiliate } from "@/lib/bookingAuth";
+import { fotoVigente } from "@/lib/bookingFoto";
 
 const CORS = {
   "Access-Control-Allow-Origin": "https://vitahub.mx",
@@ -29,13 +30,13 @@ export async function GET(req) {
     const { affiliate, error } = await resolveBookingAffiliate(req);
     if (error) return NextResponse.json({ error }, { status: 401 });
     if (!affiliate) return NextResponse.json({ error: "Perfil no encontrado" }, { status: 404 });
-    return NextResponse.json(affiliate);
+    return NextResponse.json({ ...affiliate, photo_url: await fotoVigente(affiliate) });
   }
 
   const { data, error } = await supabase
     .from("booking_affiliates")
     .select(`
-      id, slug, display_name, bio, photo_url, specialty, timezone, is_active,
+      id, shopify_customer_id, slug, display_name, bio, photo_url, specialty, timezone, is_active,
       booking_services (id, name, description, duration_minutes, price, currency)
     `)
     .eq("slug", slug)
@@ -53,7 +54,11 @@ export async function GET(req) {
     .eq("affiliate_id", data.id);
   const dias_disponibles = [...new Set((disp || []).map((d) => d.day_of_week))];
 
-  return NextResponse.json({ ...data, dias_disponibles }, { headers: CORS });
+  // La foto sale de la colección de Shopify tal como está hoy; el ID de cliente no se expone
+  const { shopify_customer_id, ...publico } = data;
+  const photo_url = await fotoVigente(data);
+
+  return NextResponse.json({ ...publico, photo_url, dias_disponibles }, { headers: CORS });
 }
 
 export async function POST(req) {
