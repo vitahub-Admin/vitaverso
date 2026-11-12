@@ -4,6 +4,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { resolveBookingAffiliate } from "@/lib/bookingAuth";
+import { tasaComisionBooking } from "@/lib/bookingFee";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -13,7 +14,9 @@ const supabase = createClient(
 export async function GET(req) {
   const { affiliate, error } = await resolveBookingAffiliate(req);
   if (error) return NextResponse.json({ error }, { status: 401 });
-  if (!affiliate) return NextResponse.json({ data: [] });
+  // Se manda la comisión de Vitahub para que el profesional la vea al poner su precio
+  const commission_rate = await tasaComisionBooking();
+  if (!affiliate) return NextResponse.json({ data: [], commission_rate });
 
   const { data } = await supabase
     .from("booking_services")
@@ -21,7 +24,7 @@ export async function GET(req) {
     .eq("affiliate_id", affiliate.id)
     .order("created_at");
 
-  return NextResponse.json({ data });
+  return NextResponse.json({ data, commission_rate });
 }
 
 export async function POST(req) {

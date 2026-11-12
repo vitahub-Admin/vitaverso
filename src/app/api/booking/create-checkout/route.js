@@ -2,6 +2,7 @@
 // Crea la cita en Supabase + Draft Order en Shopify, devuelve invoice_url.
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
+import { zonedToDate, BOOKING_TZ } from "@/lib/bookingTz";
 
 export const runtime = "nodejs";
 
@@ -69,7 +70,15 @@ export async function POST(req) {
       return NextResponse.json({ error: "Servicio no encontrado" }, { status: 404 });
     }
 
-    const startsAt = new Date(`${date}T${time}:00`);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !/^\d{2}:\d{2}$/.test(time)) {
+      return NextResponse.json({ error: "Fecha u hora inválida" }, { status: 400 });
+    }
+
+    // La hora que eligió el paciente es la hora del profesional (México): se guarda el instante real
+    const startsAt = zonedToDate(date, time);
+    if (Number.isNaN(startsAt.getTime()) || startsAt.getTime() <= Date.now()) {
+      return NextResponse.json({ error: "Ese horario ya pasó. Elige otro." }, { status: 400 });
+    }
     const endsAt = new Date(startsAt.getTime() + service.duration_minutes * 60 * 1000);
 
     // Verificar que el slot sigue libre.
@@ -109,7 +118,7 @@ export async function POST(req) {
 
     // Formatear fecha legible para el título de la orden
     const dateLabel = startsAt.toLocaleDateString("es-MX", {
-      weekday: "short", day: "numeric", month: "short",
+      weekday: "short", day: "numeric", month: "short", timeZone: BOOKING_TZ,
     });
     const timeLabel = time;
 

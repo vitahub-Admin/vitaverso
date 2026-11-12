@@ -291,6 +291,9 @@ export default function BookingPage() {
               </div>
             )}
             {!slotsLoading && slots.length > 0 && (
+              <p className="text-gray-400 text-xs mb-3">Horarios en hora de Ciudad de México</p>
+            )}
+            {!slotsLoading && slots.length > 0 && (
               <div className="grid grid-cols-3 gap-2">
                 {slots.map((t) => (
                   <button
@@ -321,7 +324,7 @@ export default function BookingPage() {
                 {new Date(selectedDate + "T12:00:00").toLocaleDateString("es-MX", {
                   weekday: "long", day: "numeric", month: "long",
                 })}{" "}
-                a las {selectedTime}hs
+                a las {selectedTime}hs (hora de Ciudad de México)
               </p>
               <p className="font-semibold mt-1">
                 ${Number(selectedService?.price).toLocaleString("es-MX")} {selectedService?.currency}

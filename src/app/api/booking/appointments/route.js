@@ -3,6 +3,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { resolveBookingAffiliate } from "@/lib/bookingAuth";
+import { zonedToDate, dayRange } from "@/lib/bookingTz";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -25,8 +26,10 @@ export async function GET(req) {
     .is("deleted_at", null)
     .order("starts_at");
 
-  if (from) query = query.gte("starts_at", `${from}T00:00:00`);
-  if (to) query = query.lte("starts_at", `${to}T23:59:59`);
+  // Los días son días de México, no de UTC
+  const fecha = /^\d{4}-\d{2}-\d{2}$/;
+  if (from && fecha.test(from)) query = query.gte("starts_at", zonedToDate(from, "00:00").toISOString());
+  if (to && fecha.test(to)) query = query.lt("starts_at", dayRange(to)[1].toISOString());
 
   const { data, error: fetchError } = await query;
   if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });

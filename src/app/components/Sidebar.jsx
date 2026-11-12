@@ -18,15 +18,6 @@ import {
   PanelLeftClose, PanelLeftOpen, User, LogOut, Package, MapPin, Banknote,
 } from "lucide-react";
 
-const BOOKING_WHITELIST = [
-  "9166283571521","8394066952513","8819754762561","9730042724673",
-  "9375138775361","9351299400001","10324449034561","9784013783361",
-  "8988042592577","9001558376769","9191677854017","9191936622913",
-  "9192315781441","9300956315969","9330069766465","9362135286081",
-  "9416818229569","9530796900673","9565525934401","9705885303105",
-  "9772222447937","9844729905473","9851360870721",
-];
-
 // ── Estructura de nav pública — grupos separados por divisor ─────────────────
 // divider: true → renderiza un divisor visual en vez de un link
 const NAV_GROUPS = [
@@ -129,7 +120,8 @@ export default function Sidebar() {
 
   const tagsArray = customer?.tags?.split(",")?.map(t => t.trim().toLowerCase()) || [];
   const isVitahuber = tagsArray.includes("vitahuber");
-  const hasBookingAccess = isVitahuber || BOOKING_WHITELIST.includes(String(customer?.id || ""));
+  // "Mis Citas" ya está abierto a todos los profesionales (antes solo vitahubers y una lista de IDs)
+  const hasBookingAccess = true;
 
   useEffect(() => {
     async function checkNovedades() {

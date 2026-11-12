@@ -1,6 +1,8 @@
 // Calcula slots disponibles para un afiliado en una fecha dada.
 // Recibe disponibilidad semanal, citas existentes, bloqueos y (opcional) busy times de Google Calendar.
 
+import { zonedToDate, localMinutes } from "@/lib/bookingTz";
+
 const PENDING_EXPIRY_MINUTES = 30;
 
 /**
@@ -50,7 +52,7 @@ export function computeAvailableSlots(
       const slotEnd = t + durationMinutes;
 
       // Slot en el pasado
-      const slotDateTime = new Date(`${date}T${toHHMM(slotStart)}:00`);
+      const slotDateTime = zonedToDate(date, toHHMM(slotStart));
       if (slotDateTime <= now) continue;
 
       // Bloqueado manualmente (día completo o franja)
@@ -66,15 +68,16 @@ export function computeAvailableSlots(
       const isBooked = activeAppointments.some((a) => {
         const aStart = new Date(a.starts_at);
         const aEnd = new Date(a.ends_at);
-        const aStartMin = aStart.getHours() * 60 + aStart.getMinutes();
-        const aEndMin = aEnd.getHours() * 60 + aEnd.getMinutes();
+        // Hora de pared del huso de las citas (no la del servidor)
+        const aStartMin = localMinutes(aStart);
+        const aEndMin = localMinutes(aEnd) || 24 * 60;
         return slotStart < aEndMin && slotEnd > aStartMin;
       });
       if (isBooked) continue;
 
       // Solapamiento con Google Calendar busy
-      const slotDateStart = new Date(`${date}T${toHHMM(slotStart)}:00`);
-      const slotDateEnd = new Date(`${date}T${toHHMM(slotEnd)}:00`);
+      const slotDateStart = zonedToDate(date, toHHMM(slotStart));
+      const slotDateEnd = zonedToDate(date, toHHMM(slotEnd));
       const isCalendarBusy = calendarBusy.some((b) => {
         const bStart = new Date(b.start);
         const bEnd = new Date(b.end);

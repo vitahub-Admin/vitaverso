@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { computeAvailableSlots } from "@/lib/bookingSlots";
 import { getCalendarBusy } from "@/lib/bookingCalendar";
+import { dayRange } from "@/lib/bookingTz";
 
 export const runtime = "nodejs";
 
@@ -56,7 +57,10 @@ export async function GET(req) {
   const { duration_minutes } = serviceRes.data;
 
   // Día de la semana para esa fecha (0=Dom, 1=Lun ... 6=Sab)
-  const dayOfWeek = new Date(`${date}T12:00:00`).getDay();
+  const dayOfWeek = new Date(`${date}T12:00:00Z`).getUTCDay();
+
+  // El día completo (de 00:00 a 00:00) en la hora del profesional, como instantes reales
+  const [diaInicio, diaFin] = dayRange(date);
 
   // Disponibilidad, citas y bloqueos en paralelo
   const [availRes, apptRes, blockRes] = await Promise.all([
@@ -70,8 +74,8 @@ export async function GET(req) {
       .from("booking_appointments")
       .select("starts_at, ends_at, status, created_at")
       .eq("affiliate_id", affiliate.id)
-      .gte("starts_at", `${date}T00:00:00`)
-      .lt("starts_at", `${date}T23:59:59`)
+      .gte("starts_at", diaInicio.toISOString())
+      .lt("starts_at", diaFin.toISOString())
       .in("status", ["pending_payment", "confirmed"]),
 
     supabase
@@ -88,8 +92,8 @@ export async function GET(req) {
       calendarBusy = await getCalendarBusy(
         affiliate.google_calendar_token,
         affiliate.google_calendar_id,
-        `${date}T00:00:00`,
-        `${date}T23:59:59`
+        diaInicio.toISOString(),
+        diaFin.toISOString()
       );
     } catch {
       // Si falla el calendario no bloqueamos el booking

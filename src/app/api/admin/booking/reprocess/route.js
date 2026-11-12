@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { createCalendarEvent } from "@/lib/bookingCalendar";
+import { BOOKING_TZ, toOffsetISO, formatoCita } from "@/lib/bookingTz";
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -39,8 +40,8 @@ export async function POST(req) {
         {
           summary: `${appointment.booking_services.name} — ${appointment.client_name}`,
           description: appointment.client_notes || "",
-          start: { dateTime: appointment.starts_at },
-          end: { dateTime: appointment.ends_at },
+          start: { dateTime: toOffsetISO(appointment.starts_at), timeZone: BOOKING_TZ },
+          end: { dateTime: toOffsetISO(appointment.ends_at), timeZone: BOOKING_TZ },
           attendees: [{ email: appointment.client_email }],
         },
         async (newTokens) => {
@@ -91,10 +92,16 @@ export async function POST(req) {
           duration_minutes: appointment.booking_services?.duration_minutes,
           starts_at: appointment.starts_at,
           ends_at: appointment.ends_at,
+          timezone: BOOKING_TZ,
+          fecha_local: formatoCita(appointment.starts_at).fecha,
+          hora_local: formatoCita(appointment.starts_at).hora,
+          hora_fin_local: formatoCita(appointment.ends_at).hora,
           affiliate_name: affiliate?.display_name || null,
           affiliate_email: affiliateAccount?.email || null,
           affiliate_phone: affiliateAccount?.phone || null,
           meet_link: meetLink,
+          calendar_conectado: !!affiliate?.google_calendar_token,
+          calendar_error: !!results.calendar?.error,
           shopify_order_id: appointment.shopify_order_id,
         }),
       });

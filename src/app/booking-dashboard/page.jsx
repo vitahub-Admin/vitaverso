@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
+import { zonedToDate, localDateStr, localTimeStr, formatoCita } from "@/lib/bookingTz";
 
 const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const FULL_DAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
@@ -201,15 +202,14 @@ function authHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// Las citas siempre se ven y se editan en la hora de México (la del profesional),
+// sin importar en qué huso esté el navegador.
 function toLocalDatetimeInputs(isoString) {
-  const d = new Date(isoString);
-  const date = d.toISOString().slice(0, 10);
-  const time = d.toTimeString().slice(0, 5);
-  return { date, time };
+  return { date: localDateStr(isoString), time: localTimeStr(isoString) };
 }
 
 function toISO(date, time) {
-  return new Date(`${date}T${time}:00`).toISOString();
+  return zonedToDate(date, time).toISOString();
 }
 
 function AppointmentEditor({ appointment, authHeaders, onSave, onClose }) {
@@ -338,7 +338,31 @@ function AppointmentEditor({ appointment, authHeaders, onSave, onClose }) {
   );
 }
 
-function ServiceEditForm({ service, authHeaders, onSave, onCancel }) {
+// Cuánto se queda el profesional de un precio, después de la comisión de Vitahub
+function montoNeto(precio, tasa) {
+  const p = Number(precio);
+  if (!(p > 0)) return null;
+  return Math.round(p * (1 - tasa) * 100) / 100;
+}
+
+function porcentaje(tasa) {
+  return `${Math.round(tasa * 1000) / 10}`.replace(/\.0$/, "");
+}
+
+// Aviso bajo el campo de precio: Vitahub cobra una comisión y esto es lo que recibes
+function AvisoComision({ precio, tasa }) {
+  const neto = montoNeto(precio, tasa);
+  return (
+    <p className="text-xs text-gray-500">
+      Vitahub cobra {porcentaje(tasa)} % de cada reserva por el uso de la plataforma.
+      {neto !== null && (
+        <> Con este precio recibirás <strong className="text-gray-700">${neto.toLocaleString("es-MX")}</strong> por cita.</>
+      )}
+    </p>
+  );
+}
+
+function ServiceEditForm({ service, authHeaders, onSave, onCancel, commissionRate }) {
   const [form, setForm] = useState({
     name:             service.name,
     description:      service.description || "",
@@ -387,6 +411,7 @@ function ServiceEditForm({ service, authHeaders, onSave, onCancel }) {
           placeholder="Precio (MXN)"
           className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
       </div>
+      <AvisoComision precio={form.price} tasa={commissionRate} />
       {error && <p className="text-xs text-red-500">{error}</p>}
       <div className="flex gap-2">
         <button type="button" onClick={onCancel}
@@ -486,7 +511,8 @@ export default function BookingDashboard() {
   const [tab, setTab] = useState("agenda"); // agenda | services | availability | profile
   const [needsLogin, setNeedsLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
-  const [loginPassword, setLoginPassword] = useState("");
+  const [loginCode, setLoginCode] = useState("");
+  const [loginStep, setLoginStep] = useState("correo"); // correo → codigo
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginError, setLoginError] = useState("");
 
@@ -499,6 +525,8 @@ export default function BookingDashboard() {
   // Nueva cita / servicio
   const [newService, setNewService] = useState({ name: "", duration_minutes: 60, price: "", description: "" });
   const [savingService, setSavingService] = useState(false);
+  // Comisión de Vitahub por reserva (viene del servidor; 10 % si no llega)
+  const [commissionRate, setCommissionRate] = useState(0.10);
 
   useEffect(() => {
     loadAll();
@@ -526,28 +554,41 @@ export default function BookingDashboard() {
 
     setAppointments(apptRes?.data || []);
     setServices(svcRes?.data || []);
+    if (typeof svcRes?.commission_rate === "number") setCommissionRate(svcRes.commission_rate);
     setAvailability(availRes?.data || []);
     setLoading(false);
   }
 
+  // Acceso sin contraseña: primero el correo, luego el código de 6 dígitos que llega a él
   async function handleBookingLogin(e) {
     e.preventDefault();
     setLoginError("");
     setLoginLoading(true);
     try {
-      const res = await fetch("/api/pro/auth", {
+      if (loginStep === "correo") {
+        const res = await fetch("/api/pro/auth/code/request", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: loginEmail.trim() }),
+        });
+        const data = await res.json();
+        if (data.ok) { setLoginCode(""); setLoginStep("codigo"); }
+        else setLoginError(data.error || "No pudimos enviar el código. Intenta de nuevo.");
+        return;
+      }
+      const res = await fetch("/api/pro/auth/code/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: loginEmail, password: loginPassword }),
+        body: JSON.stringify({ email: loginEmail.trim(), code: loginCode }),
       });
       const data = await res.json();
       if (data.ok && data.token) {
         Cookies.set("proJwt", data.token, { expires: 30 });
         setNeedsLogin(false);
-        setLoginEmail(""); setLoginPassword("");
+        setLoginEmail(""); setLoginCode(""); setLoginStep("correo");
         loadAll();
       } else {
-        setLoginError(data.error || "Email o contraseña incorrectos");
+        setLoginError(data.error || "El código es incorrecto o ya venció");
       }
     } catch {
       setLoginError("Error de conexión");
@@ -620,25 +661,37 @@ export default function BookingDashboard() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-sm">
           <h2 className="text-lg font-bold text-gray-900 mb-1">Accede a tu dashboard</h2>
-          <p className="text-sm text-gray-500 mb-6">Ingresa con tu cuenta de profesional Vitahub.</p>
+          <p className="text-sm text-gray-500 mb-6">
+            {loginStep === "correo"
+              ? "Escribe el correo de tu cuenta de profesional Vitahub y te enviamos un código."
+              : <>Si <strong>{loginEmail}</strong> tiene una cuenta, te enviamos un código de 6 dígitos.</>}
+          </p>
           <form onSubmit={handleBookingLogin} className="flex flex-col gap-3">
-            <input
-              type="email" required placeholder="Email"
-              value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
-              className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <input
-              type="password" required placeholder="Contraseña"
-              value={loginPassword} onChange={(e) => setLoginPassword(e.target.value)}
-              className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            {loginStep === "correo" ? (
+              <input
+                type="email" required placeholder="Email" autoComplete="email"
+                value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
+                className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            ) : (
+              <input
+                type="text" required inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus
+                placeholder="000000"
+                value={loginCode} onChange={(e) => setLoginCode(e.target.value.replace(/\D/g, ""))}
+                className="border border-gray-200 rounded-xl px-4 py-3 text-center text-xl font-bold tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+            )}
             {loginError && <p className="text-red-500 text-xs text-center">{loginError}</p>}
             <button
               type="submit" disabled={loginLoading}
               className="bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
             >
-              {loginLoading ? "Ingresando..." : "Ingresar"}
+              {loginLoading ? "Un momento..." : loginStep === "correo" ? "Enviarme el código" : "Ingresar"}
             </button>
+            {loginStep === "codigo" && (
+              <button type="button" onClick={() => { setLoginStep("correo"); setLoginError(""); }}
+                className="text-xs text-gray-500 hover:text-gray-800">Cambiar correo</button>
+            )}
           </form>
         </div>
       </div>
@@ -800,10 +853,8 @@ export default function BookingDashboard() {
                 </div>
                 <p className="text-gray-700 text-sm mt-2">
                   {a.booking_services?.name} —{" "}
-                  {new Date(a.starts_at).toLocaleDateString("es-MX", {
-                    weekday: "short", day: "numeric", month: "short",
-                  })}{" "}
-                  {new Date(a.starts_at).toLocaleTimeString("es-MX", { hour: "2-digit", minute: "2-digit" })}hs
+                  {formatoCita(a.starts_at).fecha}{" "}
+                  {formatoCita(a.starts_at).hora}hs (hora de México)
                 </p>
                 {a.client_notes && (
                   <p className="text-gray-400 text-xs mt-1 italic">"{a.client_notes}"</p>
@@ -841,6 +892,7 @@ export default function BookingDashboard() {
                 {editingService?.id === s.id ? (
                   <ServiceEditForm
                     service={s}
+                    commissionRate={commissionRate}
                     authHeaders={authHeaders}
                     onSave={(updated) => {
                       setServices(prev => prev.map(x => x.id === updated.id ? updated : x));
@@ -857,6 +909,9 @@ export default function BookingDashboard() {
                     </div>
                     <div className="text-right flex-shrink-0 ml-4">
                       <p className="font-semibold text-gray-900 text-sm">${Number(s.price).toLocaleString("es-MX")}</p>
+                      {montoNeto(s.price, commissionRate) !== null && (
+                        <p className="text-gray-400 text-xs">Recibes ${montoNeto(s.price, commissionRate).toLocaleString("es-MX")}</p>
+                      )}
                       <div className="flex gap-2 justify-end mt-1">
                         <button onClick={() => setEditingService(s)}
                           className="text-xs text-blue-500 hover:text-blue-700">
@@ -890,6 +945,7 @@ export default function BookingDashboard() {
                     onChange={(e) => setNewService({ ...newService, price: e.target.value })}
                     className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
+                <AvisoComision precio={newService.price} tasa={commissionRate} />
                 <button type="submit" disabled={savingService}
                   className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60">
                   {savingService ? "Guardando..." : "Agregar servicio"}

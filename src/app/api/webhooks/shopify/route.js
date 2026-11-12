@@ -9,6 +9,7 @@ import { interpretarOrdenShopify } from "@/lib/cobroShopify";
 import { confirmarVenta, revertirVenta } from "@/lib/ventaConsultorio";
 import { cancelarOrdenEnBaseLinker } from "@/lib/baselinker";
 import { createCalendarEvent } from "@/lib/bookingCalendar";
+import { BOOKING_TZ, toOffsetISO, formatoCita } from "@/lib/bookingTz";
 import { Resend } from "resend";
 import { armarProtocolo } from "@/lib/protocoloDatos";
 import { buildPrescriptionEmail } from "@/lib/protocoloCorreo";
@@ -135,6 +136,53 @@ async function sendProtocolEmail(payload, shareCartToken) {
   }
 }
 
+/**
+ * Falló la creación del evento de Calendar (y con él el enlace de Meet) de una cita pagada.
+ * Avisa por correo a quien opera (REGISTRO_ALERTA_EMAIL o BASELINKER_ALERTA_EMAIL) y por push
+ * al profesional, para que alguien le mande el enlace al paciente.
+ */
+async function avisarFallaCalendar(appointment, affiliate, err) {
+  const detalle = err?.message || String(err);
+  console.error(`[booking] falló Calendar · cita ${appointment.id} · ${appointment.client_email} · ${detalle}`);
+
+  const cuando = formatoCita(appointment.starts_at);
+  const para = (process.env.REGISTRO_ALERTA_EMAIL || process.env.BASELINKER_ALERTA_EMAIL || "").trim();
+  if (para) {
+    try {
+      await resend.emails.send({
+        from: "Vitahub Pro <noreply@pro.vitahub.mx>",
+        to: para.split(",").map((s) => s.trim()).filter(Boolean),
+        subject: "Una cita pagada quedó sin enlace de Meet",
+        html: `<p>Se pagó una cita pero <strong>no se pudo crear el evento en Google Calendar</strong>, así que no tiene enlace de videollamada.</p>
+<ul>
+<li><strong>Profesional:</strong> ${affiliate?.display_name || "—"}</li>
+<li><strong>Paciente:</strong> ${appointment.client_name} · ${appointment.client_email}${appointment.client_phone ? " · " + appointment.client_phone : ""}</li>
+<li><strong>Cuándo:</strong> ${cuando.fecha}, ${cuando.hora} hs (hora de Ciudad de México)</li>
+<li><strong>Cita:</strong> ${appointment.id}</li>
+<li><strong>Error:</strong> ${detalle}</li>
+</ul>
+<p>La cita sigue confirmada. Puede que el profesional haya revocado el acceso a su Calendar (que lo vuelva a conectar en Mis Citas). Para reintentar el evento y el correo: <code>POST /api/admin/booking/reprocess</code> con <code>{ "appointment_id": "${appointment.id}" }</code>.</p>`,
+        tags: [{ name: "flujo", value: "alerta_booking_calendar" }],
+      });
+    } catch (e) {
+      console.error("[booking] no se pudo mandar el aviso de Calendar:", e.message);
+    }
+  }
+
+  if (affiliate?.shopify_customer_id) {
+    try {
+      await sendPushToAffiliate(
+        affiliate.shopify_customer_id,
+        "Falta el enlace de tu videollamada",
+        `No pudimos crear el enlace de Meet para la cita de ${appointment.client_name} (${cuando.fecha}, ${cuando.hora} hs). Compártelo tú con el paciente o vuelve a conectar tu Google Calendar.`,
+        { type: "booking_calendar_error", appointmentId: appointment.id }
+      );
+    } catch (e) {
+      console.error("[booking] no se pudo avisar al profesional:", e.message);
+    }
+  }
+}
+
 async function handleBookingPayment(payload) {
   const getAttr = (name) =>
     payload.note_attributes?.find((a) => a.name === name)?.value || null;
@@ -210,6 +258,7 @@ async function handleBookingPayment(payload) {
 
   // Crear evento en Google Calendar del afiliado (primero, para tener el meet_link)
   let meetLink = null;
+  let calendarError = false;
   if (affiliate?.google_calendar_token) {
     try {
       const event = await createCalendarEvent(
@@ -218,8 +267,8 @@ async function handleBookingPayment(payload) {
         {
           summary: `${appointment.booking_services.name} — ${appointment.client_name}`,
           description: appointment.client_notes || "",
-          start: { dateTime: appointment.starts_at },
-          end: { dateTime: appointment.ends_at },
+          start: { dateTime: toOffsetISO(appointment.starts_at), timeZone: BOOKING_TZ },
+          end: { dateTime: toOffsetISO(appointment.ends_at), timeZone: BOOKING_TZ },
           attendees: [{ email: appointment.client_email }],
         },
         async (newTokens) => {
@@ -237,8 +286,11 @@ async function handleBookingPayment(payload) {
           meet_link: meetLink,
         })
         .eq("id", appointmentId);
-    } catch {
-      // No bloquear si falla Calendar
+    } catch (err) {
+      // No se bloquea la cita (ya está pagada y confirmada), pero ya no pasa en silencio:
+      // sin evento no hay enlace de Meet y alguien tiene que mandarlo a mano.
+      calendarError = true;
+      await avisarFallaCalendar(appointment, affiliate, err);
     }
   }
 
@@ -263,10 +315,18 @@ async function handleBookingPayment(payload) {
           duration_minutes: appointment.booking_services?.duration_minutes,
           starts_at: appointment.starts_at,
           ends_at: appointment.ends_at,
+          // Hora ya convertida al huso de las citas, para que el correo no tenga que convertir nada
+          timezone: BOOKING_TZ,
+          fecha_local: formatoCita(appointment.starts_at).fecha,
+          hora_local: formatoCita(appointment.starts_at).hora,
+          hora_fin_local: formatoCita(appointment.ends_at).hora,
           affiliate_name: affiliate?.display_name || null,
           affiliate_email: affiliateAccount?.email || null,
           affiliate_phone: affiliateAccount?.phone || null,
           meet_link: meetLink,
+          // Para que el correo explique por qué no hay enlace de Meet
+          calendar_conectado: !!affiliate?.google_calendar_token,
+          calendar_error: calendarError,
           shopify_order_id: String(payload.id),
         }),
       });
