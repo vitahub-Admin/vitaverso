@@ -1,12 +1,43 @@
 "use client";
 import { useEffect, useState } from "react";
-import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import Cookies from "js-cookie";
+import {
+  CalendarDays, Clock, Mail, Phone, Video, CircleCheck, CircleX, CheckCheck, Pencil, Trash2,
+  Copy, ExternalLink, Plus, MessageCircle, UserRound, Briefcase, Link2, TriangleAlert, Hourglass,
+  Check, ChevronDown, X,
+} from "lucide-react";
 import { zonedToDate, localDateStr, localTimeStr, formatoCita } from "@/lib/bookingTz";
 
-const DAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const FULL_DAYS = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+// ── Estilos compartidos (tokens de marca de globals.css) ─────────────────────
+const campo =
+  "w-full border border-borde bg-white rounded-campo px-3 py-2 text-sm text-azul-profundo placeholder:text-decorativo focus:outline-none focus:border-celeste focus:shadow-foco transition";
+const tarjeta = "bg-white border border-borde rounded-tarjeta shadow-tarjeta";
+const btnAzul = "bg-azul text-white hover:bg-azul-hover rounded-boton font-semibold transition-colors disabled:opacity-60";
+const btnCeleste = "bg-celeste text-azul-profundo hover:bg-celeste-hover rounded-boton font-semibold transition-colors disabled:opacity-60";
+const btnBorde = "border border-borde bg-white text-azul hover:bg-pagina rounded-boton font-semibold transition-colors";
+const etiqueta = "block text-xs font-semibold text-texto-secundario mb-1";
+
+// Estado de la cita: el color acompaña siempre a un ícono y a un texto
+const ESTADOS = {
+  confirmed:       { label: "Confirmada",     Icon: CircleCheck, chip: "bg-[#D1FAE5]", icono: "text-[#10B981]", barra: "bg-[#10B981]" },
+  completed:       { label: "Completada",     Icon: CheckCheck,  chip: "bg-celeste-suave", icono: "text-celeste-texto", barra: "bg-celeste" },
+  pending:         { label: "Pendiente",      Icon: Hourglass,   chip: "bg-[#FEF3C7]", icono: "text-[#F59E0B]", barra: "bg-[#F59E0B]" },
+  pending_payment: { label: "Esperando pago", Icon: Hourglass,   chip: "bg-[#FEF3C7]", icono: "text-[#F59E0B]", barra: "bg-[#F59E0B]" },
+  cancelled:       { label: "Cancelada",      Icon: CircleX,     chip: "bg-[#FEE2E2]", icono: "text-[#EF4444]", barra: "bg-decorativo" },
+};
+
+function ChipEstado({ status }) {
+  const e = ESTADOS[status] || ESTADOS.pending;
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs font-semibold text-azul-profundo px-2.5 py-1 rounded-full ${e.chip}`}>
+      <e.Icon size={14} className={e.icono} />
+      {e.label}
+    </span>
+  );
+}
 
 // Genera opciones de tiempo cada 30 minutos
 function timeOptions() {
@@ -18,6 +49,24 @@ function timeOptions() {
   return opts;
 }
 const TIME_OPTIONS = timeOptions();
+
+function Modal({ titulo, onClose, children }) {
+  return (
+    <div className="fixed inset-0 bg-azul-profundo/50 flex items-center justify-center z-50 p-4" onClick={onClose}>
+      <div className="bg-white rounded-tarjeta p-6 w-full max-w-md shadow-ventana" onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-bold text-azul text-lg">{titulo}</h3>
+          {onClose && (
+            <button onClick={onClose} aria-label="Cerrar" className="text-texto-secundario hover:text-azul p-1 -mr-1">
+              <X size={18} />
+            </button>
+          )}
+        </div>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function AvailabilityEditor({ availability, setAvailability, authHeaders }) {
   // Estado local: { 0: [{start, end}], 1: [...], ... }
@@ -106,86 +155,64 @@ function AvailabilityEditor({ availability, setAvailability, authHeaders }) {
   }
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm">
-      <p className="text-sm text-gray-500 mb-4">
-        Define tu horario semanal. Los turnos disponibles se generan automáticamente
-        según la duración de cada servicio.
+    <div className={`${tarjeta} p-5`}>
+      <h3 className="font-bold text-azul mb-1">Tu horario semanal</h3>
+      <p className="text-sm text-texto-secundario mb-4">
+        Los turnos disponibles se generan solos según la duración de cada servicio. Todos los horarios son en hora de Ciudad de México.
       </p>
 
-      <div className="space-y-3">
-        {FULL_DAYS.map((dayName, i) => (
-          <div key={i} className="border border-gray-100 rounded-xl p-3">
-            <div className="flex items-center justify-between mb-2">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <div
-                  onClick={() => toggleDay(i)}
-                  className={`w-10 h-5 rounded-full transition-colors relative cursor-pointer ${
-                    schedule[i] !== null ? "bg-blue-600" : "bg-gray-200"
-                  }`}
-                >
-                  <div className={`absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-transform ${
-                    schedule[i] !== null ? "translate-x-5" : "translate-x-0.5"
-                  }`} />
-                </div>
-                <span className="text-sm font-medium text-gray-700">{dayName}</span>
-              </label>
-              {schedule[i] !== null && (
-                <button
-                  onClick={() => addSlot(i)}
-                  className="text-xs text-blue-600 hover:text-blue-800"
-                >
-                  + Agregar franja
+      <div className="space-y-2">
+        {FULL_DAYS.map((dayName, i) => {
+          const activo = schedule[i] !== null;
+          return (
+            <div key={i} className={`rounded-boton border p-3 transition-colors ${activo ? "border-celeste-borde bg-celeste-fondo/50" : "border-separador bg-white"}`}>
+              <div className="flex items-center justify-between">
+                <button type="button" onClick={() => toggleDay(i)} className="flex items-center gap-3" aria-pressed={activo}>
+                  <span className={`w-10 h-6 rounded-full relative transition-colors ${activo ? "bg-celeste" : "bg-borde"}`}>
+                    <span className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow transition-all ${activo ? "left-5" : "left-1"}`} />
+                  </span>
+                  <span className={`text-sm font-semibold ${activo ? "text-azul" : "text-texto-secundario"}`}>{dayName}</span>
                 </button>
+                {activo ? (
+                  <button type="button" onClick={() => addSlot(i)} className="text-xs font-semibold text-celeste-texto hover:text-azul inline-flex items-center gap-1">
+                    <Plus size={14} /> Franja
+                  </button>
+                ) : (
+                  <span className="text-xs text-texto-secundario">No disponible</span>
+                )}
+              </div>
+
+              {activo && (
+                <div className="space-y-2 mt-3 sm:ml-13">
+                  {schedule[i].map((slot, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <select value={slot.start} onChange={(e) => updateSlot(i, idx, "start", e.target.value)} className={`${campo} !w-auto`}>
+                        {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      <span className="text-texto-secundario text-sm">a</span>
+                      <select value={slot.end} onChange={(e) => updateSlot(i, idx, "end", e.target.value)} className={`${campo} !w-auto`}>
+                        {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+                      </select>
+                      {schedule[i].length > 1 && (
+                        <button type="button" onClick={() => removeSlot(i, idx)} aria-label="Quitar franja" className="text-texto-secundario hover:text-[#EF4444] p-1">
+                          <X size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               )}
             </div>
-
-            {schedule[i] === null ? (
-              <p className="text-xs text-gray-300 ml-12">No disponible</p>
-            ) : (
-              <div className="space-y-2 ml-12">
-                {schedule[i].map((slot, idx) => (
-                  <div key={idx} className="flex items-center gap-2">
-                    <select
-                      value={slot.start}
-                      onChange={(e) => updateSlot(i, idx, "start", e.target.value)}
-                      className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    <span className="text-gray-400 text-sm">–</span>
-                    <select
-                      value={slot.end}
-                      onChange={(e) => updateSlot(i, idx, "end", e.target.value)}
-                      className="border border-gray-200 rounded-lg px-2 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
-                    </select>
-                    {schedule[i].length > 1 && (
-                      <button
-                        onClick={() => removeSlot(i, idx)}
-                        className="text-gray-300 hover:text-red-400 text-sm ml-1"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        ))}
+          );
+        })}
       </div>
 
-      <div className="mt-4 flex items-center gap-3">
-        <button
-          onClick={handleSave}
-          disabled={saving}
-          className="bg-blue-600 text-white rounded-xl px-6 py-2.5 text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
-        >
+      <div className="mt-5 flex items-center gap-3">
+        <button onClick={handleSave} disabled={saving} className={`${btnAzul} px-6 py-2.5 text-sm`}>
           {saving ? "Guardando..." : "Guardar horario"}
         </button>
-        {saved && <span className="text-green-600 text-sm">✓ Guardado</span>}
-        {error && <span className="text-red-500 text-sm">{error}</span>}
+        {saved && <span className="text-azul text-sm inline-flex items-center gap-1"><Check size={16} className="text-[#10B981]" /> Guardado</span>}
+        {error && <span className="text-[#B91C1C] text-sm">{error}</span>}
       </div>
     </div>
   );
@@ -252,89 +279,57 @@ function AppointmentEditor({ appointment, authHeaders, onSave, onClose }) {
   }
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4" onClick={onClose}>
-      <div className="bg-white rounded-2xl p-6 w-full max-w-sm shadow-xl space-y-4" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between">
-          <h3 className="font-semibold text-gray-900">Editar cita</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+    <Modal titulo="Editar cita" onClose={onClose}>
+      <p className="text-sm text-texto-secundario mb-4">{appointment.client_name} · {appointment.booking_services?.name}</p>
+
+      <form onSubmit={handleSave} className="space-y-3">
+        <div>
+          <label className={etiqueta}>Estado</label>
+          <select value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} className={campo}>
+            <option value="pending">Pendiente</option>
+            <option value="confirmed">Confirmada</option>
+            <option value="completed">Completada</option>
+            <option value="cancelled">Cancelada</option>
+          </select>
         </div>
 
-        <p className="text-sm text-gray-500">{appointment.client_name} · {appointment.booking_services?.name}</p>
+        <div>
+          <label className={etiqueta}>Fecha</label>
+          <input type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} className={campo} />
+        </div>
 
-        <form onSubmit={handleSave} className="space-y-3">
+        <div className="grid grid-cols-2 gap-2">
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Estado</label>
-            <select
-              value={form.status}
-              onChange={e => setForm({ ...form, status: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            >
-              <option value="pending">Pendiente</option>
-              <option value="confirmed">Confirmada</option>
-              <option value="completed">Completada</option>
-              <option value="cancelled">Cancelada</option>
+            <label className={etiqueta}>Hora de inicio</label>
+            <select value={form.start_time} onChange={(e) => setForm({ ...form, start_time: e.target.value })} className={campo}>
+              {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
             </select>
           </div>
-
           <div>
-            <label className="text-xs text-gray-500 mb-1 block">Fecha</label>
-            <input
-              type="date"
-              value={form.date}
-              onChange={e => setForm({ ...form, date: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
+            <label className={etiqueta}>Hora de fin</label>
+            <select value={form.end_time} onChange={(e) => setForm({ ...form, end_time: e.target.value })} className={campo}>
+              {TIME_OPTIONS.map((t) => <option key={t} value={t}>{t}</option>)}
+            </select>
           </div>
+        </div>
+        <p className="text-xs text-texto-secundario -mt-1">Hora de Ciudad de México.</p>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Hora inicio</label>
-              <select
-                value={form.start_time}
-                onChange={e => setForm({ ...form, start_time: e.target.value })}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-            <div>
-              <label className="text-xs text-gray-500 mb-1 block">Hora fin</label>
-              <select
-                value={form.end_time}
-                onChange={e => setForm({ ...form, end_time: e.target.value })}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              >
-                {TIME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-            </div>
-          </div>
+        <div>
+          <label className={etiqueta}>Notas internas</label>
+          <textarea rows={3} placeholder="Notas visibles solo para ti..." value={form.affiliate_notes}
+            onChange={(e) => setForm({ ...form, affiliate_notes: e.target.value })} className={`${campo} resize-none`} />
+        </div>
 
-          <div>
-            <label className="text-xs text-gray-500 mb-1 block">Notas internas</label>
-            <textarea
-              rows={3}
-              placeholder="Notas visibles solo para ti..."
-              value={form.affiliate_notes}
-              onChange={e => setForm({ ...form, affiliate_notes: e.target.value })}
-              className="w-full border border-gray-200 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            />
-          </div>
+        {error && <p className="text-xs text-[#B91C1C]">{error}</p>}
 
-          {error && <p className="text-xs text-red-500">{error}</p>}
-
-          <div className="flex gap-2">
-            <button type="button" onClick={onClose}
-              className="flex-1 border border-gray-200 text-gray-600 text-sm font-medium py-2.5 rounded-xl hover:bg-gray-50 transition">
-              Cancelar
-            </button>
-            <button type="submit" disabled={saving}
-              className="flex-1 bg-blue-600 text-white text-sm font-medium py-2.5 rounded-xl hover:bg-blue-700 transition disabled:opacity-50">
-              {saving ? "Guardando..." : "Guardar"}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <div className="flex gap-2 pt-1">
+          <button type="button" onClick={onClose} className={`${btnBorde} flex-1 text-sm py-2.5`}>Cancelar</button>
+          <button type="submit" disabled={saving} className={`${btnAzul} flex-1 text-sm py-2.5`}>
+            {saving ? "Guardando..." : "Guardar"}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 
@@ -353,10 +348,10 @@ function porcentaje(tasa) {
 function AvisoComision({ precio, tasa }) {
   const neto = montoNeto(precio, tasa);
   return (
-    <p className="text-xs text-gray-500">
+    <p className="text-xs text-texto-secundario bg-celeste-fondo rounded-campo px-3 py-2">
       Vitahub cobra {porcentaje(tasa)} % de cada reserva por el uso de la plataforma.
       {neto !== null && (
-        <> Con este precio recibirás <strong className="text-gray-700">${neto.toLocaleString("es-MX")}</strong> por cita.</>
+        <> Con este precio recibirás <strong className="text-azul">${neto.toLocaleString("es-MX")}</strong> por cita.</>
       )}
     </p>
   );
@@ -392,34 +387,28 @@ function ServiceEditForm({ service, authHeaders, onSave, onCancel, commissionRat
   }
 
   return (
-    <form onSubmit={handleSave} className="space-y-2">
-      <input required value={form.name}
-        onChange={e => setForm({ ...form, name: e.target.value })}
-        placeholder="Nombre del servicio"
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      <input value={form.description}
-        onChange={e => setForm({ ...form, description: e.target.value })}
-        placeholder="Descripción (opcional)"
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-      <div className="flex gap-2">
-        <input required type="number" value={form.duration_minutes}
-          onChange={e => setForm({ ...form, duration_minutes: e.target.value })}
-          placeholder="Duración (min)"
-          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-        <input required type="number" value={form.price}
-          onChange={e => setForm({ ...form, price: e.target.value })}
-          placeholder="Precio (MXN)"
-          className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+    <form onSubmit={handleSave} className="space-y-2.5">
+      <input required value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })}
+        placeholder="Nombre del servicio" className={campo} />
+      <input value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })}
+        placeholder="Descripción (opcional)" className={campo} />
+      <div className="grid grid-cols-2 gap-2">
+        <div>
+          <label className={etiqueta}>Duración (min)</label>
+          <input required type="number" value={form.duration_minutes}
+            onChange={(e) => setForm({ ...form, duration_minutes: e.target.value })} className={campo} />
+        </div>
+        <div>
+          <label className={etiqueta}>Precio (MXN)</label>
+          <input required type="number" value={form.price}
+            onChange={(e) => setForm({ ...form, price: e.target.value })} className={campo} />
+        </div>
       </div>
       <AvisoComision precio={form.price} tasa={commissionRate} />
-      {error && <p className="text-xs text-red-500">{error}</p>}
+      {error && <p className="text-xs text-[#B91C1C]">{error}</p>}
       <div className="flex gap-2">
-        <button type="button" onClick={onCancel}
-          className="flex-1 border border-gray-200 text-gray-600 text-sm py-2 rounded-lg hover:bg-gray-50 transition">
-          Cancelar
-        </button>
-        <button type="submit" disabled={saving}
-          className="flex-1 bg-blue-600 text-white text-sm py-2 rounded-lg hover:bg-blue-700 transition disabled:opacity-50">
+        <button type="button" onClick={onCancel} className={`${btnBorde} flex-1 text-sm py-2`}>Cancelar</button>
+        <button type="submit" disabled={saving} className={`${btnAzul} flex-1 text-sm py-2`}>
           {saving ? "Guardando..." : "Guardar"}
         </button>
       </div>
@@ -458,39 +447,124 @@ function ProfileEditor({ affiliate, authHeaders, onSave }) {
   }
 
   return (
-    <div className="bg-white rounded-xl p-4 shadow-sm">
-      <h3 className="font-medium text-gray-900 text-sm mb-3">Información de perfil</h3>
+    <div className={`${tarjeta} p-5`}>
+      <h3 className="font-bold text-azul mb-3">Información de perfil</h3>
       <form onSubmit={handleSave} className="space-y-3">
         <div>
-          <label className="text-xs text-gray-500 mb-1 block">Especialidad</label>
-          <input
-            type="text"
-            placeholder="Ej: Nutricionista, Médico funcional..."
-            value={form.specialty}
-            onChange={(e) => setForm({ ...form, specialty: e.target.value })}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <label className={etiqueta}>Especialidad</label>
+          <input type="text" placeholder="Ej: Nutricionista, Médico funcional..." value={form.specialty}
+            onChange={(e) => setForm({ ...form, specialty: e.target.value })} className={campo} />
         </div>
         <div>
-          <label className="text-xs text-gray-500 mb-1 block">Descripción para tus clientes</label>
-          <textarea
-            rows={3}
-            placeholder="Ej: Especialista en nutrición deportiva con 10 años de experiencia..."
-            value={form.bio}
-            onChange={(e) => setForm({ ...form, bio: e.target.value })}
-            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-          />
+          <label className={etiqueta}>Descripción para tus clientes</label>
+          <textarea rows={3} placeholder="Ej: Especialista en nutrición deportiva con 10 años de experiencia..."
+            value={form.bio} onChange={(e) => setForm({ ...form, bio: e.target.value })} className={`${campo} resize-none`} />
         </div>
-        {error  && <p className="text-xs text-red-500">{error}</p>}
-        {saved  && <p className="text-xs text-green-600">Guardado correctamente</p>}
-        <button
-          type="submit"
-          disabled={saving}
-          className="w-full bg-blue-600 text-white text-sm font-medium py-2.5 rounded-xl hover:bg-blue-700 transition disabled:opacity-50"
-        >
+        {error && <p className="text-xs text-[#B91C1C]">{error}</p>}
+        {saved && <p className="text-xs text-azul inline-flex items-center gap-1"><Check size={14} className="text-[#10B981]" /> Guardado correctamente</p>}
+        <button type="submit" disabled={saving} className={`${btnAzul} w-full text-sm py-2.5`}>
           {saving ? "Guardando..." : "Guardar cambios"}
         </button>
       </form>
+    </div>
+  );
+}
+
+// ── Agenda: agrupar por día ──────────────────────────────────────────────────
+function agruparPorDia(lista) {
+  const m = new Map();
+  for (const a of lista) {
+    const k = localDateStr(a.starts_at);
+    if (!m.has(k)) m.set(k, []);
+    m.get(k).push(a);
+  }
+  return [...m.entries()];
+}
+
+function etiquetaDia(clave) {
+  const hoy = localDateStr(new Date());
+  const manana = localDateStr(new Date(Date.now() + 86400000));
+  const [y, mo, d] = clave.split("-").map(Number);
+  const texto = new Date(Date.UTC(y, mo - 1, d, 12)).toLocaleDateString("es-MX", {
+    weekday: "long", day: "numeric", month: "long", timeZone: "UTC",
+  });
+  if (clave === hoy) return `Hoy · ${texto}`;
+  if (clave === manana) return `Mañana · ${texto}`;
+  return texto;
+}
+
+function TarjetaCita({ a, proxima, onEditar, onCancelar }) {
+  const est = ESTADOS[a.status] || ESTADOS.pending;
+  const cuando = formatoCita(a.starts_at);
+  const duracion = a.booking_services?.duration_minutes;
+  const tel = a.client_phone ? String(a.client_phone).replace(/\D/g, "") : "";
+  return (
+    <div className={`${tarjeta} overflow-hidden flex ${a.status === "cancelled" ? "opacity-70" : ""}`}>
+      <div className={`w-1.5 shrink-0 ${est.barra}`} />
+      <div className="flex-1 p-4 min-w-0">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="shrink-0 w-14 text-center">
+              <p className="text-lg font-bold text-azul tabular-nums leading-none">{cuando.hora}</p>
+              {duracion && <p className="text-[11px] text-texto-secundario mt-1">{duracion} min</p>}
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-azul-profundo text-sm truncate">{a.client_name}</p>
+              <p className="text-xs text-texto-secundario truncate">{a.booking_services?.name}</p>
+            </div>
+          </div>
+          <ChipEstado status={a.status} />
+        </div>
+
+        <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-texto-secundario">
+          {a.client_email && (
+            <a href={`mailto:${a.client_email}`} className="inline-flex items-center gap-1.5 hover:text-azul min-w-0">
+              <Mail size={14} className="shrink-0" /> <span className="truncate">{a.client_email}</span>
+            </a>
+          )}
+          {a.client_phone && (
+            <a href={`tel:${a.client_phone}`} className="inline-flex items-center gap-1.5 hover:text-azul">
+              <Phone size={14} /> {a.client_phone}
+            </a>
+          )}
+          {tel && (
+            <a href={`https://wa.me/${tel}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 hover:text-azul">
+              <MessageCircle size={14} /> WhatsApp
+            </a>
+          )}
+        </div>
+
+        {a.client_notes && (
+          <p className="mt-3 text-xs text-azul-profundo bg-pagina border border-separador rounded-campo px-3 py-2 italic">
+            “{a.client_notes}”
+          </p>
+        )}
+
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          {proxima && a.status === "confirmed" && a.meet_link && (
+            <a href={a.meet_link} target="_blank" rel="noopener noreferrer" className={`${btnCeleste} text-xs px-3 py-1.5 inline-flex items-center gap-1.5`}>
+              <Video size={14} /> Unirse a la videollamada
+            </a>
+          )}
+          <button onClick={onEditar} className="text-xs font-semibold text-celeste-texto hover:text-azul inline-flex items-center gap-1 px-1.5 py-1">
+            <Pencil size={13} /> Editar
+          </button>
+          {a.status === "confirmed" && (
+            <button onClick={onCancelar} className="text-xs font-semibold text-[#B91C1C] hover:text-[#7F1D1D] inline-flex items-center gap-1 px-1.5 py-1">
+              <CircleX size={13} /> Cancelar cita
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function Estadistica({ valor, texto }) {
+  return (
+    <div className={`${tarjeta} px-4 py-3`}>
+      <p className="text-2xl font-bold text-azul tabular-nums leading-none">{valor}</p>
+      <p className="text-xs text-texto-secundario mt-1.5">{texto}</p>
     </div>
   );
 }
@@ -509,6 +583,7 @@ export default function BookingDashboard() {
   const [availability, setAvailability] = useState([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState("agenda"); // agenda | services | availability | profile
+  const [verAnteriores, setVerAnteriores] = useState(false);
   const [needsLogin, setNeedsLogin] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginCode, setLoginCode] = useState("");
@@ -638,59 +713,62 @@ export default function BookingDashboard() {
     }
   }
 
-  async function handleDeleteService(id) {
-    await fetch(`/api/booking/services?id=${id}`, { method: "DELETE", headers: authHeaders() });
-    setServices((prev) => prev.filter((s) => s.id !== id));
+  async function handleDeleteService(s) {
+    if (!confirm(`¿Eliminar el servicio "${s.name}"? Tus pacientes ya no podrán reservarlo.`)) return;
+    await fetch(`/api/booking/services?id=${s.id}`, { method: "DELETE", headers: authHeaders() });
+    setServices((prev) => prev.filter((x) => x.id !== s.id));
   }
 
-  async function handleCancelAppointment(id) {
-    await fetch(`/api/booking/appointments?id=${id}`, {
+  async function handleCancelAppointment(a) {
+    const aviso = `¿Cancelar la cita de ${a.client_name}? Avísale a tu paciente: el reembolso no es automático.`;
+    if (!confirm(aviso)) return;
+    await fetch(`/api/booking/appointments?id=${a.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json", ...authHeaders() },
       body: JSON.stringify({ status: "cancelled" }),
     });
-    setAppointments((prev) => prev.map((a) => a.id === id ? { ...a, status: "cancelled" } : a));
+    setAppointments((prev) => prev.map((x) => x.id === a.id ? { ...x, status: "cancelled" } : x));
+  }
+
+  function copiarLink() {
+    navigator.clipboard.writeText(`${window.location.origin}/book/${affiliate?.slug}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
   }
 
   if (loading) {
-    return <div className="min-h-screen flex items-center justify-center text-gray-400 text-sm">Cargando...</div>;
+    return <div className="min-h-screen bg-pagina flex items-center justify-center text-texto-secundario text-sm">Cargando...</div>;
   }
 
   if (needsLogin) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 w-full max-w-sm">
-          <h2 className="text-lg font-bold text-gray-900 mb-1">Accede a tu dashboard</h2>
-          <p className="text-sm text-gray-500 mb-6">
+      <div className="min-h-screen bg-pagina flex items-center justify-center p-4">
+        <div className={`${tarjeta} p-8 w-full max-w-sm`}>
+          <div className="w-11 h-11 rounded-full bg-celeste-suave flex items-center justify-center mb-4">
+            <CalendarDays size={22} className="text-celeste-texto" />
+          </div>
+          <h2 className="text-lg font-bold text-azul mb-1">Accede a tus citas</h2>
+          <p className="text-sm text-texto-secundario mb-6">
             {loginStep === "correo"
               ? "Escribe el correo de tu cuenta de profesional Vitahub y te enviamos un código."
-              : <>Si <strong>{loginEmail}</strong> tiene una cuenta, te enviamos un código de 6 dígitos.</>}
+              : <>Si <strong className="text-azul">{loginEmail}</strong> tiene una cuenta, te enviamos un código de 6 dígitos.</>}
           </p>
           <form onSubmit={handleBookingLogin} className="flex flex-col gap-3">
             {loginStep === "correo" ? (
-              <input
-                type="email" required placeholder="Email" autoComplete="email"
-                value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)}
-                className="border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <input type="email" required placeholder="Correo electrónico" autoComplete="email"
+                value={loginEmail} onChange={(e) => setLoginEmail(e.target.value)} className={`${campo} !py-3`} />
             ) : (
-              <input
-                type="text" required inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus
-                placeholder="000000"
-                value={loginCode} onChange={(e) => setLoginCode(e.target.value.replace(/\D/g, ""))}
-                className="border border-gray-200 rounded-xl px-4 py-3 text-center text-xl font-bold tracking-[0.5em] focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <input type="text" required inputMode="numeric" autoComplete="one-time-code" maxLength={6} autoFocus
+                placeholder="000000" value={loginCode} onChange={(e) => setLoginCode(e.target.value.replace(/\D/g, ""))}
+                className={`${campo} !py-3 text-center text-xl font-bold tracking-[0.5em]`} />
             )}
-            {loginError && <p className="text-red-500 text-xs text-center">{loginError}</p>}
-            <button
-              type="submit" disabled={loginLoading}
-              className="bg-blue-600 text-white rounded-xl py-3 text-sm font-semibold hover:bg-blue-700 transition-colors disabled:opacity-60"
-            >
+            {loginError && <p className="text-[#B91C1C] text-xs text-center">{loginError}</p>}
+            <button type="submit" disabled={loginLoading} className={`${btnAzul} py-3 text-sm`}>
               {loginLoading ? "Un momento..." : loginStep === "correo" ? "Enviarme el código" : "Ingresar"}
             </button>
             {loginStep === "codigo" && (
               <button type="button" onClick={() => { setLoginStep("correo"); setLoginError(""); }}
-                className="text-xs text-gray-500 hover:text-gray-800">Cambiar correo</button>
+                className="text-xs text-texto-secundario hover:text-azul">Cambiar correo</button>
             )}
           </form>
         </div>
@@ -698,186 +776,180 @@ export default function BookingDashboard() {
     );
   }
 
+  // ── Datos de la agenda ─────────────────────────────────────────────────────
+  const ahora = new Date();
+  const hoyClave = localDateStr(ahora);
+  const mesClave = hoyClave.slice(0, 7);
+  const vigentes = appointments.filter((a) => {
+    if (a.status === "expired") return false;
+    // Un pago que no se completó en 30 min ya no cuenta como cita
+    if (a.status === "pending_payment" && new Date(a.created_at) < new Date(Date.now() - 30 * 60 * 1000)) return false;
+    return true;
+  });
+  const proximas = vigentes
+    .filter((a) => a.status !== "cancelled" && a.status !== "completed" && new Date(a.ends_at) >= ahora)
+    .sort((a, b) => new Date(a.starts_at) - new Date(b.starts_at));
+  const anteriores = vigentes
+    .filter((a) => !proximas.includes(a))
+    .sort((a, b) => new Date(b.starts_at) - new Date(a.starts_at));
+  const citasHoy = proximas.filter((a) => localDateStr(a.starts_at) === hoyClave && a.status === "confirmed").length;
+  const citasProximas = proximas.filter((a) => a.status === "confirmed").length;
+  const citasMes = vigentes.filter((a) => ["confirmed", "completed"].includes(a.status) && localDateStr(a.starts_at).slice(0, 7) === mesClave).length;
+
+  const TABS = [
+    { key: "agenda", label: "Agenda", Icon: CalendarDays },
+    { key: "services", label: "Servicios", Icon: Briefcase },
+    { key: "availability", label: "Horario", Icon: Clock },
+    { key: "profile", label: "Perfil", Icon: UserRound },
+  ];
+
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-pagina">
       {/* Setup modal (primera vez) */}
       {showSetup && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md shadow-xl">
-            <h2 className="font-semibold text-gray-900 text-lg mb-1">Activa tu página de booking</h2>
-            <p className="text-gray-500 text-sm mb-4">
-              Tu nombre, especialidad y foto se cargan automáticamente desde tu perfil de Vitahub.
-            </p>
-            <form onSubmit={handleSetup} className="space-y-3">
-              <div>
-                <label className="text-xs text-gray-500 mb-1 block">Descripción para tus clientes (opcional)</label>
-                <textarea rows={3}
-                  placeholder="Ej: Especialista en nutrición deportiva con 10 años de experiencia..."
-                  value={setup.bio}
-                  onChange={(e) => setSetup({ ...setup, bio: e.target.value })}
-                  className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
-              </div>
-              <button type="submit" disabled={setupSaving}
-                className="w-full bg-blue-600 text-white rounded-xl py-3 font-semibold text-sm hover:bg-blue-700 transition-colors disabled:opacity-60">
-                {setupSaving ? "Activando..." : "Activar mi página de booking"}
-              </button>
-              {setupError && <p className="text-red-500 text-xs text-center">{setupError}</p>}
-            </form>
-          </div>
-        </div>
+        <Modal titulo="Activa tu página de citas">
+          <p className="text-texto-secundario text-sm mb-4">
+            Tu nombre, especialidad y foto se cargan automáticamente desde tu perfil de Vitahub.
+          </p>
+          <form onSubmit={handleSetup} className="space-y-3">
+            <div>
+              <label className={etiqueta}>Descripción para tus clientes (opcional)</label>
+              <textarea rows={3} placeholder="Ej: Especialista en nutrición deportiva con 10 años de experiencia..."
+                value={setup.bio} onChange={(e) => setSetup({ ...setup, bio: e.target.value })} className={`${campo} resize-none`} />
+            </div>
+            <button type="submit" disabled={setupSaving} className={`${btnAzul} w-full py-3 text-sm`}>
+              {setupSaving ? "Activando..." : "Activar mi página de citas"}
+            </button>
+            {setupError && <p className="text-[#B91C1C] text-xs text-center">{setupError}</p>}
+          </form>
+        </Modal>
       )}
 
-      {/* Banner: conectar Google Calendar */}
-      {affiliate && !affiliate.google_calendar_token && (
-        <div className="bg-amber-50 border-b border-amber-200 px-4 py-3">
-          <div className="max-w-2xl mx-auto flex items-center gap-3">
-            <span className="text-xl flex-shrink-0">📅</span>
+      <div className="max-w-3xl mx-auto px-4 py-6 space-y-4">
+        {/* Encabezado */}
+        <div className={`${tarjeta} p-5`}>
+          <div className="flex items-center gap-4">
+            <div className="w-14 h-14 rounded-full overflow-hidden bg-celeste-suave flex items-center justify-center shrink-0">
+              {affiliate?.photo_url ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={affiliate.photo_url} alt="" className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-xl font-bold text-azul">{(affiliate?.display_name || "?").trim().charAt(0).toUpperCase()}</span>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h1 className="font-bold text-azul text-lg leading-tight truncate">{affiliate?.display_name || "Mis citas"}</h1>
+              {affiliate?.specialty && <p className="text-sm text-texto-secundario truncate">{affiliate.specialty}</p>}
+            </div>
+          </div>
+
+          {affiliate?.slug && (
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center gap-2">
+              <div className="flex-1 min-w-0 flex items-center gap-2 bg-pagina border border-separador rounded-boton px-3 py-2 text-sm text-azul-profundo">
+                <Link2 size={16} className="text-celeste-texto shrink-0" />
+                <span className="truncate">{typeof window !== "undefined" ? window.location.host : "pro.vitahub.mx"}/book/{affiliate.slug}</span>
+              </div>
+              <div className="flex gap-2">
+                <button onClick={copiarLink} className={`${btnCeleste} text-sm px-4 py-2 inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none`}>
+                  {copied ? <><Check size={16} /> Copiado</> : <><Copy size={16} /> Copiar link</>}
+                </button>
+                <a href={`/book/${affiliate.slug}`} target="_blank" rel="noopener noreferrer"
+                  className={`${btnBorde} text-sm px-4 py-2 inline-flex items-center justify-center gap-1.5 flex-1 sm:flex-none`}>
+                  <ExternalLink size={16} /> Ver
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Aviso: conectar Google Calendar */}
+        {affiliate && !affiliate.google_calendar_token && (
+          <div className="bg-[#FEF3C7] border border-[#F59E0B]/40 rounded-tarjeta p-4 flex flex-col sm:flex-row sm:items-center gap-3">
+            <TriangleAlert size={20} className="text-[#F59E0B] shrink-0" />
             <div className="flex-1 min-w-0">
-              <p className="text-amber-800 font-semibold text-sm">Conecta Google Calendar para activar la experiencia completa</p>
-              <p className="text-amber-700 text-xs mt-0.5">
-                Sin Calendar: tus clientes <strong>no reciben invitación</strong> ni link de Meet en el email de confirmación.
-                Con Calendar: todo queda agendado automáticamente con videollamada incluida.
+              <p className="text-azul-profundo font-semibold text-sm">Conecta Google Calendar para activar las videollamadas</p>
+              <p className="text-texto-secundario text-xs mt-0.5">
+                Sin Calendar, tus pacientes no reciben invitación ni enlace de Meet en el correo de confirmación.
+                Con Calendar, cada cita queda agendada sola con videollamada incluida.
               </p>
             </div>
-            <a
-              href="/api/booking/calendar/connect"
-              className="flex-shrink-0 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg px-4 py-2 transition-colors whitespace-nowrap"
-            >
+            <a href="/api/booking/calendar/connect" className={`${btnAzul} text-xs px-4 py-2 text-center whitespace-nowrap`}>
               Conectar ahora
             </a>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Header */}
-      <div className="bg-white border-b border-gray-100 px-4 py-4">
-        <div className="max-w-2xl mx-auto flex items-center justify-between">
-          <div>
-            <h1 className="font-semibold text-gray-900">{affiliate?.display_name || "Booking Dashboard"}</h1>
-            {affiliate?.slug && (
-              <a href={`/book/${affiliate.slug}`} target="_blank" rel="noopener"
-                className="text-xs text-blue-600 hover:underline">
-                /book/{affiliate.slug} ↗
-              </a>
-            )}
+        {calendarStatus === "connected" && (
+          <div className="bg-[#D1FAE5] text-azul-profundo text-sm rounded-boton px-4 py-3 inline-flex items-center gap-2 w-full">
+            <CircleCheck size={18} className="text-[#10B981]" /> Google Calendar conectado correctamente.
           </div>
-          <div className="relative">
-            {copied && (
-              <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-xs px-2.5 py-1 rounded-lg whitespace-nowrap pointer-events-none">
-                ¡Copiado!
-              </div>
-            )}
-            <button
-              onClick={() => {
-                navigator.clipboard.writeText(`${window.location.origin}/book/${affiliate?.slug}`);
-                setCopied(true);
-                setTimeout(() => setCopied(false), 2000);
-              }}
-              className={`text-white text-xs rounded-lg px-3 py-2 transition-colors ${copied ? "bg-green-500" : "bg-blue-600 hover:bg-blue-700"}`}
-            >
-              {copied ? "¡Copiado!" : "Copiar link"}
-            </button>
+        )}
+        {calendarError && (
+          <div className="bg-[#FEE2E2] text-azul-profundo text-sm rounded-boton px-4 py-3 inline-flex items-center gap-2 w-full">
+            <CircleX size={18} className="text-[#EF4444]" /> No se pudo conectar Google Calendar. Intenta de nuevo.
           </div>
-        </div>
-      </div>
+        )}
 
-      {/* Notificaciones */}
-      {calendarStatus === "connected" && (
-        <div className="max-w-2xl mx-auto mt-4 px-4">
-          <div className="bg-green-50 text-green-700 text-sm rounded-xl px-4 py-3">
-            Google Calendar conectado correctamente.
-          </div>
-        </div>
-      )}
-      {calendarError && (
-        <div className="max-w-2xl mx-auto mt-4 px-4">
-          <div className="bg-red-50 text-red-700 text-sm rounded-xl px-4 py-3">
-            Error al conectar Google Calendar. Intenta de nuevo.
-          </div>
-        </div>
-      )}
-
-      {/* Tabs */}
-      <div className="max-w-2xl mx-auto px-4 mt-4">
-        <div className="flex gap-1 bg-white rounded-xl p-1 shadow-sm">
-          {[
-            { key: "agenda", label: "Agenda" },
-            { key: "services", label: "Servicios" },
-            { key: "availability", label: "Horario" },
-            { key: "profile", label: "Perfil" },
-          ].map((t) => (
+        {/* Pestañas */}
+        <div className="flex gap-1 bg-white border border-borde rounded-tarjeta p-1 shadow-tarjeta">
+          {TABS.map((t) => (
             <button key={t.key} onClick={() => setTab(t.key)}
-              className={`flex-1 py-2 text-sm rounded-lg font-medium transition-colors ${
-                tab === t.key ? "bg-blue-600 text-white" : "text-gray-500 hover:text-gray-700"
-              }`}
-            >
-              {t.label}
+              className={`flex-1 py-2.5 text-sm rounded-boton font-semibold transition-colors inline-flex items-center justify-center gap-1.5 ${
+                tab === t.key ? "bg-celeste-fondo text-azul border border-celeste-borde" : "text-texto-secundario hover:text-azul border border-transparent"
+              }`}>
+              <t.Icon size={16} className={tab === t.key ? "text-celeste-texto" : ""} />
+              <span className="hidden min-[400px]:inline">{t.label}</span>
+              <span className="min-[400px]:hidden sr-only">{t.label}</span>
             </button>
           ))}
         </div>
-      </div>
-
-      <div className="max-w-2xl mx-auto px-4 py-4 space-y-4">
 
         {/* AGENDA */}
         {tab === "agenda" && (
           <>
-            {appointments.length === 0 && (
-              <div className="bg-white rounded-xl p-8 text-center text-gray-400 text-sm shadow-sm">
-                No tienes citas todavía. Comparte tu link para empezar a recibir reservas.
+            <div className="grid grid-cols-3 gap-3">
+              <Estadistica valor={citasHoy} texto="Citas hoy" />
+              <Estadistica valor={citasProximas} texto="Próximas" />
+              <Estadistica valor={citasMes} texto="Este mes" />
+            </div>
+
+            {proximas.length === 0 && (
+              <div className={`${tarjeta} p-8 text-center`}>
+                <div className="w-12 h-12 rounded-full bg-celeste-fondo flex items-center justify-center mx-auto mb-3">
+                  <CalendarDays size={22} className="text-celeste-texto" />
+                </div>
+                <p className="font-semibold text-azul">No tienes citas próximas</p>
+                <p className="text-sm text-texto-secundario mt-1">Comparte tu link para empezar a recibir reservas.</p>
               </div>
             )}
-            {appointments.map((a) => (
-              <div key={a.id} className={`bg-white rounded-xl p-4 shadow-sm border-l-4 ${
-                a.status === "confirmed" ? "border-green-400" :
-                a.status === "cancelled" ? "border-gray-200 opacity-60" :
-                a.status === "completed" ? "border-blue-300" :
-                "border-yellow-400"
-              }`}>
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="font-medium text-gray-900 text-sm">{a.client_name}</p>
-                    <p className="text-gray-500 text-xs">{a.client_email}</p>
-                    {a.client_phone && <p className="text-gray-500 text-xs">{a.client_phone}</p>}
-                  </div>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-                    a.status === "confirmed" ? "bg-green-100 text-green-700" :
-                    a.status === "cancelled" ? "bg-gray-100 text-gray-500" :
-                    a.status === "completed" ? "bg-blue-100 text-blue-700" :
-                    "bg-yellow-100 text-yellow-700"
-                  }`}>
-                    {a.status === "confirmed" ? "Confirmada" :
-                     a.status === "cancelled" ? "Cancelada" :
-                     a.status === "completed" ? "Completada" : "Pendiente"}
-                  </span>
-                </div>
-                <p className="text-gray-700 text-sm mt-2">
-                  {a.booking_services?.name} —{" "}
-                  {formatoCita(a.starts_at).fecha}{" "}
-                  {formatoCita(a.starts_at).hora}hs (hora de México)
-                </p>
-                {a.client_notes && (
-                  <p className="text-gray-400 text-xs mt-1 italic">"{a.client_notes}"</p>
-                )}
-                <div className="mt-2 flex gap-3">
-                  <button onClick={() => setEditingAppointment(a)}
-                    className="text-xs text-blue-500 hover:text-blue-700">
-                    Editar
-                  </button>
-                  {a.status === "confirmed" && (
-                    <button onClick={() => handleCancelAppointment(a.id)}
-                      className="text-xs text-red-500 hover:text-red-700">
-                      Cancelar
-                    </button>
-                  )}
-                </div>
-              </div>
+
+            {agruparPorDia(proximas).map(([dia, citas]) => (
+              <section key={dia} className="space-y-2">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-texto-secundario first-letter:uppercase">{etiquetaDia(dia)}</h2>
+                {citas.map((a) => (
+                  <TarjetaCita key={a.id} a={a} proxima onEditar={() => setEditingAppointment(a)} onCancelar={() => handleCancelAppointment(a)} />
+                ))}
+              </section>
             ))}
+
+            {anteriores.length > 0 && (
+              <section className="space-y-2">
+                <button onClick={() => setVerAnteriores((v) => !v)}
+                  className="w-full flex items-center justify-between text-xs font-bold uppercase tracking-wider text-texto-secundario hover:text-azul py-2">
+                  <span>Anteriores y canceladas ({anteriores.length})</span>
+                  <ChevronDown size={16} className={`transition-transform ${verAnteriores ? "rotate-180" : ""}`} />
+                </button>
+                {verAnteriores && anteriores.map((a) => (
+                  <TarjetaCita key={a.id} a={a} proxima={false} onEditar={() => setEditingAppointment(a)} onCancelar={() => handleCancelAppointment(a)} />
+                ))}
+              </section>
+            )}
+
             {editingAppointment && (
               <AppointmentEditor
                 appointment={editingAppointment}
                 authHeaders={authHeaders}
-                onSave={(updated) => setAppointments(prev => prev.map(a => a.id === updated.id ? updated : a))}
+                onSave={(updated) => setAppointments((prev) => prev.map((a) => a.id === updated.id ? updated : a))}
                 onClose={() => setEditingAppointment(null)}
               />
             )}
@@ -888,38 +960,40 @@ export default function BookingDashboard() {
         {tab === "services" && (
           <>
             {services.filter((s) => s.is_active).map((s) => (
-              <div key={s.id} className="bg-white rounded-xl p-4 shadow-sm">
+              <div key={s.id} className={`${tarjeta} p-4`}>
                 {editingService?.id === s.id ? (
                   <ServiceEditForm
                     service={s}
                     commissionRate={commissionRate}
                     authHeaders={authHeaders}
                     onSave={(updated) => {
-                      setServices(prev => prev.map(x => x.id === updated.id ? updated : x));
+                      setServices((prev) => prev.map((x) => x.id === updated.id ? updated : x));
                       setEditingService(null);
                     }}
                     onCancel={() => setEditingService(null)}
                   />
                 ) : (
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <p className="font-medium text-gray-900 text-sm">{s.name}</p>
-                      {s.description && <p className="text-gray-500 text-xs mt-0.5">{s.description}</p>}
-                      <p className="text-gray-400 text-xs mt-1">{s.duration_minutes} min</p>
+                  <div className="flex justify-between items-start gap-4">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-azul-profundo">{s.name}</p>
+                      {s.description && <p className="text-texto-secundario text-xs mt-0.5">{s.description}</p>}
+                      <span className="inline-flex items-center gap-1 mt-2 text-xs text-azul bg-celeste-fondo rounded-full px-2.5 py-1">
+                        <Clock size={13} className="text-celeste-texto" /> {s.duration_minutes} min
+                      </span>
                     </div>
-                    <div className="text-right flex-shrink-0 ml-4">
-                      <p className="font-semibold text-gray-900 text-sm">${Number(s.price).toLocaleString("es-MX")}</p>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-azul text-lg tabular-nums">${Number(s.price).toLocaleString("es-MX")}</p>
                       {montoNeto(s.price, commissionRate) !== null && (
-                        <p className="text-gray-400 text-xs">Recibes ${montoNeto(s.price, commissionRate).toLocaleString("es-MX")}</p>
+                        <p className="text-celeste-texto text-xs font-semibold tabular-nums">Recibes ${montoNeto(s.price, commissionRate).toLocaleString("es-MX")}</p>
                       )}
-                      <div className="flex gap-2 justify-end mt-1">
-                        <button onClick={() => setEditingService(s)}
-                          className="text-xs text-blue-500 hover:text-blue-700">
-                          Editar
+                      <div className="flex gap-1 justify-end mt-2">
+                        <button onClick={() => setEditingService(s)} aria-label="Editar servicio"
+                          className="p-1.5 rounded-campo text-texto-secundario hover:text-azul hover:bg-pagina">
+                          <Pencil size={16} />
                         </button>
-                        <button onClick={() => handleDeleteService(s.id)}
-                          className="text-xs text-red-400 hover:text-red-600">
-                          Eliminar
+                        <button onClick={() => handleDeleteService(s)} aria-label="Eliminar servicio"
+                          className="p-1.5 rounded-campo text-texto-secundario hover:text-[#B91C1C] hover:bg-[#FEE2E2]">
+                          <Trash2 size={16} />
                         </button>
                       </div>
                     </div>
@@ -928,26 +1002,27 @@ export default function BookingDashboard() {
               </div>
             ))}
 
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <h3 className="font-medium text-gray-900 text-sm mb-3">Agregar servicio</h3>
-              <form onSubmit={handleAddService} className="space-y-2">
+            <div className="bg-white border border-dashed border-celeste-borde rounded-tarjeta p-5">
+              <h3 className="font-bold text-azul mb-3 inline-flex items-center gap-1.5"><Plus size={18} className="text-celeste-texto" /> Agregar servicio</h3>
+              <form onSubmit={handleAddService} className="space-y-2.5">
                 <input required placeholder="Nombre del servicio" value={newService.name}
-                  onChange={(e) => setNewService({ ...newService, name: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  onChange={(e) => setNewService({ ...newService, name: e.target.value })} className={campo} />
                 <input placeholder="Descripción (opcional)" value={newService.description}
-                  onChange={(e) => setNewService({ ...newService, description: e.target.value })}
-                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <div className="flex gap-2">
-                  <input required type="number" placeholder="Duración (min)" value={newService.duration_minutes}
-                    onChange={(e) => setNewService({ ...newService, duration_minutes: e.target.value })}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                  <input required type="number" placeholder="Precio (MXN)" value={newService.price}
-                    onChange={(e) => setNewService({ ...newService, price: e.target.value })}
-                    className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  onChange={(e) => setNewService({ ...newService, description: e.target.value })} className={campo} />
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className={etiqueta}>Duración (min)</label>
+                    <input required type="number" value={newService.duration_minutes}
+                      onChange={(e) => setNewService({ ...newService, duration_minutes: e.target.value })} className={campo} />
+                  </div>
+                  <div>
+                    <label className={etiqueta}>Precio (MXN)</label>
+                    <input required type="number" value={newService.price}
+                      onChange={(e) => setNewService({ ...newService, price: e.target.value })} className={campo} />
+                  </div>
                 </div>
                 <AvisoComision precio={newService.price} tasa={commissionRate} />
-                <button type="submit" disabled={savingService}
-                  className="w-full bg-blue-600 text-white rounded-lg py-2 text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-60">
+                <button type="submit" disabled={savingService} className={`${btnAzul} w-full py-2.5 text-sm`}>
                   {savingService ? "Guardando..." : "Agregar servicio"}
                 </button>
               </form>
@@ -957,55 +1032,47 @@ export default function BookingDashboard() {
 
         {/* HORARIO */}
         {tab === "availability" && (
-          <AvailabilityEditor
-            availability={availability}
-            setAvailability={setAvailability}
-            authHeaders={authHeaders}
-          />
+          <AvailabilityEditor availability={availability} setAvailability={setAvailability} authHeaders={authHeaders} />
         )}
 
         {/* PERFIL */}
         {tab === "profile" && (
           <div className="space-y-4">
+            <ProfileEditor affiliate={affiliate} authHeaders={authHeaders} onSave={(updates) => setAffiliate((prev) => ({ ...prev, ...updates }))} />
 
-            {/* Bio y especialidad */}
-            <ProfileEditor affiliate={affiliate} authHeaders={authHeaders} onSave={(updates) => setAffiliate(prev => ({ ...prev, ...updates }))} />
-
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <h3 className="font-medium text-gray-900 text-sm mb-3">Google Calendar</h3>
+            <div className={`${tarjeta} p-5`}>
+              <h3 className="font-bold text-azul mb-3">Google Calendar</h3>
               {affiliate?.google_calendar_token ? (
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                    <span className="text-sm text-gray-700">Conectado</span>
-                  </div>
+                  <span className="inline-flex items-center gap-2 text-sm text-azul-profundo">
+                    <CircleCheck size={18} className="text-[#10B981]" /> Conectado
+                  </span>
                   <button
                     onClick={async () => {
-                      if (!confirm("¿Desconectar Google Calendar?")) return;
+                      if (!confirm("¿Desconectar Google Calendar? Tus citas nuevas ya no tendrán enlace de videollamada.")) return;
                       await fetch("/api/booking/calendar/disconnect", { method: "POST", headers: authHeaders() });
-                      setAffiliate(prev => ({ ...prev, google_calendar_token: null, google_calendar_id: null }));
+                      setAffiliate((prev) => ({ ...prev, google_calendar_token: null, google_calendar_id: null }));
                     }}
-                    className="text-xs text-red-400 hover:text-red-600 transition-colors"
+                    className="text-xs font-semibold text-[#B91C1C] hover:text-[#7F1D1D]"
                   >
                     Desconectar
                   </button>
                 </div>
               ) : (
                 <>
-                  <p className="text-gray-500 text-xs mb-3">
-                    Conecta tu Google Calendar para que tus eventos bloqueen slots automáticamente.
+                  <p className="text-texto-secundario text-sm mb-3">
+                    Conecta tu Google Calendar para que tus eventos bloqueen horarios automáticamente y cada cita tenga su videollamada.
                   </p>
-                  <a href="/api/booking/calendar/connect"
-                    className="inline-block bg-white border border-gray-200 text-gray-700 text-sm rounded-lg px-4 py-2 hover:bg-gray-50 transition-colors shadow-sm">
+                  <a href="/api/booking/calendar/connect" className={`${btnBorde} inline-block text-sm px-4 py-2`}>
                     Conectar Google Calendar
                   </a>
                 </>
               )}
             </div>
 
-            <div className="bg-white rounded-xl p-4 shadow-sm">
-              <h3 className="font-medium text-gray-900 text-sm mb-1">Tu link público</h3>
-              <code className="text-blue-600 text-sm">
+            <div className={`${tarjeta} p-5`}>
+              <h3 className="font-bold text-azul mb-1">Tu link público</h3>
+              <code className="text-celeste-texto text-sm break-all">
                 {typeof window !== "undefined" ? window.location.origin : ""}/book/{affiliate?.slug}
               </code>
             </div>
