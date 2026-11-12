@@ -3,7 +3,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { sendPushToAffiliate } from "@/lib/affiliateNotifications";
 import { marcarCuponUsado } from "@/lib/storeCredit";
-import { marcarDescuentoUsado } from "@/lib/descuentosClientes";
+import { marcarDescuentoUsado, PREFIJOS_CLIENTE } from "@/lib/descuentosClientes";
+import { otorgarCashback, anularCashback } from "@/lib/cashback";
 import { interpretarOrdenShopify } from "@/lib/cobroShopify";
 import { confirmarVenta, revertirVenta } from "@/lib/ventaConsultorio";
 import { cancelarOrdenEnBaseLinker } from "@/lib/baselinker";
@@ -423,6 +424,11 @@ export async function POST(req) {
       return NextResponse.json({ success: true, type: "vitahub-pro" }, { status: 200 });
     }
 
+    // Cancelada o reembolsada entera: se apaga el cashback que generó, si no se usó
+    if (payload.cancelled_at || ["refunded", "voided"].includes(payload.financial_status)) {
+      await anularCashback(payload);
+    }
+
     if (payload.financial_status !== "paid") {
       return NextResponse.json({ message: "Not paid" }, { status: 200 });
     }
@@ -433,6 +439,10 @@ export async function POST(req) {
     if (isBooking) {
       return NextResponse.json({ success: true, type: "booking" }, { status: 200 });
     }
+
+    // Cashback de la promo activa (Buen Fin): cupón BF- para su próximo pedido. Sin promo
+    // prendida no hace nada; nunca frena el resto del webhook.
+    await otorgarCashback(payload);
 
     const orderId = payload.id;
     const orderNumber = payload.order_number;
@@ -661,8 +671,8 @@ export async function POST(req) {
     // por cada código cada vez que abre la app.
     for (const d of payload.discount_codes || []) {
       const code = String(d?.code || "").toUpperCase();
-      // VR-: descuento de recompra de un cliente (Mi Vitahub)
-      if (code.startsWith("VR-")) {
+      // VR- / BF-: descuento de recompra o cashback de un cliente (Mi Vitahub)
+      if (PREFIJOS_CLIENTE.some((p) => code.startsWith(p))) {
         marcarDescuentoUsado(code, {
           orderName: payload.name,
           usedAt:    payload.created_at,

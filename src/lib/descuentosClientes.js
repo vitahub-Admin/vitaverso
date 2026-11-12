@@ -1,7 +1,8 @@
 // Descuentos de recompra de los clientes de Mi Vitahub (tabla customer_discounts).
 //
 // Es el mismo cupón que el crédito de los profesionales (crearCuponDeCredito: un uso,
-// para cualquier cliente y combinable), con prefijo VR- para no mezclarlos. Está libre
+// para cualquier cliente y combinable), con prefijo VR- (o BF- el cashback del Buen Fin,
+// src/lib/cashback.js) para no mezclarlos. Está libre
 // para usarse en vitahub.mx; la app solo lo muestra y lo pega en el carrito.
 //
 // Las reglas de cuándo y cuánto se otorga se resuelven aquí, en el backend, y se llaman
@@ -11,6 +12,9 @@ import { supabase, shopifyAdmin } from "@/lib/customerSupplements";
 import { crearCuponDeCredito, codigoAleatorio } from "@/lib/storeCredit";
 
 const CAMPOS = "id, code, tipo, valor, minimo, titulo, starts_at, ends_at, used_at, used_order, created_at";
+
+/** Prefijos de los cupones de clientes (los marca como usados el webhook de órdenes). */
+export const PREFIJOS_CLIENTE = ["VR-", "BF-"];
 
 function aCliente(d) {
   return {
@@ -83,28 +87,38 @@ async function activosEnShopify(codes) {
  * @param monto | porcentaje  valor del cupón
  * @param minimo       compra mínima para usarlo (opcional)
  * @param venceEnDias  vigencia (opcional; sin esto no vence)
- * @param origen       orden | efectivo | manual
+ * @param venceEl      fecha de fin fija (ISO); gana sobre venceEnDias
+ * @param origen       orden | efectivo | manual | cashback:<promo>
  * @param origenRef    id de la compra que lo generó
+ * @param prefijo      inicio del código, para rastrearlo (VR = recompra, BF = cashback Buen Fin)
+ * @returns el descuento, con `nuevo: false` si esa compra ya lo había generado
  */
-export async function otorgarDescuento({ email, monto, porcentaje, minimo, venceEnDias, titulo, origen = "manual", origenRef = null }) {
+export async function otorgarDescuento({ email, monto, porcentaje, minimo, venceEnDias, venceEl, titulo, origen = "manual", origenRef = null, prefijo = "VR" }) {
   if (!email) throw new Error("Falta el correo del cliente");
-  if (origenRef) {
-    const { data: ya } = await supabase
+  const yaExistente = async () => {
+    const { data } = await supabase
       .from("customer_discounts")
       .select(CAMPOS)
       .eq("origen", origen)
       .eq("origen_ref", String(origenRef))
       .maybeSingle();
-    if (ya) return aCliente(ya);
+    return data ? { ...aCliente(data), nuevo: false } : null;
+  };
+  if (origenRef) {
+    const ya = await yaExistente();
+    if (ya) return ya;
   }
 
-  const code = `VR-${codigoAleatorio().slice(3)}`;
+  const code = `${prefijo}-${codigoAleatorio().slice(3)}`;
+  const fin = venceEl
+    ? new Date(venceEl).toISOString()
+    : venceEnDias ? new Date(Date.now() + Number(venceEnDias) * 86400000).toISOString() : null;
   const { priceRuleId } = await crearCuponDeCredito({
     monto,
     porcentaje,
     minimo,
-    venceEnDias,
-    titulo: `Recompra ${email} (${code})`,
+    venceEl: fin,
+    titulo: `${prefijo === "VR" ? "Recompra" : titulo || "Cupón"} · ${email} (${code})`,
     code,
   });
 
@@ -120,12 +134,54 @@ export async function otorgarDescuento({ email, monto, porcentaje, minimo, vence
       titulo: titulo ?? null,
       origen,
       origen_ref: origenRef != null ? String(origenRef) : null,
-      ends_at: venceEnDias ? new Date(Date.now() + Number(venceEnDias) * 86400000).toISOString() : null,
+      ends_at: fin,
     })
     .select(CAMPOS)
     .single();
+  if (error) {
+    // Dos avisos de Shopify de la misma compra al mismo tiempo (orders/create y orders/paid):
+    // el otro ya lo guardó. El cupón que se acaba de crear sobra: se apaga en Shopify.
+    if (error.code === "23505" && origenRef) {
+      await desactivarEnShopify(priceRuleId).catch((e) => console.error("[descuentosClientes] cupón sobrante", code, e.message));
+      const ya = await yaExistente();
+      if (ya) return ya;
+    }
+    throw new Error(error.message);
+  }
+  return { ...aCliente(data), nuevo: true };
+}
+
+async function desactivarEnShopify(priceRuleId) {
+  const data = await shopifyAdmin(
+    `mutation apagar($id: ID!) { discountCodeDeactivate(id: $id) { userErrors { message } } }`,
+    { id: `gid://shopify/DiscountCodeNode/${priceRuleId}` }
+  );
+  const errores = data?.discountCodeDeactivate?.userErrors;
+  if (errores?.length) throw new Error(errores.map((e) => e.message).join("; "));
+}
+
+/**
+ * Anula los descuentos que generó una compra y que todavía no se usaron (la compra se canceló
+ * o se reembolsó): se apagan en Shopify y dejan de verse en la app. Los ya usados no se tocan.
+ * @returns cuántos anuló
+ */
+export async function anularDescuentosDeCompra(origenRef, { origenEmpiezaCon = "cashback:" } = {}) {
+  const { data, error } = await supabase
+    .from("customer_discounts")
+    .select("id, code, price_rule_id, ends_at")
+    .like("origen", `${origenEmpiezaCon}%`)
+    .eq("origen_ref", String(origenRef))
+    .is("used_at", null);
   if (error) throw new Error(error.message);
-  return aCliente(data);
+  const ahora = new Date().toISOString();
+  let n = 0;
+  for (const d of data ?? []) {
+    if (d.ends_at && d.ends_at <= ahora) continue; // ya estaba cerrado
+    if (d.price_rule_id) await desactivarEnShopify(d.price_rule_id);
+    await supabase.from("customer_discounts").update({ ends_at: ahora }).eq("id", d.id);
+    n++;
+  }
+  return n;
 }
 
 /** Lo llama el webhook de órdenes cuando entra una compra con el código. Idempotente. */
