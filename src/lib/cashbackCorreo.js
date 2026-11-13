@@ -32,13 +32,19 @@ const fechaLarga = (iso) =>
  * @param pedido     número de la compra que lo generó ("#ORDVHMX1234"), o null
  * @param venceIso   fecha de fin del cupón, o null si no vence
  * @param promo      texto de la promo ("Buen Fin")
- * @param conAndroid mostrar el badge de Google Play (solo si la app ya está publicada)
+ * @param conAndroid mostrar el badge de Google Play (la app ya está publicada: por defecto sí)
  * @param imagenes   URLs de las imágenes (por defecto, las publicadas en pro.vitahub.mx)
+ * @param recordatorio  true: el segundo correo, para quien todavía no descargó la app
  * @returns {{ asunto, html, texto }}
  */
-export function correoCashback({ valor, email, nombre = null, pedido = null, venceIso = null, promo = "Buen Fin", conAndroid = false, imagenes = IMAGENES_CORREO }) {
+export function correoCashback({ valor, email, nombre = null, pedido = null, venceIso = null, promo = "Buen Fin", conAndroid = true, imagenes = IMAGENES_CORREO, recordatorio = false }) {
   const monto = pesos(valor);
   const saludo = nombre ? `¡Hola, ${escapar(nombre)}!` : "¡Hola!";
+  const titulo = recordatorio ? `Tus ${monto} de cashback siguen esperándote` : `Tienes ${monto} para tu próxima compra`;
+  const intro = recordatorio
+    ? `Te recordamos que tienes <strong style="color:#1b3f7a;">${monto} de cashback</strong> por tu compra del Buen Fin. Para usarlo solo tienes que descargar la app <strong style="color:#1b3f7a;">Mi Vitahub</strong>, disponible para iPhone y Android, y entrar con tu correo.`
+    : `Gracias por tu compra. Te regalamos cashback para tu próximo pedido: ya está guardado en tu cuenta de la app <strong style="color:#1b3f7a;">Mi Vitahub</strong>.`;
+  const disponible = conAndroid ? "Disponible para iPhone y Android" : "Disponible para iPhone";
   const vence = venceIso ? `Úsalo antes del ${fechaLarga(venceIso)}.` : "";
   const hoy = fechaLarga(new Date().toISOString());
 
@@ -69,7 +75,7 @@ export function correoCashback({ valor, email, nombre = null, pedido = null, ven
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>Tu cashback de ${monto}</title>
+<title>${titulo}</title>
 </head>
 <body style="margin:0;padding:0;background:#F7F9FB;font-family:Arial,Helvetica,sans-serif;">
 <div style="display:none;max-height:0;overflow:hidden;">Tienes ${monto} para tu próximo pedido. Lo encuentras en la app Mi Vitahub.</div>
@@ -79,7 +85,8 @@ export function correoCashback({ valor, email, nombre = null, pedido = null, ven
 
 <tr><td style="background:#1b3f7a;padding:30px 40px 26px;">
   <p style="margin:0 0 8px;color:#7eb8c9;font-size:11px;font-weight:700;letter-spacing:2.5px;text-transform:uppercase;">Cashback ${escapar(promo)}</p>
-  <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:800;line-height:1.2;">Tienes ${monto} para tu próxima compra</h1>
+  <h1 style="margin:0;color:#ffffff;font-size:26px;font-weight:800;line-height:1.2;">${titulo}</h1>
+  ${recordatorio ? `<p style="margin:10px 0 0;color:#B5E7E6;font-size:15px;font-weight:700;">📲 App Mi Vitahub · ${conAndroid ? "Disponible en Android y iPhone" : "Disponible en iPhone"}</p>` : ""}
 </td></tr>
 
 <tr><td style="background:#2BB9B8;padding:14px 40px;">
@@ -103,7 +110,7 @@ export function correoCashback({ valor, email, nombre = null, pedido = null, ven
 
 <tr><td style="padding:28px 40px 6px;">
   <p style="margin:0 0 6px;font-size:16px;font-weight:700;color:#1b3f7a;">${saludo}</p>
-  <p style="margin:0;font-size:14px;color:#4b5563;line-height:1.7;">Gracias por tu compra. Te regalamos cashback para tu próximo pedido: ya está guardado en tu cuenta de la app <strong style="color:#1b3f7a;">Mi Vitahub</strong>.</p>
+  <p style="margin:0;font-size:14px;color:#4b5563;line-height:1.7;">${intro}</p>
 
   <table width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:22px 0 26px;">
   <tr><td align="center" style="border:2px dashed #2BB9B8;border-radius:14px;padding:22px 20px;background:#F4FBFB;">
@@ -115,7 +122,7 @@ export function correoCashback({ valor, email, nombre = null, pedido = null, ven
 
   <p style="margin:0 0 16px;font-size:10px;font-weight:700;color:#9ca3af;letter-spacing:2px;text-transform:uppercase;">Cómo usarlo</p>
   <table width="100%" cellpadding="0" cellspacing="0" border="0">
-    ${paso(1, "Descarga la app Mi Vitahub", "Es gratis, con los botones de abajo.")}
+    ${paso(1, "Descarga la app Mi Vitahub", `Es gratis. ${disponible}, con los botones de abajo.`)}
     ${paso(2, "Entra con este correo", `Usa <strong style="color:#1b3f7a;">${escapar(email)}</strong>: tu cashback está guardado ahí.`)}
     ${paso(3, "Úsalo en tu próximo pedido", "Arma tu carrito en la app y elige tu cashback en <strong style=\"color:#1b3f7a;\">Tus descuentos</strong> antes de pagar.")}
   </table>
@@ -126,6 +133,7 @@ export function correoCashback({ valor, email, nombre = null, pedido = null, ven
 </td></tr>
 
 <tr><td align="center" style="padding:18px 32px 26px;">
+  <p style="margin:0 0 4px;font-size:15px;font-weight:700;color:#1b3f7a;">${disponible}</p>
   <p style="margin:0 0 14px;font-size:13px;color:#4b5563;line-height:1.6;">Entra con <strong style="color:#1b3f7a;">${escapar(email)}</strong> y verás tu cashback y tus suplementos.</p>
   ${badges}
 </td></tr>
@@ -151,5 +159,11 @@ export function correoCashback({ valor, email, nombre = null, pedido = null, ven
     conAndroid ? `Android: ${APP_ANDROID_URL}` : "",
   ].filter(Boolean).join("\n");
 
-  return { asunto: `Tienes ${monto} de cashback esperándote 🎁`, html, texto };
+  return {
+    asunto: recordatorio
+      ? `Tus ${monto} de cashback te esperan en la app · ${conAndroid ? "Android y iPhone" : "iPhone"} 📲`
+      : `Tienes ${monto} de cashback esperándote 🎁`,
+    html,
+    texto: recordatorio ? `Te recordamos que tienes ${monto} de cashback. Descarga Mi Vitahub (${disponible.toLowerCase()}) y entra con ${email}.\n${texto}` : texto,
+  };
 }

@@ -157,8 +157,8 @@ async function avisar({ promo, email, valor, descuento, nombre, pedido }) {
         pedido,
         venceIso: descuento.endsAt,
         promo: String(promo.titulo || "").replace(/^cashback\s*/i, "") || "Vitahub",
-        // Android solo si ya está publicada (misma variable que los correos de protocolo)
-        conAndroid: process.env.MI_VITAHUB_ANDROID_PUBLICA === "1",
+        // La app ya está en Google Play: los dos botones siempre
+        conAndroid: true,
       });
       const { error } = await resend.emails.send({
         from: "Vitahub <noreply@pro.vitahub.mx>",
