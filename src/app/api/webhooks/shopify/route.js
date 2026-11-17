@@ -294,6 +294,21 @@ async function handleBookingPayment(payload) {
     }
   }
 
+  // Aviso en la app Pro: solo la primera vez que se confirma (el webhook puede repetirse)
+  if (affiliate?.shopify_customer_id && appointment.status !== "confirmed") {
+    try {
+      const cuando = formatoCita(appointment.starts_at);
+      await sendPushToAffiliate(
+        affiliate.shopify_customer_id,
+        "Nueva cita agendada",
+        `${appointment.client_name} reservó ${appointment.booking_services?.name || "una cita"} para el ${cuando.fecha} a las ${cuando.hora}.`,
+        { type: "booking_new", appointmentId }
+      );
+    } catch (e) {
+      console.error("[booking] no se pudo avisar la cita nueva:", e.message);
+    }
+  }
+
   // Notificar a n8n para emails de confirmación (cliente + afiliado)
   if (process.env.N8N_BOOKING_CONFIRMED_WEBHOOK) {
     const { data: affiliateAccount } = await supabase
