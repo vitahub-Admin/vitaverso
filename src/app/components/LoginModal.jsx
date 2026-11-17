@@ -7,21 +7,18 @@
  * herramienta que hay detrás y no a un formulario genérico: el logotipo real,
  * la paleta del armador, y nada de adornos.
  *
- * Tiene varios modos en la misma tarjeta para que nadie se vaya a otra página y
- * pierda el hilo: entrar con contraseña, entrar con un código que llega al correo
- * (sin contraseña) y recuperar la contraseña.
+ * Se entra sin contraseña: el correo recibe un código de 6 dígitos (dos pasos en la misma tarjeta).
  */
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
-import { ArrowLeft, Loader2, MailCheck, KeyRound } from "lucide-react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 
-export default function LoginModal({ onLogin, onLoginCode, onRegister }) {
-  // login | recuperar | enviado | codigo | verificar
-  const [modo, setModo] = useState("login");
+export default function LoginModal({ onLoginCode, onRegister }) {
+  // codigo (pedir el código) | verificar (escribirlo)
+  const [modo, setModo] = useState("codigo");
 
   const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
   const [codigo, setCodigo]     = useState("");
   const [error, setError]       = useState("");
   const [cargando, setCargando] = useState(false);
@@ -32,32 +29,6 @@ export default function LoginModal({ onLogin, onLoginCode, onRegister }) {
     const t = setTimeout(() => setEspera((s) => s - 1), 1000);
     return () => clearTimeout(t);
   }, [espera]);
-
-  const entrar = async () => {
-    if (!email || !password) return setError("Escribe tu correo y tu contraseña");
-    setError("");
-    setCargando(true);
-    const r = await onLogin(email, password);
-    if (r?.error) setError(r.error);
-    setCargando(false);
-  };
-
-  const recuperar = async () => {
-    if (!email) return setError("Escribe tu correo");
-    setError("");
-    setCargando(true);
-    try {
-      await fetch("/api/affiliate-app/recover", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim() }),
-      });
-    } catch {}
-    // Siempre el mismo resultado, exista o no la cuenta: si dijera "ese correo
-    // no está registrado", cualquiera podría averiguar quién es afiliado.
-    setCargando(false);
-    setModo("enviado");
-  };
 
   const pedirCodigo = async () => {
     if (!email) return setError("Escribe tu correo");
@@ -130,26 +101,7 @@ export default function LoginModal({ onLogin, onLoginCode, onRegister }) {
 
         <div className="px-7 pt-7 pb-6">
 
-          {/* ── Recuperación enviada ─────────────────────────────────────── */}
-          {modo === "enviado" ? (
-            <div className="text-center">
-              <div className="w-12 h-12 rounded-full bg-[#E6F4F8] flex items-center justify-center mx-auto mb-4">
-                <MailCheck size={22} className="text-[#1F8383]" />
-              </div>
-              <h2 className="text-lg font-bold text-[#0D2133]">Revisa tu correo</h2>
-              <p className="text-[13px] text-[#5B7A8C] mt-1.5 leading-relaxed">
-                Si <span className="font-semibold text-[#0D2133]">{email}</span> tiene una cuenta,
-                te llegó un enlace para crear una contraseña nueva.
-              </p>
-              <button
-                onClick={() => { setModo("login"); setPassword(""); }}
-                className="mt-6 text-[13px] font-semibold text-[#1F8383] hover:text-[#0D2133] transition-colors"
-              >
-                Volver a iniciar sesión
-              </button>
-            </div>
-
-          ) : modo === "verificar" ? (
+          {modo === "verificar" ? (
             /* ── Escribir el código que llegó ─────────────────────────────── */
             <>
               {botonVolver("codigo")}
@@ -201,40 +153,16 @@ export default function LoginModal({ onLogin, onLoginCode, onRegister }) {
           ) : (
             <>
               {/* ── Encabezado ─────────────────────────────────────────────── */}
-              {modo === "recuperar" ? (
-                <>
-                  {botonVolver("login")}
-                  <h2 className="text-xl font-extrabold text-[#0D2133] tracking-tight">
-                    Recuperar contraseña
-                  </h2>
-                  <p className="text-[13px] text-[#5B7A8C] mt-1 leading-relaxed">
-                    Te enviamos un enlace para crear una nueva.
-                  </p>
-                </>
-              ) : modo === "codigo" ? (
-                <>
-                  {botonVolver("login")}
-                  <h2 className="text-xl font-extrabold text-[#0D2133] tracking-tight">
-                    Entra con un código
-                  </h2>
-                  <p className="text-[13px] text-[#5B7A8C] mt-1 leading-relaxed">
-                    Sin contraseña: te enviamos 6 dígitos a tu correo.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <div className="mb-6">
-                    <Image src="/LOGO.png" alt="Vitahub Pro" width={273} height={80}
-                      className="h-9 w-auto" priority />
-                  </div>
-                  <h2 className="text-xl font-extrabold text-[#0D2133] tracking-tight">
-                    Inicia sesión
-                  </h2>
-                  <p className="text-[13px] text-[#5B7A8C] mt-1">
-                    Con tu cuenta de profesional
-                  </p>
-                </>
-              )}
+              <div className="mb-6">
+                <Image src="/LOGO.png" alt="Vitahub Pro" width={273} height={80}
+                  className="h-9 w-auto" priority />
+              </div>
+              <h2 className="text-xl font-extrabold text-[#0D2133] tracking-tight">
+                Inicia sesión
+              </h2>
+              <p className="text-[13px] text-[#5B7A8C] mt-1 leading-relaxed">
+                Escribe el correo de tu cuenta de profesional y te enviamos un código de 6 dígitos. Sin contraseña.
+              </p>
 
               {/* ── Campos ────────────────────────────────────────────────── */}
               <div className="mt-6 space-y-4">
@@ -245,62 +173,23 @@ export default function LoginModal({ onLogin, onLoginCode, onRegister }) {
                     autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    onKeyDown={(e) =>
-                      e.key === "Enter" &&
-                      (modo === "recuperar" ? recuperar() : modo === "codigo" ? pedirCodigo() : entrar())}
+                    autoFocus
+                    onKeyDown={(e) => e.key === "Enter" && pedirCodigo()}
                     placeholder="tucorreo@ejemplo.com"
                     className={campo}
                   />
                 </div>
 
-                {modo === "login" && (
-                  <div>
-                    <div className="flex items-baseline justify-between mb-1.5">
-                      <label className={`${etiqueta} mb-0`}>Contraseña</label>
-                      <button
-                        onClick={() => volver("recuperar")}
-                        className="text-[11px] font-semibold text-[#1F8383] hover:text-[#0D2133] transition-colors"
-                      >
-                        ¿La olvidaste?
-                      </button>
-                    </div>
-                    <input
-                      type="password"
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && entrar()}
-                      placeholder="••••••••"
-                      className={campo}
-                    />
-                  </div>
-                )}
-
                 {error && <p className="text-xs text-red-500 leading-snug">{error}</p>}
 
-                {botonPrincipal(
-                  modo === "recuperar" ? "Enviar enlace" : modo === "codigo" ? "Enviarme el código" : "Ingresar",
-                  modo === "recuperar" ? recuperar : modo === "codigo" ? pedirCodigo : entrar,
-                  modo === "codigo" ? "Enviando…" : "Un momento…"
-                )}
-
-                {modo === "login" && (
-                  <button
-                    onClick={() => volver("codigo")}
-                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-[#D0E4EC]
-                      text-[13px] font-semibold text-[#1B3F7A] hover:border-[#2BB9B8] hover:bg-[#EAF8F8] transition-colors"
-                  >
-                    <KeyRound size={14} />
-                    Entrar con un código por correo
-                  </button>
-                )}
+                {botonPrincipal("Enviarme el código", pedirCodigo, "Enviando…")}
               </div>
             </>
           )}
         </div>
 
         {/* ── Registro ──────────────────────────────────────────────────── */}
-        {modo === "login" && (
+        {modo === "codigo" && (
           <div className="px-7 py-4 bg-[#F7F9FB] border-t border-[#EEF3F7] text-center">
             <span className="text-[13px] text-[#5B7A8C]">¿Aún no eres afiliado? </span>
             <button

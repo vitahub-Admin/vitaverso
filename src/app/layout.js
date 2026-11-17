@@ -196,7 +196,7 @@ function AuthManager({ children }) {
     }
   };
 
-  // Cuando el servidor acepta al profesional (con contraseña o con código), la sesión se
+  // Cuando el servidor acepta al profesional (con el código del correo), la sesión se
   // abre igual: cookies, sesión firmada y a la página a la que iba.
   const abrirSesion = async (data) => {
     Cookies.set("customerId", data.customer.id, { expires: 365 });
@@ -229,9 +229,6 @@ function AuthManager({ children }) {
 
   // Devuelve { error } cuando falla: el modal muestra el mensaje y se queda
   // abierto. Si sale bien no devuelve nada, porque ya navegó.
-  const handleLogin = (email, password) =>
-    pedirAlServidor("/api/pro/auth", { email, password }, "Correo o contraseña incorrectos");
-
   const handleLoginCode = (email, code) =>
     pedirAlServidor("/api/pro/auth/code/verify", { email, code }, "El código es incorrecto o ya venció");
 
@@ -296,7 +293,7 @@ function AuthManager({ children }) {
 
   // 🔐 Modal normal
   if (showAuthModal) {
-    return <LoginModal onLogin={handleLogin} onLoginCode={handleLoginCode} onRegister={redirectToAffiliateRegister} />;
+    return <LoginModal onLoginCode={handleLoginCode} onRegister={redirectToAffiliateRegister} />;
   }
 
   // ✅ Autenticado

@@ -3,7 +3,15 @@ import { NextResponse } from 'next/server';
 const SHOPIFY_STORE    = process.env.SHOPIFY_STORE;
 const SHOPIFY_SF_TOKEN = process.env.SHOPIFY_STOREFRONT_TOKEN;
 
+// LEGADO: recupera la contraseña de la cuenta clásica de Shopify. Solo la usan las versiones viejas
+// de la app; se apaga con el mismo interruptor que /api/pro/auth (PRO_LOGIN_PASSWORD_CERRADO=1).
 export async function POST(req) {
+  if (process.env.PRO_LOGIN_PASSWORD_CERRADO === '1') {
+    return NextResponse.json(
+      { ok: false, error: 'Ya no se entra con contraseña. Actualiza la app o entra con el código que te enviamos por correo.' },
+      { status: 410 }
+    );
+  }
   try {
     const { email } = await req.json();
     if (!email) return NextResponse.json({ ok: false, error: 'Email requerido' }, { status: 400 });

@@ -1,5 +1,8 @@
-// POST /api/pro/auth
-// Login exclusivo para especialistas (requiere tag "especialista" en Shopify)
+// POST /api/pro/auth   (LEGADO: correo + contraseña de Shopify)
+// Login exclusivo para especialistas (requiere tag "especialista" en Shopify).
+// La web ya entra solo con código por correo (/api/pro/auth/code/*). Esta ruta sigue viva únicamente para las
+// versiones viejas de la app móvil. Cuando la app nueva esté publicada, poner PRO_LOGIN_PASSWORD_CERRADO=1 en
+// Vercel y deja de aceptar contraseñas (cierra el último camino por contraseña, sin tocar código).
 import { NextResponse } from "next/server";
 import { signCustomerToken } from "@/lib/customerAppAuth";
 
@@ -22,6 +25,12 @@ async function storefrontRequest(query, variables = {}) {
 }
 
 export async function POST(req) {
+  if (process.env.PRO_LOGIN_PASSWORD_CERRADO === "1") {
+    return NextResponse.json(
+      { ok: false, error: "Ya no se entra con contraseña. Actualiza la app o entra con el código que te enviamos por correo." },
+      { status: 410 }
+    );
+  }
   try {
     const { email, password } = await req.json();
 
