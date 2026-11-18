@@ -34,6 +34,33 @@ export function conEnlaceFirmado(url, customerId) {
   }
 }
 
+// ── Salto desde la app Pro ────────────────────────────────────────────────────
+// La app (con su sesión) pide un enlace para abrir una página de la web ya con la sesión
+// iniciada. Dura 2 minutos: lo justo para que el navegador lo abra. Va atado al destino.
+export const SALTO_SEGUNDOS = 120;
+const firmaSalto = (id, exp, destino) =>
+  crypto.createHmac("sha256", secreto()).update(`salto|${id}|${exp}|${destino}`).digest("hex").slice(0, 32);
+
+/** "id.exp.firma" para /api/sesion/desde-app, o null si falta el secreto. */
+export function firmarSalto(customerId, destino) {
+  if (!customerId || !destino || !secreto()) return null;
+  const exp = Math.floor(Date.now() / 1000) + SALTO_SEGUNDOS;
+  return `${customerId}.${exp}.${firmaSalto(customerId, exp, destino)}`;
+}
+
+/** Devuelve el ID del profesional si el salto es auténtico, no venció y es para ese destino. */
+export function verificarSalto(h, destino) {
+  if (!h || !destino || !secreto()) return null;
+  const [id, expTxt, sig] = String(h).split(".");
+  const exp = Number(expTxt);
+  if (!/^\d+$/.test(id || "") || !Number.isFinite(exp) || !sig) return null;
+  if (Date.now() / 1000 > exp) return null;
+  const a = Buffer.from(firmaSalto(id, exp, destino));
+  const b = Buffer.from(sig);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) return null;
+  return id;
+}
+
 /** Valida el `ml` de la URL que se abrió. Devuelve el ID del profesional o null. */
 export function verificarEnlace(ml, ruta) {
   if (!ml || !ruta || !secreto()) return null;
