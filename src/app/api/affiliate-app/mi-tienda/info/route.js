@@ -16,6 +16,10 @@ export async function PATCH(req) {
     if (!title?.trim()) {
       return NextResponse.json({ ok: false, error: 'El título es requerido' }, { status: 400 });
     }
+    // Es el título público de su tienda en vitahub.mx: nunca un correo
+    if (/\S+@\S+\.\S+/.test(title)) {
+      return NextResponse.json({ ok: false, error: 'Escribe un nombre para tu tienda, no un correo' }, { status: 400 });
+    }
 
     const { data: affiliate, error } = await supabase
       .from('affiliates')

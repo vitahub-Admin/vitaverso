@@ -20,6 +20,11 @@ export async function POST(req, { params }) {
     }
 
     /* ---------------- ACTUALIZAR COLECCIÓN ---------------- */
+    // Es el título público de su tienda en vitahub.mx: nunca un correo
+    if (title && /\S+@\S+\.\S+/.test(title)) {
+      return NextResponse.json({ success: false, error: "Escribe un nombre para tu tienda, no un correo" }, { status: 400 });
+    }
+
     if (title || body_html) {
       const updateData = { id: collectionId };
       if (title) updateData.title = title;
