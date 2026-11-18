@@ -9,7 +9,19 @@
 
 import { Resend } from "resend";
 import { supabase } from "@/lib/customerSupplements";
-import { normalizeEmail, CODE_TTL_MIN } from "@/lib/customerAppAccount";
+import { normalizeEmail, safeEqual, CODE_TTL_MIN } from "@/lib/customerAppAccount";
+
+// Cuenta de prueba para la revisión de Apple/Google (no pueden recibir el correo), igual que
+// en la app de pacientes. Se activa solo si están PRO_APP_DEMO_EMAIL y PRO_APP_DEMO_CODE, y ese
+// correo tiene que ser de un profesional activo. Conviene que sea una cuenta solo para esto.
+//   esLoginDemo(email)        → true si es el correo de prueba (no se manda correo)
+//   esLoginDemo(email, code)  → true/false según el código fijo; null si no es el de prueba
+export function esLoginDemo(email, code) {
+  const demoEmail = normalizeEmail(process.env.PRO_APP_DEMO_EMAIL);
+  const demoCode = process.env.PRO_APP_DEMO_CODE;
+  if (!demoEmail || !demoCode || normalizeEmail(email) !== demoEmail) return null;
+  return code === undefined ? true : safeEqual(String(code), demoCode);
+}
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 

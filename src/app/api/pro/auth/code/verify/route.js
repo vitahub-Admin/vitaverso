@@ -5,7 +5,7 @@ import { NextResponse } from "next/server";
 import { supabase } from "@/lib/customerSupplements";
 import { signCustomerToken } from "@/lib/customerAppAuth";
 import { normalizeEmail, hashCode, safeEqual, MAX_ATTEMPTS } from "@/lib/customerAppAccount";
-import { afiliadoPorCorreo, claveCodigo } from "@/lib/proLoginCode";
+import { afiliadoPorCorreo, claveCodigo, esLoginDemo } from "@/lib/proLoginCode";
 
 const INVALIDO = "El código es incorrecto o ya venció. Revisa tu correo o pide uno nuevo.";
 
@@ -45,7 +45,11 @@ export async function POST(req) {
       return NextResponse.json({ ok: false, error: "Escribe el código de 6 dígitos" }, { status: 400 });
     }
 
-    if (!(await codigoValido(claveCodigo(email), code))) {
+    // Cuenta de revisión de las tiendas: código fijo (ver esLoginDemo)
+    const demo = esLoginDemo(email, code);
+    if (demo === false) return NextResponse.json({ ok: false, error: INVALIDO }, { status: 401 });
+
+    if (demo !== true && !(await codigoValido(claveCodigo(email), code))) {
       return NextResponse.json({ ok: false, error: INVALIDO }, { status: 401 });
     }
 

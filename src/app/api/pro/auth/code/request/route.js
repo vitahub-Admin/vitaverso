@@ -7,7 +7,7 @@ import {
   normalizeEmail, isValidEmail, generateCode, hashCode,
   CODE_TTL_MIN, RESEND_COOLDOWN_SEC, MAX_CODES_PER_EMAIL_HOUR, MAX_CODES_PER_IP_HOUR,
 } from "@/lib/customerAppAccount";
-import { afiliadoPorCorreo, enviarCodigoPro, claveCodigo } from "@/lib/proLoginCode";
+import { afiliadoPorCorreo, enviarCodigoPro, claveCodigo, esLoginDemo } from "@/lib/proLoginCode";
 
 export async function POST(req) {
   try {
@@ -16,6 +16,9 @@ export async function POST(req) {
     if (!isValidEmail(email)) {
       return NextResponse.json({ ok: false, error: "Escribe un correo válido" }, { status: 400 });
     }
+
+    // Cuenta de revisión de las tiendas: no se manda correo, el código es fijo
+    if (esLoginDemo(email)) return NextResponse.json({ ok: true, cooldown: RESEND_COOLDOWN_SEC });
 
     const clave = claveCodigo(email);
     const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || null;
