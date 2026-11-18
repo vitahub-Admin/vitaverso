@@ -59,8 +59,8 @@ export async function GET(req) {
       ok: true,
       customerId: customerIdNum,
       collection: {
-        title:        "Favoritos",               // label fijo — la colección son los favoritos del especialista
-        shopifyTitle: col.title,                 // título original de Shopify (por si se necesita)
+        title:        col.title,                 // el nombre real de su colección (el que edita y se ve en la tienda)
+        shopifyTitle: col.title,
         handle:       col.handle,
         imageUrl:     col.image?.src || null,
         presentacion: col.presentacion?.value || '',
