@@ -15,7 +15,7 @@ import {
   Users, GraduationCap, Newspaper, UserPlus, Award,
   DollarSign, ShoppingBag, ShoppingCart, BookOpen,
   HelpCircle, Layers, Calendar, Settings, Compass,
-  PanelLeftClose, PanelLeftOpen, User, LogOut, Package, MapPin, Banknote,
+  PanelLeftClose, PanelLeftOpen, User, LogOut, Package, MapPin, Banknote, ExternalLink,
 } from "lucide-react";
 
 // ── Estructura de nav pública — grupos separados por divisor ─────────────────
@@ -89,7 +89,9 @@ export default function Sidebar() {
   const pathname  = usePathname();
   const router    = useRouter();
   const { customer } = useCustomer();
-  const { collapsed, toggle } = useSidebar();
+  const { collapsed: colapsadoEscritorio, toggle, mobileOpen, setMobileOpen, isMobile } = useSidebar();
+  // En celular el menú es un cajón: siempre con textos, el "colapsar" solo aplica a escritorio
+  const collapsed = colapsadoEscritorio && !isMobile;
   const tour = useTour();
   // Ventas locales: solo aparece para quien tiene el cobro en efectivo habilitado
   const ventasLocales = useVentasLocales(pathname);
@@ -102,6 +104,9 @@ export default function Sidebar() {
     setTimeout(() => window.location.reload(), 50);
   };
   const [novedadesPendientes, setNovedadesPendientes] = useState(0);
+
+  // El cajón del celular se cierra solo al cambiar de pantalla
+  useEffect(() => { setMobileOpen(false); }, [pathname, setMobileOpen]);
 
   // El marcador de "nuevo" se apaga la primera vez que entra a esa sección.
   // Arranca en true para no hacerlo parpadear mientras se lee localStorage.
@@ -149,8 +154,7 @@ export default function Sidebar() {
     return true;
   }
 
-  const w = collapsed ? "w-14" : "w-14 sm:w-52";
-
+  
   function NavLink({ item }) {
     const esNuevo = item.href === NAV_NUEVO && !nuevoVisto;
     const isActive    = pathname === item.href || (item.href !== "/" && item.href !== "/home" && pathname.startsWith(item.href));
@@ -162,7 +166,7 @@ export default function Sidebar() {
         title={collapsed ? item.label : undefined}
         className={`
           relative flex items-center gap-3
-          ${collapsed ? "justify-center" : "justify-start sm:justify-start"}
+          ${collapsed ? "justify-center" : "justify-start"}
           px-2.5 py-2.5 rounded-xl text-sm font-medium transition-all
           ${isActive
             ? "bg-[#1b3f7a] text-white shadow-sm"
@@ -171,25 +175,25 @@ export default function Sidebar() {
         `}
       >
         <item.icon size={17} className="shrink-0" />
-        {!collapsed && <span className="hidden sm:inline truncate">{item.label}</span>}
+        {!collapsed && <span className="truncate">{item.label}</span>}
         {/* Punto rojo: hay ventas en efectivo por pagar. Es el recordatorio de que se deben pagar. */}
         {item.href === "/ventas-locales" && ventasLocales.ventas > 0 && (
           <span
             title={`${ventasLocales.ventas} ${ventasLocales.ventas === 1 ? "venta por pagar" : "ventas por pagar"}`}
             className={`w-2.5 h-2.5 rounded-full bg-red-500 border-2 ${isActive ? "border-[#1b3f7a]" : "border-white"}
-              ${collapsed ? "absolute top-1.5 right-1.5" : "absolute top-1.5 right-1.5 sm:static sm:ml-auto sm:shrink-0"}`}
+              ${collapsed ? "absolute top-1.5 right-1.5" : "ml-auto shrink-0"}`}
           />
         )}
         {esNuevo && (
           <>
-            {/* Riel angosto — mobile o sidebar colapsado: no hay lugar para el
-                pin sin encimarlo sobre el ícono, así que va solo un punto. */}
+            {/* Sidebar colapsado: no hay lugar para el pin sin encimarlo sobre
+                el ícono, así que va solo un punto. */}
             <span className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full
-              ${isActive ? "bg-white" : "bg-[#2BB9B8]"} ${collapsed ? "" : "sm:hidden"}`} />
+              ${isActive ? "bg-white" : "bg-[#2BB9B8]"} ${collapsed ? "" : "hidden"}`} />
 
             {/* Sidebar expandido: el pin girado 90°, apuntando al ítem */}
             {!collapsed && (
-              <span className="hidden sm:flex ml-auto shrink-0 items-center pointer-events-none">
+              <span className="flex ml-auto shrink-0 items-center pointer-events-none">
                 {/* Relleno, con el círculo hueco: se pinta del color del fondo
                     del ítem, que cambia cuando está activo. */}
                 <MapPin size={19} fill="currentColor"
@@ -209,7 +213,7 @@ export default function Sidebar() {
   function Divider() {
     if (collapsed) return <div className="my-1.5 mx-auto w-6 h-px bg-gray-100" />;
     return (
-      <div className="my-2 px-2.5 hidden sm:flex items-center gap-2">
+      <div className="my-2 px-2.5 flex items-center gap-2">
         <div className="flex-1 h-px bg-gray-100" />
       </div>
     );
@@ -226,9 +230,22 @@ export default function Sidebar() {
   });
 
   return (
-    <aside className={`
-      bg-white border-r border-gray-100 flex flex-col justify-between h-full
-      ${w} transition-all duration-200
+    <>
+    {/* Celular: velo que cierra el cajón al tocar fuera */}
+    <div
+      onClick={() => setMobileOpen(false)}
+      aria-hidden="true"
+      className={`sm:hidden fixed inset-0 z-30 bg-[#0D2133]/45 transition-opacity duration-200
+        ${mobileOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+    />
+    <aside
+      aria-label="Menú"
+      className={`
+      bg-white border-r border-gray-100 flex flex-col justify-between
+      fixed inset-y-0 left-0 z-40 w-72 max-w-[85vw] transition-transform duration-200
+      ${mobileOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"}
+      sm:static sm:z-auto sm:max-w-none sm:h-full sm:translate-x-0 sm:shadow-none sm:transition-all
+      ${collapsed ? "sm:w-14" : "sm:w-52"}
     `}>
 
       {/* ── Nav principal ── */}
@@ -251,7 +268,7 @@ export default function Sidebar() {
             `}
           >
             <Compass size={17} className="shrink-0" />
-            {!collapsed && <span className="hidden sm:inline truncate">Descubre Vitahub PRO</span>}
+            {!collapsed && <span className="truncate">Descubre Vitahub PRO</span>}
           </button>
         )}
 
@@ -269,7 +286,7 @@ export default function Sidebar() {
         {adminItems.length > 0 && (
           <>
             {!collapsed && (
-              <div className="my-2 px-2.5 hidden sm:flex items-center gap-2">
+              <div className="my-2 px-2.5 flex items-center gap-2">
                 <div className="flex-1 h-px bg-gray-100" />
                 <span className="text-[0.6rem] font-semibold tracking-widest uppercase text-gray-300">
                   Admin
@@ -277,7 +294,6 @@ export default function Sidebar() {
                 <div className="flex-1 h-px bg-gray-100" />
               </div>
             )}
-            <div className="my-1 mx-2 h-px bg-gray-100 sm:hidden" />
             {adminItems.map(item => {
               const isActive = pathname.startsWith(item.href);
               return (
@@ -287,7 +303,7 @@ export default function Sidebar() {
                   title={collapsed ? item.label : undefined}
                   className={`
                     flex items-center gap-3
-                    ${collapsed ? "justify-center" : "justify-start sm:justify-start"}
+                    ${collapsed ? "justify-center" : "justify-start"}
                     px-2.5 py-2 rounded-xl text-sm font-medium transition-all
                     ${isActive
                       ? "bg-[#1b3f7a] text-white shadow-sm"
@@ -296,7 +312,7 @@ export default function Sidebar() {
                   `}
                 >
                   <item.icon size={15} className="shrink-0" />
-                  {!collapsed && <span className="hidden sm:inline truncate text-xs">{item.label}</span>}
+                  {!collapsed && <span className="truncate text-xs">{item.label}</span>}
                 </Link>
               );
             })}
@@ -318,9 +334,24 @@ export default function Sidebar() {
         >
           {collapsed
             ? <PanelLeftOpen size={16} />
-            : <><PanelLeftClose size={16} /><span className="hidden sm:inline">Colapsar</span></>
+            : <><PanelLeftClose size={16} /><span>Colapsar</span></>
           }
         </button>
+
+        {/* Volver a la tienda pública (antes era la flecha de la cabecera) */}
+        <a
+          href="https://www.vitahub.mx"
+          title="Ir a Vitahub"
+          className={`
+            flex items-center gap-3 px-2.5 py-2.5 rounded-xl
+            border border-gray-100 text-sm font-semibold text-gray-500
+            hover:bg-gray-50 hover:border-gray-200 transition-all
+            ${collapsed ? "justify-center" : "justify-start"}
+          `}
+        >
+          <ExternalLink size={16} className="shrink-0" />
+          {!collapsed && <span>Ir a Vitahub</span>}
+        </a>
 
         {/* Mi Perfil */}
         <Link
@@ -330,12 +361,12 @@ export default function Sidebar() {
             flex items-center gap-3 px-2.5 py-2.5 rounded-xl
             border border-gray-100 text-sm font-semibold
             hover:bg-gray-50 hover:border-gray-200 transition-all
-            ${collapsed ? "justify-center" : "justify-center sm:justify-start"}
+            ${collapsed ? "justify-center" : "justify-start"}
             ${pathname === "/mis-datos" ? "bg-gray-50 text-[#1b3f7a]" : "text-gray-500"}
           `}
         >
           <User size={16} className="shrink-0" />
-          {!collapsed && <span className="hidden sm:inline">Mi Perfil</span>}
+          {!collapsed && <span>Mi Perfil</span>}
         </Link>
 
         {/* Ayuda */}
@@ -348,11 +379,11 @@ export default function Sidebar() {
             flex items-center gap-3 px-2.5 py-2.5 rounded-xl
             bg-emerald-500 text-white text-sm font-semibold
             hover:bg-emerald-600 transition
-            ${collapsed ? "justify-center" : "justify-center sm:justify-start"}
+            ${collapsed ? "justify-center" : "justify-start"}
           `}
         >
           <HelpCircle size={17} className="shrink-0" />
-          {!collapsed && <span className="hidden sm:inline">Ayuda</span>}
+          {!collapsed && <span>Ayuda</span>}
         </Link>
 
         {/* Cerrar sesión */}
@@ -363,15 +394,16 @@ export default function Sidebar() {
             className={`
               flex items-center gap-3 px-2.5 py-2 rounded-xl
               text-red-400 hover:bg-red-50 hover:text-red-500 transition-all text-sm font-medium
-              ${collapsed ? "justify-center" : "justify-center sm:justify-start"}
+              ${collapsed ? "justify-center" : "justify-start"}
             `}
           >
             <LogOut size={15} className="shrink-0" />
-            {!collapsed && <span className="hidden sm:inline">Cerrar sesión</span>}
+            {!collapsed && <span>Cerrar sesión</span>}
           </button>
         )}
       </div>
 
     </aside>
+    </>
   );
 }

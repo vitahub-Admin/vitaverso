@@ -11,7 +11,12 @@ import {
   Sun, FlaskConical, Zap, Droplets,
   Save, FileClock, Bookmark, CalendarDays, Check, Sparkles,
   Link2 as LinkIcon, Banknote,
+  Sunrise, Sunset, Moon, BedDouble, Clock,
 } from "lucide-react";
+import {
+  MOMENTOS_TOMA, ETIQUETA_MOMENTO, unidadesPorDosis, totalTomas, momentosOrdenados,
+  tomasPorDefecto, tomasDeDosage, dosageDesdeTomas, unidadesPorDia, abreviarUnidad,
+} from "@/lib/dosaje";
 
 const DOSE_UNITS = ["cápsula", "tableta", "softgel", "gota", "ml", "mg", "g", "sobre", "cucharada", "probiótico", "unidad"];
 const MOMENTOS   = ["Mañana", "Mediodía", "Tarde", "Noche", "Con desayuno", "Con almuerzo", "Con cena", "Antes de dormir"];
@@ -70,7 +75,23 @@ function joinList(items) {
  * @param {string}  acomp    — "Con agua" | "Con comida" | "En ayunas"
  * @param {object}  [meta]   — { dosis, tipo_dosis } desde metafield
  */
-function buildInstruccion(amount, unit, momentos = [], acomp = "", meta = null) {
+function buildInstruccion(amount, unit, momentos = [], acomp = "", meta = null, tomas = null) {
+  // Con pauta por momento cada uno lleva su cantidad: "2 cápsulas por la mañana y 1 por la noche"
+  if (tomas && totalTomas(tomas) > 0) {
+    const u = meta?.tipo_dosis || unit || "";
+    const orden = momentosOrdenados(tomas);
+    const cantidades = orden.map(m => Number(tomas[m]));
+    const natural = orden.map(m => MOMENTO_NATURAL[m] ?? m.toLowerCase());
+    const iguales = cantidades.every(c => c === cantidades[0]);
+    const partes = iguales
+      ? [`${cantidades[0]} ${pluralUnit(u, cantidades[0])} ${joinList(natural)}`]
+      : cantidades.map((c, i) => (i === 0 ? `${c} ${pluralUnit(u, c)} ${natural[i]}` : `${c} ${natural[i]}`));
+    const acompTxt = ACOMP_NATURAL[acomp] ?? (acomp ? acomp.toLowerCase() : "");
+    let frase = `Tomar ${iguales ? partes[0] : joinList(partes)}`;
+    if (acompTxt) frase += `, ${acompTxt}`;
+    return frase.endsWith(".") ? frase : frase + ".";
+  }
+
   // — cantidad física a tomar —
   let doseStr = "";
   if (amount) {
@@ -123,20 +144,21 @@ function detectUnit(title = "", variantTitle = "") {
 // Solo se calcula con el metafield `total_dosis`. Las unidades sueltas
 // (cápsulas, ml) no sirven: una dosis puede ser 2 cápsulas o media cucharada,
 // y estimar con ellas da números equivocados. Sin ese dato, no mostramos nada.
-function duracionDias({ meta, amount = 1, momentos = [], quantity = 1 }) {
+function duracionDias({ meta, amount = 1, momentos = [], tomas = null, quantity = 1 }) {
   const porFrasco = Number(meta?.total_dosis);
   if (!porFrasco || !Number.isFinite(porFrasco)) return null;
 
-  const porToma   = Number(amount) || 1;
-  const tomasDia  = momentos?.length || 1;
-  const porDia    = porToma * tomasDia;
+  // Con pauta por momento: unidades al día ÷ unidades por dosis. Sin ella, como antes.
+  const porDia = tomas && totalTomas(tomas) > 0
+    ? totalTomas(tomas) / unidadesPorDosis(meta)
+    : (Number(amount) || 1) * (momentos?.length || 1);
   if (porDia <= 0) return null;
 
   const frascos = Math.max(1, Number(quantity) || 1);
   const dias    = Math.floor((porFrasco * frascos) / porDia);
   if (dias < 1) return null;
 
-  return { dias, porDia, frascos, porFrasco };
+  return { dias, porDia: Number(porDia.toFixed(2)), frascos, porFrasco };
 }
 
 // "24 días" · "1 mes y 5 días" · "2 meses". Meses de 30 días: es una estimación
@@ -430,7 +452,9 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
           <div className="max-h-48 overflow-y-auto divide-y divide-[#EEF3F7]">
             {carrito.map((item) => {
               const dos = item.dosage || {};
-              const dTx        = dos.amount ? `${dos.amount} ${pluralUnit(dos.unit, dos.amount)}` : null;
+              const dTx        = dos.tomas
+                ? (totalTomas(dos.tomas) ? `${totalTomas(dos.tomas)} ${pluralUnit(dos.meta?.tipo_dosis || dos.unit, totalTomas(dos.tomas))}/día` : null)
+                : (dos.amount ? `${dos.amount} ${pluralUnit(dos.unit, dos.amount)}` : null);
               const momentoTxt = Array.isArray(dos.momentos) && dos.momentos.length ? dos.momentos.join(", ") : (dos.momento || "");
               return (
                 <div key={item.variant_id} className="flex items-start gap-2.5 px-4 py-2.5">
@@ -469,47 +493,116 @@ function ProtocolIndicator({ carrito, total, patientData, onPatientChange, onGoT
   );
 }
 
+// ── Pauta por momento del día ────────────────────────────────────────────────
+// Cada momento lleva su propia cantidad (en unidades): tocar suma una, el "−"
+// resta. El total del día es la suma, sin multiplicar nada.
+const ICONOS_MOMENTO = { "Mañana": Sunrise, "Mediodía": Sun, "Tarde": Sunset, "Noche": Moon, "Antes de dormir": BedDouble };
+
+function TomasPicker({ tomas, onChange, unidad }) {
+  const claves = [...MOMENTOS_TOMA, ...Object.keys(tomas).filter(k => !MOMENTOS_TOMA.includes(k))];
+  const corta  = abreviarUnidad(unidad);
+  const cambiar = (k, delta) => {
+    const n = (Number(tomas[k]) || 0) + delta;
+    const sig = { ...tomas };
+    if (n > 0) sig[k] = Math.min(99, n); else delete sig[k];
+    onChange(sig);
+  };
+  return (
+    <div className="grid grid-cols-5 gap-1.5">
+      {claves.map(k => {
+        const n = Number(tomas[k]) || 0;
+        const on = n > 0;
+        const Icono = ICONOS_MOMENTO[k] || Clock;
+        const nombre = ETIQUETA_MOMENTO[k] || k;
+        return (
+          <div key={k} role="button" tabIndex={0}
+            aria-label={`${nombre}: ${n} ${n === 1 ? "unidad" : "unidades"}. Tocar para sumar una`}
+            onClick={() => cambiar(k, 1)}
+            onKeyDown={e => {
+              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); cambiar(k, 1); }
+              if (e.key === "Backspace" || e.key === "-") { e.preventDefault(); cambiar(k, -1); }
+            }}
+            className={`relative flex flex-col items-center gap-0.5 pt-2 pb-1.5 px-0.5 rounded-xl border cursor-pointer select-none transition-all active:scale-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2BB9B8] ${
+              on ? "bg-[#1b3f7a] border-[#1b3f7a] text-white shadow-md" : "bg-white border-[#D0E4EC] text-[#5B7A8C] hover:border-[#2BB9B8]"}`}>
+            <Icono size={20} strokeWidth={1.8} />
+            <span className="text-[11px] sm:text-xs font-bold whitespace-nowrap">{nombre}</span>
+            <span className={`h-4 text-xs font-bold whitespace-nowrap ${on ? "text-[#7FE3DF]" : "text-[#A9BBC6]"}`}>{on ? `${n} ${corta}`.trim() : "+"}</span>
+            {on && (
+              <button type="button" aria-label={`Quitar una de ${nombre}`}
+                onClick={e => { e.stopPropagation(); cambiar(k, -1); }}
+                className="absolute -top-2 -right-1.5 w-6 h-6 rounded-full bg-white border border-[#D0E4EC] text-[#1b3f7a] text-base leading-none flex items-center justify-center shadow pb-0.5">−</button>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// "Paciente: Tomar 2 cápsulas por la mañana…" + total del día
+function ResumenToma({ tomas, unidad, meta, acomp, nota }) {
+  const total = totalTomas(tomas);
+  if (!total) {
+    return (
+      <div className="mt-3 rounded-lg border border-dashed border-orange-300 bg-orange-50 text-orange-700 text-sm font-bold px-3 py-2">
+        Toca un momento del día para indicar la toma
+      </div>
+    );
+  }
+  const texto = buildInstruccion(null, unidad, [], acomp, meta, tomas);
+  const notaTxt = (nota || "").trim();
+  const dosis = total / unidadesPorDosis(meta);
+  return (
+    <div className="mt-3 rounded-lg border border-dashed border-[#BFDDE0] bg-white px-3 py-2 text-[13.5px] leading-snug text-[#0D2133]">
+      <span className="text-[11px] text-[#5B7A8C]">Paciente: </span>{texto}
+      {notaTxt && <span> {notaTxt}{/[.!?]$/.test(notaTxt) ? "" : "."}</span>}
+      <span className="block mt-0.5 text-xs font-bold text-[#1F8383]">
+        {total} {pluralUnit(unidad, total)} al día
+        {meta?.dosis ? ` · ${Number.isInteger(dosis) ? dosis : dosis.toFixed(1)} ${dosis === 1 ? "dosis" : "dosis"} del fabricante` : ""}
+      </span>
+    </div>
+  );
+}
+
 // ── DraftItem — card editable dentro del borrador ────────────────────────────
 function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAbrirProducto, enConsultorio }) {
   const dos   = item.dosage || {};
   const smart = detectUnit(item.title, item.variant_title || "");
+  const meta  = item.dosage?.meta;
 
   const [open,     setOpen]     = useState(false);
-  const [amount,   setAmount]   = useState(dos.amount ?? 1);
   const [unit,     setUnit]     = useState(dos.unit ?? smart);
-  const [momentos, setMomentos] = useState(dos.momentos ?? (dos.momento ? [dos.momento] : []));
+  // Pauta por momento: { Mañana: 2, Noche: 1 } en unidades. Los protocolos viejos
+  // (cantidad por toma + lista de momentos) se leen y se muestran ya convertidos.
+  const [tomas,    setTomas]    = useState(() => tomasDeDosage(dos, meta));
   const [acomp,    setAcomp]    = useState(dos.acompanamiento ?? "");
   const [nota,     setNota]     = useState(dos.nota ?? "");
   const [qty,      setQty]      = useState(item.quantity ?? 1);
 
   // useRef garantiza que save() siempre lee los valores más recientes sin closure stale
   const latest = useRef({});
-  latest.current = { amount, unit, momentos, acomp, nota };
+  latest.current = { unit, tomas, acomp, nota };
 
   const save = useCallback((overrides = {}) => {
-    const { amount, unit, momentos, acomp, nota } = { ...latest.current, ...overrides };
+    const { unit, tomas, acomp, nota } = { ...latest.current, ...overrides };
     // meta se preserva del dosage original — no se edita en el borrador
-    onUpdateDosage(item.variant_id, { amount, unit, momentos, acompanamiento: acomp, nota, meta: item.dosage?.meta ?? null });
+    onUpdateDosage(item.variant_id, dosageDesdeTomas({ tomas, unit, meta: item.dosage?.meta ?? null, acompanamiento: acomp, nota }));
   }, [item.variant_id, onUpdateDosage, item.dosage?.meta]); // eslint-disable-line
 
   const handleField = (setter, key, val) => { setter(val); save({ [key]: val }); };
 
-  const toggleMomento = (m) => {
-    const prev = latest.current.momentos;
-    const next = prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m];
-    setMomentos(next);          // actualiza UI
-    save({ momentos: next });   // persiste en carrito
+  const cambiarTomas = (next) => {
+    setTomas(next);        // actualiza UI
+    save({ tomas: next }); // persiste en carrito
   };
 
-  const meta        = item.dosage?.meta;
+  const unidadLbl   = meta?.tipo_dosis || unit;
+  const momentos    = momentosOrdenados(tomas);
+  const totalDia    = totalTomas(tomas);
   const bundlePlan  = item.bundlePlan || null;
   const activeTier  = getBundleTier(bundlePlan?.rules, qty);
-  const dTx = amount
-    ? (meta?.tipo_dosis && meta?.dosis != null
-        ? `${amount * meta.dosis} ${pluralUnit(meta.tipo_dosis, amount * meta.dosis)}`
-        : `${amount} ${pluralUnit(unit, amount)}`)
-    : null;
-  const dur = duracionDias({ meta, amount, momentos, quantity: qty });
+  const dTx = totalDia ? `${totalDia} ${pluralUnit(unidadLbl, totalDia)}/día` : null;
+  const dur = duracionDias({ meta, tomas, quantity: qty });
   // stock viene solo en protocolos recuperados; null = no se consultó
   // Unidades de este producto que el profesional ya tiene en su consultorio
   const enStock = enConsultorio ? enConsultorio(item.variant_id) : 0;
@@ -537,7 +630,7 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
           {item.variant_title && <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383] mt-0.5">{item.variant_title}</p>}
           <div className="mt-2 flex flex-wrap gap-1.5">
             {dTx && <span className="bg-[#1b3f7a] text-white text-[10px] font-bold px-2 py-0.5 rounded-full">{dTx}</span>}
-            {momentos.length > 0 && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{momentos.join(", ")}</span>}
+            {momentos.length > 0 && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{momentos.map(m => (ETIQUETA_MOMENTO[m] || m)).join(", ")}</span>}
             {acomp && <span className="bg-[#F7F9FB] text-[#5B7A8C] text-[10px] font-semibold px-2 py-0.5 rounded-full border border-[#D0E4EC]">{acomp}</span>}
             {dur && (
               <span className="bg-[#E6F4F8] text-[#1F8383] text-[10px] font-bold px-2 py-0.5 rounded-full border border-[#C2DFE8] flex items-center gap-1">
@@ -608,38 +701,22 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
       {/* Panel de edición inline */}
       {open && (
         <div className="border-t border-[#EEF3F7] bg-[#F7F9FB] px-4 py-4 space-y-4">
-          {/* Dosis — meta-aware (igual que ProductDetail) */}
+          {/* Cuándo y cuánto: cada momento lleva su cantidad */}
           <div>
             <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">
-              {meta?.tipo_dosis ? "Número de dosis" : "Dosis por toma"}
+              Cuándo y cuánto tomar <span className="normal-case font-normal text-[#B0C8D4]">(toca un momento para sumar)</span>
             </p>
-            <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex items-center bg-white border border-[#D0E4EC] rounded-lg shrink-0">
-                {/* Solo unidades enteras: media dosis complica la indicación y el
-                    cálculo de duración, y casi nadie prescribe media cápsula. */}
-                <button onClick={() => handleField(setAmount, "amount", Math.max(1, amount - 1))}
-                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] transition-colors font-bold text-lg">−</button>
-                <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{amount}</span>
-                <button onClick={() => handleField(setAmount, "amount", amount + 1)}
-                  className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] transition-colors font-bold text-lg">+</button>
-              </div>
-              {meta?.tipo_dosis && meta?.dosis != null ? (
-                /* Con metafields: badge fijo + resultado calculado */
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="px-3 py-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg text-sm font-semibold text-[#1F8383]">dosis</span>
-                  <span className="text-[#B0C8D4] text-sm">=</span>
-                  <span className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">
-                    {amount * meta.dosis} <span className="font-semibold text-[#5B7A8C]">{meta.tipo_dosis}</span>
-                  </span>
-                </div>
-              ) : (
-                /* Sin metafields: dropdown clásico */
+            <TomasPicker tomas={tomas} onChange={cambiarTomas} unidad={unidadLbl} />
+            {!meta?.tipo_dosis && (
+              <div className="mt-2 flex items-center gap-2">
+                <span className="text-[11px] text-[#8AAAB8]">Unidad</span>
                 <select value={unit} onChange={e => handleField(setUnit, "unit", e.target.value)}
-                  className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm text-[#1b3f7a] focus:outline-none focus:border-[#2BB9B8] bg-white">
+                  className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-sm text-[#1b3f7a] focus:outline-none focus:border-[#2BB9B8] bg-white">
                   {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
                 </select>
-              )}
-            </div>
+              </div>
+            )}
+            <ResumenToma tomas={tomas} unidad={unidadLbl} meta={meta} acomp={acomp} nota={nota} />
             {meta?.tipo_dosis && meta?.dosis != null && (
               <p className="text-[11px] text-[#8AAAB8] mt-1.5">
                 Porción del fabricante: <span className="font-semibold">{meta.dosis} {meta.tipo_dosis}</span>
@@ -656,20 +733,6 @@ function DraftItem({ item, idx, onRemove, onUpdateDosage, onUpdateQuantity, onAb
                 </p>
               </div>
             )}
-          </div>
-          {/* Momentos — multi-select */}
-          <div>
-            <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5">
-              Cuándo tomarlo <span className="normal-case font-normal text-[#B0C8D4]">(puede ser varios)</span>
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {MOMENTOS.map(m => (
-                <button key={m} onClick={() => toggleMomento(m)}
-                  className={`text-[11px] font-semibold px-2.5 py-1 rounded-full border transition-colors ${momentos.includes(m) ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#2BB9B8]"}`}>
-                  {m}
-                </button>
-              ))}
-            </div>
           </div>
           {/* Acompañamiento */}
           <div>
@@ -725,6 +788,7 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
         meta:     p.dosage?.meta,
         amount:   p.dosage?.amount,
         momentos: p.dosage?.momentos,
+        tomas:    p.dosage?.tomas,
         quantity: p.quantity,
       });
       return d ? { dias: d.dias, title: p.title } : null;
@@ -893,10 +957,11 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
               carrito.map(p => {
                 const d = p.dosage || {};
                 return [String(p.variant_id), {
-                  instruccion:    buildInstruccion(d.amount, d.unit, d.momentos || [], d.acompanamiento || "", d.meta || null),
+                  instruccion:    buildInstruccion(d.amount, d.unit, d.momentos || [], d.acompanamiento || "", d.meta || null, d.tomas || null),
                   dosis_amount:   d.amount   ?? null,
                   dosis_unit:     d.unit     ?? null,
                   momentos:       d.momentos ?? [],
+                  ...(d.tomas ? { tomas: d.tomas } : {}),
                   acompanamiento: d.acompanamiento ?? null,
                   nota:           d.nota     ?? null,
                 }];
@@ -948,8 +1013,11 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
 
   return (
     <div className="max-w-[960px] mx-auto px-4 sm:px-6 py-6">
-      <button onClick={onBack} className="flex items-center gap-1.5 text-[#5B7A8C] hover:text-[#1b3f7a] text-sm font-semibold mb-6 transition-colors">
-        <ArrowLeft size={14} /> Volver al catálogo
+      <button onClick={onBack} className="flex items-center gap-3 text-[#1b3f7a] text-sm font-bold mb-6 group">
+        <span className="w-10 h-10 shrink-0 rounded-full border border-[#D0E4EC] bg-white flex items-center justify-center transition-all group-hover:border-[#2BB9B8] group-hover:shadow-[0_2px_8px_rgba(38,169,165,.18)]">
+          <ArrowLeft size={18} strokeWidth={2.5} />
+        </span>
+        Volver al catálogo
       </button>
 
       <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-6">
@@ -1311,10 +1379,11 @@ function DraftView({ carrito, patientData, onPatientChange, customerId, protocol
               enConsulta.map(p => {
                 const d = p.dosage || {};
                 return [String(p.variant_id), {
-                  instruccion:    buildInstruccion(d.amount, d.unit, d.momentos || [], d.acompanamiento || "", d.meta || null),
+                  instruccion:    buildInstruccion(d.amount, d.unit, d.momentos || [], d.acompanamiento || "", d.meta || null, d.tomas || null),
                   dosis_amount:   d.amount   ?? null,
                   dosis_unit:     d.unit     ?? null,
                   momentos:       d.momentos ?? [],
+                  ...(d.tomas ? { tomas: d.tomas } : {}),
                   acompanamiento: d.acompanamiento ?? null,
                   nota:           d.nota     ?? null,
                 }];
@@ -1646,7 +1715,7 @@ function SmartSuggestions({ componente, excludeId, onProductClick, isFavorite, o
 }
 
 // ── Product Detail View ───────────────────────────────────────────────────────
-function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartItem, isFavorite, onFavorite, onProductClick, onBreadcrumb, enConsultorio }) {
+function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, onRemove, cartItem, isFavorite, onFavorite, onProductClick, onBreadcrumb, enConsultorio }) {
   const { customer: clienteActual } = useCustomer() || {};
   const esVitahuber = (clienteActual?.tags || "").split(",").some(t => t.trim().toLowerCase() === "vitahuber");
   const inCart = !!cartItem;
@@ -1661,22 +1730,21 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
       : conUnidades || inStockVariants[0] || product.variants?.[0]
   );
   const smartUnit = detectUnit(product.title, selectedVariant?.variant_title || "");
-  const [amount,   setAmount]   = useState(cartItem?.dosage?.amount ?? 1);
   const [unit,     setUnit]     = useState(cartItem?.dosage?.unit ?? smartUnit);
-  const [momentos, setMomentos] = useState(
-    cartItem?.dosage?.momentos ?? (cartItem?.dosage?.momento ? [cartItem.dosage.momento] : [])
-  );
+  // Pauta por momento { Mañana: 2, Noche: 1 } (unidades). Mientras el profesional no
+  // la toca, es la de lo guardado en el protocolo o, si el producto es nuevo, una
+  // dosis del fabricante por la mañana: la gran mayoría usa la dosis por defecto.
+  const [tomasEd,  setTomasEd]  = useState(cartItem?.dosage?.tomas ?? null);
   const [acomp,    setAcomp]    = useState(cartItem?.dosage?.acompanamiento ?? "");
   const [nota,     setNota]     = useState(cartItem?.dosage?.nota ?? "");
+  const [notaAbierta, setNotaAbierta] = useState(!!(cartItem?.dosage?.nota));
   const [quantity, setQuantity] = useState(cartItem?.quantity ?? 1);
+  // Cambió algo desde el último "agregar/actualizar"; para decidir qué dice el botón
+  const [tocado,   setTocado]   = useState(false);
   const [descHtml,      setDescHtml]      = useState("");
   const [descLoading,   setDescLoading]   = useState(false);
   const [modoDeUso,     setModoDeUso]     = useState(null);
-  // La tabla nutricional y el modo de uso son lo primero que se consulta al
-  // prescribir: la card arranca abierta, no escondida detrás de un clic.
-  const [descTableOpen, setDescTableOpen] = useState(true);
-  const [descTextOpen,  setDescTextOpen]  = useState(false);
-  const [instrOpen,     setInstrOpen]     = useState(true);
+  const [tab,           setTab]           = useState("nutri");
   const [images,      setImages]      = useState([]);
   const [mainImg,     setMainImg]     = useState(product.image_url || null);
   const [zoomOpen,    setZoomOpen]    = useState(false);
@@ -1690,6 +1758,8 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
   }, [zoomOpen]);
   const [variantMeta, setVariantMeta] = useState({}); // { variant_id: { tipo_dosis, dosis, total_unidades, total_dosis } }
   const [bundlePlan,  setBundlePlan]  = useState(null); // { label, rules: [{qty, pct}] } | null
+  const [pautaSinMomento, setPautaSinMomento] = useState(false);
+  const [pautaFab,    setPautaFab]    = useState(null); // pauta por momento que recomienda el fabricante
 
   // Cargar descripción + imágenes + metafields de variante + bundle plan
   useEffect(() => {
@@ -1702,22 +1772,28 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
         if (d.images?.length > 1) { setImages(d.images); setMainImg(d.images[0]); }
         if (d.variantMeta) setVariantMeta(d.variantMeta);
         if (d.bundlePlan)  setBundlePlan(d.bundlePlan);
+        if (d.pautaFabricante) setPautaFab(d.pautaFabricante);
+        setPautaSinMomento(!!d.pautaSinMomento);
       })
       .catch(() => {})
       .finally(() => setDescLoading(false));
   }, [product.product_id]);
 
-  // Pre-llenar dosis desde metafields cuando cambia la variante seleccionada
-  // (solo si el usuario no editó manualmente — no pisamos si ya hay carrito)
+  const meta      = variantMeta[String(selectedVariant?.variant_id)] || cartItem?.dosage?.meta || null;
+  const unidadLbl = meta?.tipo_dosis || unit;
+
+  // La unidad sigue a los metafields cuando cambia la presentación (si no hay nada guardado)
   useEffect(() => {
-    if (!selectedVariant || cartItem) return; // no pisar si ya está en carrito
-    const meta = variantMeta[String(selectedVariant.variant_id)];
-    if (!meta) return;
-    // El stepper representa DOSIS (porciones del fabricante).
-    // Siempre arranca en 1 — la composición de esa dosis la muestra el label.
-    setAmount(1);
-    if (meta.tipo_dosis) setUnit(meta.tipo_dosis);
+    if (!selectedVariant || cartItem) return;
+    const m = variantMeta[String(selectedVariant.variant_id)];
+    if (m?.tipo_dosis) setUnit(m.tipo_dosis);
   }, [selectedVariant?.variant_id, variantMeta]); // eslint-disable-line
+
+  // Por defecto: lo que recomienda el fabricante (si está cargado); si no, una dosis por la mañana
+  const tomasFabricante = pautaFab ?? tomasPorDefecto(meta);
+  const tomas    = tomasEd ?? (cartItem ? tomasDeDosage(cartItem.dosage, meta) : tomasFabricante);
+  const totalDia = totalTomas(tomas);
+  const cambiarTomas = (t) => { setTomasEd(t); setTocado(true); };
 
   const sinStockTienda  = selectedVariant?.stock !== null && selectedVariant?.stock <= 0;
   const consultorioSel  = enCons(selectedVariant);
@@ -1727,16 +1803,25 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
   const maxCantidad     = soloConsultorio ? consultorioSel : Infinity;
   const price      = selectedVariant?.price ?? product.min_price;
 
-  const toggleMomento = (m) => setMomentos(prev => prev.includes(m) ? prev.filter(x => x !== m) : [...prev, m]);
+  // Precio y ganancia con los frascos que se llevan. La comisión se calcula sobre
+  // lo que paga el paciente (ya con el descuento por cantidad), igual que al
+  // acreditarla en la venta.
+  const activeTier = getBundleTier(bundlePlan?.rules, quantity);
+  const totalBase  = (price || 0) * quantity;
+  const totalDsc   = activeTier ? totalBase * (1 - activeTier.pct / 100) : totalBase;
+  const pctCom     = Number(product.commission_percent) || 0;
+  const ganancia   = totalDsc * pctCom / 100;
+
+  const dur = duracionDias({ meta, tomas, quantity });
 
   const handleAdd = () => {
-    if (!selectedVariant || outOfStock) return;
-    const meta = variantMeta[String(selectedVariant.variant_id)] || null;
-    const dosage = { amount, unit, momentos, acompanamiento: acomp, nota, meta };
+    if (!selectedVariant || outOfStock || totalDia <= 0) return;
+    const dosage = dosageDesdeTomas({ tomas, unit: unidadLbl, meta, acompanamiento: acomp, nota });
     // Con stock solo en el consultorio no se puede pedir más de lo que hay allí
     const cantidad = Math.min(quantity, maxCantidad);
     inCart ? onUpdate(cartItem.variant_id, selectedVariant, dosage, cantidad, bundlePlan)
            : onAdd(product, selectedVariant, dosage, cantidad, bundlePlan);
+    setTocado(false);
   };
 
   const [linkCopiado, setLinkCopiado] = useState(false);
@@ -1747,36 +1832,68 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
     setTimeout(() => setLinkCopiado(false), 2200);
   };
 
+  // Separar tabla HTML del resto de la descripción
+  const tableRegex = /<table[\s\S]*?<\/table>/gi;
+  const tableHtml = (descHtml.match(tableRegex) || []).join("");
+  const textHtml  = descHtml.replace(tableRegex, "")
+    .replace(/(<p>\s*<\/p>\s*)+/gi, "")
+    .replace(/^\s*(<br\s*\/?>\s*)+/i, "")
+    .trim();
+  const porcionLabel = [
+    meta?.dosis != null && meta?.tipo_dosis ? `${meta.dosis} ${meta.tipo_dosis}` : null,
+    meta?.total_dosis != null ? `${meta.total_dosis} dosis por frasco` : null,
+  ].filter(Boolean).join(" · ");
+
+  const nutrients = product.nutrients || [];
+  const hasMeta   = !!(meta?.tipo_dosis && meta?.dosis != null);
+  const servingSize = hasMeta ? Number(meta.dosis) : (Number(product.serving_size) || meta?.dosis || 1);
+  const porcionesDia = totalDia / servingSize;
+
+  const pestanas = [
+    (descLoading || tableHtml || nutrients.length || porcionLabel) && { id: "nutri", label: "Información nutricional" },
+    (descLoading || textHtml) && { id: "sirve", label: "Para qué sirve" },
+    modoDeUso && { id: "uso", label: "Modo de uso del fabricante" },
+  ].filter(Boolean);
+  const pestanaActiva = pestanas.find(p => p.id === tab)?.id ?? pestanas[0]?.id;
+
+  const cargando = <p className="text-xs text-[#B0C8D4] text-center py-4">Cargando…</p>;
+
+  // Texto y estado del botón principal
+  const hayCambios = !inCart || tocado;
+
   return (
-    <div className="max-w-[1100px] mx-auto px-4 sm:px-6 py-6">
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={onBack} className="flex items-center gap-2 text-[#5B7A8C] hover:text-[#1b3f7a] text-sm font-semibold transition-colors group">
-          <ArrowLeft size={20} className="transition-transform group-hover:-translate-x-0.5" /> {backLabel || "Volver"}
+    <div className="max-w-[1180px] mx-auto px-4 sm:px-6 py-4 pb-44 sm:pb-8">
+      <div className="flex items-center justify-between gap-3 mb-3">
+        <button onClick={onBack} aria-label={`Volver a ${backLabel || "la pantalla anterior"}`} className="flex items-center gap-3 text-[#1b3f7a] text-sm font-bold group min-w-0">
+          <span className="w-10 h-10 shrink-0 rounded-full border border-[#D0E4EC] bg-white flex items-center justify-center transition-all group-hover:border-[#2BB9B8] group-hover:shadow-[0_2px_8px_rgba(38,169,165,.18)]">
+            <ArrowLeft size={18} strokeWidth={2.5} />
+          </span>
+          <span className="truncate">{backLabel || "Volver"}</span>
         </button>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           {/* Link a esta misma ficha dentro de PRO. Es una herramienta interna del
               equipo (solo abre con sesión de especialista), por eso solo lo ven
               los vitahubers. */}
           {esVitahuber && <button
             onClick={copiarLink}
-            className="flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border border-[#D0E4EC] text-[#5B7A8C] hover:text-[#1F8383] hover:border-[#2BB9B8] transition-all"
+            className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border border-[#D0E4EC] bg-white text-[#1b3f7a] hover:text-[#1F8383] hover:border-[#2BB9B8] transition-all"
           >
             {linkCopiado ? <Check size={12} /> : <LinkIcon size={12} />}
             {linkCopiado ? "¡Copiado!" : "Copiar link"}
           </button>}
           <button
             onClick={() => onFavorite(product)}
-            className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-full border transition-all ${isFavorite(product.product_id) ? "bg-red-50 border-red-200 text-red-500" : "border-[#D0E4EC] text-[#5B7A8C] hover:text-red-400 hover:border-red-200"}`}
+            className={`flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 rounded-full border transition-all ${isFavorite(product.product_id) ? "bg-red-50 border-red-200 text-red-500" : "border-[#D0E4EC] bg-white text-[#1b3f7a] hover:text-red-400 hover:border-red-200"}`}
           >
             <Heart size={12} fill={isFavorite(product.product_id) ? "currentColor" : "none"} />
-            {isFavorite(product.product_id) ? "Quitar de favoritos" : "Agregar a favoritos"}
+            {isFavorite(product.product_id) ? "En favoritos" : "Favorito"}
           </button>
         </div>
       </div>
 
-      {/* Breadcrumb de categorías — solo si el producto tiene niveles */}
+      {/* Breadcrumb de categorías — solo si el producto tiene niveles (en celular se omite: ocupa dos renglones) */}
       {onBreadcrumb && (product.level_1 || product.level_2 || product.level_3) && (
-        <nav className="flex items-center gap-1 flex-wrap mb-4 -mt-2">
+        <nav className="hidden sm:flex items-center gap-1 flex-wrap mb-3">
           <button onClick={() => onBreadcrumb(null, null, null)}
             className="text-[11px] text-[#8AAAB8] hover:text-[#1b3f7a] transition-colors font-medium">
             Inicio
@@ -1809,459 +1926,286 @@ function ProductDetailView({ product, onBack, backLabel, onAdd, onUpdate, cartIt
             </>
           )}
           <span className="text-[#C2DFE8] text-[11px]">›</span>
-          <span className="text-[11px] text-[#5B7A8C] font-semibold truncate max-w-[180px]">{product.title}</span>
+          <span className="text-[11px] text-[#5B7A8C] font-semibold truncate max-w-[220px]">{product.title}</span>
         </nav>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
-        {/* Imagen principal + galería */}
-        <div className="flex flex-col gap-3">
-          <div
-            onClick={() => mainImg && setZoomOpen(true)}
-            className={`group relative bg-[#F7F9FB] border border-[#D0E4EC] rounded-2xl overflow-hidden flex items-center justify-center ${mainImg ? "cursor-zoom-in" : ""}`}
-            style={{ aspectRatio: "1/1" }}
-          >
-            {mainImg
-              ? <>
-                  <img src={mainImg} alt={product.title} className="w-full h-full object-contain p-6 transition-transform duration-300 group-hover:scale-[1.03]" />
-                  {/* Ícono zoom */}
-                  <div className="absolute bottom-3 right-3 w-7 h-7 bg-white/80 backdrop-blur-sm border border-[#D0E4EC] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
-                    <Search size={13} className="text-[#5B7A8C]" />
-                  </div>
-                </>
-              : <div className="text-[#B0C8D4]"><Package size={64} /></div>}
+      {/* Dos columnas: foto + información a la izquierda, panel de receta fijo a la derecha.
+          En celular se apila: foto → receta → información. */}
+      <div className="flex flex-col gap-4 lg:grid lg:grid-cols-[minmax(0,1fr)_420px] lg:gap-6 lg:items-start">
+        <div className="contents lg:flex lg:flex-col lg:gap-4">
+
+          {/* Foto + miniaturas */}
+          <div className="order-1 lg:order-none bg-white border border-[#D0E4EC] rounded-2xl p-3.5 flex flex-col-reverse sm:flex-row gap-3">
+            {images.length > 1 && (
+              <div className="flex sm:flex-col gap-2 justify-center sm:justify-start overflow-x-auto sm:overflow-visible [&::-webkit-scrollbar]:hidden">
+                {images.map((img, i) => (
+                  <button key={i} onClick={() => setMainImg(img)} aria-label={`Foto ${i + 1}`}
+                    className={`shrink-0 w-12 h-12 sm:w-16 sm:h-16 rounded-lg overflow-hidden bg-white p-1 transition-all ${mainImg === img ? "border-2 border-[#2BB9B8]" : "border border-[#D0E4EC] hover:border-[#8AAAB8]"}`}>
+                    <img src={img} alt="" className="w-full h-full object-contain" />
+                  </button>
+                ))}
+              </div>
+            )}
+            <div
+              onClick={() => mainImg && setZoomOpen(true)}
+              className={`group relative flex-1 h-[200px] sm:h-[300px] flex items-center justify-center overflow-hidden ${mainImg ? "cursor-zoom-in" : ""}`}
+            >
+              {mainImg
+                ? <>
+                    <img src={mainImg} alt={product.title} className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-[1.03]" />
+                    <div className="absolute bottom-1 right-1 w-7 h-7 bg-white/80 backdrop-blur-sm border border-[#D0E4EC] rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-sm">
+                      <Search size={13} className="text-[#5B7A8C]" />
+                    </div>
+                  </>
+                : <div className="text-[#B0C8D4]"><Package size={64} /></div>}
+            </div>
           </div>
-          {/* Miniaturas */}
-          {images.length > 1 && (
-            <div className="flex gap-2 overflow-x-auto pb-1 [&::-webkit-scrollbar]:hidden">
-              {images.map((img, i) => (
-                <button key={i} onClick={() => setMainImg(img)}
-                  className={`shrink-0 w-14 h-14 rounded-lg border-2 overflow-hidden bg-[#F7F9FB] transition-all ${mainImg === img ? "border-[#2BB9B8]" : "border-[#D0E4EC] hover:border-[#8AAAB8]"}`}>
-                  <img src={img} alt="" className="w-full h-full object-contain p-1" />
+
+          {/* Información en pestañas */}
+          {pestanas.length > 0 && (
+            <div className="order-3 lg:order-none bg-white border border-[#D0E4EC] rounded-2xl overflow-hidden min-w-0">
+              <div className="flex border-b border-[#D0E4EC] px-2 overflow-x-auto [&::-webkit-scrollbar]:hidden" role="tablist">
+                {pestanas.map(p => (
+                  <button key={p.id} role="tab" aria-selected={pestanaActiva === p.id} onClick={() => setTab(p.id)}
+                    className={`whitespace-nowrap px-3 pt-3.5 pb-3 text-[13px] sm:text-sm font-bold border-b-[3px] transition-colors ${pestanaActiva === p.id ? "text-[#1b3f7a] border-[#2BB9B8]" : "text-[#5B7A8C] border-transparent hover:text-[#1b3f7a]"}`}>
+                    {p.label}
+                  </button>
+                ))}
+              </div>
+              <div className="p-4 sm:p-5 text-sm leading-relaxed text-[#1b3f7a]">
+                {pestanaActiva === "nutri" && (
+                  descLoading ? cargando : <>
+                    {porcionLabel && (
+                      <p className="text-[13px] text-[#5B7A8C] mb-2">Porción del fabricante: <span className="font-bold text-[#1b3f7a]">{porcionLabel}</span></p>
+                    )}
+                    {tableHtml && (
+                      <div className="overflow-x-auto [&_table]:w-full [&_table]:text-sm [&_table]:border-collapse [&_td]:border-b [&_td]:border-[#EEF3F7] [&_td]:px-3 [&_td]:py-2 [&_th]:border-b [&_th]:border-[#EEF3F7] [&_th]:px-3 [&_th]:py-2 [&_th]:bg-[#F6F9FB] [&_th]:text-left [&_th]:text-xs [&_th]:font-bold [&_th]:uppercase [&_th]:tracking-wide [&_th]:text-[#5B7A8C] [&_td]:text-[#1b3f7a]"
+                        dangerouslySetInnerHTML={{ __html: sanitizarHtml(tableHtml) }} />
+                    )}
+                    {/* Ingesta con la pauta que se está armando */}
+                    {nutrients.length > 0 && totalDia > 0 && (
+                      <div className="mt-4 bg-[#F7F9FB] border border-[#D0E4EC] rounded-xl px-4 py-3">
+                        <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Ingesta diaria estimada con tu indicación</p>
+                        <div className="space-y-1">
+                          {nutrients.map(n => (
+                            <div key={n.name} className="flex justify-between items-baseline text-xs gap-2">
+                              <span className="text-[#5B7A8C] truncate">{n.name}</span>
+                              <span className="font-extrabold tabular-nums text-[#1b3f7a] shrink-0">
+                                {Number((n.amount * porcionesDia).toFixed(1)).toLocaleString("es-MX")} {n.unit}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-[10px] text-[#B0C8D4] mt-2">
+                          {totalDia} {pluralUnit(unidadLbl, totalDia)} al día
+                          {servingSize !== 1 ? ` · porción del fabricante: ${servingSize} ${pluralUnit(unidadLbl, servingSize)}` : ""}
+                        </p>
+                      </div>
+                    )}
+                  </>
+                )}
+                {pestanaActiva === "sirve" && (
+                  descLoading ? cargando : (
+                    <div className="max-w-none text-[#5B7A8C] [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_li]:mb-1"
+                      dangerouslySetInnerHTML={{ __html: sanitizarHtml(textHtml || descHtml) }} />
+                  )
+                )}
+                {pestanaActiva === "uso" && (
+                  /* Lo que dice el fabricante, tal cual: no es la posología que prescribe el profesional */
+                  <p>{modoDeUso}</p>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* ── Panel de receta ─────────────────────────────────────────────── */}
+        <aside className="order-2 lg:order-none bg-white border border-[#D0E4EC] rounded-2xl shadow-[0_4px_12px_rgba(13,33,51,.06)] lg:sticky lg:top-3 min-w-0">
+          <div className="px-4 sm:px-5 pt-4 pb-3">
+            <div className="flex flex-wrap gap-1.5 mb-2.5">
+              {product.is_professional && <span className="bg-[#1b3f7a] text-white text-xs font-black px-2 py-1 rounded">PRO</span>}
+              {inCart && <span className="bg-emerald-50 text-emerald-600 text-xs font-black px-2 py-1 rounded">✓ En protocolo · {cartItem.quantity} {cartItem.quantity === 1 ? "frasco" : "frascos"}</span>}
+            </div>
+            {product.brand && <p className="text-xs font-bold uppercase tracking-[0.12em] text-[#5B7A8C]">{product.brand}</p>}
+            <h1 className="text-[17px] sm:text-[19px] font-bold text-[#1b3f7a] leading-snug mt-1">{product.title}</h1>
+            {product.primary_ingredient && (
+              <p className="text-[13px] text-[#0D2133] mt-1.5">
+                <span className="font-bold text-[#1F8383]">{product.primary_ingredient}{product.primary_amount ? ` ${product.primary_amount} ${product.primary_unit || "mg"}` : ""}</span>
+                {" "}· componente principal
+              </p>
+            )}
+
+            {product.variants?.length > 1 && (
+              <div className="mt-3">
+                <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1.5 block">Presentación</label>
+                <select value={selectedVariant?.variant_id}
+                  onChange={e => { setSelectedVariant(product.variants.find(v => v.variant_id === Number(e.target.value))); setTocado(true); }}
+                  className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-[#2BB9B8] text-[#1b3f7a]">
+                  {product.variants.map(v => (
+                    <option key={v.variant_id} value={v.variant_id} disabled={v.stock !== null && v.stock <= 0 && enCons(v) === 0}>
+                      {v.variant_title || "Único"}{v.stock !== null && v.stock <= 0 ? (enCons(v) > 0 ? " · solo en consultorio" : " · sin stock") : ""}{v.price ? ` · ${fmtMXN(v.price)}` : ""}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            {/* Precio y ganancia: con varios frascos la ganancia va sumando */}
+            <div className="flex items-center gap-2.5 mt-3">
+              <div className="flex-1 min-w-0 flex flex-col justify-center">
+                <span className="text-[28px] sm:text-3xl font-black text-[#1b3f7a] tabular-nums leading-none">{price ? fmtMXN(price) : "—"}</span>
+                {quantity > 1 && price && (
+                  <span className="text-[12px] text-[#5B7A8C] tabular-nums mt-1">
+                    {quantity} frascos:{" "}
+                    {activeTier && <span className="line-through text-[#B0C8D4]">{fmtMXN(totalBase)}</span>}{" "}
+                    <span className={`font-bold ${activeTier ? "text-emerald-600" : "text-[#1b3f7a]"}`}>{fmtMXN(totalDsc)}</span>
+                    {activeTier && <span className="font-bold text-emerald-600"> −{activeTier.pct}%</span>}
+                  </span>
+                )}
+              </div>
+              {pctCom > 0 && (
+                <div className="inline-flex items-baseline gap-1.5 bg-[#E8F6F6] rounded-full px-3 py-1.5 whitespace-nowrap" title={`${pctCom}% de comisión sobre lo que paga el paciente`}>
+                  <small className="text-xs font-bold text-[#1F8383]">Tu ganancia {pctCom}%</small>
+                  <b className="text-[15px] font-black text-[#1F8383] tabular-nums">{fmtMXN(ganancia)}</b>
+                </div>
+              )}
+            </div>
+
+            {/* Indicaciones de toma */}
+            <div className="mt-3.5 border border-[#9ED9D7] rounded-2xl px-3 pt-3 pb-3 bg-gradient-to-b from-[#F7FCFC] to-white">
+              <div className="flex items-center justify-between gap-2 px-0.5">
+                <div className="flex items-center gap-2 text-[14px] sm:text-[15px] font-black text-[#1b3f7a] whitespace-nowrap">
+                  Indicaciones de toma
+                  {totalDia > 0
+                    ? <span className="text-xs font-bold text-emerald-600">✓ completas</span>
+                    : <span className="text-[10px] font-extrabold bg-[#2BB9B8] text-white px-1.5 py-0.5 rounded tracking-wider">REQUERIDO</span>}
+                </div>
+                <button type="button" onClick={() => { setTomasEd({ ...tomasFabricante }); setTocado(true); }}
+                  className="text-xs font-bold text-[#1F8383] underline underline-offset-2 whitespace-nowrap">
+                  Usar la del fabricante
                 </button>
+              </div>
+
+              {!cartItem && tomasEd === null && !descLoading && (!pautaFab || pautaSinMomento) && (
+                <p className="mt-2 px-0.5 text-[12px] font-normal italic text-[#1F8383] leading-snug">
+                  Este producto no indica el momento de toma. Dejamos la mañana por defecto: revísalo antes de agregarlo.
+                </p>
+              )}
+
+              <div className="mt-2.5">
+                <TomasPicker tomas={tomas} onChange={cambiarTomas} unidad={unidadLbl} />
+              </div>
+
+              <div className="flex flex-wrap gap-1.5 mt-2.5">
+                {ACOMP.map(a => (
+                  <button key={a} type="button" onClick={() => { setAcomp(p => p === a ? "" : a); setTocado(true); }}
+                    className={`px-3 py-1.5 rounded-full text-[13px] font-bold border transition-all ${acomp === a ? "bg-[#1b3f7a] border-[#1b3f7a] text-white" : "bg-white border-[#D0E4EC] text-[#1b3f7a] hover:border-[#2BB9B8]"}`}>
+                    {a}
+                  </button>
+                ))}
+                <button type="button" onClick={() => { if (notaAbierta) { setNota(""); setTocado(true); } setNotaAbierta(o => !o); }}
+                  className={`px-3 py-1.5 rounded-full text-[13px] border border-dashed transition-all ${notaAbierta ? "border-solid border-[#1b3f7a] text-[#1b3f7a] font-bold" : "border-[#D0E4EC] text-[#5B7A8C]"}`}>
+                  {notaAbierta ? "− Nota" : "+ Nota"}
+                </button>
+              </div>
+              {notaAbierta && (
+                <textarea value={nota} onChange={e => { setNota(e.target.value); setTocado(true); }} placeholder="ej. Tomar durante 3 meses" rows={2} autoFocus
+                  className="w-full mt-2 border border-[#D0E4EC] rounded-lg px-3 py-2 text-base sm:text-sm bg-white outline-none focus:border-[#2BB9B8] resize-none text-[#1b3f7a] placeholder:text-[#B0C8D4]" />
+              )}
+              {!meta?.tipo_dosis && (
+                <div className="mt-2 flex items-center gap-2">
+                  <span className="text-[11px] text-[#8AAAB8]">Unidad</span>
+                  <select value={unit} onChange={e => { setUnit(e.target.value); setTocado(true); }}
+                    className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-1.5 text-sm bg-white outline-none focus:border-[#2BB9B8] text-[#1b3f7a]">
+                    {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
+                  </select>
+                </div>
+              )}
+              <ResumenToma tomas={tomas} unidad={unidadLbl} meta={meta} acomp={acomp} nota={nota} />
+            </div>
+          </div>
+
+          {/* Pie: duración, cantidad y botón. En celular queda fijo abajo. */}
+          <div className="fixed inset-x-0 bottom-0 z-20 bg-white rounded-t-2xl shadow-[0_-6px_20px_rgba(13,33,51,.14)] px-3.5 pt-2.5 pb-[calc(0.5rem+env(safe-area-inset-bottom))]
+            sm:static sm:z-auto sm:shadow-none sm:rounded-t-none sm:rounded-b-2xl sm:border-t sm:border-[#D0E4EC] sm:px-5 sm:pt-3 sm:pb-3">
+            {outOfStock ? (
+              <div className="space-y-2">
+                <div className="w-full bg-[#F7F9FB] text-[#B0C8D4] text-sm font-semibold py-3 rounded-xl text-center border border-[#D0E4EC]">Sin stock disponible</div>
+                <RestockButton product={product} variant={selectedVariant} size="lg" seccion="ficha de producto" />
+              </div>
+            ) : (
+              <>
+                <p className="text-[13px] text-[#5B7A8C] leading-tight">
+                  {quantity} {quantity === 1 ? "frasco" : "frascos"}
+                  {dur && <> · alcanza para <b className="text-[#1F8383]">{textoDuracion(dur.dias)}</b></>}
+                  {soloConsultorio && <span className="ml-1.5 text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383]">Solo en consultorio · máx. {verUnidades(consultorioSel)}</span>}
+                </p>
+                {bundlePlan?.rules?.length > 0 && (
+                  <p className="text-[11px] text-[#8AAAB8] mt-0.5">
+                    {bundlePlan.rules.map(r => `${r.qty} frascos = −${r.pct}%`).join(" · ")}
+                  </p>
+                )}
+                <div className="flex gap-2.5 items-stretch mt-2">
+                  <div className="flex items-center border border-[#D0E4EC] rounded-xl h-12 shrink-0">
+                    <button type="button" aria-label="Menos" onClick={() => { setQuantity(q => Math.max(1, q - 1)); setTocado(true); }}
+                      className="w-10 h-full text-xl text-[#1b3f7a]">−</button>
+                    <span className="w-8 text-center text-base font-black text-[#1b3f7a] tabular-nums select-none">{quantity}</span>
+                    <button type="button" aria-label="Más" onClick={() => { setQuantity(q => Math.min(q + 1, maxCantidad)); setTocado(true); }}
+                      className="w-10 h-full text-xl text-[#1b3f7a]">+</button>
+                  </div>
+                  <button onClick={handleAdd} disabled={totalDia <= 0}
+                    className={`flex-1 h-12 rounded-xl text-[15px] sm:text-base font-black transition-all active:scale-[0.98] ${
+                      totalDia <= 0 ? "bg-orange-100 text-orange-700 cursor-not-allowed"
+                      : inCart && !hayCambios ? "bg-green-600 text-white"
+                      : inCart ? "bg-[#2BB9B8] text-[#0D2133] hover:bg-[#26A3A2]"
+                      : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
+                    {totalDia <= 0 ? "Falta indicar la toma"
+                      : inCart ? (hayCambios ? "✓ Actualizar en protocolo" : "✓ En protocolo")
+                      : `Agregar al protocolo${quantity > 1 ? ` (×${quantity})` : ""}`}
+                  </button>
+                </div>
+              </>
+            )}
+            <div className="flex items-center justify-between mt-1.5 text-[11px] text-[#8AAAB8]">
+              <span>{selectedVariant?.sku ? `SKU ${selectedVariant.sku}` : ""}</span>
+              {inCart && onRemove && (
+                <button type="button" onClick={() => onRemove(cartItem.variant_id)} className="underline text-[#5B7A8C] hover:text-red-500">Quitar del protocolo</button>
+              )}
+            </div>
+          </div>
+        </aside>
+      </div>
+
+      {/* ── Lightbox zoom ───────────────────────────────────────────────────── */}
+      {zoomOpen && mainImg && (
+        <div
+          onClick={() => setZoomOpen(false)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
+        >
+          <button
+            onClick={() => setZoomOpen(false)}
+            className="absolute top-4 right-4 w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
+          >
+            <X size={18} />
+          </button>
+          <img
+            src={mainImg}
+            alt={product.title}
+            onClick={e => e.stopPropagation()}
+            className="max-h-[90vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
+          />
+          {/* Navegación entre imágenes en el lightbox */}
+          {images.length > 1 && (
+            <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
+              {images.map((img, i) => (
+                <button key={i} onClick={e => { e.stopPropagation(); setMainImg(img); }}
+                  className={`w-2 h-2 rounded-full transition-all ${mainImg === img ? "bg-white scale-125" : "bg-white/40 hover:bg-white/70"}`} />
               ))}
             </div>
           )}
         </div>
-
-        {/* ── Lightbox zoom ───────────────────────────────────────────────────── */}
-        {zoomOpen && mainImg && (
-          <div
-            onClick={() => setZoomOpen(false)}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4"
-          >
-            <button
-              onClick={() => setZoomOpen(false)}
-              className="absolute top-4 right-4 w-9 h-9 bg-white/10 hover:bg-white/20 rounded-full flex items-center justify-center text-white transition-colors"
-            >
-              <X size={18} />
-            </button>
-            <img
-              src={mainImg}
-              alt={product.title}
-              onClick={e => e.stopPropagation()}
-              className="max-h-[90vh] max-w-[90vw] object-contain rounded-xl shadow-2xl"
-            />
-            {/* Navegación entre imágenes en el lightbox */}
-            {images.length > 1 && (
-              <div className="absolute bottom-5 left-1/2 -translate-x-1/2 flex gap-2">
-                {images.map((img, i) => (
-                  <button key={i} onClick={e => { e.stopPropagation(); setMainImg(img); }}
-                    className={`w-2 h-2 rounded-full transition-all ${mainImg === img ? "bg-white scale-125" : "bg-white/40 hover:bg-white/70"}`} />
-                ))}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Info */}
-        <div className="flex flex-col gap-5">
-          <div className="flex flex-wrap gap-2">
-            {product.is_professional && <span className="bg-[#1b3f7a] text-white text-[10px] font-extrabold px-2.5 py-1 rounded uppercase tracking-widest">PRO</span>}
-            {product.commission_percent > 0 && <span className="bg-[#E6F4F8] text-[#1F8383] text-xs font-extrabold px-2.5 py-1 rounded">{product.commission_percent}% comisión</span>}
-            {inCart && <span className="bg-emerald-50 text-emerald-600 text-xs font-extrabold px-2.5 py-1 rounded">✓ En protocolo</span>}
-          </div>
-          <div>
-            {product.brand && (
-              <p className="text-[11px] font-semibold uppercase tracking-widest text-[#5B7A8C] mb-1">
-                {product.brand}
-              </p>
-            )}
-            <h1 className="text-base sm:text-xl font-medium text-[#1b3f7a] leading-snug">{product.title}</h1>
-          </div>
-          {product.variants?.length > 1 && (
-            <div>
-              <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">Presentación</label>
-              <select value={selectedVariant?.variant_id}
-                onChange={e => setSelectedVariant(product.variants.find(v => v.variant_id === Number(e.target.value)))}
-                className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2.5 text-sm bg-white outline-none focus:border-[#2BB9B8] text-[#1b3f7a]">
-                {product.variants.map(v => (
-                  <option key={v.variant_id} value={v.variant_id} disabled={v.stock !== null && v.stock <= 0 && enCons(v) === 0}>
-                    {v.variant_title || "Único"}{v.stock !== null && v.stock <= 0 ? (enCons(v) > 0 ? " · solo en consultorio" : " · sin stock") : ""}{v.price ? ` · ${fmtMXN(v.price)}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="flex items-baseline gap-3">
-            <span className="text-3xl font-extrabold text-[#1b3f7a] tabular-nums">{price ? fmtMXN(price) : "—"}</span>
-          </div>
-          {product.primary_ingredient && (
-            <div className="bg-[#F7F9FB] border border-[#D0E4EC] rounded-xl px-4 py-3">
-              <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Componente principal</p>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-semibold text-[#1b3f7a]">{product.primary_ingredient}</span>
-                {product.primary_amount && <span className="text-sm font-extrabold text-[#1F8383] tabular-nums">{product.primary_amount} {product.primary_unit || "mg"}</span>}
-              </div>
-            </div>
-          )}
-
-          {/* Indicaciones — primero */}
-          <div className="border border-[#2BB9B8]/40 rounded-xl overflow-hidden bg-white">
-            {/* Header — colapsado muestra el texto de instrucción */}
-            <button onClick={() => setInstrOpen(o => !o)} className="w-full flex items-start justify-between px-4 py-3.5 text-left hover:bg-[#F7F9FB] transition-colors gap-2">
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-[#1b3f7a]">Indicaciones de toma</span>
-                  <span className="text-[9px] font-extrabold bg-[#2BB9B8] text-[#0D2133] px-1.5 py-0.5 rounded uppercase tracking-widest shrink-0">Requerido</span>
-                </div>
-                {/* Preview colapsado — estilo Fullscript */}
-                {!instrOpen && (
-                  <p className="text-xs text-[#1F8383] mt-0.5 truncate">
-                    {buildInstruccion(amount, unit, momentos, acomp, variantMeta[String(selectedVariant?.variant_id)]) || "Sin indicaciones configuradas"}
-                  </p>
-                )}
-              </div>
-              <ChevronDown size={15} className={`text-[#5B7A8C] transition-transform shrink-0 mt-0.5 ${instrOpen ? "rotate-180" : ""}`} />
-            </button>
-
-            {instrOpen && (
-              <div className="px-4 pb-5 pt-1 space-y-5 border-t border-[#EEF3F7]">
-                {/* Dosis */}
-                {(() => {
-                  const meta = variantMeta[String(selectedVariant?.variant_id)];
-                  const hasMeta = meta?.tipo_dosis && meta?.dosis != null;
-                  const totalUnits = hasMeta ? amount * meta.dosis : null;
-
-                  return (
-                    <div>
-                      <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">
-                        {hasMeta ? "Número de dosis" : "Dosis por toma"}
-                      </label>
-                      <div className="flex items-center gap-2">
-                        {/* Stepper */}
-                        <div className="flex items-center border border-[#D0E4EC] rounded-lg overflow-hidden bg-white shrink-0">
-                          {/* Solo unidades enteras, igual que en el borrador */}
-                          <button onClick={() => setAmount(a => Math.max(1, a - 1))}
-                            className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:bg-[#F7F9FB] font-bold text-lg">−</button>
-                          <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{amount}</span>
-                          <button onClick={() => setAmount(a => a + 1)}
-                            className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:bg-[#F7F9FB] font-bold text-lg">+</button>
-                        </div>
-
-                        {hasMeta ? (
-                          /* Con metafields: tipo_dosis como badge fijo + resultado */
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="px-3 py-2 bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg text-sm font-semibold text-[#1F8383]">
-                              {amount === 1 ? "dosis" : "dosis"}
-                            </span>
-                            <span className="text-[#B0C8D4] text-sm">=</span>
-                            <span className="text-sm font-extrabold text-[#1b3f7a] tabular-nums">
-                              {totalUnits} <span className="font-semibold text-[#5B7A8C]">{meta.tipo_dosis}</span>
-                            </span>
-                          </div>
-                        ) : (
-                          /* Sin metafields: dropdown clásico */
-                          <select value={unit} onChange={e => setUnit(e.target.value)}
-                            className="w-auto min-w-[90px] max-w-[140px] border border-[#D0E4EC] rounded-lg px-2.5 py-2 text-sm bg-white outline-none focus:border-[#2BB9B8] text-[#1b3f7a]">
-                            {DOSE_UNITS.map(u => <option key={u} value={u}>{u}</option>)}
-                          </select>
-                        )}
-                      </div>
-
-                      {/* Nota de referencia del fabricante */}
-                      {hasMeta && (
-                        <p className="text-[11px] text-[#8AAAB8] mt-1.5">
-                          Porción del fabricante: <span className="font-semibold">{meta.dosis} {meta.tipo_dosis}</span>
-                          {meta.total_dosis && <span className="text-[#B0C8D4]"> · {meta.total_dosis} dosis por frasco</span>}
-                        </p>
-                      )}
-
-                      {/* Cuánto rinde un frasco con la pauta elegida */}
-                      {(() => {
-                        const dur = duracionDias({ meta, amount, momentos, quantity: 1 });
-                        if (!dur) return null;
-                        return (
-                          <p className="text-[11px] font-semibold text-[#1F8383] mt-1 flex items-center gap-1">
-                            <CalendarDays size={11} className="shrink-0" />
-                            Cada frasco dura {textoDuracion(dur.dias)} con {dur.porDia} dosis al día
-                          </p>
-                        );
-                      })()}
-                    </div>
-                  );
-                })()}
-
-                {/* Momentos — multi-select */}
-                <div>
-                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">
-                    Cuándo tomarlo <span className="normal-case font-normal text-[#B0C8D4]">(puede ser varios)</span>
-                  </label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {MOMENTOS.map(m => (
-                      <button key={m} onClick={() => toggleMomento(m)}
-                        className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${momentos.includes(m) ? "bg-[#1b3f7a] text-white border-[#1b3f7a]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#2BB9B8] hover:text-[#1F8383]"}`}>
-                        {m}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Acompañamiento */}
-                <div>
-                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">Acompañamiento</label>
-                  <div className="flex flex-wrap gap-1.5">
-                    {ACOMP.map(a => (
-                      <button key={a} onClick={() => setAcomp(p => p === a ? "" : a)}
-                        className={`px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all border ${acomp === a ? "bg-[#2BB9B8] text-[#0D2133] border-[#2BB9B8]" : "bg-white text-[#5B7A8C] border-[#D0E4EC] hover:border-[#2BB9B8] hover:text-[#1F8383]"}`}>
-                        {a}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Nota */}
-                <div>
-                  <label className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2 block">Nota <span className="normal-case font-normal text-[#B0C8D4]">(opcional)</span></label>
-                  <textarea value={nota} onChange={e => setNota(e.target.value)} placeholder="ej. Tomar durante 3 meses" rows={2}
-                    className="w-full border border-[#D0E4EC] rounded-lg px-3 py-2 text-sm bg-white outline-none focus:border-[#2BB9B8] resize-none text-[#1b3f7a] placeholder:text-[#B0C8D4]" />
-                </div>
-
-                {/* Instrucción para el paciente — resumen parseado */}
-                {(amount > 0 && (unit || variantMeta[String(selectedVariant?.variant_id)]?.tipo_dosis)) && (() => {
-                  const meta = variantMeta[String(selectedVariant?.variant_id)];
-                  const instrText = buildInstruccion(amount, unit, momentos, acomp, meta);
-                  const notaClean = nota?.trim();
-                  // Nota como segunda oración separada
-                  const notaSentence = notaClean
-                    ? (notaClean.endsWith(".") ? notaClean : notaClean + ".")
-                    : "";
-                  const dur = duracionDias({ meta, amount, momentos, quantity });
-                  return (
-                    <div className="bg-[#F4FAFB] border border-[#C2DFE8] rounded-lg px-3.5 py-3">
-                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383] mb-1">Instrucción para el paciente</p>
-                      <p className="text-sm text-[#1b3f7a] leading-relaxed">
-                        {instrText}
-                        {notaSentence && <span className="text-[#5B7A8C]"> {notaSentence}</span>}
-                      </p>
-                      {dur && (
-                        <p className="text-[11px] text-[#5B7A8C] mt-2 pt-2 border-t border-[#C2DFE8] flex items-center gap-1.5">
-                          <CalendarDays size={12} className="text-[#1F8383] shrink-0" />
-                          <span>
-                            Con {dur.frascos === 1 ? "este frasco" : `${dur.frascos} frascos`} alcanza para{" "}
-                            <span className="font-bold text-[#1b3f7a]">{textoDuracion(dur.dias)}</span>
-                            <span className="text-[#B0C8D4]"> · {dur.porDia} dosis al día</span>
-                          </span>
-                        </p>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Ingesta diaria estimada */}
-                {(() => {
-                  const nutrients = product.nutrients || [];
-                  if (!nutrients.length) return null;
-                  const meta      = variantMeta[String(selectedVariant?.variant_id)];
-                  const hasMeta   = meta?.tipo_dosis && meta?.dosis != null;
-                  const timesPerDay = momentos.length || 1;
-                  // Con metafields: amount = dosis (porciones), cada dosis = 1 serving
-                  // Sin metafields: amount = unidades, dividir entre serving_size del catálogo
-                  const servingSize = hasMeta ? 1 : (Number(product.serving_size) || meta?.dosis || 1);
-                  const mult = (amount / servingSize) * timesPerDay;
-                  return (
-                    <div className="bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg px-3.5 py-3">
-                      <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-2">Ingesta diaria estimada</p>
-                      <div className="space-y-1">
-                        {nutrients.map(n => (
-                          <div key={n.name} className="flex justify-between items-baseline text-xs gap-2">
-                            <span className="text-[#5B7A8C] truncate">{n.name}</span>
-                            <span className="font-extrabold tabular-nums text-[#1b3f7a] shrink-0">
-                              {Number((n.amount * mult).toFixed(1)).toLocaleString("es-MX")} {n.unit}
-                            </span>
-                          </div>
-                        ))}
-                      </div>
-                      <p className="text-[10px] text-[#B0C8D4] mt-2">
-                        {(() => {
-                          const meta = variantMeta[String(selectedVariant?.variant_id)];
-                          if (meta?.tipo_dosis && meta?.dosis != null) {
-                            return `${amount} dosis (${amount * meta.dosis} ${meta.tipo_dosis}) × ${timesPerDay === 1 ? "1 toma/día" : `${timesPerDay} tomas/día`}`;
-                          }
-                          return `${amount} ${pluralUnit(unit, amount)} × ${timesPerDay === 1 ? "1 toma/día" : `${timesPerDay} tomas/día`}${servingSize !== 1 ? ` (porción del fabricante: ${servingSize} ${pluralUnit(unit, servingSize)})` : ""}`;
-                        })()}
-                      </p>
-                    </div>
-                  );
-                })()}
-              </div>
-            )}
-          </div>
-
-          {/* Descripción — separada en dos cards después de posología */}
-          {(() => {
-            // Separar tabla HTML del resto de la descripción
-            const tableRegex = /<table[\s\S]*?<\/table>/gi;
-            const tables = descHtml.match(tableRegex) || [];
-            const tableHtml = tables.join("");
-            const textHtml  = descHtml.replace(tableRegex, "")
-              .replace(/(<p>\s*<\/p>\s*)+/gi, "")
-              .replace(/^\s*(<br\s*\/?>\s*)+/i, "")
-              .trim();
-
-            return (
-              <>
-                {/* Card A — Tabla nutricional */}
-                {(descLoading || tableHtml || modoDeUso) && (() => {
-                  const meta = variantMeta[String(selectedVariant?.variant_id)];
-                  const porcionStr = meta?.dosis != null && meta?.tipo_dosis
-                    ? `${meta.dosis} ${meta.tipo_dosis}`
-                    : null;
-                  const dosisStr = meta?.total_dosis != null
-                    ? `${meta.total_dosis} dosis por frasco`
-                    : null;
-                  const porcionLabel = [porcionStr, dosisStr].filter(Boolean).join(" · ");
-
-                  return (
-                    <div className="border border-[#D0E4EC] rounded-xl overflow-hidden">
-                      <button onClick={() => setDescTableOpen(o => !o)}
-                        className="w-full flex items-center justify-between px-4 py-3.5 text-left bg-white hover:bg-[#F7F9FB] transition-colors">
-                        <div>
-                          <span className="text-sm font-bold text-[#1b3f7a]">Tabla de información nutricional</span>
-                          {porcionLabel && (
-                            <p className="text-[11px] text-[#8AAAB8] mt-0.5">
-                              Porción del fabricante: <span className="font-semibold text-[#5B7A8C]">{porcionLabel}</span>
-                            </p>
-                          )}
-                        </div>
-                        <ChevronDown size={15} className={`text-[#5B7A8C] transition-transform shrink-0 ${descTableOpen ? "rotate-180" : ""}`} />
-                      </button>
-                      {descTableOpen && (
-                        <div className="px-4 pb-4 pt-2 border-t border-[#EEF3F7] bg-white overflow-x-auto">
-                          {descLoading
-                            ? <p className="text-xs text-[#B0C8D4] text-center py-4">Cargando…</p>
-                            : <>
-                                {tableHtml && (
-                                  <div className="[&_table]:w-full [&_table]:text-xs [&_table]:border-collapse [&_td]:border [&_td]:border-[#D0E4EC] [&_td]:px-2.5 [&_td]:py-1.5 [&_th]:border [&_th]:border-[#D0E4EC] [&_th]:px-2.5 [&_th]:py-1.5 [&_th]:bg-[#F0F5F8] [&_th]:text-left [&_th]:font-semibold [&_th]:text-[#5B7A8C] [&_td]:text-[#1b3f7a]"
-                                    dangerouslySetInnerHTML={{ __html: sanitizarHtml(tableHtml) }} />
-                                )}
-                                {/* Lo que dice el fabricante, tal cual: no es la posología
-                                    que prescribe el profesional, que se arma arriba. */}
-                                {modoDeUso && (
-                                  <div className={`${tableHtml ? "mt-3 pt-3 border-t border-[#EEF3F7]" : ""}`}>
-                                    <p className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] mb-1">
-                                      Modo de uso del fabricante
-                                    </p>
-                                    <p className="text-xs text-[#1b3f7a] leading-relaxed">{modoDeUso}</p>
-                                  </div>
-                                )}
-                              </>}
-                        </div>
-                      )}
-                    </div>
-                  );
-                })()}
-
-                {/* Card B — Descripción de texto */}
-                {(descLoading || textHtml) && (
-                  <div className="border border-[#D0E4EC] rounded-xl overflow-hidden">
-                    <button onClick={() => setDescTextOpen(o => !o)}
-                      className="w-full flex items-center justify-between px-4 py-3.5 text-left bg-white hover:bg-[#F7F9FB] transition-colors">
-                      <span className="text-sm font-bold text-[#1b3f7a]">Descripción del producto</span>
-                      <ChevronDown size={15} className={`text-[#5B7A8C] transition-transform ${descTextOpen ? "rotate-180" : ""}`} />
-                    </button>
-                    {descTextOpen && (
-                      <div className="px-4 pb-4 pt-2 border-t border-[#EEF3F7] bg-white max-h-72 overflow-y-auto">
-                        {descLoading
-                          ? <p className="text-xs text-[#B0C8D4] text-center py-4">Cargando…</p>
-                          : <div className="prose prose-xs max-w-none text-[#5B7A8C] leading-relaxed [&_p]:mb-2 [&_ul]:list-disc [&_ul]:pl-4 [&_li]:mb-1"
-                              dangerouslySetInnerHTML={{ __html: sanitizarHtml(textHtml || descHtml) }} />}
-                      </div>
-                    )}
-                  </div>
-                )}
-              </>
-            );
-          })()}
-
-          {/* Cantidad de frascos */}
-          {!outOfStock && (() => {
-            const activeTier = getBundleTier(bundlePlan?.rules, quantity);
-            const totalBase   = price * quantity;
-            const totalDsc    = activeTier ? totalBase * (1 - activeTier.pct / 100) : totalBase;
-            return (
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-3">
-                  <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#5B7A8C] shrink-0">Cantidad</span>
-                  <div className="flex items-center bg-[#F7F9FB] border border-[#D0E4EC] rounded-lg">
-                    <button onClick={() => setQuantity(q => Math.max(1, q - 1))}
-                      className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">−</button>
-                    <span className="w-10 text-center text-sm font-extrabold text-[#1b3f7a] tabular-nums select-none">{quantity}</span>
-                    <button onClick={() => setQuantity(q => Math.min(q + 1, maxCantidad))}
-                      className="w-9 h-9 flex items-center justify-center text-[#5B7A8C] hover:text-[#1b3f7a] font-bold text-lg transition-colors">+</button>
-                  </div>
-                  <span className="text-xs text-[#5B7A8C]">{quantity === 1 ? "frasco" : "frascos"}</span>
-                  {soloConsultorio && <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#1F8383]">Solo en consultorio · máx. {verUnidades(consultorioSel)}</span>}
-                  {/* Cuánto dura lo que lleva: ayuda a decidir cuántos frascos mandar */}
-                  {(() => {
-                    const dur = duracionDias({
-                      meta: variantMeta[String(selectedVariant?.variant_id)],
-                      amount, momentos, quantity,
-                    });
-                    return dur ? (
-                      <span className="text-[11px] font-bold text-[#1F8383] tabular-nums">
-                        ≈ {textoDuracion(dur.dias)}
-                      </span>
-                    ) : null;
-                  })()}
-                  {quantity > 1 && price && (
-                    <span className="ml-auto flex items-baseline gap-1.5 tabular-nums">
-                      {activeTier && (
-                        <span className="text-[11px] text-[#B0C8D4] line-through">{fmtMXN(totalBase)}</span>
-                      )}
-                      <span className={`text-xs font-extrabold ${activeTier ? "text-emerald-600" : "text-[#1F8383]"}`}>
-                        Total: {fmtMXN(totalDsc)}
-                      </span>
-                      {activeTier && (
-                        <span className="text-[10px] font-bold text-emerald-600">−{activeTier.pct}%</span>
-                      )}
-                    </span>
-                  )}
-                </div>
-                {/* Hint de bundle — solo si hay reglas */}
-                {bundlePlan?.rules?.length > 0 && (
-                  <p className="text-[11px] text-[#8AAAB8] pl-px">
-                    {bundlePlan.rules.map(r => `Comprando ${r.qty} = −${r.pct}% dto`).join(" · ")}
-                  </p>
-                )}
-              </div>
-            );
-          })()}
-
-          {outOfStock
-            ? <div className="space-y-2">
-                <div className="w-full bg-[#F7F9FB] text-[#B0C8D4] text-sm font-semibold py-3.5 rounded-xl text-center border border-[#D0E4EC]">Sin stock disponible</div>
-                <RestockButton product={product} variant={selectedVariant} size="lg"
-                  seccion="ficha de producto" />
-              </div>
-            : <button onClick={handleAdd}
-                className={`w-full py-3.5 rounded-xl text-sm font-bold transition-all active:scale-[0.98] ${inCart ? "bg-[#2BB9B8] text-[#0D2133] hover:bg-[#26A3A2]" : "bg-[#1b3f7a] text-white hover:bg-[#162d60]"}`}>
-                {inCart ? "✓ Actualizar en protocolo" : `Agregar al protocolo${quantity > 1 ? ` (×${quantity})` : ""}`}
-              </button>
-          }
-          {selectedVariant?.sku && <p className="text-[10px] text-[#B0C8D4]">SKU: {selectedVariant.sku}</p>}
-        </div>
-      </div>
+      )}
 
       {product.componente && (
         <SmartSuggestions componente={product.componente} excludeId={product.product_id}
@@ -3098,6 +3042,7 @@ function ArmadorCarritosInner() {
           <ProductDetailView
             product={detailProduct}
             onBack={handleBack}
+            onRemove={quitarDelProtocolo}
             backLabel={
               prevView?.view === "home"      ? "Inicio"     :
               prevView?.view === "favorites" ? "Favoritos"  :

@@ -113,6 +113,7 @@ export async function GET(req) {
           amount:         raw.dosis_amount    ?? raw.amount    ?? 1,
           unit:           raw.dosis_unit      ?? raw.unit      ?? "cápsula",
           momentos:       raw.momentos        ?? [],
+          ...(raw.tomas ? { tomas: raw.tomas } : {}),
           acompanamiento: raw.acompanamiento  ?? "",
           nota:           raw.nota            ?? "",
           // meta se fetcha en runtime desde variantMeta cuando el producto se abre

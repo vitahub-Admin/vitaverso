@@ -512,6 +512,7 @@ export async function GET(req) {
                 title
                 descriptionHtml
                 bundle: metafield(namespace: "custom", key: "bundle") { value }
+                pauta: metafield(namespace: "custom", key: "pauta_toma") { value }
                 images(first: 15) { edges { node { url } } }
                 variants(first: 20) {
                   edges {
@@ -575,6 +576,23 @@ export async function GET(req) {
       } catch (_) {}
       if (!modoDeUso) modoDeUso = extraerModoDeUso(node?.descriptionHtml)
 
+      // Pauta de toma del fabricante (metafield custom.pauta_toma, JSON): unidades por momento.
+      // Solo se aceptan momentos conocidos con cantidades positivas.
+      let pautaFabricante = null
+      let pautaSinMomento = false // el texto del fabricante no dice en qué momento tomarlo
+      try {
+        const crudo = JSON.parse(node?.pauta?.value || 'null')
+        if (crudo && typeof crudo === 'object') {
+          const limpia = {}
+          for (const m of ['Mañana', 'Mediodía', 'Tarde', 'Noche', 'Antes de dormir']) {
+            const n = Number(crudo[m])
+            if (n > 0) limpia[m] = n
+          }
+          if (Object.keys(limpia).length) pautaFabricante = limpia
+          pautaSinMomento = crudo.sinMomento === true
+        }
+      } catch {}
+
       return NextResponse.json({
         ok:              true,
         title:           node?.title           ?? '',
@@ -583,6 +601,8 @@ export async function GET(req) {
         images,
         variantMeta,  // { variant_id: { tipo_dosis, dosis, total_unidades, total_dosis } }
         bundlePlan,   // { label, rules: [{qty, pct}] } | null
+        pautaFabricante, // { Mañana: 2, Noche: 1 } en unidades | null
+        pautaSinMomento, // true: la mañana es solo un valor por defecto, hay que revisarla
       })
     }
 

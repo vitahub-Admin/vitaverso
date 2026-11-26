@@ -1,14 +1,15 @@
 "use client";
 import { useCustomer } from "../context/CustomerContext.jsx";
-import BackButton from "./BackButton";
+import { useSidebar } from "../context/SidebarContext.jsx";
 import Image from "next/image";
 import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
-import { LogOut } from "lucide-react";
+import { LogOut, Menu } from "lucide-react";
 
 export default function Header() {
   const { customer, loading } = useCustomer();
   const router = useRouter();
+  const { mobileOpen, setMobileOpen } = useSidebar();
 
   const handleLogout = async () => {
     await fetch("/api/sesion", { method: "DELETE" }).catch(() => {});
@@ -21,11 +22,20 @@ export default function Header() {
   return (
     <header className="w-full bg-[#fafafa] text-[#1b3f7a] flex items-center justify-between px-4 shadow-md">
       <div className="flex gap-4 items-center">
-        <BackButton />
-        <Image src="/LOGO.png" alt="VITAHUB" width={273} height={80} />
+        <Image src="/LOGO.png" alt="VITAHUB" width={273} height={80} className="h-12 w-auto sm:h-auto" priority />
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* Celular: el menú se abre con la hamburguesa (la columna fija quitaba mucho lugar) */}
+      <button
+        onClick={() => setMobileOpen(o => !o)}
+        aria-label="Abrir menú"
+        aria-expanded={mobileOpen}
+        className="sm:hidden w-10 h-10 flex items-center justify-center rounded-xl border border-gray-200 bg-white text-[#1b3f7a]"
+      >
+        <Menu size={22} />
+      </button>
+
+      <div className="hidden sm:flex items-center gap-3">
         <div className="flex flex-col text-right text-[#1b3f7a] text-sm">
           {loading ? (
             <>

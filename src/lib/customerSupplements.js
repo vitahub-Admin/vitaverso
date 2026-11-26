@@ -392,7 +392,13 @@ async function loadPrescriptions(orders) {
 
     for (const [vid, d] of Object.entries(extra.dosis_map ?? {})) {
       const momentosList = Array.isArray(d?.momentos) ? d.momentos : [];
+      // Pauta por momento (armador nuevo): el total del día es la suma de las
+      // cantidades de cada momento, en unidades. Sin ella, se lee como antes.
+      const sumaTomas = d?.tomas && typeof d.tomas === "object"
+        ? Object.values(d.tomas).reduce((a, n) => a + (Number(n) > 0 ? Number(n) : 0), 0)
+        : 0;
       byVariant[String(vid)] = {
+        ...(sumaTomas > 0 ? { unitsPerDay: sumaTomas } : {}),
         amountPerToma: num(d?.dosis_amount) ?? 1,
         tomas: momentosList.length || 1,
         unit: d?.dosis_unit || null,
