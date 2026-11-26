@@ -345,18 +345,23 @@ function htmlATexto(html = "") {
     .trim();
 }
 
-// Portada de la tienda: la colección de ofertas de vitahub.mx/collections/vitadeals,
-// en el orden que tiene en Shopify y solo lo disponible
+// Colección que se muestra en la portada de la app ("Ofertas VitaDeals"). En campañas se cambia
+// por la de la promo: Black Friday 2026 = "Bienestar sin fin", con los productos con precio de
+// app primero. Fuera de campaña: "vitadeals".
+const COLECCION_PORTADA = "bienestar-sin-fin";
+
+// Portada de la tienda: la colección de ofertas (COLECCION_PORTADA), en el orden que tiene en
+// Shopify y solo lo disponible
 export async function vitaDeals(limite = 24) {
   const data = await shopifyAdmin(
-    `query vitadeals($n: Int!) {
-      collectionByIdentifier(identifier: { handle: "vitadeals" }) {
+    `query vitadeals($n: Int!, $h: String!) {
+      collectionByIdentifier(identifier: { handle: $h }) {
         products(first: $n, sortKey: COLLECTION_DEFAULT) { edges { node {
           status variants(first: 1) { edges { node { id } } }
         } } }
       }
     }`,
-    { n: limite * 2 }
+    { n: limite * 2, h: COLECCION_PORTADA }
   );
   const vids = (data?.collectionByIdentifier?.products?.edges ?? [])
     .map(({ node }) => (node.status === "ACTIVE" ? node.variants.edges[0]?.node?.id?.split("/").pop() : null))
