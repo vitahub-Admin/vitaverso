@@ -460,7 +460,8 @@ components:
         title:
           type: string
           maxLength: 65
-          description: Título del push. Va junto con `body`: los dos o ninguno. Admite `{codigo}`, `{descuento}`, `{valor}` y `{nota}`.
+          description: |
+            Título del push. Va junto con `body`: los dos o ninguno. Admite `{codigo}`, `{descuento}`, `{valor}` y `{nota}`.
         body:
           type: string
           maxLength: 240
