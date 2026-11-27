@@ -14,7 +14,7 @@ import { crearCuponDeCredito, codigoAleatorio } from "@/lib/storeCredit";
 const CAMPOS = "id, code, tipo, valor, minimo, titulo, starts_at, ends_at, used_at, used_order, created_at";
 
 /** Prefijos de los cupones de clientes (los marca como usados el webhook de órdenes). */
-export const PREFIJOS_CLIENTE = ["VR-", "BF-"];
+export const PREFIJOS_CLIENTE = ["VR-", "BF-", "AG-"];
 
 function aCliente(d) {
   return {

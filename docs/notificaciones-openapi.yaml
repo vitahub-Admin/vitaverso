@@ -2,7 +2,7 @@ openapi: 3.1.0
 
 info:
   title: Notificaciones y cupones — Vitahub Pro y Mi Vitahub
-  version: "1.2.0"
+  version: "1.3.0"
   description: |
     Dispara una notificación push a uno o varios profesionales de Vitahub Pro.
 
@@ -21,6 +21,11 @@ info:
     Desde la 1.2.0 también se puede notificar a los CLIENTES de la app Mi Vitahub
     (`/api/webhooks/notificar-clientes`): ofertas, novedades, avisos. Cada envío
     queda como campaña y se puede consultar cuántos la recibieron, leyeron y abrieron.
+
+    Desde la 1.3.0 también se pueden regalar cupones a los clientes
+    (`/api/webhooks/cupon-cliente`), al estilo del cashback: de un solo uso, por monto
+    o porcentaje, con compra mínima y vigencia opcionales. Quedan en "Tus descuentos" de
+    la app y avisan por push.
 
 servers:
   - url: https://pro.vitahub.mx
@@ -312,6 +317,83 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /api/webhooks/cupon-cliente:
+    post:
+      summary: Regalar un cupón de un solo uso a un cliente de Mi Vitahub
+      operationId: crearCuponCliente
+      description: |
+        Funciona como el cashback: crea el cupón en Shopify (un solo uso, combinable con
+        otros descuentos) y lo deja en "Tus descuentos" de la app del cliente. Se busca
+        por correo, así que lo ve aunque todavía no haya instalado la app; si la tiene
+        con notificaciones activas, además le llega un push.
+
+        Un cupón por llamada y por cliente. Para regalarle a varios, llamar una vez por
+        cliente, cada una con su propio `event_id`. Los códigos empiezan con `AG-`.
+
+        Topes: monto de $1 a $2,000; porcentaje entero de 1 a 30.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CuponCliente"
+            examples:
+              regaloPorMonto:
+                summary: $100 de regalo con compra mínima de $800, vence en 30 días
+                value:
+                  target: ana@ejemplo.com
+                  tipo: monto
+                  valor: 100
+                  minimo: 800
+                  vence_en_dias: 30
+                  nota: Gracias por tu reseña
+                  event_id: resena_cli_5521
+                  agente: resenas
+              porcentajeConAviso:
+                summary: 10% con texto propio en el push
+                value:
+                  target: luis@ejemplo.com
+                  tipo: porcentaje
+                  valor: 10
+                  vence_en_dias: 15
+                  event_id: reactivacion_luis_nov
+                  title: Te extrañamos 💙
+                  body: Tienes un {descuento} esperándote. Ya está en tus descuentos de la app.
+      responses:
+        "201":
+          description: Cupón creado y asignado.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CuponClienteCreado"
+        "200":
+          description: Ese `event_id` ya había generado un cupón; se devuelve el código del primero.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CuponDuplicado"
+        "400":
+          description: Falta o es inválido `target`, `tipo`, `valor`, `minimo`, `vence_en_dias` o `url`, o el valor pasa el tope.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "401":
+          description: Falta el header Authorization o el secreto no coincide
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: |
+            Error interno. Reintentar es seguro SIEMPRE QUE se haya mandado `event_id`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   securitySchemes:
     bearerAuth:
@@ -324,6 +406,80 @@ components:
         pista sobre el secreto correcto.
 
   schemas:
+    CuponCliente:
+      type: object
+      required: [target, tipo, valor]
+      additionalProperties: false
+      properties:
+        target:
+          type: string
+          format: email
+          description: Correo del cliente. Uno solo (no admite listas ni "all").
+          example: ana@ejemplo.com
+        tipo:
+          type: string
+          enum: [monto, porcentaje]
+        valor:
+          type: number
+          description: |
+            Con tipo "monto": pesos, de 1 a 2000.
+            Con tipo "porcentaje": entero de 1 a 30.
+          example: 100
+        minimo:
+          type: number
+          description: Compra mínima en pesos (subtotal) para poder usar el cupón. Sin este campo no hay mínimo.
+          example: 800
+        vence_en_dias:
+          type: integer
+          minimum: 1
+          maximum: 365
+          description: Días de vigencia desde hoy. Sin este campo, no vence.
+        nota:
+          type: string
+          maxLength: 120
+          description: Nombre corto con el que el cliente ve el cupón en "Tus descuentos".
+          example: Gracias por tu reseña
+        agente:
+          type: string
+          maxLength: 60
+          description: Nombre del agente que manda esto (el secreto es compartido). Conviene mandarlo siempre.
+        event_id:
+          type: string
+          maxLength: 120
+          description: |
+            Identificador único del evento. MANDARLO SIEMPRE: un reintento con el mismo
+            `event_id` no crea un segundo cupón.
+        avisar:
+          type: boolean
+          default: true
+          description: Con false no se manda el push (el cupón igual queda en sus descuentos).
+        url:
+          type: string
+          format: uri
+          description: Se abre al tocar el push (solo https).
+        title:
+          type: string
+          maxLength: 65
+          description: Título del push. Va junto con `body`: los dos o ninguno. Admite `{codigo}`, `{descuento}`, `{valor}` y `{nota}`.
+        body:
+          type: string
+          maxLength: 240
+          description: Texto del push. Admite los mismos huecos que `title`.
+    CuponClienteCreado:
+      type: object
+      properties:
+        ok: { type: boolean, const: true }
+        code: { type: string, example: AG-K7M2PQ9X }
+        tipo: { type: string, enum: [monto, porcentaje] }
+        valor: { type: number }
+        minimo: { type: [number, "null"] }
+        vence: { type: [string, "null"], format: date-time }
+        tiene_app: { type: boolean, description: El correo ya tiene cuenta en Mi Vitahub }
+        push:
+          type: object
+          properties:
+            enviados: { type: integer }
+            sin_token: { type: integer, description: Tiene cuenta pero sin notificaciones activas; lo ve en la app }
     NotificacionCliente:
       type: object
       required: [title, body]
